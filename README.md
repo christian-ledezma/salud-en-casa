@@ -38,18 +38,29 @@ sdk.dir=/ruta/al/sdk/de/android
 
 SUPABASE_URL=https://<referencia>.supabase.co
 SUPABASE_ANON_KEY=<clave anónima>
+GOOGLE_WEB_CLIENT_ID=<identificador de cliente OAuth de tipo Web>
 MAPS_API_KEY=<clave de Google Maps>
 ```
+
+Sin estos valores el proyecto **compila igual**, pero la aplicación muestra un
+error de configuración al intentar ingresar. Es deliberado: una compilación que
+falla por un archivo ausente no le dice nada útil a quien clona el proyecto.
 
 Los valores se obtienen así:
 
 | Valor | Dónde |
 |---|---|
 | `SUPABASE_URL` y `SUPABASE_ANON_KEY` | Panel de Supabase → Configuración → API |
+| `GOOGLE_WEB_CLIENT_ID` | Google Cloud Console → Credenciales → ID de cliente OAuth de tipo **Web** |
 | `MAPS_API_KEY` | Google Cloud Console → API y servicios → Credenciales |
 
 La **clave de servicio** de Supabase no se usa en la aplicación y nunca debe
 figurar en este archivo.
+
+`GOOGLE_WEB_CLIENT_ID` es el identificador de tipo **Web**, no el de Android.
+La aplicación pide un token destinado a su servidor, y ese servidor es Supabase.
+Usar el de Android hace que Supabase rechace el ingreso. Está explicado en
+`docs/decisions.md`.
 
 **`app/google-services.json`**:
 

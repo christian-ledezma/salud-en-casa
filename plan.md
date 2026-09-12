@@ -408,30 +408,65 @@ sospecha que uno dejó de cumplirse.
 
 **Requisitos:** INV-02, INV-08, INV-12, RNF-04.
 
-### HT-05 · Cliente de Supabase, secretos e inyección de dependencias `[ ]`
+### HT-05 · Cliente de Supabase, secretos e inyección de dependencias `[x]`
 
 Cliente de Supabase con persistencia de sesión, secretos fuera del código fuente,
 estructura base de módulos de Koin, y `DataStore` para sesión y preferencias.
 
-- [ ] Los secretos se leen de `local.properties` en desarrollo y de los secretos
-      del repositorio en integración continua
-- [ ] Ningún valor de clave figura en el código fuente
-- [ ] La sesión persiste entre ejecuciones y el token se renueva de forma automática
-- [ ] La inyección de dependencias arranca en la clase de aplicación
-- [ ] **No se configura base de datos local.** DataStore cubre sesión y
+- [x] Los secretos se leen de `local.properties` en desarrollo y de los secretos
+      del repositorio en integración continua. Llegan al código como campos de
+      `BuildConfig`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_WEB_CLIENT_ID`
+- [x] Ningún valor de clave figura en el código fuente. Verificado buscando
+      `supabase.co`, tokens `eyJ...` y `apps.googleusercontent.com` en `app/src/`
+- [x] La sesión persiste entre ejecuciones y el token se renueva de forma
+      automática. Verificado cerrando el proceso por completo y volviendo a
+      abrir: la pantalla muestra el mismo identificador sin volver a ingresar
+- [x] La inyección de dependencias arranca en la clase de aplicación
+      `SaludEnCasaApplication`, declarada en el manifiesto
+- [x] **No se configura base de datos local.** DataStore cubre sesión y
       preferencias; ningún requisito exige operación sin conexión
 
 **Prueba de humo de autenticación.** Es el incremento del sprint y esta historia
 es su dueña. Pantalla desechable con un botón que recorre la cadena completa:
 
-- [ ] Al pulsar el botón aparece el selector de cuentas nativo de Android
-- [ ] Al elegir una cuenta, Supabase valida el token y crea la sesión
-- [ ] El disparador crea la fila en `profiles` con el rol sin asignar
-- [ ] La pantalla muestra el identificador obtenido
-- [ ] La fila es visible en el panel de la base de datos
+- [x] Al pulsar el botón aparece el selector de cuentas nativo de Android
+- [x] Al elegir una cuenta, Supabase valida el token y crea la sesión
+- [x] El disparador crea la fila en `profiles` con el rol sin asignar
+- [x] La pantalla muestra el identificador obtenido
+- [x] La fila es visible en el panel de la base de datos
 
 Si los cinco ocurren, toda la cadena de configuración es correcta. El código se
 elimina al implementar HU-01.
+
+**Los cinco verificados sobre el emulador el 2026-09-12**, recorriendo el flujo
+completo: selector de cuentas, pantalla de consentimiento, sesión creada y fila
+`08ddb28f-…` en `profiles` con `role` nulo, `active` verdadero y reputación en
+cero. El identificador que muestra la pantalla coincide con el de la base.
+
+> **Defecto encontrado al probarlo, y corregido.** La primera versión consultaba
+> la sesión una sola vez y de forma síncrona al construir el modelo de vista. El
+> cliente restaura la sesión guardada de forma asíncrona, así que la consulta
+> siempre llegaba antes y respondía que no había nadie: la sesión parecía
+> perderse en cada reinicio aunque estuviera correctamente guardada en DataStore.
+> Ahora la sesión se **observa** como flujo. Es un defecto que la compilación no
+> podía detectar y que solo apareció al cerrar y reabrir la aplicación.
+
+**Qué compone la cadena, para saber dónde mirar si falla**
+
+| Pieza | Dónde vive |
+|---|---|
+| Selector de cuentas | `GoogleAuthClient`, mediante Credential Manager |
+| Nonce | `core/util/Nonce.kt`: Google firma sobre el resumen, Supabase verifica el valor crudo |
+| Intercambio del token | `supabase.auth.signInWith(IDToken)` con el proveedor Google |
+| Creación del perfil | Disparador `on_auth_user_created` en la base, ya aplicado en HT-04 |
+| Persistencia | `DataStoreSessionManager` |
+
+El README explica en qué orden revisar cuando el ingreso falla.
+
+**Deuda reconocida.** El modelo de vista consume un cliente de infraestructura en
+lugar de un caso de uso, que no es la forma que pide la arquitectura. Se acepta
+solo porque esta pantalla es andamiaje sin dominio detrás: HU-01 la reemplaza por
+el flujo real con su caso de uso. Queda anotado para que no se copie el patrón.
 
 **Requisitos:** RF-01.1, RF-01.2, RF-01.3, RF-01.6, RNF-06.
 

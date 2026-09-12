@@ -813,6 +813,44 @@ desde `identity` y `requests`.
 
 ---
 
+## 2026-09-12 · El nonce viaja en dos formas, y la sesión se guarda en DataStore
+
+**Contexto.** HT-05 conecta Credential Manager con Supabase. Dos detalles de esa
+cadena no se deducen leyendo el código y cuestan horas de diagnóstico cuando se
+equivocan, porque el error que devuelven no dice qué pasó.
+
+**El nonce tiene dos valores, no uno.** Google incrusta en el token de identidad
+el resumen SHA-256 del nonce, mientras que Supabase lo verifica contra el valor
+crudo. Entregar la misma cadena a los dos lados produce un token que Supabase
+rechaza sin explicar el motivo.
+
+**Decisión.** El nonce se modela como un tipo con dos propiedades, `raw` y
+`hashed`, cada una nombrada por el destino al que va. No existe un constructor
+público que permita armar uno inconsistente, y una prueba unitaria fija el
+resumen contra un vector conocido. Intercambiarlos deja de ser posible por
+descuido: hay que escribir el nombre equivocado a propósito.
+
+**La sesión se guarda en DataStore, no en el almacenamiento por omisión de la
+biblioteca.** El cliente de Supabase trae su propio gestor de sesión, que en
+Android se apoya en otra dependencia de preferencias.
+
+**Decisión.** Se implementa `SessionManager` sobre DataStore.
+
+**Razonamiento.** `docs/decisions.md` ya fijó que DataStore es el único
+almacenamiento local de esta fase, y que no hay base de datos local porque ningún
+requisito exige operar sin conexión. Aceptar el gestor por omisión habría metido
+una segunda biblioteca de almacenamiento por la puerta de atrás, para guardar el
+mismo dato, sin ningún requisito que la pidiera. Es el mismo criterio que descartó
+Room y la estructura multiplataforma.
+
+**Consecuencia.** RF-01.6 —la sesión sobrevive a un reinicio y el token se renueva
+solo— depende de tres opciones del cliente que están escritas de forma explícita
+en `CoreModule` aunque sean las de por omisión: `sessionManager`,
+`autoLoadFromStorage` y `alwaysAutoRefresh`. Se escriben porque un requisito
+depende de que sigan así, no porque haga falta activarlas.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
