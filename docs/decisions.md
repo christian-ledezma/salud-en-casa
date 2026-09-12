@@ -613,6 +613,45 @@ de 17, es eso y no un cambio deliberado.
 
 ---
 
+## 2026-09-11 · La version de Kotlin la fija la dependencia mas nueva, no la plantilla
+
+**Contexto.** La plantilla de Android Studio dejo Kotlin en 2.2.10. Al declarar el
+catalogo de HT-03 con las versiones estables vigentes, la compilacion fallo:
+
+```
+Class 'kotlin.Unit' was compiled with an incompatible version of Kotlin.
+The actual metadata version is 2.4.0, but the compiler version 2.2.0 can read
+versions up to 2.3.0.
+```
+
+El origen resulto ser `com.google.maps.android:maps-compose:8.6.0`, que arrastra
+`kotlin-stdlib:2.4.10`. Una biblioteca compilada con Kotlin 2.4 no puede
+consumirse desde un compilador 2.2: cada compilador lee metadatos hasta una
+version menor por encima de la suya.
+
+**Decision.** Kotlin pasa a **2.4.20**, la estable vigente. La version deja de ser
+un valor heredado de la plantilla y pasa a ser una **cota inferior** impuesta por
+la dependencia mas moderna del catalogo.
+
+**Razonamiento.** La alternativa era congelar `maps-compose` en una version
+anterior para no mover Kotlin. Eso habria cambiado un problema visible por uno
+latente: la siguiente dependencia que se actualice vuelve a romper la compilacion,
+y el proyecto acumula versiones antiguas por una razon que nadie recuerda. Subir
+el compilador es la correccion en la causa.
+
+**Como se verifico.** Se cablearon temporalmente las once dependencias del
+catalogo —Supabase, Koin, Mapas, Credential Manager, DataStore, Coil y el
+complemento de serializacion— y se compilo el proyecto completo. Con Kotlin 2.2.10
+fallaba; con 2.4.20 compila. El cableado temporal se revirtio despues: cada
+historia declara lo que necesita.
+
+**Consecuencia y regla que queda.** Antes de agregar una dependencia al catalogo,
+comprobar con que version de Kotlin fue compilada. Si exige una superior, se sube
+Kotlin en el mismo cambio, nunca se fija la dependencia en una version vieja para
+evitarlo. El sintoma es siempre el mismo mensaje de metadatos incompatibles.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

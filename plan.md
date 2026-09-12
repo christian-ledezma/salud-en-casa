@@ -277,14 +277,14 @@ presupuesto, Firebase con Cloud Messaging y App Distribution.
 
 **Requisitos:** RF-01.1, RNF-05, RNF-10.
 
-### HT-03 · Catálogo de versiones `[ ]`
+### HT-03 · Catálogo de versiones `[x]`
 
 Todas las dependencias y sus versiones centralizadas en
 `gradle/libs.versions.toml`, siguiendo la convención de agrupaciones de whosinApp.
 
-**Estado real.** El catálogo es el de la plantilla: cumple la regla de versiones
-estables, pero le faltan casi todas las dependencias del proyecto y varias de las
-que tiene son de una generación anterior a la del complemento de compilación.
+**Estado real.** El catálogo era el de la plantilla: cumplía la regla de versiones
+estables, pero le faltaban casi todas las dependencias del proyecto y varias de las
+que tenía eran de una generación anterior a la del complemento de compilación.
 
 **Dependencias que las reglas ya dan por existentes y hoy no están**
 
@@ -302,15 +302,46 @@ que tiene son de una generación anterior a la del complemento de compilación.
 | **Credential Manager** y `googleid` | HU-01 |
 | **Turbine** | `.claude/rules/testing.md` |
 
-- [ ] Ninguna versión escrita directamente en un archivo de compilación
-- [ ] **Todas las versiones son estables.** Ninguna `alpha`, `beta`, `rc` ni
-      `SNAPSHOT`, incluidas las que genera por omisión la plantilla
-- [ ] Las versiones rezagadas de la plantilla se actualizan a la estable vigente:
+- [x] Ninguna versión de dependencia escrita directamente en un archivo de
+      compilación. La del motor de ktlint también sale del catálogo. Única
+      excepción, inevitable: el complemento resolvedor de cadenas de herramientas
+      en `settings.gradle.kts`, porque el catálogo se declara en ese mismo archivo
+      y no está disponible para su propio bloque de complementos
+- [x] **Todas las versiones son estables.** Verificado sobre el grafo resuelto:
+      111 artefactos, ninguno `alpha`, `beta`, `rc` ni `SNAPSHOT`
+- [x] Las versiones rezagadas de la plantilla se actualizan a la estable vigente:
       `espresso-core`, `androidx-junit`, `lifecycle-runtime-ktx`, `activity-compose`
-- [ ] Las once dependencias de la tabla anterior están declaradas
-- [ ] Cinco agrupaciones declaradas: `supabase`, `compose`, `maps`, `auth`, `test`
-- [ ] `./gradlew ktlintCheck` se ejecuta sin error de comando no encontrado
-- [ ] El proyecto sincroniza sin advertencias de versión
+- [x] Las once dependencias de la tabla anterior están declaradas
+- [x] Cinco agrupaciones declaradas: `supabase`, `compose`, `maps`, `auth`, `test`
+- [x] `./gradlew ktlintCheck` se ejecuta sin error de comando no encontrado
+- [x] El proyecto sincroniza sin advertencias de versión
+
+**Actualizaciones aplicadas**
+
+| Dependencia | Plantilla | Ahora |
+|---|---|---|
+| Kotlin | 2.2.10 | 2.4.20 |
+| Compose, declaración de versiones agrupadas | 2026.02.01 | 2026.09.00 |
+| `lifecycle-runtime-ktx` | 2.6.1 | 2.11.0 |
+| `activity-compose` | 1.8.0 | 1.13.0 |
+| `androidx-junit` | 1.1.5 | 1.3.0 |
+| `espresso-core` | 3.5.1 | 3.7.0 |
+
+**La subida de Kotlin no fue cosmética.** `maps-compose` arrastra
+`kotlin-stdlib:2.4.10`, que un compilador 2.2 no puede leer. Se descubrió cableando
+temporalmente las once dependencias y compilando; el cableado se revirtió después.
+Registrado en `docs/decisions.md`.
+
+**Qué queda declarado pero sin cablear.** Las agrupaciones `supabase`, `maps` y
+`auth`, más Koin, DataStore y Coil, existen en el catálogo y su resolución está
+verificada, pero no figuran en el archivo de compilación: cada historia declara lo
+que necesita. `supabase`, Koin y DataStore entran en HT-05; `auth` en HU-01;
+`maps` en HU-05.
+
+**`.editorconfig`.** El análisis estático necesitaba configuración: la regla de
+nomenclatura de funciones de ktlint marca toda función componible por usar
+PascalCase. La excepción `ktlint_function_naming_ignore_when_annotated_with =
+Composable` vive ahí, junto al estilo de código y la longitud máxima de línea.
 
 **Requisitos:** RNF-09.
 
