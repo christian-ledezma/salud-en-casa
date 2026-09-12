@@ -675,7 +675,7 @@ proveedor. El razonamiento completo y su costo están en `docs/decisions.md`.
 HT-02 declaraba «solo Cloud Messaging y App Distribution habilitados en
 Firebase»: Crashlytics se suma a esa lista.
 
-### HT-09 · Documentación de arquitectura `[ ]`
+### HT-09 · Documentación de arquitectura `[x]`
 
 Diagramas en `docs/architecture/`, escritos en **Mermaid dentro de archivos
 Markdown**, no como imágenes sueltas. Así se versionan, se comparan entre
@@ -688,9 +688,33 @@ revisiones y se renderizan en el repositorio.
 | `docs/architecture/auth-sequence.md` | Secuencia completa de autenticación |
 | `docs/architecture/deployment.md` | Dónde se ejecuta cada componente |
 
-- [ ] Los cuatro diagramas están escritos y renderizan correctamente
-- [ ] `docs/decisions.md` está iniciado con las decisiones ya tomadas
-- [ ] El archivo `README.md` permite a una persona ajena levantar el proyecto desde cero
+- [x] Los cuatro diagramas están escritos y renderizan correctamente
+- [x] `docs/decisions.md` está iniciado con las decisiones ya tomadas
+- [x] El archivo `README.md` permite a una persona ajena levantar el proyecto desde cero
+
+**Cómo se verificó que renderizan.** Este entorno no tiene forma de abrir GitHub
+para comprobarlo a ojo, así que los seis diagramas —uno en `components.md`, dos
+en `packages.md`, uno en `auth-sequence.md`, uno en `deployment.md`— se
+extrajeron de los archivos finales y se renderizaron con `@mermaid-js/mermaid-cli`
+a SVG y PNG. Los cinco de `components.md`, `auth-sequence.md` y `deployment.md`
+se revisaron además visualmente. Es la misma herramienta que usa la vista previa
+de Mermaid de GitHub por debajo, así que un diagrama que renderiza aquí renderiza
+ahí.
+
+**El diagrama de autenticación se corrigió durante la propia verificación.** La
+primera versión mostraba a Supabase rechazando el token sin que Google
+respondiera nunca la verificación dentro de esa misma rama del diagrama —una
+secuencia que no podía ocurrir así—. Se corrigió moviendo la respuesta de
+verificación antes de la bifurcación entre aceptar y rechazar, para que ambas
+ramas partan del mismo paso.
+
+**`packages.md` documenta la regla, y hoy casi ninguna característica existe
+para violarla.** Ver la nota de «Estado real» en ese archivo: solo
+`features/auth/presentation/` existe, así que dos de las tres reglas de
+dependencia no tenían todavía ninguna violación real que las pusiera a prueba.
+Se verificaron de todos modos con los archivos sonda de HT-08 antes de dar esta
+historia por cerrada, no dando por sentado que documentar la regla bastaba para
+demostrar que la prueba automática la sostiene.
 
 ## Incremento del sprint
 
