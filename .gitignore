@@ -20,3 +20,8 @@ google-services.json
 *.keystore
 .env
 *.log
+
+# Node: la CLI de Supabase vive como dependencia de desarrollo del proyecto.
+# package.json y package-lock.json si se versionan: fijan su version.
+node_modules/
+npm-debug.log*
