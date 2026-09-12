@@ -582,26 +582,35 @@ el proyecto hace todavía una petición HTTP de imagen real, así que Coil cae a
 estado de marcador de posición hasta que algo la necesite. Ambas quedan en
 `docs/decisions.md`, 2026-09-12.
 
-### HT-07 · Estructura de internacionalización `[ ]`
+### HT-07 · Estructura de internacionalización `[x]`
 
 Recursos de cadenas con `values/` como reserva y `values-es/` como idioma inicial.
 Convención de claves aplicada. Regla de análisis estático que detecte texto escrito
 en el código.
 
-- [ ] Existen `app/src/main/res/values/strings.xml` y `values-es/strings.xml`
-- [ ] La regla de análisis estático señala cualquier texto visible escrito en el código
-- [ ] Los tipos de error del dominio transportan tipos, nunca frases
-- [ ] La prueba `everyStringKeyUsedInCodeExistsInAllLocales` existe y pasa
+- [x] Existen `app/src/main/res/values/strings.xml` y `values-es/strings.xml`
+- [x] La regla de análisis estático señala cualquier texto visible escrito en el código
+- [x] Los tipos de error del dominio transportan tipos, nunca frases
+- [x] La prueba `everyStringKeyUsedInCodeExistsInAllLocales` existe y pasa
 
 **Restos de la plantilla que contradicen la regla**
 
-- [ ] El componible `Greeting` y su texto escrito en el código quedan eliminados.
+- [x] El componible `Greeting` y su texto escrito en el código quedan eliminados.
       La regla de análisis estático lo marcaría el primer día
-- [ ] Las pruebas de ejemplo de la plantilla quedan eliminadas. Son exactamente el
+- [x] Las pruebas de ejemplo de la plantilla quedan eliminadas. Son exactamente el
       tipo que `.claude/rules/testing.md` describe como «no aporta», y la suite
       debe arrancar limpia
 
 **Requisitos:** RNF-07.
+
+**Estado real.** `values/strings.xml` y `values-es/strings.xml` ya existían desde
+HT-05, con la convención de claves de `.claude/rules/i18n.md` ya aplicada
+(`common_`, `auth_`, `error_`), y `SignInError` ya modelaba sus errores como tipo
+sellado sin frases. Los restos de la plantilla (`Greeting`, pruebas de ejemplo)
+tampoco existían: ya se habían retirado en una historia previa. El trabajo de
+esta historia fue exclusivamente el análisis estático que faltaba: tres pruebas
+nuevas bajo `bo.saludencasa.i18n`, en `app/src/test`, que corren con
+`./gradlew test` igual que cualquier otra prueba unitaria.
 
 ### HT-08 · Integración continua, análisis estático y monitoreo `[ ]`
 

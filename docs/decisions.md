@@ -976,6 +976,54 @@ o una fotografía real no las descubra de nuevo desde cero.
 
 ---
 
+## 2026-09-12 · La regla de texto escrito en el código se verifica con pruebas JVM, no con un módulo de reglas de ktlint
+
+**Contexto.** HT-07 exige una regla de análisis estático que señale texto visible
+escrito directamente en el código, más la prueba `everyStringKeyUsedInCodeExistsInAllLocales`.
+ktlint no ofrece una regla de este tipo, y escribir una regla propia de ktlint o de
+Detekt exige un artefacto Kotlin separado del que depende `:app`, porque el
+mecanismo de extensión de ambas herramientas se distribuye como una biblioteca de
+reglas independiente, no como código dentro del módulo que se analiza.
+
+**Decisión.** Tres pruebas JUnit en `app/src/test/java/bo/saludencasa/i18n/`, que
+leen el árbol de código fuente y los `strings.xml` directamente del disco con
+expresiones regulares, sin depender de Robolectric ni del sistema de recursos de
+Android:
+
+- `StringResourcesTest.everyStringKeyUsedInCodeExistsInAllLocales` — toda clave
+  `R.string.*` referenciada desde Kotlin existe en cada `values*/strings.xml` de
+  idioma (se excluyen calificadores que no son de idioma, como `values-night`).
+- `StringResourcesTest.noVisibleTextIsHardcodedInScreens` — ninguna llamada a
+  `Text(...)`, `contentDescription = "..."`, `Toast.makeText(...)` o
+  `showSnackbar(...)` recibe una cadena literal. Los componibles anotados con
+  `@Preview` quedan excluidos del barrido: solo se ejecutan en la herramienta de
+  vista previa, nunca en la aplicación instalada, así que sus datos de ejemplo no
+  son texto visible al usuario real.
+- `DomainErrorModelingTest.domainErrorsCarryTypesNotMessages` — ningún tipo cuyo
+  nombre termina en `Error` declara un campo `message: String`, y no aparece la
+  construcción `Error("...")` con una frase literal, el patrón que
+  `.claude/rules/i18n.md` prohíbe de forma explícita.
+
+**Razonamiento.** El proyecto es de un solo módulo Gradle por decisión registrada
+(2026-09-10, reversión de Kotlin Multiplatform) y no tiene overhead de Detekt ni
+de un `ruleset` propio de ktlint todavía. Agregar ese andamiaje solo para esta
+regla habría sido exactamente la «biblioteca sin requisito que la exija» que la
+disciplina de alcance prohíbe: una prueba de JUnit, que el proyecto ya ejecuta con
+`./gradlew test` en cada iteración, cumple el mismo propósito sin una dependencia
+nueva ni un módulo adicional.
+
+**Consecuencia.** El barrido de texto hardcodeado es una lista fija de patrones
+(`Text(`, `contentDescription`, `Toast.makeText`, `showSnackbar`), no un análisis
+semántico completo del árbol de sintaxis: no detecta, por ejemplo, texto
+concatenado a mano o pasado a un componible propio con un nombre distinto a esos
+cuatro. Si HT-08 incorpora Detekt u otra herramienta de análisis estático más
+completa, esta prueba puede retirarse a favor de la regla equivalente; hasta
+entonces, es la red de seguridad vigente y cualquier patrón nuevo de texto visible
+que se detecte en revisión se agrega a `hardcodedVisibleTextPatterns` en
+`StringResourcesTest.kt`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
