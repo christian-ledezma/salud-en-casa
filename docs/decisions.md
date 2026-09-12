@@ -568,6 +568,368 @@ pantalla que cada persona tenga configurado.
 
 ---
 
+## 2026-09-11 · Un solo número de versión de Java en todo el proyecto: 17
+
+**Contexto.** Al ejecutar HT-01 aparecieron tres números distintos de máquina
+virtual de Java conviviendo en el mismo proyecto. El archivo
+`gradle/gradle-daemon-jvm.properties`, que Android Studio genera de forma
+automática, exigía la versión 25 para el proceso que ejecuta Gradle. El `README.md`
+y la etapa de preparación de HT-08 declaraban 17. La plantilla dejaba
+`compileOptions` en 11.
+
+Las dos primeras cifras designan la máquina virtual sobre la que corre la
+herramienta de compilación; la tercera designa el código intermedio que se
+produce. Son cosas distintas y pueden diferir sin que nada falle, que es
+precisamente lo que las hacía difíciles de detectar.
+
+**Decisión.** Las tres se unifican en **17**: el proceso de Gradle, el objetivo de
+`compileOptions` y de `jvmTarget`, y el JDK que declara el `README.md` y que usará
+la integración continua.
+
+**Razonamiento.** El problema no era de funcionamiento sino de reproducibilidad,
+que es un atributo de calidad exigible en la defensa y el mismo criterio que ya
+motivó exigir dependencias en versión estable. Con dos números conviviendo, la
+integración continua de HT-08 se habría configurado con JDK 17 mientras el archivo
+del daemon pedía 25: el resultado es una descarga silenciosa de otra máquina
+virtual en cada ejecución, o un fallo, según cómo quedara configurado el flujo. Un
+proyecto que se levanta desde cero siguiendo su propio `README.md` no debería
+depender de esa resolución implícita.
+
+Se eligió 17 y no 25 porque es la versión que ya declaraban los documentos, porque
+es de soporte prolongado, y porque el plugin de compilación de Android en su
+versión 9.3.2 la acepta sin restricción. Se verificó ejecutando `./gradlew build`
+completo con el daemon fijado en 17.
+
+**Consecuencia.** `gradle/gradle-daemon-jvm.properties` queda versionado con
+`toolchainVersion=17` y las direcciones de descarga correspondientes para cada
+sistema operativo. Quien clone el proyecto obtiene la misma máquina virtual sin
+instalarla a mano: si no la tiene, Gradle la descarga. El archivo se regenera con
+`./gradlew updateDaemonJvm --jvm-version=<version>` y **nunca se edita a mano**,
+porque las direcciones de descarga van atadas a la versión.
+
+**Qué vigilar.** Android Studio puede volver a generar este archivo con la versión
+de su máquina virtual incorporada al actualizarse. Si reaparece un número distinto
+de 17, es eso y no un cambio deliberado.
+
+---
+
+## 2026-09-11 · La version de Kotlin la fija la dependencia mas nueva, no la plantilla
+
+**Contexto.** La plantilla de Android Studio dejo Kotlin en 2.2.10. Al declarar el
+catalogo de HT-03 con las versiones estables vigentes, la compilacion fallo:
+
+```
+Class 'kotlin.Unit' was compiled with an incompatible version of Kotlin.
+The actual metadata version is 2.4.0, but the compiler version 2.2.0 can read
+versions up to 2.3.0.
+```
+
+El origen resulto ser `com.google.maps.android:maps-compose:8.6.0`, que arrastra
+`kotlin-stdlib:2.4.10`. Una biblioteca compilada con Kotlin 2.4 no puede
+consumirse desde un compilador 2.2: cada compilador lee metadatos hasta una
+version menor por encima de la suya.
+
+**Decision.** Kotlin pasa a **2.4.20**, la estable vigente. La version deja de ser
+un valor heredado de la plantilla y pasa a ser una **cota inferior** impuesta por
+la dependencia mas moderna del catalogo.
+
+**Razonamiento.** La alternativa era congelar `maps-compose` en una version
+anterior para no mover Kotlin. Eso habria cambiado un problema visible por uno
+latente: la siguiente dependencia que se actualice vuelve a romper la compilacion,
+y el proyecto acumula versiones antiguas por una razon que nadie recuerda. Subir
+el compilador es la correccion en la causa.
+
+**Como se verifico.** Se cablearon temporalmente las once dependencias del
+catalogo —Supabase, Koin, Mapas, Credential Manager, DataStore, Coil y el
+complemento de serializacion— y se compilo el proyecto completo. Con Kotlin 2.2.10
+fallaba; con 2.4.20 compila. El cableado temporal se revirtio despues: cada
+historia declara lo que necesita.
+
+**Consecuencia y regla que queda.** Antes de agregar una dependencia al catalogo,
+comprobar con que version de Kotlin fue compilada. Si exige una superior, se sube
+Kotlin en el mismo cambio, nunca se fija la dependencia en una version vieja para
+evitarlo. El sintoma es siempre el mismo mensaje de metadatos incompatibles.
+
+---
+
+## 2026-09-11 · La ficha publica del profesional es una vista, no una politica
+
+**Contexto.** Tres requisitos tiran en direcciones opuestas sobre la misma fila.
+RF-02.6 y RF-06.3 exigen que cualquier usuario vea el nombre, la foto, la tarifa
+y la reputacion de un profesional. RN-06 y RF-08.6 exigen que el telefono
+permanezca oculto hasta que se acepte una oferta. INV-13 exige que nadie lea
+filas ajenas.
+
+La seguridad a nivel de fila resuelve filas, no columnas: una politica que
+permita leer la fila de un profesional permite leer **todas** sus columnas,
+telefono incluido. Y los privilegios por columna de PostgreSQL son por rol, no
+por fila, de modo que quitar `phone` al rol autenticado se lo quitaria tambien a
+cada usuario sobre su propia fila.
+
+**Decision.** La fila de `profiles` es privada: se lee solo por su dueno, por el
+administrador, y por la contraparte una vez que existe un servicio entre ambos.
+La ficha publica se sirve por la vista `professional_directory`, que **no
+contiene las columnas de contacto**.
+
+**Razonamiento.** El telefono no queda oculto por una condicion que alguien pueda
+relajar mas adelante, sino porque no esta en la proyeccion. Es una garantia
+estructural: para filtrarlo habria que anadir deliberadamente la columna a la
+vista, lo que se ve en la revision de una migracion.
+
+**Detalle que hay que entender antes de tocarla.** La vista se declara
+`security_invoker = false`, es decir, se ejecuta con los privilegios de su dueno
+y no aplica las politicas de las tablas base. Es intencional: debe leer filas que
+el llamante no puede leer por si mismo. Lo que hace de filtro es su propia
+clausula `where`, que exige `verification_status = 'APPROVED'` y `profiles.active`
+y con ello materializa INV-07. **Anadir una columna de contacto a esta vista es
+una fuga de datos**, no un cambio cosmetico.
+
+**Consecuencia.** La busqueda por cercania devuelve el mismo conjunto de columnas
+publicas. La revelacion del contacto es una politica aparte sobre `profiles`,
+condicionada a `shares_service_with()`, que existe desde la migracion que crea
+`services` porque es la condicion de la que depende.
+
+---
+
+## 2026-09-11 · La reputacion vive en `profiles`, no en `professionals`
+
+**Contexto.** El glosario nombra `averageRating` sin fijar en que tabla reside, y
+la lectura natural es ponerla en `professionals`, que es donde la muestra la
+ficha publica.
+
+**Decision.** `average_rating` y `total_reviews` son columnas de `profiles`.
+
+**Razonamiento.** La calificacion es de ida y vuelta: RF-12.2 hace que el
+profesional califique al paciente, y HU-30 pide que otro profesional vea la
+reputacion de ese paciente antes de acudir a un domicilio. Si la reputacion
+viviera en `professionals`, el paciente necesitaria una columna paralela en
+`patients` y el disparador de recalculo tendria que decidir a cual escribir segun
+el rol del destinatario. En `profiles` hay una sola columna, un solo disparador y
+ninguna rama.
+
+Es ademas coherente con INV-01: `profiles` es la identidad de toda persona, y la
+reputacion es un atributo de la persona, no del rol que desempena en una
+atencion.
+
+**Que se queda en `professionals`.** `total_services`, el numero de atenciones
+prestadas, porque solo tiene sentido para quien las presta. Lo incrementa un
+disparador cuando un servicio pasa a `COMPLETED`, no el cliente.
+
+---
+
+## 2026-09-11 · La CLI de Supabase es dependencia del proyecto, y se trabaja contra el proyecto remoto
+
+**Contexto.** Las migraciones de HT-04 necesitaban aplicarse y verificarse. La
+via que documenta Supabase para desarrollo es levantar la pila completa en local
+con Docker y reconstruirla con `supabase db reset`. La maquina de desarrollo
+tiene Docker instalado pero el demonio detenido, y la pila local descarga varios
+gigabytes de imagenes.
+
+**Decision.** Dos partes.
+
+Primero, la CLI se instala como **dependencia de desarrollo del proyecto**
+(`npm install supabase --save-dev`) con su version exacta fijada en
+`package.json`, y se invoca con `npx supabase`. No se instala de forma global.
+
+Segundo, en esta etapa el esquema se aplica y se verifica **contra el proyecto
+remoto de desarrollo**, con `npx supabase db push`. El entorno local con Docker
+queda fuera de alcance.
+
+**Razonamiento.** Una CLI global es una version distinta en cada maquina y en
+integracion continua, que es justo el problema que el catalogo de versiones
+resuelve para las dependencias de Android. Fijarla en `package.json` la somete a
+la misma regla de reproducibilidad.
+
+Sobre el entorno local: el proyecto remoto de desarrollo ya existe desde HT-02,
+es gratuito y es donde la aplicacion se conecta de todos modos. Levantar ademas
+una pila local no aporta nada que el proyecto necesite hoy, y si aporta varios
+gigabytes y una fuente mas de divergencia entre entornos.
+
+**Consecuencia que hay que asumir.** El criterio de HT-04 que pedia que
+`supabase db reset` reconstruyera la base completa queda **aplazado**, no
+cumplido. Es el criterio que demuestra que las migraciones reconstruyen el
+esquema desde cero, y esa es una propiedad que conviene poder ensenar en la
+defensa. Se recupera cuando exista el entorno local o el proyecto de produccion,
+y hasta entonces figura como pendiente en `plan.md` en lugar de darse por bueno.
+
+**Consecuencia operativa.** `npx supabase db push` se ejecuta siempre primero con
+`--dry-run`. Contra un proyecto remoto no hay deshacer: una migracion aplicada no
+se edita, se corrige con otra.
+
+---
+
+## 2026-09-12 · Guardias de escritura contra el propio dueño de la fila, distinguidas por profundidad de disparador
+
+**Contexto.** Una revisión de seguridad detectó que `profiles_update_own` y
+`professionals_update_own` solo verifican de quién es la fila, nunca qué
+columnas cambian. Nada impedía que un paciente o un profesional escribiera a
+mano `average_rating`, `total_reviews`, `active` o `total_services`: un
+profesional podía inflar su propia reputación, restaurar su `active` después de
+que un administrador lo desactivara, o inflar el número de atenciones que
+exhibe en su ficha pública. Encontró también que `messages_update_patient` y
+`messages_update_professional` permiten al destinatario reescribir el
+`content` de un mensaje, no solo su `read_at`: la conversación es donde vive el
+detalle de la atención (RF-09.3, FA-01), así que una integridad débil ahí
+compromete el registro completo.
+
+**Decisión.** Dos mecanismos distintos, elegidos por si hace falta o no un
+paso alrededor de la comprobación.
+
+Para `profiles` y `professionals`, un disparador `before update` que rechaza el
+cambio de esas columnas, salvo cuando el llamante es administrador o la
+escritura llega anidada dentro de otro disparador propio.
+
+Para `messages`, un privilegio por columna: se revoca `update` por completo al
+rol `authenticated` y se concede solo sobre `read_at`. No hace falta disparador
+porque INV-12 ya excluye a cualquier administrador de esta tabla, y ninguna
+función interna escribe en ella: no hay cascada que distinguir.
+
+**Razonamiento.** `recalculate_reputation()` e `increment_total_services()` son
+disparadores `security definer` que escriben exactamente esas columnas de
+`profiles` y `professionals`, y lo hacen desde dentro de una solicitud de un
+paciente o profesional común: calificar o marcar un servicio completado.
+`auth.uid()` no cambia dentro de una función `security definer`, solo cambia el
+rol para efectos de privilegio. Una guardia que solo comprobara
+`not is_admin()` habría bloqueado también esa escritura legítima, porque
+`is_admin()` es falso en ambos casos: en el intento de fraude y en el
+recálculo real.
+
+`pg_trigger_depth()` los distingue sin ambigüedad. Una escritura directa del
+cliente alcanza el disparador de guardia en profundidad 1. La escritura de
+`recalculate_reputation()` la alcanza en profundidad 2, porque ya viene
+ejecutándose desde dentro del disparador `after insert` que la tabla
+`reviews` disparó primero. Ningún rol que el cliente controla puede insertarse
+entre esos dos niveles: los disparadores son objetos del esquema, no algo que
+`authenticated` pueda adjuntar por su cuenta.
+
+**Por qué `messages` no necesita lo mismo.** No hay ninguna función que escriba
+en `messages` desde otro disparador, y no hay ningún administrador al que haya
+que dejar pasar. El privilegio por columna resuelve el caso completo sin la
+complejidad de una guardia con profundidad.
+
+**Consecuencia.** Ninguna migración aplicada se editó. La corrección es una
+migración nueva, `harden_self_service_columns`, sobre columnas que ya existían
+desde `identity` y `requests`.
+
+---
+
+## 2026-09-12 · El nonce viaja en dos formas, y la sesión se guarda en DataStore
+
+**Contexto.** HT-05 conecta Credential Manager con Supabase. Dos detalles de esa
+cadena no se deducen leyendo el código y cuestan horas de diagnóstico cuando se
+equivocan, porque el error que devuelven no dice qué pasó.
+
+**El nonce tiene dos valores, no uno.** Google incrusta en el token de identidad
+el resumen SHA-256 del nonce, mientras que Supabase lo verifica contra el valor
+crudo. Entregar la misma cadena a los dos lados produce un token que Supabase
+rechaza sin explicar el motivo.
+
+**Decisión.** El nonce se modela como un tipo con dos propiedades, `raw` y
+`hashed`, cada una nombrada por el destino al que va. No existe un constructor
+público que permita armar uno inconsistente, y una prueba unitaria fija el
+resumen contra un vector conocido. Intercambiarlos deja de ser posible por
+descuido: hay que escribir el nombre equivocado a propósito.
+
+**La sesión se guarda en DataStore, no en el almacenamiento por omisión de la
+biblioteca.** El cliente de Supabase trae su propio gestor de sesión, que en
+Android se apoya en otra dependencia de preferencias.
+
+**Decisión.** Se implementa `SessionManager` sobre DataStore.
+
+**Razonamiento.** `docs/decisions.md` ya fijó que DataStore es el único
+almacenamiento local de esta fase, y que no hay base de datos local porque ningún
+requisito exige operar sin conexión. Aceptar el gestor por omisión habría metido
+una segunda biblioteca de almacenamiento por la puerta de atrás, para guardar el
+mismo dato, sin ningún requisito que la pidiera. Es el mismo criterio que descartó
+Room y la estructura multiplataforma.
+
+**Consecuencia.** RF-01.6 —la sesión sobrevive a un reinicio y el token se renueva
+solo— depende de tres opciones del cliente que están escritas de forma explícita
+en `CoreModule` aunque sean las de por omisión: `sessionManager`,
+`autoLoadFromStorage` y `alwaysAutoRefresh`. Se escriben porque un requisito
+depende de que sigan así, no porque haga falta activarlas.
+
+---
+
+## 2026-09-12 · La profundidad de disparador dentro de una cláusula `WHEN` no es la misma que dentro del cuerpo de la función
+
+**Contexto.** La entrada anterior de este mismo día afirma que una escritura
+directa del cliente alcanza el disparador de guardia en profundidad 1, y la
+escritura anidada de `recalculate_reputation()` o `increment_total_services()`
+lo alcanza en profundidad 2. Esa cifra era correcta para código que llama
+`pg_trigger_depth()` dentro del **cuerpo** de la función del disparador, que es
+donde se probó en su momento. Los disparadores de `harden_self_service_columns`
+la llaman en la cláusula `WHEN`, no en el cuerpo, y ahí Postgres reporta un
+número menos: la escritura directa llega en profundidad 0, la anidada en
+profundidad 1. La condición `pg_trigger_depth() <= 1`, escrita para el número de
+profundidad equivocado, seguía siendo verdadera para la escritura anidada
+legítima y la bloqueaba: calificar a alguien o completar un servicio fallaba con
+`reputation_and_active_status_are_managed_by_the_server` o
+`total_services_is_maintained_by_the_server`, en un sistema que ya estaba
+aplicado al proyecto remoto.
+
+Lo encontró el revisor automático de GitHub en el pull request #1. No se aceptó
+por su palabra: se verificó con un experimento propio contra la base de datos
+remota, con tablas temporales y disparadores anidados de prueba, antes de tocar
+nada. `docs/decisions.md` documenta el fundamento del diseño, y una entrada con
+un número equivocado en su razonamiento es peor que no tener la entrada.
+
+**Decisión.** Se deja esta entrada nueva en vez de editar la anterior. La
+anterior registra fielmente qué se pensaba y por qué en el momento de escribir
+la migración original; esta registra qué resultó cierto al verificarlo y qué
+corrigió. Borrar o reescribir la primera perdería esa secuencia, que es
+justamente el ciclo de inspección y adaptación que SCRUM pide documentar.
+
+La corrección en sí —cambiar `<= 1` por `<= 0` en las dos cláusulas `WHEN`— vive
+en una migración nueva, `close_lifecycle_and_visibility_gaps`, junto con el
+resto de la respuesta a esa revisión.
+
+**Consecuencia.** Cualquier disparador futuro que necesite distinguir una
+escritura directa de una anidada debe decidir, antes de escribir la condición,
+si `pg_trigger_depth()` se lee dentro de la cláusula `WHEN` o dentro del cuerpo
+de la función, porque el número correcto no es el mismo en los dos lugares.
+
+---
+
+## 2026-09-12 · Respuesta a la revisión del pull request #1: qué se corrigió y qué queda como deuda
+
+**Contexto.** El revisor automático de GitHub señaló 24 observaciones sobre la
+rama `ht-05-supabase-client`. Veintiuna se corrigieron —listadas en la entrada de
+HT-05 en `plan.md`—, casi todas en la migración `close_lifecycle_and_visibility_gaps`
+más dos correcciones en `GoogleAuthClient`. Tres quedan deliberadamente sin
+corregir.
+
+**Decisión y razonamiento, por cada deuda:**
+
+- **La franja de disponibilidad no se valida al crear una solicitud agendada**
+  (RF-07.3). Validar contra `availability_slots` en el momento de la inserción
+  exige decidir cómo se comparan un horario semanal declarado y una fecha
+  concreta, con zona horaria y semántica de excepciones que hoy no existen en
+  ningún lado del esquema. Es trabajo de la historia que construya la
+  programación de citas, no una corrección de revisión.
+- **No existe flujo de integración continua** que mapee los secretos del
+  repositorio a variables de entorno para `local.properties`. El criterio de
+  aceptación de HT-05 lo da por hecho porque copia la redacción de RNF-06, pero
+  este proyecto no tiene todavía ningún flujo de trabajo en `.github/workflows/`:
+  se decidió no improvisar uno solo para cerrar esta observación, porque
+  configurar integración continua es una decisión de alcance propia, no un
+  efecto colateral de una revisión de código.
+- **La operación atómica de RF-08.5** —aceptar una oferta crea el servicio y el
+  pago pendiente en una sola operación— todavía no existe. La migración de esta
+  revisión cierra el camino que la sustituía sin querer: ya no es posible poner
+  una oferta o una solicitud en `ACCEPTED` con una escritura directa del
+  cliente. No abre el camino correcto, porque construir esa función junto con el
+  caso de uso y la pantalla que la use es alcance de la historia de negociación
+  (HU-14 a HU-19), no de esta corrección. Mientras esa historia no exista, la
+  aceptación de una oferta simplemente no es posible desde el cliente, lo cual es
+  correcto: tampoco hay pantalla que la ofrezca todavía.
+
+**Consecuencia.** Las tres quedan pendientes de una historia futura que las
+declare como su propio criterio de aceptación. Ninguna se marca como resuelta en
+`plan.md`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

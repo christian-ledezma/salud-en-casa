@@ -1,12 +1,10 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+# Configuracion de Android Studio: es del equipo o maquina de quien abre el
+# proyecto, no del proyecto en si. Se excluye por completo en lugar de listar
+# archivo por archivo, porque el IDE agrega nombres nuevos en cada version.
+/.idea/
 .DS_Store
 /build
 /captures
@@ -20,3 +18,8 @@ google-services.json
 *.keystore
 .env
 *.log
+
+# Node: la CLI de Supabase vive como dependencia de desarrollo del proyecto.
+# package.json y package-lock.json si se versionan: fijan su version.
+node_modules/
+npm-debug.log*

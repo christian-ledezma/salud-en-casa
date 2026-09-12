@@ -21,7 +21,6 @@ Proyecto de grado. El desarrollo sigue SCRUM con sprints de dos semanas.
 | JDK | 17 |
 | Android Studio | Quail o posterior |
 | Node.js | 20 LTS o superior, solo para la CLI de Supabase |
-| Supabase CLI | `npm install -g supabase` |
 
 Dispositivo o emulador con **Android 8.0 (API 26)** o superior.
 
@@ -39,18 +38,29 @@ sdk.dir=/ruta/al/sdk/de/android
 
 SUPABASE_URL=https://<referencia>.supabase.co
 SUPABASE_ANON_KEY=<clave anónima>
+GOOGLE_WEB_CLIENT_ID=<identificador de cliente OAuth de tipo Web>
 MAPS_API_KEY=<clave de Google Maps>
 ```
+
+Sin estos valores el proyecto **compila igual**, pero la aplicación muestra un
+error de configuración al intentar ingresar. Es deliberado: una compilación que
+falla por un archivo ausente no le dice nada útil a quien clona el proyecto.
 
 Los valores se obtienen así:
 
 | Valor | Dónde |
 |---|---|
 | `SUPABASE_URL` y `SUPABASE_ANON_KEY` | Panel de Supabase → Configuración → API |
+| `GOOGLE_WEB_CLIENT_ID` | Google Cloud Console → Credenciales → ID de cliente OAuth de tipo **Web** |
 | `MAPS_API_KEY` | Google Cloud Console → API y servicios → Credenciales |
 
 La **clave de servicio** de Supabase no se usa en la aplicación y nunca debe
 figurar en este archivo.
+
+`GOOGLE_WEB_CLIENT_ID` es el identificador de tipo **Web**, no el de Android.
+La aplicación pide un token destinado a su servidor, y ese servidor es Supabase.
+Usar el de Android hace que Supabase rechace el ingreso. Está explicado en
+`docs/decisions.md`.
 
 **`app/google-services.json`**:
 
@@ -65,11 +75,23 @@ el archivo de configuración. Se coloca en `app/`, no en la raíz.
 
 ### 3. Base de datos
 
+La CLI de Supabase es una dependencia de desarrollo del propio proyecto, con su
+versión fijada en `package.json`. No se instala de forma global: así todos
+trabajan con la misma versión.
+
 ```bash
-supabase login
-supabase link --project-ref <referencia del proyecto>
-supabase db push
+npm install
+npx supabase login
+npx supabase link --project-ref <referencia del proyecto>
+npx supabase db push
 ```
+
+`npx supabase link` pide la contraseña de la base de datos una sola vez y la
+guarda en el llavero del sistema operativo.
+
+En esta etapa se trabaja **contra el proyecto remoto de desarrollo**. El entorno
+local con Docker (`supabase start`, `supabase db reset`) está fuera de alcance;
+la razón está en `docs/decisions.md`.
 
 ## Comandos
 
@@ -81,9 +103,9 @@ supabase db push
 | `./gradlew ktlintCheck` | Análisis estático |
 | `./gradlew build` | Verificación completa |
 | `./gradlew signingReport` | Muestra las huellas SHA-1 del proyecto |
-| `supabase migration new <nombre>` | Crea una migración |
-| `supabase db push` | Aplica las migraciones pendientes |
-| `supabase db reset` | Reconstruye la base desde cero |
+| `npx supabase migration new <nombre>` | Crea una migración |
+| `npx supabase db push --dry-run` | Muestra qué migraciones se aplicarían |
+| `npx supabase db push` | Aplica las migraciones pendientes |
 
 ## Verificar la configuración
 

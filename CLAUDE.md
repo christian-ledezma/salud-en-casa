@@ -39,7 +39,7 @@ posible trabajo futuro y se sigue con lo que el alcance pide.
 - **`applicationId`:** `bo.saludencasa.app`
 - **Versión mínima:** API 26
 - **Interfaz:** Jetpack Compose + Material 3
-- **Backend:** Supabase (PostgreSQL 15 + PostGIS, Auth, Realtime, Storage, Edge Functions)
+- **Backend:** Supabase (PostgreSQL 17 + PostGIS, Auth, Realtime, Storage, Edge Functions)
 - **Inyección de dependencias:** Koin
 - **Preferencias y sesión local:** DataStore
 - **Compilar:** `./gradlew assembleDebug`
@@ -232,6 +232,30 @@ sección «Fuera de alcance» de ese documento y se sigue.
 Esta regla existe porque el proyecto ya pagó el costo de ignorarla una vez, al
 adoptar una arquitectura multiplataforma que el alcance no pedía. Está registrado
 en `docs/decisions.md`.
+
+## Comentarios y documentación en el código
+ 
+**No se escriben bloques de documentación KDoc.** Ni en clases, ni en funciones,
+ni en propiedades. Este proyecto no publica una biblioteca ni genera documentación
+de API: nadie consume esos bloques, y describen lo que el nombre y la firma ya
+dicen.
+ 
+Un comentario `//` se escribe **únicamente** cuando explica algo que el código no
+puede expresar:
+ 
+- Una restricción externa. Por ejemplo, que la construcción del punto de PostGIS
+  recibe longitud antes que latitud, o que el identificador de cliente que espera
+  Credential Manager es el **Web** y no el de Android.
+- Un rodeo impuesto por una biblioteca o por una versión concreta.
+- El motivo de una decisión no evidente. En ese caso el comentario **referencia**
+  la entrada de `docs/decisions.md`, no repite su contenido.
+Si un comentario describe *qué* hace el código, sobra: el problema es el nombre.
+ 
+El «por qué» del sistema vive en `docs/decisions.md` y en `plan.md`. Repartirlo en
+bloques de comentario lo duplica, y la copia del código queda obsoleta sin que
+nadie lo note.
+ 
+Esta regla la verifica la revisión, no el análisis estático.
 
 ## Estándares de código
 

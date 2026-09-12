@@ -197,45 +197,54 @@ explícitamente para el trabajo de fundación.
 
 ## Historias técnicas
 
-### HT-01 · Repositorio, proyecto y estructura `[~]`
+### HT-01 · Repositorio, proyecto y estructura `[x]`
 
 Repositorio con control de versiones iniciado y archivo de exclusiones completo.
 Proyecto Android de un solo módulo `:app` con el paquete base correcto y la
 estructura de paquetes por característica de `.claude/rules/arquitectura.md`.
 
-**Estado real.** El proyecto existe como plantilla intacta de Android Studio. No
-hay repositorio git iniciado y el paquete base difiere del acordado.
-
-**Paquete base: corregir el proyecto, no los documentos.** Hoy existen cuatro
-archivos fuente; cuando existan `core/`, `di/`, `navigation/`, `features/` y sus
-pruebas, mover el paquete es un refactor de cientos de archivos.
+**Paquete base: se corrigió el proyecto, no los documentos.** Se hizo con cuatro
+archivos fuente en el árbol; cuando existan `core/`, `di/`, `navigation/`,
+`features/` y sus pruebas, mover el paquete habría sido un refactor de cientos de
+archivos.
 
 | Propiedad | Valor | Por qué |
 |---|---|---|
 | `applicationId` | `bo.saludencasa.app` | **No se toca.** Las huellas SHA-1, los identificadores OAuth y `google-services.json` están atados a él |
-| `namespace` | `bo.saludencasa` | Se corrige. No lo usa ningún servicio externo |
-| Raíz de fuentes | `app/src/main/java/bo/saludencasa/` | Se mueve desde `.../bo/saludencasa/app/` |
+| `namespace` | `bo.saludencasa` | Se corrigió. No lo usa ningún servicio externo |
+| Raíz de fuentes | `app/src/main/java/bo/saludencasa/` | Movida desde `.../bo/saludencasa/app/` |
 
 Que ambos difieran es válido y habitual: el `namespace` define la raíz de los
 paquetes y la clase de recursos; el `applicationId` identifica la aplicación ante
 la tienda y los servicios. Registrado en `docs/decisions.md`.
 
-- [ ] `namespace = bo.saludencasa` en el archivo de compilación del módulo
-- [ ] Fuentes movidas a `app/src/main/java/bo/saludencasa/`
-- [ ] `applicationId = bo.saludencasa.app` sin cambios
-- [ ] `minSdk = 26`, `compileSdk` y `targetSdk` en la versión estable vigente
-- [ ] `compileOptions` y `jvmTarget` fijados de forma deliberada en **17**, no
+- [x] `namespace = bo.saludencasa` en el archivo de compilación del módulo
+- [x] Fuentes movidas a `app/src/main/java/bo/saludencasa/`
+- [x] `applicationId = bo.saludencasa.app` sin cambios
+- [x] `minSdk = 26`, `compileSdk` y `targetSdk` en la versión estable vigente
+- [x] `compileOptions` y `jvmTarget` fijados de forma deliberada en **17**, no
       heredados de la plantilla
-- [ ] Estructura de paquetes creada: `core/`, `di/`, `navigation/`, `ui/`,
+- [x] El proceso que ejecuta Gradle también corre sobre **17**, declarado en
+      `gradle/gradle-daemon-jvm.properties`. Un solo número de Java en el
+      proyecto: compilación, código intermedio, `README.md` e integración continua
+- [x] Estructura de paquetes creada: `core/`, `di/`, `navigation/`, `ui/`,
       `features/`
-- [ ] Repositorio git iniciado **por el autor**
-- [ ] Archivo de exclusiones ampliado con lo que la plantilla no cubre:
+- [x] Repositorio git iniciado **por el autor**
+- [x] Archivo de exclusiones ampliado con lo que la plantilla no cubre:
       `*.jks`, `*.keystore`, `google-services.json`, `local.properties`,
       `.env`, `*.log`
-- [ ] `google-services.json` movido de la raíz a `app/`
-- [ ] `README.md` creado en la raíz con las instrucciones de puesta en marcha
-- [ ] `./gradlew assembleDebug` concluye sin error
-- [ ] Ninguna credencial figura en el historial del repositorio
+- [x] `google-services.json` movido de la raíz a `app/`
+- [x] `README.md` creado en la raíz con las instrucciones de puesta en marcha
+- [x] `./gradlew assembleDebug` concluye sin error
+- [x] Ninguna credencial figura en el historial del repositorio
+
+**Verificado en la compilación.** El manifiesto fusionado declara
+`package="bo.saludencasa.app"` —el `applicationId`, intacto— y
+`android:name="bo.saludencasa.MainActivity"`, resuelto desde el `namespace` nuevo.
+La clase de recursos se genera en `bo/saludencasa/R.class`. Las clases compiladas
+llevan versión mayor 61 de código intermedio, que corresponde a Java 17, y
+`./gradlew --version` confirma el proceso de Gradle sobre Java 17. `./gradlew
+build` completo, con análisis de lint y pruebas, concluye sin error.
 
 **Requisitos:** RNF-06.
 
@@ -268,14 +277,14 @@ presupuesto, Firebase con Cloud Messaging y App Distribution.
 
 **Requisitos:** RF-01.1, RNF-05, RNF-10.
 
-### HT-03 · Catálogo de versiones `[ ]`
+### HT-03 · Catálogo de versiones `[x]`
 
 Todas las dependencias y sus versiones centralizadas en
 `gradle/libs.versions.toml`, siguiendo la convención de agrupaciones de whosinApp.
 
-**Estado real.** El catálogo es el de la plantilla: cumple la regla de versiones
-estables, pero le faltan casi todas las dependencias del proyecto y varias de las
-que tiene son de una generación anterior a la del complemento de compilación.
+**Estado real.** El catálogo era el de la plantilla: cumplía la regla de versiones
+estables, pero le faltaban casi todas las dependencias del proyecto y varias de las
+que tenía eran de una generación anterior a la del complemento de compilación.
 
 **Dependencias que las reglas ya dan por existentes y hoy no están**
 
@@ -293,15 +302,46 @@ que tiene son de una generación anterior a la del complemento de compilación.
 | **Credential Manager** y `googleid` | HU-01 |
 | **Turbine** | `.claude/rules/testing.md` |
 
-- [ ] Ninguna versión escrita directamente en un archivo de compilación
-- [ ] **Todas las versiones son estables.** Ninguna `alpha`, `beta`, `rc` ni
-      `SNAPSHOT`, incluidas las que genera por omisión la plantilla
-- [ ] Las versiones rezagadas de la plantilla se actualizan a la estable vigente:
+- [x] Ninguna versión de dependencia escrita directamente en un archivo de
+      compilación. La del motor de ktlint también sale del catálogo. Única
+      excepción, inevitable: el complemento resolvedor de cadenas de herramientas
+      en `settings.gradle.kts`, porque el catálogo se declara en ese mismo archivo
+      y no está disponible para su propio bloque de complementos
+- [x] **Todas las versiones son estables.** Verificado sobre el grafo resuelto:
+      111 artefactos, ninguno `alpha`, `beta`, `rc` ni `SNAPSHOT`
+- [x] Las versiones rezagadas de la plantilla se actualizan a la estable vigente:
       `espresso-core`, `androidx-junit`, `lifecycle-runtime-ktx`, `activity-compose`
-- [ ] Las once dependencias de la tabla anterior están declaradas
-- [ ] Cinco agrupaciones declaradas: `supabase`, `compose`, `maps`, `auth`, `test`
-- [ ] `./gradlew ktlintCheck` se ejecuta sin error de comando no encontrado
-- [ ] El proyecto sincroniza sin advertencias de versión
+- [x] Las once dependencias de la tabla anterior están declaradas
+- [x] Cinco agrupaciones declaradas: `supabase`, `compose`, `maps`, `auth`, `test`
+- [x] `./gradlew ktlintCheck` se ejecuta sin error de comando no encontrado
+- [x] El proyecto sincroniza sin advertencias de versión
+
+**Actualizaciones aplicadas**
+
+| Dependencia | Plantilla | Ahora |
+|---|---|---|
+| Kotlin | 2.2.10 | 2.4.20 |
+| Compose, declaración de versiones agrupadas | 2026.02.01 | 2026.09.00 |
+| `lifecycle-runtime-ktx` | 2.6.1 | 2.11.0 |
+| `activity-compose` | 1.8.0 | 1.13.0 |
+| `androidx-junit` | 1.1.5 | 1.3.0 |
+| `espresso-core` | 3.5.1 | 3.7.0 |
+
+**La subida de Kotlin no fue cosmética.** `maps-compose` arrastra
+`kotlin-stdlib:2.4.10`, que un compilador 2.2 no puede leer. Se descubrió cableando
+temporalmente las once dependencias y compilando; el cableado se revirtió después.
+Registrado en `docs/decisions.md`.
+
+**Qué queda declarado pero sin cablear.** Las agrupaciones `supabase`, `maps` y
+`auth`, más Koin, DataStore y Coil, existen en el catálogo y su resolución está
+verificada, pero no figuran en el archivo de compilación: cada historia declara lo
+que necesita. `supabase`, Koin y DataStore entran en HT-05; `auth` en HU-01;
+`maps` en HU-05.
+
+**`.editorconfig`.** El análisis estático necesitaba configuración: la regla de
+nomenclatura de funciones de ktlint marca toda función componible por usar
+PascalCase. La excepción `ktlint_function_naming_ignore_when_annotated_with =
+Composable` vive ahí, junto al estilo de código y la longitud máxima de línea.
 
 **Requisitos:** RNF-09.
 
@@ -326,39 +366,162 @@ sus políticas de seguridad**.
 | 7 | `functions` | Búsqueda por cercanía, creación de perfil, recálculo de reputación |
 | 8 | `seed_data` | Catálogo inicial de tipos de servicio |
 
-- [ ] Las quince tablas existen con seguridad a nivel de fila habilitada
-- [ ] Los índices espaciales aparecen en el plan de ejecución de la consulta de cercanía
-- [ ] `supabase db reset` reconstruye la base completa sin errores
-- [ ] El rol administrador no accede a `messages`
-- [ ] `docs/architecture/data-model.md` contiene el diagrama entidad-relación en
+- [x] Las quince tablas existen con seguridad a nivel de fila habilitada y al
+      menos una política cada una
+- [ ] Los índices espaciales aparecen en el plan de ejecución de la consulta de
+      cercanía — **solo verificable con datos.** Con las tablas vacías el
+      planificador elige recorrido secuencial por ser más barato, así que el
+      plan no prueba nada. Se verifica en HU-11, cuyo criterio ya exige medir con
+      quinientos profesionales cargados
+- [x] Las ocho migraciones se aplican sobre el proyecto remoto con
+      `npx supabase db push`, previo `--dry-run`
+- [ ] ~~`supabase db reset` reconstruye la base completa sin errores~~ —
+      **aplazado.** El entorno local con Docker queda fuera de alcance en esta
+      etapa. Es el criterio que demuestra que el esquema se reconstruye desde
+      cero, así que se recupera cuando exista entorno local o proyecto de
+      producción. Registrado en `docs/decisions.md`
+- [x] El rol administrador no accede a `messages`: ninguna de sus seis políticas
+      invoca `is_admin()`, ni la invocará ninguna migración posterior
+- [x] `docs/architecture/data-model.md` contiene el diagrama entidad-relación en
       Mermaid, derivado del esquema efectivamente aplicado
+
+**Verificación contra el proyecto remoto**, tras aplicar las ocho migraciones el
+2026-09-12 sobre `salud-en-casa` (`sa-east-1`, PostgreSQL 17.6):
+
+| Qué se comprobó | Cómo | Resultado |
+|---|---|---|
+| Las quince tablas existen | Tipos generados desde el remoto | 15, sin ninguna de más |
+| Los doce enumerados existen | Tipos generados desde el remoto | 12, sin ninguno de más |
+| La vista y las funciones existen | Tipos generados desde el remoto | `professional_directory`, `is_admin`, `professional_covers`, `shares_service_with`, `search_nearby_professionals` |
+| Los índices se crearon | Estadísticas de índices del remoto | 52, incluidos los dos GIST `idx_addresses_location` e `idx_service_requests_location` |
+| El catálogo inicial se insertó | Estadísticas de tablas del remoto | `service_types` con 12 filas; las otras catorce vacías |
+| **La seguridad a nivel de fila deniega de verdad** | Lectura anónima de las quince tablas por la API REST con la clave anónima | Las quince devuelven cero filas. `professional_directory` responde `permission denied` |
+
+Esa última fila es la que vale: no comprueba que las políticas estén escritas,
+sino que un tercero sin sesión no obtiene ni una fila de ninguna tabla (INV-02,
+INV-13).
+
+**Dónde vive cada invariante.** La tabla de correspondencia entre los catorce
+invariantes y el mecanismo que los hace cumplir está en
+`docs/architecture/data-model.md`. Es el lugar a revisar si alguna vez se
+sospecha que uno dejó de cumplirse.
 
 **Requisitos:** INV-02, INV-08, INV-12, RNF-04.
 
-### HT-05 · Cliente de Supabase, secretos e inyección de dependencias `[ ]`
+### HT-05 · Cliente de Supabase, secretos e inyección de dependencias `[x]`
 
 Cliente de Supabase con persistencia de sesión, secretos fuera del código fuente,
 estructura base de módulos de Koin, y `DataStore` para sesión y preferencias.
 
-- [ ] Los secretos se leen de `local.properties` en desarrollo y de los secretos
-      del repositorio en integración continua
-- [ ] Ningún valor de clave figura en el código fuente
-- [ ] La sesión persiste entre ejecuciones y el token se renueva de forma automática
-- [ ] La inyección de dependencias arranca en la clase de aplicación
-- [ ] **No se configura base de datos local.** DataStore cubre sesión y
+- [x] Los secretos se leen de `local.properties` en desarrollo y de los secretos
+      del repositorio en integración continua. Llegan al código como campos de
+      `BuildConfig`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_WEB_CLIENT_ID`
+- [x] Ningún valor de clave figura en el código fuente. Verificado buscando
+      `supabase.co`, tokens `eyJ...` y `apps.googleusercontent.com` en `app/src/`
+- [x] La sesión persiste entre ejecuciones y el token se renueva de forma
+      automática. Verificado cerrando el proceso por completo y volviendo a
+      abrir: la pantalla muestra el mismo identificador sin volver a ingresar
+- [x] La inyección de dependencias arranca en la clase de aplicación
+      `SaludEnCasaApplication`, declarada en el manifiesto
+- [x] **No se configura base de datos local.** DataStore cubre sesión y
       preferencias; ningún requisito exige operación sin conexión
 
 **Prueba de humo de autenticación.** Es el incremento del sprint y esta historia
 es su dueña. Pantalla desechable con un botón que recorre la cadena completa:
 
-- [ ] Al pulsar el botón aparece el selector de cuentas nativo de Android
-- [ ] Al elegir una cuenta, Supabase valida el token y crea la sesión
-- [ ] El disparador crea la fila en `profiles` con el rol sin asignar
-- [ ] La pantalla muestra el identificador obtenido
-- [ ] La fila es visible en el panel de la base de datos
+- [x] Al pulsar el botón aparece el selector de cuentas nativo de Android
+- [x] Al elegir una cuenta, Supabase valida el token y crea la sesión
+- [x] El disparador crea la fila en `profiles` con el rol sin asignar
+- [x] La pantalla muestra el identificador obtenido
+- [x] La fila es visible en el panel de la base de datos
 
 Si los cinco ocurren, toda la cadena de configuración es correcta. El código se
 elimina al implementar HU-01.
+
+**Los cinco verificados sobre el emulador el 2026-09-12**, recorriendo el flujo
+completo: selector de cuentas, pantalla de consentimiento, sesión creada y fila
+`08ddb28f-…` en `profiles` con `role` nulo, `active` verdadero y reputación en
+cero. El identificador que muestra la pantalla coincide con el de la base.
+
+> **Defecto encontrado al probarlo, y corregido.** La primera versión consultaba
+> la sesión una sola vez y de forma síncrona al construir el modelo de vista. El
+> cliente restaura la sesión guardada de forma asíncrona, así que la consulta
+> siempre llegaba antes y respondía que no había nadie: la sesión parecía
+> perderse en cada reinicio aunque estuviera correctamente guardada en DataStore.
+> Ahora la sesión se **observa** como flujo. Es un defecto que la compilación no
+> podía detectar y que solo apareció al cerrar y reabrir la aplicación.
+
+**Qué compone la cadena, para saber dónde mirar si falla**
+
+| Pieza | Dónde vive |
+|---|---|
+| Selector de cuentas | `GoogleAuthClient`, mediante Credential Manager |
+| Nonce | `core/util/Nonce.kt`: Google firma sobre el resumen, Supabase verifica el valor crudo |
+| Intercambio del token | `supabase.auth.signInWith(IDToken)` con el proveedor Google |
+| Creación del perfil | Disparador `on_auth_user_created` en la base, ya aplicado en HT-04 |
+| Persistencia | `DataStoreSessionManager` |
+
+El README explica en qué orden revisar cuando el ingreso falla.
+
+**Deuda reconocida.** El modelo de vista consume un cliente de infraestructura en
+lugar de un caso de uso, que no es la forma que pide la arquitectura. Se acepta
+solo porque esta pantalla es andamiaje sin dominio detrás: HU-01 la reemplaza por
+el flujo real con su caso de uso. Queda anotado para que no se copie el patrón.
+
+**Comentarios revisados contra la sección nueva de `CLAUDE.md`.** Los nueve
+archivos Kotlin de esta historia se depuraron: sin bloques KDoc, y cada
+comentario `//` restante explica algo que el código no puede expresar —una
+restricción externa, un rodeo de biblioteca, o el motivo de una decisión,
+referenciando `docs/decisions.md` o este mismo archivo en vez de repetirlos.
+Las migraciones ya aplicadas al proyecto remoto —las ocho de HT-04 y la de
+corrección de seguridad que se agregó después— quedaron **fuera** de esta
+limpieza a propósito: una migración aplicada no se edita nunca, tampoco para esto.
+
+**Revisión del pull request #1.** El revisor automático de GitHub señaló 24
+observaciones sobre la rama. Cada una se verificó contra el esquema real antes de
+aceptarla: la más grave se probó con un experimento propio contra la base de
+datos remota, no solo leyendo el código. Las 24 eran reales; una de
+ellas —la lectura de `pg_trigger_depth()` dentro de una cláusula `WHEN`— resultó
+más grave de lo que el revisor describía, porque ya estaba aplicada y rompía en
+producción el registro de una calificación o la finalización de un servicio, no
+solo dejaba una puerta de seguridad abierta. Veintiuna se corrigieron; tres
+quedaron registradas como deuda deliberada, detalladas más abajo.
+
+Los cambios entran en dos grupos:
+
+- **Código Kotlin**, corregido directamente: `GoogleAuthClient` ahora valida las
+  tres variables de configuración, no solo la del cliente de Google, y ya no
+  atrapa `CancellationException` como si fuera un fallo de autenticación.
+- **Base de datos**, corregida con una migración nueva,
+  `20260912110000_close_lifecycle_and_visibility_gaps`, catorce puntos: el error
+  de profundidad de disparador ya descrito; el rol no verificado al crear
+  `patients`/`professionals`; la aceptación de solicitudes y ofertas por
+  escritura directa sin pasar por la operación atómica de RF-08.5, que todavía no
+  existe; la falta del filtro `professional_covers()` al emitir una oferta; la
+  contraoferta del paciente sin hilo válido; la llegada y finalización de un
+  servicio registrables por cualquiera de las dos partes en vez de solo el
+  profesional; la confirmación de un pago antes de que el servicio esté
+  completado; la disputa de un pago por escritura directa; las calificaciones
+  del paciente visibles públicamente cuando RF-12.4 solo hace pública la
+  reputación del profesional; la fila completa de `patients` —incluidos
+  `medical_notes` y `emergency_contact`— expuesta a la contraparte de un
+  servicio; el catálogo y los servicios desactivados igual visibles; la
+  conversación de un paciente legible antes de que exista un servicio; el límite
+  negativo de la búsqueda por cercanía llegando sin filtrar hasta Postgres; el
+  valor `IOS` en un dominio que este proyecto declara exclusivamente Android; y
+  la cadena de baja en cascada que podía borrar servicios y pagos históricos.
+  También se corrigieron dos observaciones fuera del esquema: un comentario en
+  español en `app/build.gradle.kts` y la referencia a un `seed.sql` inexistente
+  en `supabase/config.toml`.
+
+Tres observaciones se registraron como deuda en vez de corregirse: la validación
+de la franja de disponibilidad al crear una solicitud agendada (RF-07.3), el
+flujo de integración continua que mapee los secretos del repositorio a
+`local.properties` (ninguno existe todavía en este proyecto), y la operación
+atómica de aceptación de oferta que RF-08.5 exige — la migración de esta revisión
+cierra el camino directo hacia `ACCEPTED` sin abrir todavía el correcto, porque
+construirlo es alcance de la historia de negociación, no de una corrección de
+revisión. Las tres quedan anotadas en `docs/decisions.md`, 2026-09-12.
 
 **Requisitos:** RF-01.1, RF-01.2, RF-01.3, RF-01.6, RNF-06.
 

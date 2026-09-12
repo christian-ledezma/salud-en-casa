@@ -1,4 +1,4 @@
-package bo.saludencasa.app.ui.theme
+package bo.saludencasa.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

@@ -39,12 +39,15 @@ que lo introduce.
 | Mensaje | `Message` | Comunicación dentro de la solicitud |
 | Identificador de dispositivo | `DeviceToken` | Destino de notificaciones |
 | Reputación | `averageRating` | Promedio de calificaciones recibidas |
+| Total de calificaciones | `totalReviews` | Cuántas calificaciones sostienen el promedio |
+| Distancia en metros | `distanceM` | Resultado de la búsqueda por cercanía |
 
 ## Atributos frecuentes
 
 | Español | Inglés |
 |---|---|
 | Nombre completo | `fullName` / `full_name` |
+| Correo electrónico | `email` |
 | Teléfono | `phone` |
 | Fotografía | `photoUrl` / `photo_url` |
 | Rol | `role` |
@@ -69,6 +72,7 @@ que lo introduce.
 | Tipo de documento | `documentType` / `document_type` |
 | Ruta de almacenamiento | `storagePath` / `storage_path` |
 | Revisado por | `reviewedBy` / `reviewed_by` |
+| Revisado en | `reviewedAt` / `reviewed_at` |
 | Motivo de rechazo | `rejectionReason` / `rejection_reason` |
 | Precio de referencia | `referencePriceBob` / `reference_price_bob` |
 | Duración estimada | `estimatedDurationMin` / `estimated_duration_min` |
@@ -93,6 +97,11 @@ que lo introduce.
 | Proveedor | `provider` |
 | Referencia externa | `externalReference` / `external_reference` |
 | Conciliado en | `settledAt` / `settled_at` |
+| Confirmado por el paciente | `patientConfirmedAt` / `patient_confirmed_at` |
+| Confirmado por el profesional | `professionalConfirmedAt` / `professional_confirmed_at` |
+| Motivo de cancelación | `cancellationReason` / `cancellation_reason` |
+| Cancelado por | `cancelledBy` / `cancelled_by` |
+| Cancelado en | `cancelledAt` / `cancelled_at` |
 | Autor | `authorId` / `author_id` |
 | Destinatario | `recipientId` / `recipient_id` |
 | Puntaje | `rating` |
@@ -124,12 +133,25 @@ Los valores se escriben en `SCREAMING_SNAKE_CASE`, tanto en Kotlin como en Postg
 | `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `SETTLED`, `DISPUTED` |
 | `device_platform` | `ANDROID`, `IOS` |
 
+## Nota sobre `professionalNotes`
+
+El término figura arriba, pero **no existe como columna en el esquema y no debe
+crearse**. El detalle de lo realizado durante una atención vive en la
+conversación de la solicitud. Una columna de notas en `services` sería
+exactamente el «campo suelto para salir del paso» que `docs/decisions.md`
+prohíbe el 2026-09-08: comprometería la incorporación posterior del registro
+clínico estructurado (FA-01), que exige autoría, fecha y semántica de solo
+agregar. El término se conserva aquí por si esa tabla llega a existir.
+
 ## Tablas del esquema
 
 `profiles` · `patients` · `professionals` · `verification_documents` · `addresses`
 · `service_types` · `professional_services` · `availability_slots` ·
 `service_requests` · `request_offers` · `messages` · `services` · `payments` ·
 `reviews` · `device_tokens`
+
+Vista de apoyo: `professional_directory`, la proyección pública del profesional
+sin datos de contacto.
 
 ## Sufijo de moneda
 
