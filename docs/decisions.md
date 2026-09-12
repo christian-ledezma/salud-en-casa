@@ -652,6 +652,112 @@ evitarlo. El sintoma es siempre el mismo mensaje de metadatos incompatibles.
 
 ---
 
+## 2026-09-11 · La ficha publica del profesional es una vista, no una politica
+
+**Contexto.** Tres requisitos tiran en direcciones opuestas sobre la misma fila.
+RF-02.6 y RF-06.3 exigen que cualquier usuario vea el nombre, la foto, la tarifa
+y la reputacion de un profesional. RN-06 y RF-08.6 exigen que el telefono
+permanezca oculto hasta que se acepte una oferta. INV-13 exige que nadie lea
+filas ajenas.
+
+La seguridad a nivel de fila resuelve filas, no columnas: una politica que
+permita leer la fila de un profesional permite leer **todas** sus columnas,
+telefono incluido. Y los privilegios por columna de PostgreSQL son por rol, no
+por fila, de modo que quitar `phone` al rol autenticado se lo quitaria tambien a
+cada usuario sobre su propia fila.
+
+**Decision.** La fila de `profiles` es privada: se lee solo por su dueno, por el
+administrador, y por la contraparte una vez que existe un servicio entre ambos.
+La ficha publica se sirve por la vista `professional_directory`, que **no
+contiene las columnas de contacto**.
+
+**Razonamiento.** El telefono no queda oculto por una condicion que alguien pueda
+relajar mas adelante, sino porque no esta en la proyeccion. Es una garantia
+estructural: para filtrarlo habria que anadir deliberadamente la columna a la
+vista, lo que se ve en la revision de una migracion.
+
+**Detalle que hay que entender antes de tocarla.** La vista se declara
+`security_invoker = false`, es decir, se ejecuta con los privilegios de su dueno
+y no aplica las politicas de las tablas base. Es intencional: debe leer filas que
+el llamante no puede leer por si mismo. Lo que hace de filtro es su propia
+clausula `where`, que exige `verification_status = 'APPROVED'` y `profiles.active`
+y con ello materializa INV-07. **Anadir una columna de contacto a esta vista es
+una fuga de datos**, no un cambio cosmetico.
+
+**Consecuencia.** La busqueda por cercania devuelve el mismo conjunto de columnas
+publicas. La revelacion del contacto es una politica aparte sobre `profiles`,
+condicionada a `shares_service_with()`, que existe desde la migracion que crea
+`services` porque es la condicion de la que depende.
+
+---
+
+## 2026-09-11 · La reputacion vive en `profiles`, no en `professionals`
+
+**Contexto.** El glosario nombra `averageRating` sin fijar en que tabla reside, y
+la lectura natural es ponerla en `professionals`, que es donde la muestra la
+ficha publica.
+
+**Decision.** `average_rating` y `total_reviews` son columnas de `profiles`.
+
+**Razonamiento.** La calificacion es de ida y vuelta: RF-12.2 hace que el
+profesional califique al paciente, y HU-30 pide que otro profesional vea la
+reputacion de ese paciente antes de acudir a un domicilio. Si la reputacion
+viviera en `professionals`, el paciente necesitaria una columna paralela en
+`patients` y el disparador de recalculo tendria que decidir a cual escribir segun
+el rol del destinatario. En `profiles` hay una sola columna, un solo disparador y
+ninguna rama.
+
+Es ademas coherente con INV-01: `profiles` es la identidad de toda persona, y la
+reputacion es un atributo de la persona, no del rol que desempena en una
+atencion.
+
+**Que se queda en `professionals`.** `total_services`, el numero de atenciones
+prestadas, porque solo tiene sentido para quien las presta. Lo incrementa un
+disparador cuando un servicio pasa a `COMPLETED`, no el cliente.
+
+---
+
+## 2026-09-11 · La CLI de Supabase es dependencia del proyecto, y se trabaja contra el proyecto remoto
+
+**Contexto.** Las migraciones de HT-04 necesitaban aplicarse y verificarse. La
+via que documenta Supabase para desarrollo es levantar la pila completa en local
+con Docker y reconstruirla con `supabase db reset`. La maquina de desarrollo
+tiene Docker instalado pero el demonio detenido, y la pila local descarga varios
+gigabytes de imagenes.
+
+**Decision.** Dos partes.
+
+Primero, la CLI se instala como **dependencia de desarrollo del proyecto**
+(`npm install supabase --save-dev`) con su version exacta fijada en
+`package.json`, y se invoca con `npx supabase`. No se instala de forma global.
+
+Segundo, en esta etapa el esquema se aplica y se verifica **contra el proyecto
+remoto de desarrollo**, con `npx supabase db push`. El entorno local con Docker
+queda fuera de alcance.
+
+**Razonamiento.** Una CLI global es una version distinta en cada maquina y en
+integracion continua, que es justo el problema que el catalogo de versiones
+resuelve para las dependencias de Android. Fijarla en `package.json` la somete a
+la misma regla de reproducibilidad.
+
+Sobre el entorno local: el proyecto remoto de desarrollo ya existe desde HT-02,
+es gratuito y es donde la aplicacion se conecta de todos modos. Levantar ademas
+una pila local no aporta nada que el proyecto necesite hoy, y si aporta varios
+gigabytes y una fuente mas de divergencia entre entornos.
+
+**Consecuencia que hay que asumir.** El criterio de HT-04 que pedia que
+`supabase db reset` reconstruyera la base completa queda **aplazado**, no
+cumplido. Es el criterio que demuestra que las migraciones reconstruyen el
+esquema desde cero, y esa es una propiedad que conviene poder ensenar en la
+defensa. Se recupera cuando exista el entorno local o el proyecto de produccion,
+y hasta entonces figura como pendiente en `plan.md` en lugar de darse por bueno.
+
+**Consecuencia operativa.** `npx supabase db push` se ejecuta siempre primero con
+`--dry-run`. Contra un proyecto remoto no hay deshacer: una migracion aplicada no
+se edita, se corrige con otra.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

@@ -366,12 +366,45 @@ sus políticas de seguridad**.
 | 7 | `functions` | Búsqueda por cercanía, creación de perfil, recálculo de reputación |
 | 8 | `seed_data` | Catálogo inicial de tipos de servicio |
 
-- [ ] Las quince tablas existen con seguridad a nivel de fila habilitada
-- [ ] Los índices espaciales aparecen en el plan de ejecución de la consulta de cercanía
-- [ ] `supabase db reset` reconstruye la base completa sin errores
-- [ ] El rol administrador no accede a `messages`
-- [ ] `docs/architecture/data-model.md` contiene el diagrama entidad-relación en
+- [x] Las quince tablas existen con seguridad a nivel de fila habilitada y al
+      menos una política cada una
+- [ ] Los índices espaciales aparecen en el plan de ejecución de la consulta de
+      cercanía — **solo verificable con datos.** Con las tablas vacías el
+      planificador elige recorrido secuencial por ser más barato, así que el
+      plan no prueba nada. Se verifica en HU-11, cuyo criterio ya exige medir con
+      quinientos profesionales cargados
+- [x] Las ocho migraciones se aplican sobre el proyecto remoto con
+      `npx supabase db push`, previo `--dry-run`
+- [ ] ~~`supabase db reset` reconstruye la base completa sin errores~~ —
+      **aplazado.** El entorno local con Docker queda fuera de alcance en esta
+      etapa. Es el criterio que demuestra que el esquema se reconstruye desde
+      cero, así que se recupera cuando exista entorno local o proyecto de
+      producción. Registrado en `docs/decisions.md`
+- [x] El rol administrador no accede a `messages`: ninguna de sus seis políticas
+      invoca `is_admin()`, ni la invocará ninguna migración posterior
+- [x] `docs/architecture/data-model.md` contiene el diagrama entidad-relación en
       Mermaid, derivado del esquema efectivamente aplicado
+
+**Verificación contra el proyecto remoto**, tras aplicar las ocho migraciones el
+2026-09-12 sobre `salud-en-casa` (`sa-east-1`, PostgreSQL 17.6):
+
+| Qué se comprobó | Cómo | Resultado |
+|---|---|---|
+| Las quince tablas existen | Tipos generados desde el remoto | 15, sin ninguna de más |
+| Los doce enumerados existen | Tipos generados desde el remoto | 12, sin ninguno de más |
+| La vista y las funciones existen | Tipos generados desde el remoto | `professional_directory`, `is_admin`, `professional_covers`, `shares_service_with`, `search_nearby_professionals` |
+| Los índices se crearon | Estadísticas de índices del remoto | 52, incluidos los dos GIST `idx_addresses_location` e `idx_service_requests_location` |
+| El catálogo inicial se insertó | Estadísticas de tablas del remoto | `service_types` con 12 filas; las otras catorce vacías |
+| **La seguridad a nivel de fila deniega de verdad** | Lectura anónima de las quince tablas por la API REST con la clave anónima | Las quince devuelven cero filas. `professional_directory` responde `permission denied` |
+
+Esa última fila es la que vale: no comprueba que las políticas estén escritas,
+sino que un tercero sin sesión no obtiene ni una fila de ninguna tabla (INV-02,
+INV-13).
+
+**Dónde vive cada invariante.** La tabla de correspondencia entre los catorce
+invariantes y el mecanismo que los hace cumplir está en
+`docs/architecture/data-model.md`. Es el lugar a revisar si alguna vez se
+sospecha que uno dejó de cumplirse.
 
 **Requisitos:** INV-02, INV-08, INV-12, RNF-04.
 

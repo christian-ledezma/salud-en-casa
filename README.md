@@ -21,7 +21,6 @@ Proyecto de grado. El desarrollo sigue SCRUM con sprints de dos semanas.
 | JDK | 17 |
 | Android Studio | Quail o posterior |
 | Node.js | 20 LTS o superior, solo para la CLI de Supabase |
-| Supabase CLI | `npm install -g supabase` |
 
 Dispositivo o emulador con **Android 8.0 (API 26)** o superior.
 
@@ -65,11 +64,23 @@ el archivo de configuración. Se coloca en `app/`, no en la raíz.
 
 ### 3. Base de datos
 
+La CLI de Supabase es una dependencia de desarrollo del propio proyecto, con su
+versión fijada en `package.json`. No se instala de forma global: así todos
+trabajan con la misma versión.
+
 ```bash
-supabase login
-supabase link --project-ref <referencia del proyecto>
-supabase db push
+npm install
+npx supabase login
+npx supabase link --project-ref <referencia del proyecto>
+npx supabase db push
 ```
+
+`npx supabase link` pide la contraseña de la base de datos una sola vez y la
+guarda en el llavero del sistema operativo.
+
+En esta etapa se trabaja **contra el proyecto remoto de desarrollo**. El entorno
+local con Docker (`supabase start`, `supabase db reset`) está fuera de alcance;
+la razón está en `docs/decisions.md`.
 
 ## Comandos
 
@@ -81,9 +92,9 @@ supabase db push
 | `./gradlew ktlintCheck` | Análisis estático |
 | `./gradlew build` | Verificación completa |
 | `./gradlew signingReport` | Muestra las huellas SHA-1 del proyecto |
-| `supabase migration new <nombre>` | Crea una migración |
-| `supabase db push` | Aplica las migraciones pendientes |
-| `supabase db reset` | Reconstruye la base desde cero |
+| `npx supabase migration new <nombre>` | Crea una migración |
+| `npx supabase db push --dry-run` | Muestra qué migraciones se aplicarían |
+| `npx supabase db push` | Aplica las migraciones pendientes |
 
 ## Verificar la configuración
 
