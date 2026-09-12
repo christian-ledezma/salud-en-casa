@@ -758,6 +758,61 @@ se edita, se corrige con otra.
 
 ---
 
+## 2026-09-12 · Guardias de escritura contra el propio dueño de la fila, distinguidas por profundidad de disparador
+
+**Contexto.** Una revisión de seguridad detectó que `profiles_update_own` y
+`professionals_update_own` solo verifican de quién es la fila, nunca qué
+columnas cambian. Nada impedía que un paciente o un profesional escribiera a
+mano `average_rating`, `total_reviews`, `active` o `total_services`: un
+profesional podía inflar su propia reputación, restaurar su `active` después de
+que un administrador lo desactivara, o inflar el número de atenciones que
+exhibe en su ficha pública. Encontró también que `messages_update_patient` y
+`messages_update_professional` permiten al destinatario reescribir el
+`content` de un mensaje, no solo su `read_at`: la conversación es donde vive el
+detalle de la atención (RF-09.3, FA-01), así que una integridad débil ahí
+compromete el registro completo.
+
+**Decisión.** Dos mecanismos distintos, elegidos por si hace falta o no un
+paso alrededor de la comprobación.
+
+Para `profiles` y `professionals`, un disparador `before update` que rechaza el
+cambio de esas columnas, salvo cuando el llamante es administrador o la
+escritura llega anidada dentro de otro disparador propio.
+
+Para `messages`, un privilegio por columna: se revoca `update` por completo al
+rol `authenticated` y se concede solo sobre `read_at`. No hace falta disparador
+porque INV-12 ya excluye a cualquier administrador de esta tabla, y ninguna
+función interna escribe en ella: no hay cascada que distinguir.
+
+**Razonamiento.** `recalculate_reputation()` e `increment_total_services()` son
+disparadores `security definer` que escriben exactamente esas columnas de
+`profiles` y `professionals`, y lo hacen desde dentro de una solicitud de un
+paciente o profesional común: calificar o marcar un servicio completado.
+`auth.uid()` no cambia dentro de una función `security definer`, solo cambia el
+rol para efectos de privilegio. Una guardia que solo comprobara
+`not is_admin()` habría bloqueado también esa escritura legítima, porque
+`is_admin()` es falso en ambos casos: en el intento de fraude y en el
+recálculo real.
+
+`pg_trigger_depth()` los distingue sin ambigüedad. Una escritura directa del
+cliente alcanza el disparador de guardia en profundidad 1. La escritura de
+`recalculate_reputation()` la alcanza en profundidad 2, porque ya viene
+ejecutándose desde dentro del disparador `after insert` que la tabla
+`reviews` disparó primero. Ningún rol que el cliente controla puede insertarse
+entre esos dos niveles: los disparadores son objetos del esquema, no algo que
+`authenticated` pueda adjuntar por su cuenta.
+
+**Por qué `messages` no necesita lo mismo.** No hay ninguna función que escriba
+en `messages` desde otro disparador, y no hay ningún administrador al que haya
+que dejar pasar. El privilegio por columna resuelve el caso completo sin la
+complejidad de una guardia con profundidad.
+
+**Consecuencia.** Ninguna migración aplicada se editó. La corrección es una
+migración nueva, `harden_self_service_columns`, sobre columnas que ya existían
+desde `identity` y `requests`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
