@@ -95,6 +95,6 @@ dependencies {
 }
 
 ktlint {
-    // La version del motor sale del catalogo, no del archivo de compilacion.
+    // The engine version comes from the catalog, not the build script.
     version.set(libs.versions.ktlintEngine.get())
 }

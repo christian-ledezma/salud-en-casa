@@ -55,5 +55,12 @@ val coreModule =
             }
         }
 
-        single { GoogleAuthClient(supabase = get(), webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID) }
+        single {
+            GoogleAuthClient(
+                supabase = get(),
+                supabaseUrl = BuildConfig.SUPABASE_URL,
+                supabaseAnonKey = BuildConfig.SUPABASE_ANON_KEY,
+                webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID,
+            )
+        }
     }

@@ -851,6 +851,85 @@ depende de que sigan así, no porque haga falta activarlas.
 
 ---
 
+## 2026-09-12 · La profundidad de disparador dentro de una cláusula `WHEN` no es la misma que dentro del cuerpo de la función
+
+**Contexto.** La entrada anterior de este mismo día afirma que una escritura
+directa del cliente alcanza el disparador de guardia en profundidad 1, y la
+escritura anidada de `recalculate_reputation()` o `increment_total_services()`
+lo alcanza en profundidad 2. Esa cifra era correcta para código que llama
+`pg_trigger_depth()` dentro del **cuerpo** de la función del disparador, que es
+donde se probó en su momento. Los disparadores de `harden_self_service_columns`
+la llaman en la cláusula `WHEN`, no en el cuerpo, y ahí Postgres reporta un
+número menos: la escritura directa llega en profundidad 0, la anidada en
+profundidad 1. La condición `pg_trigger_depth() <= 1`, escrita para el número de
+profundidad equivocado, seguía siendo verdadera para la escritura anidada
+legítima y la bloqueaba: calificar a alguien o completar un servicio fallaba con
+`reputation_and_active_status_are_managed_by_the_server` o
+`total_services_is_maintained_by_the_server`, en un sistema que ya estaba
+aplicado al proyecto remoto.
+
+Lo encontró el revisor automático de GitHub en el pull request #1. No se aceptó
+por su palabra: se verificó con un experimento propio contra la base de datos
+remota, con tablas temporales y disparadores anidados de prueba, antes de tocar
+nada. `docs/decisions.md` documenta el fundamento del diseño, y una entrada con
+un número equivocado en su razonamiento es peor que no tener la entrada.
+
+**Decisión.** Se deja esta entrada nueva en vez de editar la anterior. La
+anterior registra fielmente qué se pensaba y por qué en el momento de escribir
+la migración original; esta registra qué resultó cierto al verificarlo y qué
+corrigió. Borrar o reescribir la primera perdería esa secuencia, que es
+justamente el ciclo de inspección y adaptación que SCRUM pide documentar.
+
+La corrección en sí —cambiar `<= 1` por `<= 0` en las dos cláusulas `WHEN`— vive
+en una migración nueva, `close_lifecycle_and_visibility_gaps`, junto con el
+resto de la respuesta a esa revisión.
+
+**Consecuencia.** Cualquier disparador futuro que necesite distinguir una
+escritura directa de una anidada debe decidir, antes de escribir la condición,
+si `pg_trigger_depth()` se lee dentro de la cláusula `WHEN` o dentro del cuerpo
+de la función, porque el número correcto no es el mismo en los dos lugares.
+
+---
+
+## 2026-09-12 · Respuesta a la revisión del pull request #1: qué se corrigió y qué queda como deuda
+
+**Contexto.** El revisor automático de GitHub señaló 24 observaciones sobre la
+rama `ht-05-supabase-client`. Veintiuna se corrigieron —listadas en la entrada de
+HT-05 en `plan.md`—, casi todas en la migración `close_lifecycle_and_visibility_gaps`
+más dos correcciones en `GoogleAuthClient`. Tres quedan deliberadamente sin
+corregir.
+
+**Decisión y razonamiento, por cada deuda:**
+
+- **La franja de disponibilidad no se valida al crear una solicitud agendada**
+  (RF-07.3). Validar contra `availability_slots` en el momento de la inserción
+  exige decidir cómo se comparan un horario semanal declarado y una fecha
+  concreta, con zona horaria y semántica de excepciones que hoy no existen en
+  ningún lado del esquema. Es trabajo de la historia que construya la
+  programación de citas, no una corrección de revisión.
+- **No existe flujo de integración continua** que mapee los secretos del
+  repositorio a variables de entorno para `local.properties`. El criterio de
+  aceptación de HT-05 lo da por hecho porque copia la redacción de RNF-06, pero
+  este proyecto no tiene todavía ningún flujo de trabajo en `.github/workflows/`:
+  se decidió no improvisar uno solo para cerrar esta observación, porque
+  configurar integración continua es una decisión de alcance propia, no un
+  efecto colateral de una revisión de código.
+- **La operación atómica de RF-08.5** —aceptar una oferta crea el servicio y el
+  pago pendiente en una sola operación— todavía no existe. La migración de esta
+  revisión cierra el camino que la sustituía sin querer: ya no es posible poner
+  una oferta o una solicitud en `ACCEPTED` con una escritura directa del
+  cliente. No abre el camino correcto, porque construir esa función junto con el
+  caso de uso y la pantalla que la use es alcance de la historia de negociación
+  (HU-14 a HU-19), no de esta corrección. Mientras esa historia no exista, la
+  aceptación de una oferta simplemente no es posible desde el cliente, lo cual es
+  correcto: tampoco hay pantalla que la ofrezca todavía.
+
+**Consecuencia.** Las tres quedan pendientes de una historia futura que las
+declare como su propio criterio de aceptación. Ninguna se marca como resuelta en
+`plan.md`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

@@ -473,9 +473,55 @@ archivos Kotlin de esta historia se depuraron: sin bloques KDoc, y cada
 comentario `//` restante explica algo que el código no puede expresar —una
 restricción externa, un rodeo de biblioteca, o el motivo de una decisión,
 referenciando `docs/decisions.md` o este mismo archivo en vez de repetirlos.
-Las nueve migraciones de HT-04 quedaron **fuera** de esta limpieza a propósito:
-ya están aplicadas al proyecto remoto, y una migración aplicada no se edita
-nunca, tampoco para esto.
+Las migraciones ya aplicadas al proyecto remoto —las ocho de HT-04 y la de
+corrección de seguridad que se agregó después— quedaron **fuera** de esta
+limpieza a propósito: una migración aplicada no se edita nunca, tampoco para esto.
+
+**Revisión del pull request #1.** El revisor automático de GitHub señaló 24
+observaciones sobre la rama. Cada una se verificó contra el esquema real antes de
+aceptarla: la más grave se probó con un experimento propio contra la base de
+datos remota, no solo leyendo el código. Las 24 eran reales; una de
+ellas —la lectura de `pg_trigger_depth()` dentro de una cláusula `WHEN`— resultó
+más grave de lo que el revisor describía, porque ya estaba aplicada y rompía en
+producción el registro de una calificación o la finalización de un servicio, no
+solo dejaba una puerta de seguridad abierta. Veintiuna se corrigieron; tres
+quedaron registradas como deuda deliberada, detalladas más abajo.
+
+Los cambios entran en dos grupos:
+
+- **Código Kotlin**, corregido directamente: `GoogleAuthClient` ahora valida las
+  tres variables de configuración, no solo la del cliente de Google, y ya no
+  atrapa `CancellationException` como si fuera un fallo de autenticación.
+- **Base de datos**, corregida con una migración nueva,
+  `20260912110000_close_lifecycle_and_visibility_gaps`, catorce puntos: el error
+  de profundidad de disparador ya descrito; el rol no verificado al crear
+  `patients`/`professionals`; la aceptación de solicitudes y ofertas por
+  escritura directa sin pasar por la operación atómica de RF-08.5, que todavía no
+  existe; la falta del filtro `professional_covers()` al emitir una oferta; la
+  contraoferta del paciente sin hilo válido; la llegada y finalización de un
+  servicio registrables por cualquiera de las dos partes en vez de solo el
+  profesional; la confirmación de un pago antes de que el servicio esté
+  completado; la disputa de un pago por escritura directa; las calificaciones
+  del paciente visibles públicamente cuando RF-12.4 solo hace pública la
+  reputación del profesional; la fila completa de `patients` —incluidos
+  `medical_notes` y `emergency_contact`— expuesta a la contraparte de un
+  servicio; el catálogo y los servicios desactivados igual visibles; la
+  conversación de un paciente legible antes de que exista un servicio; el límite
+  negativo de la búsqueda por cercanía llegando sin filtrar hasta Postgres; el
+  valor `IOS` en un dominio que este proyecto declara exclusivamente Android; y
+  la cadena de baja en cascada que podía borrar servicios y pagos históricos.
+  También se corrigieron dos observaciones fuera del esquema: un comentario en
+  español en `app/build.gradle.kts` y la referencia a un `seed.sql` inexistente
+  en `supabase/config.toml`.
+
+Tres observaciones se registraron como deuda en vez de corregirse: la validación
+de la franja de disponibilidad al crear una solicitud agendada (RF-07.3), el
+flujo de integración continua que mapee los secretos del repositorio a
+`local.properties` (ninguno existe todavía en este proyecto), y la operación
+atómica de aceptación de oferta que RF-08.5 exige — la migración de esta revisión
+cierra el camino directo hacia `ACCEPTED` sin abrir todavía el correcto, porque
+construirlo es alcance de la historia de negociación, no de una corrección de
+revisión. Las tres quedan anotadas en `docs/decisions.md`, 2026-09-12.
 
 **Requisitos:** RF-01.1, RF-01.2, RF-01.3, RF-01.6, RNF-06.
 

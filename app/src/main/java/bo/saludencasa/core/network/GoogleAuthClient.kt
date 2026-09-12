@@ -15,6 +15,7 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -54,6 +55,8 @@ sealed interface SignInError {
 // not to this application (docs/decisions.md, 2026-09-05).
 class GoogleAuthClient(
     private val supabase: SupabaseClient,
+    private val supabaseUrl: String,
+    private val supabaseAnonKey: String,
     private val webClientId: String,
 ) {
     // Sessions restore asynchronously on start up. A single read at
@@ -80,7 +83,9 @@ class GoogleAuthClient(
         }
 
     suspend fun signInWithGoogle(activityContext: Context): SignInResult {
-        if (webClientId.isBlank()) return SignInResult.Failure(SignInError.MissingConfiguration)
+        if (webClientId.isBlank() || supabaseUrl.isBlank() || supabaseAnonKey.isBlank()) {
+            return SignInResult.Failure(SignInError.MissingConfiguration)
+        }
 
         val nonce = Nonce.generate()
         val request =
@@ -129,6 +134,8 @@ class GoogleAuthClient(
                 supabase.auth.currentUserOrNull()?.id
                     ?: return SignInResult.Failure(SignInError.TokenRejected)
             SignInResult.Success(userId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             SignInResult.Failure(SignInError.TokenRejected)
         }
