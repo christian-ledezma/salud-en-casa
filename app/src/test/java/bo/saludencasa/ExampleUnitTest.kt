@@ -1,4 +1,4 @@
-package bo.saludencasa.app
+package bo.saludencasa
 
 import org.junit.Test
 

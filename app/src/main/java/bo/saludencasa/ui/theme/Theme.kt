@@ -1,4 +1,4 @@
-package bo.saludencasa.app.ui.theme
+package bo.saludencasa.ui.theme
 
 import android.app.Activity
 import android.os.Build

@@ -568,6 +568,51 @@ pantalla que cada persona tenga configurado.
 
 ---
 
+## 2026-09-11 · Un solo número de versión de Java en todo el proyecto: 17
+
+**Contexto.** Al ejecutar HT-01 aparecieron tres números distintos de máquina
+virtual de Java conviviendo en el mismo proyecto. El archivo
+`gradle/gradle-daemon-jvm.properties`, que Android Studio genera de forma
+automática, exigía la versión 25 para el proceso que ejecuta Gradle. El `README.md`
+y la etapa de preparación de HT-08 declaraban 17. La plantilla dejaba
+`compileOptions` en 11.
+
+Las dos primeras cifras designan la máquina virtual sobre la que corre la
+herramienta de compilación; la tercera designa el código intermedio que se
+produce. Son cosas distintas y pueden diferir sin que nada falle, que es
+precisamente lo que las hacía difíciles de detectar.
+
+**Decisión.** Las tres se unifican en **17**: el proceso de Gradle, el objetivo de
+`compileOptions` y de `jvmTarget`, y el JDK que declara el `README.md` y que usará
+la integración continua.
+
+**Razonamiento.** El problema no era de funcionamiento sino de reproducibilidad,
+que es un atributo de calidad exigible en la defensa y el mismo criterio que ya
+motivó exigir dependencias en versión estable. Con dos números conviviendo, la
+integración continua de HT-08 se habría configurado con JDK 17 mientras el archivo
+del daemon pedía 25: el resultado es una descarga silenciosa de otra máquina
+virtual en cada ejecución, o un fallo, según cómo quedara configurado el flujo. Un
+proyecto que se levanta desde cero siguiendo su propio `README.md` no debería
+depender de esa resolución implícita.
+
+Se eligió 17 y no 25 porque es la versión que ya declaraban los documentos, porque
+es de soporte prolongado, y porque el plugin de compilación de Android en su
+versión 9.3.2 la acepta sin restricción. Se verificó ejecutando `./gradlew build`
+completo con el daemon fijado en 17.
+
+**Consecuencia.** `gradle/gradle-daemon-jvm.properties` queda versionado con
+`toolchainVersion=17` y las direcciones de descarga correspondientes para cada
+sistema operativo. Quien clone el proyecto obtiene la misma máquina virtual sin
+instalarla a mano: si no la tiene, Gradle la descarga. El archivo se regenera con
+`./gradlew updateDaemonJvm --jvm-version=<version>` y **nunca se edita a mano**,
+porque las direcciones de descarga van atadas a la versión.
+
+**Qué vigilar.** Android Studio puede volver a generar este archivo con la versión
+de su máquina virtual incorporada al actualizarse. Si reaparece un número distinto
+de 17, es eso y no un cambio deliberado.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
