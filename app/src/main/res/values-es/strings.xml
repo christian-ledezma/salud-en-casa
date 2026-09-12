@@ -2,6 +2,9 @@
     <string name="app_name">Salud en Casa</string>
 
     <string name="common_retry">Reintentar</string>
+    <string name="common_nav_home">Inicio</string>
+    <string name="common_nav_requests">Solicitudes</string>
+    <string name="common_nav_profile">Perfil</string>
 
     <string name="auth_smoke_test_title">Prueba de conexión</string>
     <string name="auth_smoke_test_signed_out">Sin sesión iniciada.</string>

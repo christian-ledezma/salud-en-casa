@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.SaludEnCasa" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+      Neutral parent, not Theme.Material.Light.NoActionBar: that parent fixes
+      the light scheme regardless of system setting. The window background is
+      set explicitly instead of inherited, so the values-night counterpart of
+      this style is the only thing that needs to differ (plan.md, HT-06).
+      Compose owns every other color; this theme only covers the pre-Compose
+      window frame.
+    -->
+    <style name="Theme.SaludEnCasa" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#F1F4F6</item>
+    </style>
 </resources>
