@@ -612,33 +612,68 @@ esta historia fue exclusivamente el análisis estático que faltaba: tres prueba
 nuevas bajo `bo.saludencasa.i18n`, en `app/src/test`, que corren con
 `./gradlew test` igual que cualquier otra prueba unitaria.
 
-### HT-08 · Integración continua, análisis estático y monitoreo `[ ]`
+### HT-08 · Integración continua, análisis estático y monitoreo `[~]`
 
 Flujo automático que se ejecuta en cada envío de código y en cada solicitud de
 fusión, más el monitoreo de errores en producción.
 
-Etapas del flujo:
+Etapas del flujo, en `.github/workflows/ci.yml`:
 
-| Etapa | Acción |
-|---|---|
-| Preparación | Descarga del código, JDK 17, caché de dependencias |
-| Secretos | Generación de `local.properties` desde los secretos del repositorio |
-| Análisis estático | ktlint y las reglas propias del proyecto |
-| Pruebas | `./gradlew test` |
-| Compilación | `./gradlew assembleDebug` |
+| Etapa | Acción | Paso del flujo |
+|---|---|---|
+| Preparación | Descarga del código, JDK 17, caché de dependencias | `Check out the repository`, `Set up JDK 17`, `Set up Gradle with dependency caching` |
+| Secretos | Generación de `local.properties` desde los secretos del repositorio | `Write the credentials the build needs` |
+| Análisis estático | ktlint y las reglas propias del proyecto | `Static analysis` → `./gradlew staticAnalysis` |
+| Pruebas | `./gradlew test` | `Unit tests` |
+| Compilación | `./gradlew assembleDebug` | `Debug build` |
 
-- [ ] Las cinco etapas concluyen correctamente en un envío de prueba
-- [ ] El análisis estático incluye las reglas de arquitectura: `domain/` sin
+- [ ] Las cinco etapas concluyen correctamente en un envío de prueba —
+      **pendiente del autor.** El flujo está escrito y sus comandos se verificaron
+      uno por uno en local, pero la primera ejecución real exige cargar los cuatro
+      secretos del repositorio y hacer un envío. El procedimiento está en el
+      `README.md`
+- [x] El análisis estático incluye las reglas de arquitectura: `domain/` sin
       importaciones de plataforma, `presentation/` sin importaciones de `data/`
-- [ ] El análisis estático incluye la regla de texto escrito en el código
-- [ ] La prueba `domainLayerHasNoPlatformImports` existe y pasa
-- [ ] Un error provocado deliberadamente aparece en el panel de monitoreo
+- [x] El análisis estático incluye la regla de texto escrito en el código
+- [x] La prueba `domainLayerHasNoPlatformImports` existe y pasa
+- [ ] Un error provocado deliberadamente aparece en el panel de monitoreo —
+      **pendiente del autor.** Exige habilitar Crashlytics en la consola de
+      Firebase, instalar la aplicación, pulsar «Provocar un fallo de prueba» en la
+      pantalla de prueba de conexión y **volver a abrirla**: Crashlytics sube el
+      reporte en el arranque siguiente, no en el momento del fallo
 
 **Requisitos:** RNF-06, RNF-09.
 
 > Estas reglas del análisis estático sustituyen la garantía que antes daba el
 > compilador al separar módulos. Sin ellas, la regla de dependencia queda
 > únicamente en la disciplina de quien programa.
+
+**Las reglas propias no son reglas de ktlint, son pruebas.** La decisión se tomó
+en HT-07 y está registrada en `docs/decisions.md`: escribir una regla propia de
+ktlint o de Detekt exige un artefacto Kotlin separado del que dependa `:app`, y
+el proyecto es de un solo módulo por decisión. La tarea `staticAnalysis` agrupa
+las dos herramientas —`ktlintCheck` para el estilo y `testDebugUnitTest` para las
+reglas propias— de modo que la etapa del flujo que dice «análisis estático»
+ejecute de verdad todo lo que el criterio enumera. La etapa siguiente, la de
+pruebas, reutiliza ese mismo resultado y por eso aparece como ya actualizada.
+
+**Las tres reglas de arquitectura se verificaron provocando su fallo.** Hoy no
+existe ningún archivo bajo `domain/` ni bajo `data/`, así que dos de las tres
+pasarían igual aunque estuvieran mal escritas. Para no dejar una red de seguridad
+que no sostiene nada, se crearon cuatro archivos sonda con violaciones reales
+—un `domain/` que importa `android.util.Log`, un `presentation/` que importa la
+capa `data` de su propia característica y una característica que importa la capa
+`data` de otra—, se comprobó que las tres reglas fallaban, y se eliminaron. La
+tercera **no falló en el primer intento**: su expresión regular anclaba la ruta
+en `^features/` cuando la ruta relativa empieza en `bo/saludencasa/`. Sin el
+experimento habría quedado permanentemente en verde sin mirar nada.
+
+**Monitoreo: Firebase Crashlytics, no Sentry.** Ningún documento del proyecto
+nombraba una herramienta. Se eligió Crashlytics porque Firebase ya está en el
+proyecto desde HT-02 y el Sprint 10 distribuye por App Distribution, del mismo
+proveedor. El razonamiento completo y su costo están en `docs/decisions.md`.
+HT-02 declaraba «solo Cloud Messaging y App Distribution habilitados en
+Firebase»: Crashlytics se suma a esa lista.
 
 ### HT-09 · Documentación de arquitectura `[ ]`
 

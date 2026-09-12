@@ -67,6 +67,11 @@ Usar el de Android hace que Supabase rechace el ingreso. Está explicado en
 Consola de Firebase → Configuración del proyecto → Tus aplicaciones → descargar
 el archivo de configuración. Se coloca en `app/`, no en la raíz.
 
+A diferencia de `local.properties`, **sin este archivo el proyecto no compila**:
+los complementos de Google Services y de Crashlytics lo leen en tiempo de
+compilación. El mensaje de Gradle dice exactamente qué falta, así que el fallo es
+accionable.
+
 ### 2. Compilar
 
 ```bash
@@ -100,12 +105,46 @@ la razón está en `docs/decisions.md`.
 | `./gradlew assembleDebug` | Compila la versión de depuración |
 | `./gradlew test` | Pruebas unitarias |
 | `./gradlew connectedAndroidTest` | Pruebas instrumentadas, requiere dispositivo |
-| `./gradlew ktlintCheck` | Análisis estático |
+| `./gradlew ktlintCheck` | Estilo de código |
+| `./gradlew staticAnalysis` | Estilo más las reglas propias: capas y texto escrito en el código |
 | `./gradlew build` | Verificación completa |
 | `./gradlew signingReport` | Muestra las huellas SHA-1 del proyecto |
 | `npx supabase migration new <nombre>` | Crea una migración |
 | `npx supabase db push --dry-run` | Muestra qué migraciones se aplicarían |
 | `npx supabase db push` | Aplica las migraciones pendientes |
+
+## Integración continua
+
+`.github/workflows/ci.yml` se ejecuta en cada envío y en cada solicitud de
+fusión: prepara el entorno con JDK 17, escribe las credenciales desde los
+secretos, y corre análisis estático, pruebas y compilación de depuración.
+
+Necesita cuatro secretos del repositorio, en Settings → Secrets and variables →
+Actions:
+
+| Secreto | Contenido |
+|---|---|
+| `SUPABASE_URL` | El mismo valor de `local.properties` |
+| `SUPABASE_ANON_KEY` | El mismo valor de `local.properties` |
+| `GOOGLE_WEB_CLIENT_ID` | El mismo valor de `local.properties` |
+| `GOOGLE_SERVICES_JSON` | `app/google-services.json` codificado en base64 |
+
+El último se obtiene así, y se pega tal cual en el secreto:
+
+```bash
+base64 -i app/google-services.json | pbcopy     # macOS
+base64 -w0 app/google-services.json             # Linux
+```
+
+## Monitoreo de fallos
+
+Los fallos se reportan a Firebase Crashlytics. El panel está en la consola de
+Firebase → Crashlytics.
+
+Crashlytics **no sube el reporte en el momento del fallo**, sino en el arranque
+siguiente: para verlo en el panel hay que volver a abrir la aplicación después de
+que se cierre. El botón «Provocar un fallo de prueba» de la pantalla de prueba de
+conexión existe para comprobarlo, y desaparece con esa pantalla en HU-01.
 
 ## Verificar la configuración
 

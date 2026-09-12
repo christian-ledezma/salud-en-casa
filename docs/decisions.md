@@ -1024,6 +1024,58 @@ que se detecte en revisión se agrega a `hardcodedVisibleTextPatterns` en
 
 ---
 
+## 2026-09-12 · Firebase Crashlytics como panel de monitoreo, y lo que eso obliga a cambiar en la compilación
+
+**Contexto.** HT-08 exige que «un error provocado deliberadamente aparezca en el
+panel de monitoreo», pero ningún documento del proyecto nombraba una herramienta:
+ni `docs/requirements.md`, que no tiene un requisito de monitoreo, ni `plan.md`,
+que solo describe el criterio. Las dos candidatas reales eran Firebase
+Crashlytics y Sentry.
+
+**Decisión.** Firebase Crashlytics, con `firebase-bom` y `firebase-crashlytics`,
+sin `firebase-analytics`.
+
+**Razonamiento.** Firebase ya es parte del proyecto desde HT-02: la consola está
+creada, `app/google-services.json` existe, y el Sprint 10 distribuye la
+aplicación por App Distribution, del mismo proveedor, para recoger reportes de
+fallos de los participantes de la validación. Crashlytics vive en esa misma
+consola y no cuesta nada sin límite de eventos. Sentry se configuraba con un solo
+DSN —más cómodo, porque habría entrado por el mismo mecanismo de
+`local.properties` y `BuildConfig` que HT-05 ya montó, sin tocar
+`google-services.json`—, pero suma un tercer proveedor externo junto a Supabase y
+Google, con cuenta propia y un plan gratuito acotado a cinco mil eventos
+mensuales. La disciplina de alcance del proyecto empuja a no sumar proveedores
+cuando uno ya presente resuelve lo mismo.
+
+`firebase-analytics` queda fuera a propósito: Crashlytics no lo exige, solo
+enriquece los rastros con eventos previos al fallo, y RNF-03 limita el paquete a
+25 MB. Verificado tras integrarlo: 19 MB en depuración y 14 MB en publicación sin
+ofuscación, de modo que el margen sigue siendo cómodo.
+
+**Consecuencia, y es la que conviene recordar.** Los complementos
+`com.google.gms.google-services` y `com.google.firebase.crashlytics` leen
+`app/google-services.json` **en tiempo de compilación**. Desde esta historia, un
+clon sin ese archivo **ya no compila**, cuando antes sí lo hacía. Es un cambio
+real en la puesta en marcha y contrasta de forma deliberada con `local.properties`,
+cuya ausencia el proyecto tolera a propósito para que el fallo aparezca en
+ejecución, donde es legible. Aquí se aceptó lo contrario porque el error de
+Gradle nombra el archivo que falta, así que sigue siendo accionable. El
+`README.md` lo advierte en la sección de puesta en marcha.
+
+De ahí se sigue el cuarto secreto del repositorio, `GOOGLE_SERVICES_JSON`: el
+flujo de integración continua reconstruye ese archivo decodificándolo desde
+base64, junto con los tres valores que ya escribía en `local.properties`. El paso
+falla de forma explícita si el secreto está ausente, porque sin esa comprobación
+el error que aparece más adelante es el del complemento de Google Services, que
+no dice nada útil sobre su causa.
+
+**Dónde queda la verificación.** Que las cinco etapas del flujo concluyan y que
+el fallo llegue al panel son los dos criterios que el agente no puede cerrar:
+exigen cargar los secretos, hacer un envío y mirar la consola. Quedan marcados
+como pendientes del autor en `plan.md`, con el procedimiento en el `README.md`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
