@@ -17,18 +17,9 @@ import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
-// DataStore is created once per process, which is what this delegate guarantees.
+// preferencesDataStore guarantees a single instance per process.
 private val Context.sessionStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
-/**
- * Cross cutting dependencies: the Supabase client, the session storage and the
- * JSON format they share. One Koin module per feature is the convention; this
- * one is what every feature stands on.
- *
- * Scopes follow .claude/rules/arquitectura.md: data sources and repositories are
- * singletons because they hold a connection or shared state, use cases are
- * factories because they hold none.
- */
 val coreModule =
     module {
 
@@ -46,15 +37,13 @@ val coreModule =
         single<SupabaseClient> {
             createSupabaseClient(
                 supabaseUrl = BuildConfig.SUPABASE_URL,
-                // The anonymous key grants nothing on its own: the row level
-                // security policy is what concedes or denies. The service key never
-                // leaves the server (INV-14).
+                // Anonymous key only; row level security decides access, not the
+                // key itself (docs/decisions.md, 2026-09-05). INV-14.
                 supabaseKey = BuildConfig.SUPABASE_ANON_KEY,
             ) {
                 install(Auth) {
-                    // RF-01.6: the session survives a restart and the token renews
-                    // on its own. Both are on by default; they are written out here
-                    // because the requirement depends on them staying that way.
+                    // Written out even though they are the defaults: RF-01.6
+                    // depends on them staying this way.
                     sessionManager = get<DataStoreSessionManager>()
                     autoLoadFromStorage = true
                     autoSaveToStorage = true

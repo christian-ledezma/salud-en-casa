@@ -18,11 +18,6 @@ import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/**
- * Whether somebody is signed in. [Loading] is not a detail: the client restores
- * the stored session asynchronously on start up, so asking once and synchronously
- * always answers "nobody", and the session looks lost after every restart.
- */
 sealed interface SessionState {
     data object Loading : SessionState
 
@@ -33,10 +28,6 @@ sealed interface SessionState {
     ) : SessionState
 }
 
-/**
- * Result of the Google sign in exchange. Expected conditions are modelled as a
- * sealed hierarchy instead of thrown exceptions.
- */
 sealed interface SignInResult {
     data class Success(
         val userId: String,
@@ -47,44 +38,27 @@ sealed interface SignInResult {
     ) : SignInResult
 }
 
-/**
- * Why a sign in did not succeed. Each case carries a type, never a sentence:
- * the presentation layer is what turns it into a string resource. A message
- * built here would be stuck in one language and in one screen's wording.
- */
 sealed interface SignInError {
-    /** local.properties has no Google web client identifier or no Supabase key. */
     data object MissingConfiguration : SignInError
 
-    /** The person dismissed the account chooser. */
     data object Cancelled : SignInError
 
-    /** The device has no Google account that can be offered. */
     data object NoGoogleAccount : SignInError
 
-    /** Credential Manager refused or failed to produce a credential. */
     data object CredentialManagerFailure : SignInError
 
-    /** Supabase did not accept the identity token. */
     data object TokenRejected : SignInError
 }
 
-/**
- * Signs in with Google through Credential Manager and exchanges the resulting
- * identity token with Supabase (RF-01.1, RF-01.2).
- *
- * The client identifier handed to Credential Manager is the **Web** one, not
- * the Android one: the application asks for a token addressed to its server,
- * and that server is Supabase. Registered in docs/decisions.md.
- */
+// Web client identifier, not Android: the token must be addressed to Supabase,
+// not to this application (docs/decisions.md, 2026-09-05).
 class GoogleAuthClient(
     private val supabase: SupabaseClient,
     private val webClientId: String,
 ) {
-    /**
-     * Emits again whenever the session changes, including the moment the stored
-     * one finishes loading. Observing this is what makes RF-01.6 hold.
-     */
+    // Sessions restore asynchronously on start up. A single read at
+    // construction time always runs before that finishes and reports nobody
+    // signed in, which is why this is a flow instead of a one-shot value.
     val sessionState: Flow<SessionState> =
         supabase.auth.sessionStatus.map { status ->
             when (status) {

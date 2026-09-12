@@ -10,15 +10,7 @@ import io.github.jan.supabase.auth.user.UserSession
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 
-/**
- * Persists the Supabase session in DataStore, which is the only local storage
- * this phase uses. There is no local database: no requirement asks for offline
- * operation (FA-08), so DataStore covers the session and the preferences and
- * nothing else.
- *
- * The Supabase client reads this back on start up, which is what makes the
- * session survive a restart and the token refresh automatically (RF-01.6).
- */
+// DataStore only: no local database in this phase (docs/decisions.md, 2026-09-10).
 class DataStoreSessionManager(
     private val dataStore: DataStore<Preferences>,
     private val json: Json,

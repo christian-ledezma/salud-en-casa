@@ -6,12 +6,8 @@ import org.junit.Test
 import java.security.SecureRandom
 
 class NonceTest {
-    /**
-     * Catches the mistake that costs the most time to diagnose: sending Google
-     * the raw nonce instead of its hash, or Supabase the hash instead of the
-     * raw value. The token is then rejected with an error that does not say
-     * why. The vector is the published SHA-256 of "abc".
-     */
+    // Vector is the published SHA-256 of "abc". Catches sending Google the raw
+    // nonce instead of its hash, or Supabase the hash instead of the raw value.
     @Test
     fun `hashes the nonce with sha256 in lowercase hexadecimal`() {
         assertEquals(
@@ -27,10 +23,6 @@ class NonceTest {
         assertNotEquals(nonce.raw, nonce.hashed)
     }
 
-    /**
-     * A nonce that repeats defeats its purpose: it is what ties one identity
-     * token to one sign in attempt.
-     */
     @Test
     fun `never generates the same nonce twice`() {
         val random = SecureRandom()

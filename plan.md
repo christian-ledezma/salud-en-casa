@@ -468,6 +468,15 @@ lugar de un caso de uso, que no es la forma que pide la arquitectura. Se acepta
 solo porque esta pantalla es andamiaje sin dominio detrás: HU-01 la reemplaza por
 el flujo real con su caso de uso. Queda anotado para que no se copie el patrón.
 
+**Comentarios revisados contra la sección nueva de `CLAUDE.md`.** Los nueve
+archivos Kotlin de esta historia se depuraron: sin bloques KDoc, y cada
+comentario `//` restante explica algo que el código no puede expresar —una
+restricción externa, un rodeo de biblioteca, o el motivo de una decisión,
+referenciando `docs/decisions.md` o este mismo archivo en vez de repetirlos.
+Las nueve migraciones de HT-04 quedaron **fuera** de esta limpieza a propósito:
+ya están aplicadas al proyecto remoto, y una migración aplicada no se edita
+nunca, tampoco para esto.
+
 **Requisitos:** RF-01.1, RF-01.2, RF-01.3, RF-01.6, RNF-06.
 
 ### HT-06 · Sistema de diseño `[ ]`

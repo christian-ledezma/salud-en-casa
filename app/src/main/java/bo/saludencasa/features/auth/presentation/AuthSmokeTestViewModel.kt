@@ -14,12 +14,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/**
- * State of the smoke test screen. The error case carries the error **type**,
- * not a sentence: turning it into words is the screen's job, so the same
- * condition can read differently in a different screen and in a different
- * language.
- */
 sealed interface AuthSmokeTestUiState {
     data object Loading : AuthSmokeTestUiState
 
@@ -34,24 +28,13 @@ sealed interface AuthSmokeTestUiState {
     ) : AuthSmokeTestUiState
 }
 
-/**
- * Disposable scaffolding. It exists to prove the whole configuration chain
- * works end to end: account chooser, identity token, Supabase session and the
- * profile row the database trigger creates. HU-01 deletes it and replaces it
- * with the real sign in flow behind a use case.
- *
- * A view model consuming an infrastructure client directly is not the shape the
- * architecture asks for. It is accepted here only because this screen is
- * scaffolding for HT-05 and has no domain behind it yet.
- *
- * The session is **observed**, never asked for once. The stored session is
- * restored asynchronously on start up, so a single synchronous read at
- * construction time always loses the race and reports nobody signed in.
- */
+// Temporary: HU-01 replaces this (plan.md, HT-05).
+// Consumes GoogleAuthClient directly instead of a use case: an accepted
+// deviation for scaffolding with no domain behind it yet (plan.md, HT-05).
 class AuthSmokeTestViewModel(
     private val googleAuthClient: GoogleAuthClient,
 ) : ViewModel() {
-    /** Overrides the session while an attempt is running or has just failed. */
+    // Overrides the session flow while an attempt is running or has just failed.
     private val attempt = MutableStateFlow<AuthSmokeTestUiState?>(null)
 
     val uiState: StateFlow<AuthSmokeTestUiState> =
@@ -67,10 +50,8 @@ class AuthSmokeTestViewModel(
             initialValue = AuthSmokeTestUiState.Loading,
         )
 
-    /**
-     * Credential Manager needs the activity to show the account chooser, which
-     * is why the context arrives as a parameter instead of being held.
-     */
+    // Credential Manager needs the activity to show the account chooser, which
+    // is why the context arrives as a parameter instead of being held.
     fun signIn(activityContext: Context) {
         attempt.value = AuthSmokeTestUiState.Loading
         viewModelScope.launch {

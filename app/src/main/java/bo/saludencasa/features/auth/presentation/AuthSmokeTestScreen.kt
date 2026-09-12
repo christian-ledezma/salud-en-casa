@@ -23,12 +23,7 @@ import bo.saludencasa.core.network.SignInError
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import org.koin.androidx.compose.koinViewModel
 
-/**
- * Smoke test of the authentication chain (HT-05). Disposable: HU-01 replaces it.
- *
- * Spacing is written in raw units here because the theme has no spacing scale
- * yet; HT-06 introduces it and this screen disappears before that matters.
- */
+// Temporary: HU-01 replaces this screen (plan.md, HT-05).
 @Composable
 fun AuthSmokeTestScreen(
     modifier: Modifier = Modifier,
@@ -52,6 +47,8 @@ private fun AuthSmokeTestContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
+        // Raw spacing: the theme has no scale yet (plan.md, HT-06). This
+        // screen is gone before that matters.
         modifier =
             modifier
                 .fillMaxSize()
@@ -103,9 +100,6 @@ private fun AuthSmokeTestContent(
     }
 }
 
-/**
- * Where an error type becomes words. The domain never carries the sentence.
- */
 private fun SignInError.messageRes(): Int =
     when (this) {
         SignInError.MissingConfiguration -> R.string.error_sign_in_missing_configuration
