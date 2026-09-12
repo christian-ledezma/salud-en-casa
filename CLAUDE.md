@@ -39,7 +39,7 @@ posible trabajo futuro y se sigue con lo que el alcance pide.
 - **`applicationId`:** `bo.saludencasa.app`
 - **Versión mínima:** API 26
 - **Interfaz:** Jetpack Compose + Material 3
-- **Backend:** Supabase (PostgreSQL 15 + PostGIS, Auth, Realtime, Storage, Edge Functions)
+- **Backend:** Supabase (PostgreSQL 17 + PostGIS, Auth, Realtime, Storage, Edge Functions)
 - **Inyección de dependencias:** Koin
 - **Preferencias y sesión local:** DataStore
 - **Compilar:** `./gradlew assembleDebug`
