@@ -1,5 +1,6 @@
 package bo.saludencasa.i18n
 
+import bo.saludencasa.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
 

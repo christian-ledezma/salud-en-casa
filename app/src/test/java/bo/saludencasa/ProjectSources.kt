@@ -1,10 +1,10 @@
-package bo.saludencasa.i18n
+package bo.saludencasa
 
 import java.io.File
 
-// Shared file lookup for the static-analysis tests in this package. JVM unit
-// tests have no access to the Android resource system, so these tests read
-// the source tree and the resource files directly from disk.
+// Shared file lookup for the static-analysis tests. JVM unit tests have no
+// access to the Android resource system nor to the compiled class graph, so
+// these rules read the source tree and the resource files directly from disk.
 internal object ProjectSources {
     private val localeValuesDirName = Regex("""^values(-[a-z]{2}(-r[A-Z]{2})?)?$""")
 
@@ -17,8 +17,10 @@ internal object ProjectSources {
         return dir
     }
 
+    fun mainSourceRoot(): File = File(projectRoot(), "app/src/main/java")
+
     fun mainKotlinFiles(): List<File> =
-        File(projectRoot(), "app/src/main/java")
+        mainSourceRoot()
             .walkTopDown()
             .filter { it.isFile && it.extension == "kt" }
             .toList()
@@ -31,4 +33,6 @@ internal object ProjectSources {
             .filter { it.isDirectory && localeValuesDirName.matches(it.name) }
             .mapNotNull { dir -> File(dir, "strings.xml").takeIf(File::exists) }
     }
+
+    fun pathWithinSourceRoot(file: File): String = file.relativeTo(mainSourceRoot()).invariantSeparatorsPath
 }
