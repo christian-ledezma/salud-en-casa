@@ -197,45 +197,54 @@ explícitamente para el trabajo de fundación.
 
 ## Historias técnicas
 
-### HT-01 · Repositorio, proyecto y estructura `[~]`
+### HT-01 · Repositorio, proyecto y estructura `[x]`
 
 Repositorio con control de versiones iniciado y archivo de exclusiones completo.
 Proyecto Android de un solo módulo `:app` con el paquete base correcto y la
 estructura de paquetes por característica de `.claude/rules/arquitectura.md`.
 
-**Estado real.** El proyecto existe como plantilla intacta de Android Studio. No
-hay repositorio git iniciado y el paquete base difiere del acordado.
-
-**Paquete base: corregir el proyecto, no los documentos.** Hoy existen cuatro
-archivos fuente; cuando existan `core/`, `di/`, `navigation/`, `features/` y sus
-pruebas, mover el paquete es un refactor de cientos de archivos.
+**Paquete base: se corrigió el proyecto, no los documentos.** Se hizo con cuatro
+archivos fuente en el árbol; cuando existan `core/`, `di/`, `navigation/`,
+`features/` y sus pruebas, mover el paquete habría sido un refactor de cientos de
+archivos.
 
 | Propiedad | Valor | Por qué |
 |---|---|---|
 | `applicationId` | `bo.saludencasa.app` | **No se toca.** Las huellas SHA-1, los identificadores OAuth y `google-services.json` están atados a él |
-| `namespace` | `bo.saludencasa` | Se corrige. No lo usa ningún servicio externo |
-| Raíz de fuentes | `app/src/main/java/bo/saludencasa/` | Se mueve desde `.../bo/saludencasa/app/` |
+| `namespace` | `bo.saludencasa` | Se corrigió. No lo usa ningún servicio externo |
+| Raíz de fuentes | `app/src/main/java/bo/saludencasa/` | Movida desde `.../bo/saludencasa/app/` |
 
 Que ambos difieran es válido y habitual: el `namespace` define la raíz de los
 paquetes y la clase de recursos; el `applicationId` identifica la aplicación ante
 la tienda y los servicios. Registrado en `docs/decisions.md`.
 
-- [ ] `namespace = bo.saludencasa` en el archivo de compilación del módulo
-- [ ] Fuentes movidas a `app/src/main/java/bo/saludencasa/`
-- [ ] `applicationId = bo.saludencasa.app` sin cambios
-- [ ] `minSdk = 26`, `compileSdk` y `targetSdk` en la versión estable vigente
-- [ ] `compileOptions` y `jvmTarget` fijados de forma deliberada en **17**, no
+- [x] `namespace = bo.saludencasa` en el archivo de compilación del módulo
+- [x] Fuentes movidas a `app/src/main/java/bo/saludencasa/`
+- [x] `applicationId = bo.saludencasa.app` sin cambios
+- [x] `minSdk = 26`, `compileSdk` y `targetSdk` en la versión estable vigente
+- [x] `compileOptions` y `jvmTarget` fijados de forma deliberada en **17**, no
       heredados de la plantilla
-- [ ] Estructura de paquetes creada: `core/`, `di/`, `navigation/`, `ui/`,
+- [x] El proceso que ejecuta Gradle también corre sobre **17**, declarado en
+      `gradle/gradle-daemon-jvm.properties`. Un solo número de Java en el
+      proyecto: compilación, código intermedio, `README.md` e integración continua
+- [x] Estructura de paquetes creada: `core/`, `di/`, `navigation/`, `ui/`,
       `features/`
-- [ ] Repositorio git iniciado **por el autor**
-- [ ] Archivo de exclusiones ampliado con lo que la plantilla no cubre:
+- [x] Repositorio git iniciado **por el autor**
+- [x] Archivo de exclusiones ampliado con lo que la plantilla no cubre:
       `*.jks`, `*.keystore`, `google-services.json`, `local.properties`,
       `.env`, `*.log`
-- [ ] `google-services.json` movido de la raíz a `app/`
-- [ ] `README.md` creado en la raíz con las instrucciones de puesta en marcha
-- [ ] `./gradlew assembleDebug` concluye sin error
-- [ ] Ninguna credencial figura en el historial del repositorio
+- [x] `google-services.json` movido de la raíz a `app/`
+- [x] `README.md` creado en la raíz con las instrucciones de puesta en marcha
+- [x] `./gradlew assembleDebug` concluye sin error
+- [x] Ninguna credencial figura en el historial del repositorio
+
+**Verificado en la compilación.** El manifiesto fusionado declara
+`package="bo.saludencasa.app"` —el `applicationId`, intacto— y
+`android:name="bo.saludencasa.MainActivity"`, resuelto desde el `namespace` nuevo.
+La clase de recursos se genera en `bo/saludencasa/R.class`. Las clases compiladas
+llevan versión mayor 61 de código intermedio, que corresponde a Java 17, y
+`./gradlew --version` confirma el proceso de Gradle sobre Java 17. `./gradlew
+build` completo, con análisis de lint y pruebas, concluye sin error.
 
 **Requisitos:** RNF-06.
 
