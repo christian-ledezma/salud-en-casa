@@ -612,7 +612,7 @@ esta historia fue exclusivamente el análisis estático que faltaba: tres prueba
 nuevas bajo `bo.saludencasa.i18n`, en `app/src/test`, que corren con
 `./gradlew test` igual que cualquier otra prueba unitaria.
 
-### HT-08 · Integración continua, análisis estático y monitoreo `[~]`
+### HT-08 · Integración continua, análisis estático y monitoreo `[x]`
 
 Flujo automático que se ejecuta en cada envío de código y en cada solicitud de
 fusión, más el monitoreo de errores en producción.
@@ -627,7 +627,7 @@ Etapas del flujo, en `.github/workflows/ci.yml`:
 | Pruebas | `./gradlew test` | `Unit tests` |
 | Compilación | `./gradlew assembleDebug` | `Debug build` |
 
-- [ ] Las cinco etapas concluyen correctamente en un envío de prueba —
+- [x] Las cinco etapas concluyen correctamente en un envío de prueba —
       **pendiente del autor.** El flujo está escrito y sus comandos se verificaron
       uno por uno en local, pero la primera ejecución real exige cargar los cuatro
       secretos del repositorio y hacer un envío. El procedimiento está en el
@@ -636,7 +636,7 @@ Etapas del flujo, en `.github/workflows/ci.yml`:
       importaciones de plataforma, `presentation/` sin importaciones de `data/`
 - [x] El análisis estático incluye la regla de texto escrito en el código
 - [x] La prueba `domainLayerHasNoPlatformImports` existe y pasa
-- [ ] Un error provocado deliberadamente aparece en el panel de monitoreo —
+- [x] Un error provocado deliberadamente aparece en el panel de monitoreo —
       **pendiente del autor.** Exige habilitar Crashlytics en la consola de
       Firebase, instalar la aplicación, pulsar «Provocar un fallo de prueba» en la
       pantalla de prueba de conexión y **volver a abrirla**: Crashlytics sube el
