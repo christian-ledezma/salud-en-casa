@@ -525,32 +525,30 @@ revisión. Las tres quedan anotadas en `docs/decisions.md`, 2026-09-12.
 
 **Requisitos:** RF-01.1, RF-01.2, RF-01.3, RF-01.6, RNF-06.
 
-### HT-06 · Sistema de diseño `[ ]`
+### HT-06 · Sistema de diseño `[x]`
 
 Implementación del tema a partir de `docs/design-system.md`: paleta con ambos
 esquemas, tipografía Inter con la escala definida, formas, espaciado y colores
 semánticos de estado como extensión del tema.
 
-- [ ] Ambos esquemas, claro y oscuro, definidos y verificados
-- [ ] El contraste de cada combinación de texto cumple los criterios de accesibilidad
-- [ ] El ámbar no se usa como color de texto sobre fondo claro
-- [ ] Componentes base disponibles: tarjeta de profesional, chip de especialidad,
+- [x] Ambos esquemas, claro y oscuro, definidos y verificados
+- [x] El contraste de cada combinación de texto cumple los criterios de accesibilidad
+- [x] El ámbar no se usa como color de texto sobre fondo claro
+- [x] Componentes base disponibles: tarjeta de profesional, chip de especialidad,
       distintivo de calificación, selector de fecha, control segmentado, campo de
       formulario, botón principal y barra de navegación flotante
-- [ ] Cada componente tiene previsualización en ambos esquemas
+- [x] Cada componente tiene previsualización en ambos esquemas
 
 **Restos de la plantilla que contradicen el sistema de diseño**
 
-- [ ] **`dynamicColor` en `false`, o el parámetro eliminado.** Es el punto más
-      importante de esta historia: el color dinámico de Material You reemplaza la
-      paleta completa en cualquier dispositivo desde Android 12, lo que anularía
-      el tema, las dos correcciones de contraste registradas en `decisions.md` y
-      el punto 9 de la Definición de Terminado
-- [ ] El tema deja de heredar de `Theme.Material.Light.NoActionBar`, que fija el
+- [x] **`dynamicColor` en `false`, o el parámetro eliminado.** Se eliminó el
+      parámetro: `SaludEnCasaTheme` ya no lo acepta, así que no puede reactivarse
+      por descuido
+- [x] El tema deja de heredar de `Theme.Material.Light.NoActionBar`, que fija el
       esquema claro
-- [ ] Existe `res/values-night/` con el esquema oscuro
-- [ ] La paleta de la plantilla queda reemplazada por la de `docs/design-system.md`
-- [ ] La tipografía pasa del único estilo con la familia por omisión a los diez
+- [x] Existe `res/values-night/` con el esquema oscuro
+- [x] La paleta de la plantilla queda reemplazada por la de `docs/design-system.md`
+- [x] La tipografía pasa del único estilo con la familia por omisión a los diez
       estilos con Inter de `docs/design-system.md`
 
 **Requisitos:** RNF-07.
@@ -558,6 +556,31 @@ semánticos de estado como extensión del tema.
 > El prototipado en Figma **no forma parte de esta historia**. Se prototipan las
 > pantallas de cada sprint al planificarlo, no las seis del producto por
 > adelantado. Ver «Diseño previo a cada sprint».
+
+**Cómo se resolvió lo que el documento no fijaba en un valor exacto.**
+`docs/design-system.md` especifica cada color y cada tamaño de tipografía, pero no
+asigna un rol de Material 3 a cada uno. `SaludEnCasaShapes` mapea los cinco radios
+del documento a los cinco huecos de `Shapes`; la tarjeta destacada de 24 dp, la
+píldora y el avatar circular no tienen hueco en ese objeto, así que viven en
+`ExtraShapes`, expuesto igual que la tipografía y los colores de estado, desde
+`SaludEnCasaTheme`.
+
+`SaludEnCasaTheme` pasó de función a `object` con `operator fun invoke`, exactamente
+como `MaterialTheme` lo hace en Compose: permite seguir escribiendo
+`SaludEnCasaTheme { ... }` para envolver la pantalla y, además,
+`SaludEnCasaTheme.spacing`, `SaludEnCasaTheme.statusColors` y
+`SaludEnCasaTheme.extraShapes` para lo que Material 3 no tiene rol propio.
+
+**Deuda reconocida.** El apartado 6 del documento pide Material Symbols; los ocho
+componentes usan el conjunto núcleo de Material Icons (`material-icons-core`, no
+`-extended`, por RNF-03) porque son la prueba de que el tema funciona, no pantallas
+reales todavía — ninguna historia ha empezado a consumirlos con contenido real. El
+cambio de icono queda para cuando una pantalla real los necesite.
+`ProfessionalCard` incorpora Coil para la fotografía, ya requerido por
+`.claude/rules/compose.md`, pero sin motor de red (`coil-network-ktor3`): nada en
+el proyecto hace todavía una petición HTTP de imagen real, así que Coil cae a su
+estado de marcador de posición hasta que algo la necesite. Ambas quedan en
+`docs/decisions.md`, 2026-09-12.
 
 ### HT-07 · Estructura de internacionalización `[ ]`
 

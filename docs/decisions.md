@@ -930,6 +930,52 @@ declare como su propio criterio de aceptación. Ninguna se marca como resuelta e
 
 ---
 
+## 2026-09-12 · Sistema de diseño: roles sin hueco en Material 3, e íconos y carga de imagen aplazados
+
+**Contexto.** HT-06 implementa el tema a partir de `docs/design-system.md`. Dos
+tipos de brecha aparecieron entre lo que el documento fija y lo que Material 3 o
+las bibliotecas del proyecto ya cubren.
+
+**Radios sin hueco en `Shapes`.** Material 3 expone cinco roles
+(`extraSmall`/`small`/`medium`/`large`/`extraLarge`); el documento fija ocho
+radios distintos. Los cinco que coinciden en cantidad se mapean directamente
+(campo de formulario, botón, tarjeta de contenido, hoja inferior). La tarjeta
+destacada de 24 dp, la píldora y el avatar circular no tienen rol propio.
+
+**Decisión.** Un objeto adicional, `ExtraShapes`, junto a `Shapes` en
+`ui/theme/Shape.kt`, con esos tres radios. Se expone desde `SaludEnCasaTheme`
+igual que la tipografía y los colores de estado, no como una constante suelta en
+cada pantalla que la use.
+
+**`SaludEnCasaTheme` pasó de función a `object`.** Necesitaba exponer `spacing`,
+`statusColors` y `extraShapes` junto a la función que envuelve el contenido.
+`operator fun invoke` permite las dos cosas con el mismo nombre —
+`SaludEnCasaTheme { contenido }` sigue envolviendo la pantalla,
+`SaludEnCasaTheme.spacing.screenMargin` lee el token— exactamente como
+`MaterialTheme` ya lo hace en la propia biblioteca de Compose. No es un patrón
+inventado para este proyecto.
+
+**Deuda reconocida — iconografía.** El apartado 6 de `docs/design-system.md` pide
+Material Symbols, redondeado, grosor 400. Los ocho componentes usan
+`material-icons-core` (el conjunto núcleo de Material Icons, no `-extended`, por
+RNF-03) porque ningún ícono en ellos es contenido real todavía: son la prueba de
+que el tema funciona, no una pantalla que un usuario vaya a ver. El cambio al
+conjunto correcto queda para cuando una pantalla real los consuma.
+
+**Deuda reconocida — carga de imagen.** `ProfessionalCard` incorpora
+`coil-compose`, ya exigido por `.claude/rules/compose.md` para toda fotografía de
+perfil, pero sin motor de red (`coil-network-ktor3`, el que combina con el motor
+de Ktor que ya usa Supabase). Ningún código del proyecto hace todavía una petición
+HTTP de imagen real: sin motor, Coil cae a su estado de marcador de posición en
+vez de fallar, así que la ausencia no bloquea esta historia. El motor se agrega
+cuando una historia real cargue una fotografía desde una URL.
+
+**Consecuencia.** Ambas deudas quedan registradas aquí y en la nota de HT-06 en
+`plan.md`, para que la historia que primero necesite un ícono de Material Symbols
+o una fotografía real no las descubra de nuevo desde cero.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
