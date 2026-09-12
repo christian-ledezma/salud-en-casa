@@ -35,6 +35,9 @@ fun AuthSmokeTestScreen(
         uiState = uiState,
         onSignInClick = { viewModel.signIn(context) },
         onSignOutClick = viewModel::signOut,
+        // Crashlytics uploads the report on the next launch, not on the crash
+        // itself: reopen the application to see it in the console (plan.md, HT-08).
+        onForceCrashClick = { throw RuntimeException("Crashlytics smoke test") },
         modifier = modifier,
     )
 }
@@ -44,6 +47,7 @@ private fun AuthSmokeTestContent(
     uiState: AuthSmokeTestUiState,
     onSignInClick: () -> Unit,
     onSignOutClick: () -> Unit,
+    onForceCrashClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -97,6 +101,10 @@ private fun AuthSmokeTestContent(
                 }
             }
         }
+
+        OutlinedButton(onClick = onForceCrashClick) {
+            Text(stringResource(R.string.auth_smoke_test_force_crash))
+        }
     }
 }
 
@@ -113,7 +121,7 @@ private fun SignInError.messageRes(): Int =
 @Composable
 private fun AuthSmokeTestSignedOutPreview() {
     SaludEnCasaTheme {
-        AuthSmokeTestContent(AuthSmokeTestUiState.SignedOut, {}, {})
+        AuthSmokeTestContent(AuthSmokeTestUiState.SignedOut, {}, {}, {})
     }
 }
 
@@ -121,7 +129,7 @@ private fun AuthSmokeTestSignedOutPreview() {
 @Composable
 private fun AuthSmokeTestSignedInPreview() {
     SaludEnCasaTheme {
-        AuthSmokeTestContent(AuthSmokeTestUiState.SignedIn("00000000-0000-0000-0000-000000000000"), {}, {})
+        AuthSmokeTestContent(AuthSmokeTestUiState.SignedIn("00000000-0000-0000-0000-000000000000"), {}, {}, {})
     }
 }
 
@@ -129,6 +137,6 @@ private fun AuthSmokeTestSignedInPreview() {
 @Composable
 private fun AuthSmokeTestErrorPreview() {
     SaludEnCasaTheme {
-        AuthSmokeTestContent(AuthSmokeTestUiState.Error(SignInError.NoGoogleAccount), {}, {})
+        AuthSmokeTestContent(AuthSmokeTestUiState.Error(SignInError.NoGoogleAccount), {}, {}, {})
     }
 }

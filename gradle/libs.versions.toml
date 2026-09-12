@@ -18,6 +18,9 @@ androidxCredentials = "1.6.0"
 googleid = "1.2.0"
 playServicesLocation = "21.4.0"
 mapsCompose = "8.6.0"
+firebaseBom = "34.19.0"
+googleServicesPlugin = "4.5.0"
+crashlyticsPlugin = "3.0.8"
 
 # Terceros
 koin = "4.2.2"
@@ -38,6 +41,7 @@ turbine = "1.2.1"
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
 koin-bom = { group = "io.insert-koin", name = "koin-bom", version.ref = "koin" }
 supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 
 # AndroidX, base
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
@@ -67,6 +71,10 @@ googleid = { group = "com.google.android.libraries.identity.googleid", name = "g
 # Mapas y ubicacion
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+
+# Monitoreo de fallos. Sin firebase-analytics: Crashlytics no lo exige y RNF-03
+# limita el tamano del paquete.
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 # Inyeccion de dependencias
 koin-android = { group = "io.insert-koin", name = "koin-android" }
@@ -133,3 +141,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintPlugin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServicesPlugin" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlyticsPlugin" }

@@ -6,6 +6,10 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ktlint)
+    // Both read app/google-services.json at build time, so from HT-08 onward the
+    // file is required to compile. Registered in docs/decisions.md.
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 // RNF-06: secrets never live in source. In development they come from
@@ -80,6 +84,9 @@ dependencies {
     implementation(platform(libs.supabase.bom))
     implementation(libs.bundles.supabase)
 
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
+
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.bundles.auth)
 
@@ -102,4 +109,13 @@ dependencies {
 ktlint {
     // The engine version comes from the catalog, not the build script.
     version.set(libs.versions.ktlintEngine.get())
+}
+
+// The project's own rules -- the dependency rule and the hardcoded-text rule --
+// are JVM tests rather than ktlint rules (docs/decisions.md, 2026-09-12), so the
+// static-analysis stage has to run both tools to cover them.
+tasks.register("staticAnalysis") {
+    group = "verification"
+    description = "Runs ktlint and the project's own architecture and internationalization rules."
+    dependsOn("ktlintCheck", "testDebugUnitTest")
 }

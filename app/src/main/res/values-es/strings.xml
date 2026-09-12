@@ -10,6 +10,7 @@
     <string name="auth_smoke_test_signed_out">Sin sesión iniciada.</string>
     <string name="auth_smoke_test_sign_in">Ingresar con Google</string>
     <string name="auth_smoke_test_sign_out">Cerrar sesión</string>
+    <string name="auth_smoke_test_force_crash">Provocar un fallo de prueba</string>
     <string name="auth_smoke_test_user_id">Identificador obtenido: %1$s</string>
 
     <string name="error_sign_in_missing_configuration">Falta configurar las claves en local.properties.</string>
