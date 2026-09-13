@@ -247,8 +247,12 @@ puede expresar:
   recibe longitud antes que latitud, o que el identificador de cliente que espera
   Credential Manager es el **Web** y no el de Android.
 - Un rodeo impuesto por una biblioteca o por una versión concreta.
-- El motivo de una decisión no evidente. En ese caso el comentario **referencia**
-  la entrada de `docs/decisions.md`, no repite su contenido.
+- El motivo de una decisión no evidente. En ese caso el comentario **cita la
+  fecha y el tema de la entrada** en `docs/decisions.md`, en una sola línea, y
+  nada más. Nunca repite el razonamiento, ni siquiera resumido: si el
+  razonamiento no está todavía en `decisions.md`, se escribe ahí primero — el
+  comentario no es el lugar donde una decisión se explica por primera vez.
+
 Si un comentario describe *qué* hace el código, sobra: el problema es el nombre.
  
 El «por qué» del sistema vive en `docs/decisions.md` y en `plan.md`. Repartirlo en
