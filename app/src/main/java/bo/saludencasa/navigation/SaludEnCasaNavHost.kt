@@ -22,24 +22,25 @@ fun SaludEnCasaNavHost(
     ) {
         composable<StartupRoute> {
             StartupScreen(
-                onSignedIn = { navController.replaceGraphWith(AccountRoute) },
-                onSignedOut = { navController.replaceGraphWith(WelcomeRoute) },
+                onSignedIn = { navController.replaceCurrentWith(AccountRoute) },
+                onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
             )
         }
 
         composable<WelcomeRoute> {
-            WelcomeScreen(onSignedIn = { navController.replaceGraphWith(AccountRoute) })
+            WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(AccountRoute) })
         }
 
         composable<AccountRoute> {
-            AccountScreen(onSignedOut = { navController.replaceGraphWith(WelcomeRoute) })
+            AccountScreen(onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) })
         }
     }
 }
 
-private fun NavHostController.replaceGraphWith(route: Any) {
+private fun NavHostController.replaceCurrentWith(route: Any) {
+    val leaving = currentDestination?.id ?: graph.startDestinationId
     navigate(route) {
-        popUpTo(graph.startDestinationId) { inclusive = true }
+        popUpTo(leaving) { inclusive = true }
         launchSingleTop = true
     }
 }
