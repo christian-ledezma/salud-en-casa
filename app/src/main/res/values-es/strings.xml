@@ -16,6 +16,7 @@
     <string name="auth_account_name_unavailable">Tu cuenta de Google no entregó un nombre.</string>
     <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
     <string name="auth_account_sign_out">Cerrar sesión</string>
+    <string name="auth_account_keep_session">Seguir con la sesión abierta</string>
 
     <string name="error_sign_in_missing_configuration">Falta configurar las claves en local.properties.</string>
     <string name="error_sign_in_no_google_account">No hay ninguna cuenta de Google en este dispositivo. Agrégala en Ajustes, Cuentas, Agregar cuenta, y vuelve a intentarlo.</string>

@@ -78,7 +78,13 @@ private fun AccountContent(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.error,
                 )
-                PrimaryButton(text = stringResource(R.string.common_retry), onClick = onDismissError)
+                PrimaryButton(text = stringResource(R.string.common_retry), onClick = onSignOutClick)
+                OutlinedButton(
+                    onClick = onDismissError,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(text = stringResource(R.string.auth_account_keep_session))
+                }
             }
         }
 
