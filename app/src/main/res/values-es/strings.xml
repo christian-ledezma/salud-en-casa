@@ -6,16 +6,25 @@
     <string name="common_nav_requests">Solicitudes</string>
     <string name="common_nav_profile">Perfil</string>
 
-    <string name="auth_smoke_test_title">Prueba de conexión</string>
-    <string name="auth_smoke_test_signed_out">Sin sesión iniciada.</string>
-    <string name="auth_smoke_test_sign_in">Ingresar con Google</string>
-    <string name="auth_smoke_test_sign_out">Cerrar sesión</string>
-    <string name="auth_smoke_test_force_crash">Provocar un fallo de prueba</string>
-    <string name="auth_smoke_test_user_id">Identificador obtenido: %1$s</string>
+    <string name="auth_welcome_title">Atención de salud en tu casa</string>
+    <string name="auth_welcome_subtitle">Encuentra profesionales verificados cerca de tu domicilio, acuerda la tarifa y coordina la visita.</string>
+    <string name="auth_welcome_sign_in_with_google">Continuar con Google</string>
+    <string name="auth_welcome_signing_in">Ingresando…</string>
+    <string name="auth_welcome_no_password_notice">No necesitas crear ninguna contraseña.</string>
+
+    <string name="auth_account_title">Mi cuenta</string>
+    <string name="auth_account_name_unavailable">Tu cuenta de Google no entregó un nombre.</string>
+    <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
+    <string name="auth_account_sign_out">Cerrar sesión</string>
 
     <string name="error_sign_in_missing_configuration">Falta configurar las claves en local.properties.</string>
-    <string name="error_sign_in_cancelled">Se canceló el ingreso. Vuelve a intentarlo cuando quieras.</string>
-    <string name="error_sign_in_no_google_account">No hay ninguna cuenta de Google en este dispositivo. Agrega una en los ajustes del sistema.</string>
-    <string name="error_sign_in_credential_manager_failure">No se pudo obtener la credencial de Google. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="error_sign_in_no_google_account">No hay ninguna cuenta de Google en este dispositivo. Agrégala en Ajustes, Cuentas, Agregar cuenta, y vuelve a intentarlo.</string>
+    <string name="error_sign_in_credential_provider_failure">No se pudo obtener la credencial de Google. Revisa tu conexión e inténtalo de nuevo.</string>
     <string name="error_sign_in_token_rejected">Supabase no aceptó el ingreso. Revisa la configuración del proveedor de Google.</string>
+    <string name="error_network_unavailable">No hay conexión. Revisa tu red e inténtalo de nuevo.</string>
+    <string name="error_unexpected">Ocurrió un error inesperado. Inténtalo de nuevo.</string>
+
+    <string name="cd_loading">Cargando</string>
+
+    <string name="debug_force_crash">Provocar un fallo de prueba</string>
 </resources>
