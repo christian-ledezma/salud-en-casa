@@ -13,13 +13,15 @@ import kotlinx.coroutines.flow.flowOf
 class FakeAuthRepository(
     private val sessions: Flow<SessionState> = flowOf(SessionState.SignedOut),
     private val signInResult: AuthResult = AuthResult.Success(authSession()),
-    private val signOutResult: SignOutResult = SignOutResult.Success,
+    var signOutResult: SignOutResult = SignOutResult.Success,
 ) : IAuthRepository {
     var signInAttempts: Int = 0
         private set
     var lastIdToken: String? = null
         private set
     var lastRawNonce: String? = null
+        private set
+    var signOutAttempts: Int = 0
         private set
 
     override fun observeSession(): Flow<SessionState> = sessions
@@ -34,7 +36,10 @@ class FakeAuthRepository(
         return signInResult
     }
 
-    override suspend fun signOut(): SignOutResult = signOutResult
+    override suspend fun signOut(): SignOutResult {
+        signOutAttempts++
+        return signOutResult
+    }
 }
 
 fun authSession(
