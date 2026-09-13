@@ -13,7 +13,7 @@ class ArchitectureRulesTest {
     @Test
     fun domainLayerHasNoPlatformImports() {
         val violations =
-            filesInLayer("domain").flatMap { file ->
+            platformFreeFiles().flatMap { file ->
                 importsOf(file)
                     .filter { import -> platformPrefixes.any(import::startsWith) }
                     .map { import -> "${ProjectSources.pathWithinSourceRoot(file)} imports $import" }
@@ -75,6 +75,16 @@ private fun importsOf(file: File): List<String> =
 private fun filesInLayer(layer: String): List<File> =
     ProjectSources.mainKotlinFiles().filter { file ->
         ProjectSources.pathWithinSourceRoot(file).split("/").contains(layer)
+    }
+
+// core/vo/ holds the value objects more than one feature shares
+// (docs/decisions.md, 2026-09-12). They are domain code living outside any
+// feature, so the rule that keeps the domain free of platform types has to
+// reach them too or they become the one pure package nobody guards.
+private fun platformFreeFiles(): List<File> =
+    ProjectSources.mainKotlinFiles().filter { file ->
+        val path = ProjectSources.pathWithinSourceRoot(file)
+        path.split("/").contains("domain") || path.startsWith("bo/saludencasa/core/vo/")
     }
 
 private fun featureOf(pathWithinSourceRoot: String): String? {
