@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
-import bo.saludencasa.features.auth.presentation.AuthSmokeTestScreen
+import bo.saludencasa.navigation.SaludEnCasaNavHost
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,9 +18,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             SaludEnCasaTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // Smoke test of HT-05. HU-01 replaces this with the real
-                    // navigation graph.
-                    AuthSmokeTestScreen(modifier = Modifier.padding(innerPadding))
+                    SaludEnCasaNavHost(modifier = Modifier.padding(innerPadding))
                 }
             }
         }

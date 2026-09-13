@@ -1076,6 +1076,194 @@ como pendientes del autor en `plan.md`, con el procedimiento en el `README.md`.
 
 ---
 
+## 2026-09-12 · Los objetos de valor compartidos viven en `core/vo/`
+
+**Contexto.** HU-01 introduce `Email`, `PhoneNumber` y `PersonName`. Ninguno
+pertenece a una sola característica: `Email` y `PersonName` llegan con la
+identidad que entrega Google y los volverá a usar el perfil, y `PhoneNumber` lo
+pide RF-02.1, que es del perfil, no de la autenticación. La estructura de
+`.claude/rules/arquitectura.md` solo preveía `features/<feature>/domain/vo/`.
+
+**Decisión.** Los objetos de valor que comparten varias características viven en
+`core/vo/`. Los que pertenecen a una sola siguen en su `domain/vo/`.
+
+**Razonamiento.** La alternativa era dejarlos en `features/auth/domain/vo/` y que
+el perfil importara el dominio de la autenticación para obtener un número de
+teléfono. Eso convierte a la autenticación en dueña de un concepto que no es
+suyo, y la dependencia que crea no expresa ninguna relación real entre las dos
+características: la próxima que necesite un teléfono heredaría la misma
+importación arbitraria. `core/` ya es el lugar de lo transversal.
+
+**Consecuencia.** `core/vo/` es código de dominio aunque no esté bajo un
+`domain/`, así que la regla que mantiene el dominio libre de plataforma tuvo que
+ampliarse para alcanzarlo: `ArchitectureRulesTest.domainLayerHasNoPlatformImports`
+ahora recorre los archivos con un segmento `domain` en su ruta **y** los de
+`core/vo/`. Se comprobó que la ampliación sirve de algo poniendo un archivo sonda
+en `core/vo/` que importaba `android.util.Log`, viendo fallar la regla, y
+borrándolo. Sin esa ampliación, `core/vo/` habría sido el único paquete puro del
+proyecto sin nadie que lo vigilara.
+
+---
+
+## 2026-09-12 · Credential Manager vive en la presentación, y el modelo de vista recibe la petición como función
+
+**Contexto.** Obtener el token de identidad de Google exige un `Context` de
+actividad: Credential Manager levanta el selector de cuentas sobre ella. El
+dominio no puede conocer Android, y un modelo de vista que guarde una actividad
+la sobrevive y la filtra.
+
+**Decisión.** `GoogleCredentialClient` vive en
+`features/auth/presentation/` y devuelve el token con su nonce en crudo.
+`WelcomeViewModel` no lo inyecta: recibe la petición como
+`suspend () -> GoogleCredentialResult`, y la pantalla —que sí tiene
+`LocalContext`— es quien la construye.
+
+**Razonamiento.** Es lo que pide la tarea técnica de HU-01, y además resuelve dos
+cosas de una vez. El modelo de vista queda sin una sola importación de Android,
+de modo que sus pruebas corren en la máquina virtual de Java sin emulador: la
+prueba de que cancelar el selector no deja error en pantalla —criterio de
+aceptación de HU-01— es una prueba unitaria corriente, no una prueba
+instrumentada. Y el `Context` nunca se guarda, solo se usa dentro de la llamada.
+
+**Consecuencia.** El intercambio del token con Supabase sí atraviesa el caso de
+uso y el repositorio, como corresponde. Queda saldada la deuda que HT-05 había
+reconocido: ya no hay ningún modelo de vista consumiendo un cliente de
+infraestructura. `GoogleAuthClient`, que hacía las dos mitades a la vez, se
+eliminó.
+
+---
+
+## 2026-09-12 · El cierre de sesión sin conexión limpia la sesión guardada
+
+**Contexto.** RF-01.7 exige que, tras cerrar sesión, la aplicación vuelva a pedir
+el ingreso. El cliente de Supabase cierra sesión con alcance local por omisión,
+pero envía igual la petición al servidor, y si esa petición no llega —sin red—
+la excepción sube y la sesión guardada **queda intacta**. Al reabrir, la persona
+sigue dentro sin haberlo pedido.
+
+**Decisión.** Cuando el cierre de sesión falla por transporte, `AuthRepository`
+llama a `clearSession()` y lo informa como éxito.
+
+**Razonamiento.** El alcance del cierre ya era local: lo único que la petición al
+servidor añade es revocar el token de refresco de este dispositivo, y ese token
+se descarta igual al limpiar el almacenamiento. Devolver un error y dejar la
+sesión abierta habría sido fiel a la biblioteca y falso frente al usuario, que
+pulsó «Cerrar sesión» y vería su cuenta al volver.
+
+**Consecuencia.** Un fallo de transporte al cerrar sesión no se le muestra a
+nadie. Cualquier otra excepción sí llega como `AuthError.Unexpected` y la
+pantalla la muestra con su reintento.
+
+---
+
+## 2026-09-12 · El número de teléfono se guarda con su código de país
+
+**Contexto.** RF-02.1 pide registrar un teléfono. En Bolivia se escribe de ocho
+dígitos y nadie antepone el código de país al dictarlo.
+
+**Decisión.** `PhoneNumber` acepta las dos formas al escribir y guarda siempre la
+forma cualificada, `+591` seguido de los ocho dígitos.
+
+**Razonamiento.** Un número de ocho dígitos sin código de país es ambiguo en
+cuanto exista un segundo país, y reescribir filas guardadas entonces es peor que
+cualificarlas ahora. El costo hoy es una constante en un objeto de valor.
+
+**Consecuencia.** El código del país solo se retira cuando lo que queda es un
+número nacional completo, para que `59112345` —ocho dígitos, número válido— no
+se mutile hasta quedar inválido. Ese caso tiene su prueba. Cuando el producto
+alcance otro país, el cambio es sustituir la constante por el país de la
+dirección, no migrar los datos.
+
+---
+
+## 2026-09-13 · El tiempo de espera agotado se reconoce aparte de las demás fallas de transporte
+
+**Contexto.** `AuthRepository` traducía las excepciones de supabase-kt a tipos de
+`AuthError` atrapando `HttpRequestException`, que es la excepción con que la
+biblioteca envuelve las fallas de red. La revisión del pull request #2 llevó a
+leer su fuente: `KtorSupabaseHttpClient` **relanza `HttpRequestTimeoutException`
+sin envolverla** y solo envuelve las demás. Las dos son hermanas —ambas heredan
+de `IOException`—, así que una jamás alcanza al `catch` de la otra.
+
+**Decisión.** El mapeo de excepción a `AuthError` vive en
+`data/mapper/AuthErrorMapper.kt` y reconoce las dos formas por separado.
+
+**Razonamiento.** Con el `catch` anterior, un tiempo de espera agotado caía en la
+rama genérica y salía como `AuthError.Unexpected`. Eso tenía dos costos, y el
+segundo es el grave. El visible: con una conexión lenta —el caso corriente en el
+terreno— la persona leía «Ocurrió un error inesperado» en lugar de «No hay
+conexión», justo la vaguedad que `.claude/rules/compose.md` prohíbe. El
+invisible: el respaldo del cierre de sesión sin conexión, decidido el
+2026-09-12, vive en la rama de red, de modo que la sesión guardada **no se
+limpiaba** cuando la falta de conexión se manifestaba como tiempo agotado en vez
+de como rechazo inmediato. La conducta que este mismo registro prometía no se
+cumplía en la mitad de los casos.
+
+**Consecuencia.** El mapeo se extrajo a una función `internal` en lugar de vivir
+dentro de los `catch` del repositorio, precisamente para que tenga prueba propia:
+`AuthErrorMapperTest`. Se comprobó que la prueba tiene dientes revirtiendo el
+mapeo al anterior y viéndola fallar. La rama de `RestException` queda sin prueba
+porque construir una exige un `HttpResponse` de Ktor, y fabricarlo pediría una
+dependencia de prueba nueva para un solo caso; se anota como deuda menor.
+
+---
+
+## 2026-09-13 · Cada transición del grafo elimina el destino que deja, no el de arranque
+
+**Contexto.** El grafo de navegación de HU-01 reemplazaba la pila con
+`popUpTo(graph.startDestinationId) { inclusive = true }`. Copilot lo señaló en el
+pull request #2 y el fuente de Navigation 2.10.1 lo confirma: cuando `popUpTo`
+apunta a un destino que ya no está en la pila, `NavControllerImpl` **ignora el
+pop entero** —«Better to ignore the popBackStack than accidentally popping the
+entire stack»—.
+
+**Decisión.** `replaceCurrentWith` elimina el destino que la transición abandona,
+leído de `currentDestination`, en vez del destino de arranque.
+
+**Razonamiento.** La primera transición, de arranque a bienvenida, eliminaba el
+destino de arranque; a partir de ahí ninguna otra encontraba su objetivo y la
+pila crecía. Ingresar dejaba la bienvenida debajo de la cuenta, y cerrar sesión
+dejaba la cuenta debajo de la bienvenida, una entrada más por cada ciclo. El
+retroceso desde «Mi cuenta» llevaba a la bienvenida en lugar de salir de la
+aplicación.
+
+**Razonamiento sobre lo que el revisor exageró.** Copilot afirmó que el
+retroceso podía «revelar datos de la cuenta tras cerrar sesión». No podía:
+`AccountViewModel` conserva `SignedOut` como último valor emitido y `stateIn` lo
+reproduce al volver, así que la pantalla mostraba el indicador de carga y
+rebotaba sola. El defecto era real; el daño que describía, no. Se corrigió por
+el defecto, no por el daño.
+
+**Consecuencia.** La corrección no tiene prueba automática: fijarla exige una
+prueba instrumentada con `TestNavHostController`, y el proyecto todavía no tiene
+nada bajo `androidTest`. Queda anotada como deuda en `plan.md`, HU-01.
+
+---
+
+## 2026-09-13 · El estado de fallo del cierre de sesión ofrece dos salidas, no una
+
+**Contexto.** El botón del estado de fallo de «Mi cuenta» decía «Reintentar» y
+solo descartaba el error, sin volver a intentar nada. Lo señaló Copilot en el
+pull request #2 y contradice `.claude/rules/compose.md`: «Los controles dicen
+exactamente qué ocurre al pulsarlos».
+
+**Decisión.** «Reintentar» vuelve a ejecutar el cierre de sesión, y se agrega un
+control secundario, «Seguir con la sesión abierta», que descarta el error.
+
+**Razonamiento.** Cablear «Reintentar» al cierre de sesión y nada más habría
+dejado a la persona encerrada en la pantalla de error mientras el fallo
+persistiera, sin forma de volver a su cuenta. Dos acciones distintas necesitan
+dos controles, y cada etiqueta dice exactamente lo que hace.
+
+**Consecuencia.** `AccountViewModel` y `SignOutUseCase` pasaron de no tener
+ninguna prueba a tener `AccountViewModelTest`, que fija el contrato en que se
+apoya el botón: pedir otra vez alcanza al repositorio una segunda vez, y el
+fallo solo se borra cuando la operación tiene éxito. Esa prueba **no** atrapa el
+cableado del botón en sí, que es lo que estaba roto; para eso hace falta una
+prueba de Compose sobre `AccountContent`. Queda anotado como deuda.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

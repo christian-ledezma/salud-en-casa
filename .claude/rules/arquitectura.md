@@ -11,7 +11,8 @@ app/src/main/java/bo/saludencasa/
 ├── core/
 │   ├── error/            Tipos de falla comunes
 │   ├── network/          Configuración del cliente de Supabase
-│   └── util/             Utilidades transversales — el único lugar para ellas
+│   ├── util/             Utilidades transversales — el único lugar para ellas
+│   └── vo/               Objetos de valor que comparten varias características
 ├── di/                   Módulos de Koin, uno por característica
 ├── navigation/           Grafo de navegación y rutas tipadas
 ├── ui/
@@ -148,6 +149,13 @@ Objetos de valor previstos: `Email`, `PhoneNumber`, `PersonName`, `AmountBob`,
 `Rating`, `Coordinate`, `CoverageRadiusKm`.
 
 Cada uno lleva su prueba unitaria con los casos límite.
+
+**Dónde vive cada uno.** El que pertenece a una sola característica vive en su
+`domain/vo/`. El que comparten varias vive en `core/vo/`, porque ninguna de las
+características que lo usan es su dueña y hacer que una dependa del `domain` de
+otra solo para obtenerlo invierte la razón de separarlas. `core/vo/` es código
+de dominio: `ArchitectureRulesTest.domainLayerHasNoPlatformImports` lo revisa
+igual que a cualquier `domain/`. Registrado en `docs/decisions.md`, 2026-09-12.
 
 ## Estados
 

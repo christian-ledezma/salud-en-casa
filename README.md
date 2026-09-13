@@ -143,8 +143,9 @@ Firebase → Crashlytics.
 
 Crashlytics **no sube el reporte en el momento del fallo**, sino en el arranque
 siguiente: para verlo en el panel hay que volver a abrir la aplicación después de
-que se cierre. El botón «Provocar un fallo de prueba» de la pantalla de prueba de
-conexión existe para comprobarlo, y desaparece con esa pantalla en HU-01.
+que se cierre. El botón «Provocar un fallo de prueba» existe para comprobarlo.
+Vive en la pantalla «Mi cuenta», a la que se llega después de ingresar, y solo
+aparece en compilaciones de depuración.
 
 ## Verificar la configuración
 
@@ -165,7 +166,7 @@ SHA-1 de la clave de publicación en Google Cloud Console.
 
 ```
 app/src/main/java/bo/saludencasa/
-├── core/            Errores, red y utilidades transversales
+├── core/            Errores, red, utilidades y objetos de valor transversales
 ├── di/              Módulos de inyección de dependencias
 ├── navigation/      Grafo de navegación
 ├── ui/              Tema, componentes y animaciones

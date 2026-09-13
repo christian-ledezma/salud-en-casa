@@ -98,7 +98,7 @@ Una historia está terminada cuando **todo** lo siguiente se cumple:
 | # | Sprint | Objetivo específico | Puntos | Estado |
 |---|---|---|---|---|
 | 0 | Fundación técnica | 1 · Arquitectura | — | `[~]` |
-| 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[ ]` |
+| 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[~]` |
 | 2 | Perfiles y ubicación | 2 · Perfiles | 24 | `[ ]` |
 | 3 | Verificación de usuarios | 2 · Perfiles | 21 | `[ ]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[ ]` |
@@ -436,7 +436,10 @@ es su dueña. Pantalla desechable con un botón que recorre la cadena completa:
 - [x] La fila es visible en el panel de la base de datos
 
 Si los cinco ocurren, toda la cadena de configuración es correcta. El código se
-elimina al implementar HU-01.
+elimina al implementar HU-01, **y así ocurrió**: `AuthSmokeTestScreen`,
+`AuthSmokeTestViewModel` y `GoogleAuthClient` ya no existen. El botón de fallo
+provocado sobrevivió, porque HT-08 todavía lo necesita: vive ahora en la
+pantalla «Mi cuenta» y solo aparece en compilaciones de depuración.
 
 **Los cinco verificados sobre el emulador el 2026-09-12**, recorriendo el flujo
 completo: selector de cuentas, pantalla de consentimiento, sesión creada y fila
@@ -463,10 +466,11 @@ cero. El identificador que muestra la pantalla coincide con el de la base.
 
 El README explica en qué orden revisar cuando el ingreso falla.
 
-**Deuda reconocida.** El modelo de vista consume un cliente de infraestructura en
-lugar de un caso de uso, que no es la forma que pide la arquitectura. Se acepta
-solo porque esta pantalla es andamiaje sin dominio detrás: HU-01 la reemplaza por
-el flujo real con su caso de uso. Queda anotado para que no se copie el patrón.
+**Deuda reconocida, saldada en HU-01.** El modelo de vista consumía un cliente de
+infraestructura en lugar de un caso de uso, que no es la forma que pide la
+arquitectura. Se aceptó solo porque esa pantalla era andamiaje sin dominio
+detrás. HU-01 la reemplazó por el flujo real: ningún modelo de vista del
+proyecto inyecta ya otra cosa que casos de uso.
 
 **Comentarios revisados contra la sección nueva de `CLAUDE.md`.** Los nueve
 archivos Kotlin de esta historia se depuraron: sin bloques KDoc, y cada
@@ -638,9 +642,11 @@ Etapas del flujo, en `.github/workflows/ci.yml`:
 - [x] La prueba `domainLayerHasNoPlatformImports` existe y pasa
 - [x] Un error provocado deliberadamente aparece en el panel de monitoreo —
       **pendiente del autor.** Exige habilitar Crashlytics en la consola de
-      Firebase, instalar la aplicación, pulsar «Provocar un fallo de prueba» en la
-      pantalla de prueba de conexión y **volver a abrirla**: Crashlytics sube el
-      reporte en el arranque siguiente, no en el momento del fallo
+      Firebase, instalar la aplicación, pulsar «Provocar un fallo de prueba» y
+      **volver a abrirla**: Crashlytics sube el reporte en el arranque siguiente,
+      no en el momento del fallo. Desde HU-01 ese botón vive en la pantalla «Mi
+      cuenta», a la que se llega después de ingresar, y solo aparece en
+      compilaciones de depuración
 
 **Requisitos:** RNF-06, RNF-09.
 
@@ -675,7 +681,7 @@ proveedor. El razonamiento completo y su costo están en `docs/decisions.md`.
 HT-02 declaraba «solo Cloud Messaging y App Distribution habilitados en
 Firebase»: Crashlytics se suma a esa lista.
 
-### HT-09 · Documentación de arquitectura `[ ]`
+### HT-09 · Documentación de arquitectura `[x]`
 
 Diagramas en `docs/architecture/`, escritos en **Mermaid dentro de archivos
 Markdown**, no como imágenes sueltas. Así se versionan, se comparan entre
@@ -688,9 +694,33 @@ revisiones y se renderizan en el repositorio.
 | `docs/architecture/auth-sequence.md` | Secuencia completa de autenticación |
 | `docs/architecture/deployment.md` | Dónde se ejecuta cada componente |
 
-- [ ] Los cuatro diagramas están escritos y renderizan correctamente
-- [ ] `docs/decisions.md` está iniciado con las decisiones ya tomadas
-- [ ] El archivo `README.md` permite a una persona ajena levantar el proyecto desde cero
+- [x] Los cuatro diagramas están escritos y renderizan correctamente
+- [x] `docs/decisions.md` está iniciado con las decisiones ya tomadas
+- [x] El archivo `README.md` permite a una persona ajena levantar el proyecto desde cero
+
+**Cómo se verificó que renderizan.** Este entorno no tiene forma de abrir GitHub
+para comprobarlo a ojo, así que los seis diagramas —uno en `components.md`, dos
+en `packages.md`, uno en `auth-sequence.md`, uno en `deployment.md`— se
+extrajeron de los archivos finales y se renderizaron con `@mermaid-js/mermaid-cli`
+a SVG y PNG. Los cinco de `components.md`, `auth-sequence.md` y `deployment.md`
+se revisaron además visualmente. Es la misma herramienta que usa la vista previa
+de Mermaid de GitHub por debajo, así que un diagrama que renderiza aquí renderiza
+ahí.
+
+**El diagrama de autenticación se corrigió durante la propia verificación.** La
+primera versión mostraba a Supabase rechazando el token sin que Google
+respondiera nunca la verificación dentro de esa misma rama del diagrama —una
+secuencia que no podía ocurrir así—. Se corrigió moviendo la respuesta de
+verificación antes de la bifurcación entre aceptar y rechazar, para que ambas
+ramas partan del mismo paso.
+
+**`packages.md` documenta la regla, y hoy casi ninguna característica existe
+para violarla.** Ver la nota de «Estado real» en ese archivo: solo
+`features/auth/presentation/` existe, así que dos de las tres reglas de
+dependencia no tenían todavía ninguna violación real que las pusiera a prueba.
+Se verificaron de todos modos con los archivos sonda de HT-08 antes de dar esta
+historia por cerrada, no dando por sentado que documentar la regla bastaba para
+demostrar que la prueba automática la sostiene.
 
 ## Incremento del sprint
 
@@ -706,6 +736,8 @@ _Completar al cerrar el sprint._
 
 # Sprint 1 — Ingreso e identidad
 
+**Estado:** `[~]` en curso.
+
 **Objetivo del sprint.** Una persona ingresa con su cuenta de Google, elige si es
 paciente o profesional, y completa sus datos básicos.
 
@@ -713,7 +745,7 @@ paciente o profesional, y completa sus datos básicos.
 
 **Puntos:** 21.
 
-### HU-01 · Ingresar con cuenta de Google `[ ]` — 8 puntos
+### HU-01 · Ingresar con cuenta de Google `[x]` — 8 puntos
 
 > Como **persona que necesita atención domiciliaria**, quiero **ingresar con mi
 > cuenta de Google sin crear una contraseña**, para **empezar a usar la
@@ -721,17 +753,17 @@ paciente o profesional, y completa sus datos básicos.
 
 **Criterios de aceptación**
 
-- [ ] Dado que tengo una cuenta de Google en el dispositivo, cuando pulso
+- [x] Dado que tengo una cuenta de Google en el dispositivo, cuando pulso
       «Continuar con Google», entonces aparece el selector nativo del sistema.
-- [ ] Dado que elijo una cuenta, cuando la autenticación concluye, entonces
+- [x] Dado que elijo una cuenta, cuando la autenticación concluye, entonces
       accedo a la aplicación sin escribir credenciales.
-- [ ] Dado que cancelo el selector, cuando vuelvo a la pantalla, entonces no se
+- [x] Dado que cancelo el selector, cuando vuelvo a la pantalla, entonces no se
       muestra ningún error y puedo reintentar.
-- [ ] Dado que no hay cuentas en el dispositivo, cuando pulso el botón, entonces
+- [x] Dado que no hay cuentas en el dispositivo, cuando pulso el botón, entonces
       se me indica cómo agregar una.
-- [ ] Dado que ya ingresé antes, cuando abro la aplicación, entonces entro
+- [x] Dado que ya ingresé antes, cuando abro la aplicación, entonces entro
       directamente sin volver a autenticarme.
-- [ ] Dado que cierro sesión, cuando vuelvo a abrir, entonces se me pide ingresar.
+- [x] Dado que cierro sesión, cuando vuelvo a abrir, entonces se me pide ingresar.
 
 **Requisitos:** RF-01.1, RF-01.2, RF-01.6, RF-01.7.
 
@@ -740,6 +772,153 @@ pruebas · `IAuthRepository` en dominio y su implementación en datos · casos d
 de ingreso, cierre de sesión y consulta de sesión · `SupabaseAuthDataSource` ·
 integración de Credential Manager con nonce en la capa de presentación · pantalla de
 bienvenida y modelo de vista · pantalla de arranque que decide destino según sesión.
+
+**Las nueve tareas técnicas están terminadas.** La característica `auth` es la
+primera del proyecto con sus tres capas:
+
+| Capa | Qué contiene |
+|---|---|
+| `domain/model/` | `AuthSession`, `SessionState`, `AuthError`, `AuthResult`, `SignOutResult` |
+| `domain/repository/` | `IAuthRepository` |
+| `domain/usecase/` | `SignInWithGoogleUseCase`, `SignOutUseCase`, `ObserveSessionUseCase` |
+| `data/datasource/` | `SupabaseAuthDataSource` |
+| `data/mapper/` | `AuthSessionMapper`, de `UserInfo` y `SessionStatus` al dominio |
+| `data/repository/` | `AuthRepository`, único lugar donde una excepción de la biblioteca se convierte en un tipo de error |
+| `presentation/` | `StartupScreen`, `WelcomeScreen`, `AccountScreen`, sus tres modelos de vista y `GoogleCredentialClient` |
+| `navigation/` | Rutas tipadas y el grafo con las tres pantallas |
+| `core/vo/` | `Email`, `PhoneNumber`, `PersonName` |
+
+**Esta característica no tiene objeto de transporte.** El resto del proyecto
+tendrá su `<Entity>Dto` en `data/model/`, pero aquí el transporte lo define la
+biblioteca: `UserInfo` y `SessionStatus` ya son los tipos que llegan del
+servidor. Copiarlos a un tipo propio idéntico no habría agregado nada, así que
+el transformador va directo de ellos al dominio.
+
+**Decisiones no evidentes, en `docs/decisions.md`, 2026-09-12.** Dónde viven los
+objetos de valor compartidos · por qué Credential Manager queda en la
+presentación y el modelo de vista recibe la petición como función · por qué el
+cierre de sesión sin conexión limpia la sesión guardada · por qué el teléfono se
+guarda con su código de país.
+
+**Los porqués menores, que no llegan a decisión pero tampoco se deducen leyendo.**
+El código de HU-01 no lleva comentarios: la regla de `CLAUDE.md` los reserva para
+lo que el código no puede expresar, y el «por qué» del sistema vive aquí y en
+`docs/decisions.md`. Estos ocho son los que sostenían un comentario y ahora
+viven en esta lista.
+
+| Dónde | Por qué está así |
+|---|---|
+| `AuthSession` trae el correo y el nombre anulables | El proveedor puede entregar un valor que los objetos de valor de este proyecto rechazan, y eso debe costar el dato, nunca la sesión que Supabase ya aceptó |
+| `Email` valida la forma de manera laxa | La dirección que llega es la que el proveedor de identidad ya verificó; un patrón más estricto solo rechaza direcciones válidas que nadie previó |
+| `SupabaseAuthDataSource.isConfigured` | Una copia limpia del repositorio compila con los secretos vacíos a propósito, así que la ausencia se detecta aquí y se informa como configuración y no como token rechazado |
+| `setFilterByAuthorizedAccounts(false)` | Con el filtro activo, quien entra por primera vez ve un selector de cuentas vacío |
+| Las cuatro banderas de `install(Auth)` en `CoreModule` | Se escriben aunque sean las de omisión porque RF-01.6 depende de que sigan siendo esas |
+| El grafo reemplaza la pila al ingresar y al cerrar sesión | Ambos cambios alteran de quién es la aplicación, y el botón de retroceso no debe devolver a la pantalla de quien ya no está |
+| La bienvenida desplaza el encabezado y fija la llamada a la acción al pie | Es lo que mantiene la pantalla utilizable con el tamaño de fuente del sistema al 200 % |
+| `AuthError.Cancelled` tiene clave de recurso pero nunca se muestra | El modelo de vista lo convierte en estado de reposo antes de que llegue a la pantalla; la clave existe para que el `when` sea exhaustivo |
+
+**Qué atrapan las pruebas nuevas.** Cuarenta y cinco pruebas nuevas, que llevan
+la suite de 9 a 54. Todas viven en `app/src/test` y corren sin emulador:
+
+| Prueba | El error real que atrapa |
+|---|---|
+| `EmailTest`, `PersonNameTest`, `PhoneNumberTest` | Los límites exactos de cada regla, y que el código de país no mutile un número nacional que empieza por `591` |
+| `SignInWithGoogleUseCaseTest` | Un token vacío viajando al servidor, y el token y el nonce intercambiados entre sí |
+| `WelcomeViewModelTest` | Que cancelar el selector aparezca como error, y que la pantalla avance con la credencial obtenida aunque Supabase la rechace |
+| `StartupViewModelTest` | El defecto de HT-05: decidir el destino antes de que la sesión guardada termine de restaurarse |
+| `AuthSessionMapperTest` | Leer una sola de las dos formas en que Google escribe el nombre, y tratar como sesión iniciada un estado autenticado sin usuario |
+| `DataStoreSessionManagerTest` | Que la sesión no sobreviva el viaje de ida y vuelta por la serialización, que en el dispositivo se ve como pedir el ingreso cada mañana |
+
+`ArchitectureRulesTest.domainLayerHasNoPlatformImports` se amplió para recorrer
+también `core/vo/`, y la ampliación se comprobó provocando su fallo con un
+archivo sonda que importaba `android.util.Log`, igual que se hizo en HT-08.
+
+**Los cuatro estados de cada pantalla.** «Vacío» no aplica a ninguna de las tres:
+ninguna presenta una colección. Arranque resuelve cargando; bienvenida resuelve
+reposo, ingresando y error; cuenta resuelve cargando, con contenido y error. Las
+diez previsualizaciones cubren esos estados en ambos esquemas.
+
+**Verificado en el emulador el 2026-09-13**, con la cuenta real de Google del
+autor, dirigiendo el emulador por `adb` (selector de cuentas, botones, cierre y
+apertura completa del proceso) y capturando pantalla en cada paso:
+
+| # | Criterio | Cómo se verificó |
+|---|---|---|
+| 1 | El selector nativo aparece | Se pulsó «Continuar con Google» con sesión cerrada; apareció la hoja de Credential Manager, «Sign in with Google», con la cuenta del dispositivo y el botón «Continue» |
+| 2 | La autenticación concluye sin escribir credenciales | Tras elegir la cuenta, la aplicación llegó a «Mi cuenta» mostrando el nombre y el correo reales de esa cuenta, sin ningún campo de contraseña en el camino |
+| 3 | Cancelar no deja error | Se descartó el selector con el gesto de retroceso; la pantalla volvió a su estado de reposo, con el botón disponible y sin texto en rojo |
+| 4 | Sin cuentas en el dispositivo | Se quitó la única cuenta de Google del emulador (Ajustes → Contraseñas y cuentas → Quitar cuenta) y se pulsó el botón; apareció `error_sign_in_no_google_account` tal como está en `values-es/strings.xml`, con «Reintentar» |
+| 5 | La sesión persiste | Con sesión iniciada, se forzó el cierre completo del proceso (`am force-stop`) y se relanzó; la aplicación entró directo a «Mi cuenta», sin pasar por la bienvenida |
+| 6 | El cierre de sesión se sostiene | Se pulsó «Cerrar sesión», se forzó el cierre completo y se relanzó; la aplicación pidió ingresar de nuevo, en la bienvenida |
+
+De paso se verificaron dos puntos más de la Definición de Terminado: el
+esquema oscuro (contraste correcto, botón primario invertido) y el tamaño de
+fuente del sistema al 200 % (el texto de «Mi cuenta» se lee completo,
+desplazándose, sin recortes), ambos revertidos a su valor original al terminar.
+
+**Consecuencia para el autor.** Verificar el criterio 4 exigió quitar la única
+cuenta de Google del emulador. Antes de volver a usarlo para cualquier otra
+cosa, hay que agregarla de nuevo desde Ajustes → Contraseñas y cuentas →
+Agregar cuenta — esto no se puede hacer sin la contraseña, así que queda para
+el autor.
+
+**Sin verificar en dispositivo físico.** Todo lo anterior se hizo sobre el
+emulador (`sdk_gphone64_arm64`), no sobre un teléfono real. El proyecto ya
+aceptó esa misma equivalencia en HT-05, así que la historia se da por
+terminada en ese mismo criterio; si el autor prueba igual en un teléfono y
+encuentra una diferencia, se registra como hallazgo nuevo.
+
+#### Revisión del pull request #2
+
+El revisor automático de GitHub señaló cinco observaciones. Cada una se
+verificó contra el código real —y, en dos casos, contra el fuente de la
+biblioteca— antes de aceptarla o descartarla. **Cuatro eran reales y una no.**
+Revisando el resto del cambio aparecieron dos defectos más que el revisor no
+vio, uno de ellos más grave que cualquiera de los suyos.
+
+| # | Observación | Veredicto |
+|---|---|---|
+| 1 | El grafo elimina siempre el destino de arranque | **Real.** El fuente de Navigation 2.10.1 confirma que un `popUpTo` a un destino ausente se ignora entero, así que la pila crecía una entrada por ciclo. El daño que el revisor describía —ver datos de la cuenta tras cerrar sesión— **no** era cierto |
+| 2 | «Reintentar» del fallo de cierre de sesión no reintenta | **Real.** Contradice `.claude/rules/compose.md`: el control no decía lo que hacía |
+| 3 | `auth-sequence.md` describe símbolos borrados | **Real, y mayor de lo señalado:** eran nueve referencias muertas, no dos |
+| 4 | `components.md` apunta a `GoogleAuthClient.kt` | **Real.** Una línea |
+| 5 | La tabla de pruebas de `plan.md` documenta lo contrario de lo implementado | **Falso positivo.** El encabezado de esa columna es «El error real que atrapa»: la celda describe el defecto del que la prueba protege, no la conducta implementada |
+
+**Los dos hallazgos propios.**
+
+- **El tiempo de espera agotado no se reconocía como falla de red.** supabase-kt
+  relanza `HttpRequestTimeoutException` sin envolverla, de modo que caía en la
+  rama genérica y salía como error inesperado. Lo grave no era el mensaje sino
+  que el respaldo del cierre de sesión sin conexión vive en la rama de red: la
+  sesión guardada no se limpiaba cuando la falta de conexión se manifestaba
+  como tiempo agotado. Registrado en `docs/decisions.md`, 2026-09-13.
+- **`AccountViewModel` y `SignOutUseCase` no los tocaba ninguna prueba.** Era el
+  único camino de la característica sin cobertura, y es donde vivía el
+  defecto 2.
+
+**Qué se corrigió y qué quedó como deuda.** Las cuatro observaciones reales y
+los dos hallazgos propios se corrigieron. La suite pasa de 54 a 60 pruebas: seis
+nuevas entre `AccountViewModelTest` y `AuthErrorMapperTest`. Esta última se
+comprobó revirtiendo el mapeo al anterior y viéndola fallar, igual que se hizo
+con las reglas de arquitectura en HT-08.
+
+Quedan dos deudas anotadas, ninguna de ellas corregible con una prueba de la
+máquina virtual de Java:
+
+1. **La corrección del grafo no tiene prueba automática.** Fijarla exige una
+   prueba instrumentada con `TestNavHostController`, y el proyecto no tiene
+   todavía nada bajo `androidTest`. Se verificó a mano en el emulador que el
+   retroceso desde la bienvenida sale de la aplicación; las dos transiciones
+   posteriores al ingreso se razonaron desde el fuente de la biblioteca, porque
+   el emulador se quedó sin cuenta de Google al verificar el criterio 4.
+2. **El cableado del botón «Reintentar» tampoco.** `AccountViewModelTest` fija
+   el contrato en que ese botón se apoya, pero no puede ver a qué lambda está
+   conectado; eso lo atraparía una prueba de Compose sobre `AccountContent`.
+
+**El pull request arrastra HT-09.** `master` estaba en `0f4ca75`, así que la
+rama de HU-01 lleva también el commit de los cuatro diagramas de arquitectura.
+Al fusionar, el Sprint 0 queda cerrado en `master` junto con esta historia. Se
+anota para que el registro no dé a entender que HT-09 entró por su cuenta.
 
 ### HU-02 · Elegir mi rol `[ ]` — 5 puntos
 
