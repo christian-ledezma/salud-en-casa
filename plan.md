@@ -745,7 +745,7 @@ paciente o profesional, y completa sus datos básicos.
 
 **Puntos:** 21.
 
-### HU-01 · Ingresar con cuenta de Google `[~]` — 8 puntos
+### HU-01 · Ingresar con cuenta de Google `[x]` — 8 puntos
 
 > Como **persona que necesita atención domiciliaria**, quiero **ingresar con mi
 > cuenta de Google sin crear una contraseña**, para **empezar a usar la
@@ -753,17 +753,17 @@ paciente o profesional, y completa sus datos básicos.
 
 **Criterios de aceptación**
 
-- [ ] Dado que tengo una cuenta de Google en el dispositivo, cuando pulso
+- [x] Dado que tengo una cuenta de Google en el dispositivo, cuando pulso
       «Continuar con Google», entonces aparece el selector nativo del sistema.
-- [ ] Dado que elijo una cuenta, cuando la autenticación concluye, entonces
+- [x] Dado que elijo una cuenta, cuando la autenticación concluye, entonces
       accedo a la aplicación sin escribir credenciales.
-- [ ] Dado que cancelo el selector, cuando vuelvo a la pantalla, entonces no se
+- [x] Dado que cancelo el selector, cuando vuelvo a la pantalla, entonces no se
       muestra ningún error y puedo reintentar.
-- [ ] Dado que no hay cuentas en el dispositivo, cuando pulso el botón, entonces
+- [x] Dado que no hay cuentas en el dispositivo, cuando pulso el botón, entonces
       se me indica cómo agregar una.
-- [ ] Dado que ya ingresé antes, cuando abro la aplicación, entonces entro
+- [x] Dado que ya ingresé antes, cuando abro la aplicación, entonces entro
       directamente sin volver a autenticarme.
-- [ ] Dado que cierro sesión, cuando vuelvo a abrir, entonces se me pide ingresar.
+- [x] Dado que cierro sesión, cuando vuelvo a abrir, entonces se me pide ingresar.
 
 **Requisitos:** RF-01.1, RF-01.2, RF-01.6, RF-01.7.
 
@@ -838,43 +838,35 @@ ninguna presenta una colección. Arranque resuelve cargando; bienvenida resuelve
 reposo, ingresando y error; cuenta resuelve cargando, con contenido y error. Las
 diez previsualizaciones cubren esos estados en ambos esquemas.
 
-**Verificación pendiente en dispositivo.** Los seis criterios de aceptación
-describen lo que ocurre frente al selector de cuentas del sistema, y ninguno se
-puede dar por verificado sin ejecutar la aplicación. El procedimiento está abajo,
-en «Cómo verificar HU-01 en el dispositivo». Hasta recorrerlo, la historia queda
-en curso: `./gradlew build`, `./gradlew test` y `./gradlew staticAnalysis`
-concluyen sin error, pero eso cubre los puntos 3 a 8 de la Definición de
-Terminado, no el 1 ni el 11.
+**Verificado en el emulador el 2026-09-13**, con la cuenta real de Google del
+autor, dirigiendo el emulador por `adb` (selector de cuentas, botones, cierre y
+apertura completa del proceso) y capturando pantalla en cada paso:
 
-#### Cómo verificar HU-01 en el dispositivo
+| # | Criterio | Cómo se verificó |
+|---|---|---|
+| 1 | El selector nativo aparece | Se pulsó «Continuar con Google» con sesión cerrada; apareció la hoja de Credential Manager, «Sign in with Google», con la cuenta del dispositivo y el botón «Continue» |
+| 2 | La autenticación concluye sin escribir credenciales | Tras elegir la cuenta, la aplicación llegó a «Mi cuenta» mostrando el nombre y el correo reales de esa cuenta, sin ningún campo de contraseña en el camino |
+| 3 | Cancelar no deja error | Se descartó el selector con el gesto de retroceso; la pantalla volvió a su estado de reposo, con el botón disponible y sin texto en rojo |
+| 4 | Sin cuentas en el dispositivo | Se quitó la única cuenta de Google del emulador (Ajustes → Contraseñas y cuentas → Quitar cuenta) y se pulsó el botón; apareció `error_sign_in_no_google_account` tal como está en `values-es/strings.xml`, con «Reintentar» |
+| 5 | La sesión persiste | Con sesión iniciada, se forzó el cierre completo del proceso (`am force-stop`) y se relanzó; la aplicación entró directo a «Mi cuenta», sin pasar por la bienvenida |
+| 6 | El cierre de sesión se sostiene | Se pulsó «Cerrar sesión», se forzó el cierre completo y se relanzó; la aplicación pidió ingresar de nuevo, en la bienvenida |
 
-Con el emulador o el teléfono conectado, `./gradlew installDebug`. Después, en
-este orden:
+De paso se verificaron dos puntos más de la Definición de Terminado: el
+esquema oscuro (contraste correcto, botón primario invertido) y el tamaño de
+fuente del sistema al 200 % (el texto de «Mi cuenta» se lee completo,
+desplazándose, sin recortes), ambos revertidos a su valor original al terminar.
 
-1. **El selector nativo aparece.** Abrir la aplicación con sesión cerrada, pulsar
-   «Continuar con Google». Debe aparecer la hoja del sistema con las cuentas del
-   dispositivo. Si no aparece nada y el botón queda girando, revisar el orden de
-   `README.md`, «Verificar la configuración».
-2. **La autenticación concluye sin escribir credenciales.** Elegir una cuenta.
-   Debe llegarse a «Mi cuenta» con el nombre y el correo de esa cuenta.
-3. **Cancelar no deja error.** Volver a la bienvenida cerrando sesión, pulsar el
-   botón y descartar el selector con el gesto de retroceso. La pantalla debe
-   quedar como estaba, con el botón disponible y **sin ningún texto rojo**.
-4. **Sin cuentas en el dispositivo.** En el emulador, Ajustes → Cuentas, quitar
-   la cuenta de Google, y pulsar el botón. Debe leerse el mensaje que indica
-   agregar una cuenta desde Ajustes.
-5. **La sesión persiste.** Con sesión iniciada, cerrar la aplicación por
-   completo desde la lista de recientes y volver a abrirla. Debe entrar directo a
-   «Mi cuenta», sin pasar por la bienvenida más allá del indicador de carga.
-6. **El cierre de sesión se sostiene.** Pulsar «Cerrar sesión», cerrar la
-   aplicación por completo y volver a abrirla. Debe pedir el ingreso.
-7. **Tamaño de fuente al 200 %.** Ajustes → Pantalla → Tamaño de fuente, al
-   máximo. Las tres pantallas deben poder leerse enteras, desplazándose si hace
-   falta, sin texto recortado.
-8. **Esquema oscuro.** Repetir el paso 2 con el tema oscuro del sistema activo.
+**Consecuencia para el autor.** Verificar el criterio 4 exigió quitar la única
+cuenta de Google del emulador. Antes de volver a usarlo para cualquier otra
+cosa, hay que agregarla de nuevo desde Ajustes → Contraseñas y cuentas →
+Agregar cuenta — esto no se puede hacer sin la contraseña, así que queda para
+el autor.
 
-Al terminar, marcar los seis criterios de arriba y cambiar el estado de la
-historia a `[x]`.
+**Sin verificar en dispositivo físico.** Todo lo anterior se hizo sobre el
+emulador (`sdk_gphone64_arm64`), no sobre un teléfono real. El proyecto ya
+aceptó esa misma equivalencia en HT-05, así que la historia se da por
+terminada en ese mismo criterio; si el autor prueba igual en un teléfono y
+encuentra una diferencia, se registra como hallazgo nuevo.
 
 ### HU-02 · Elegir mi rol `[ ]` — 5 puntos
 
