@@ -1176,6 +1176,94 @@ dirección, no migrar los datos.
 
 ---
 
+## 2026-09-13 · El tiempo de espera agotado se reconoce aparte de las demás fallas de transporte
+
+**Contexto.** `AuthRepository` traducía las excepciones de supabase-kt a tipos de
+`AuthError` atrapando `HttpRequestException`, que es la excepción con que la
+biblioteca envuelve las fallas de red. La revisión del pull request #2 llevó a
+leer su fuente: `KtorSupabaseHttpClient` **relanza `HttpRequestTimeoutException`
+sin envolverla** y solo envuelve las demás. Las dos son hermanas —ambas heredan
+de `IOException`—, así que una jamás alcanza al `catch` de la otra.
+
+**Decisión.** El mapeo de excepción a `AuthError` vive en
+`data/mapper/AuthErrorMapper.kt` y reconoce las dos formas por separado.
+
+**Razonamiento.** Con el `catch` anterior, un tiempo de espera agotado caía en la
+rama genérica y salía como `AuthError.Unexpected`. Eso tenía dos costos, y el
+segundo es el grave. El visible: con una conexión lenta —el caso corriente en el
+terreno— la persona leía «Ocurrió un error inesperado» en lugar de «No hay
+conexión», justo la vaguedad que `.claude/rules/compose.md` prohíbe. El
+invisible: el respaldo del cierre de sesión sin conexión, decidido el
+2026-09-12, vive en la rama de red, de modo que la sesión guardada **no se
+limpiaba** cuando la falta de conexión se manifestaba como tiempo agotado en vez
+de como rechazo inmediato. La conducta que este mismo registro prometía no se
+cumplía en la mitad de los casos.
+
+**Consecuencia.** El mapeo se extrajo a una función `internal` en lugar de vivir
+dentro de los `catch` del repositorio, precisamente para que tenga prueba propia:
+`AuthErrorMapperTest`. Se comprobó que la prueba tiene dientes revirtiendo el
+mapeo al anterior y viéndola fallar. La rama de `RestException` queda sin prueba
+porque construir una exige un `HttpResponse` de Ktor, y fabricarlo pediría una
+dependencia de prueba nueva para un solo caso; se anota como deuda menor.
+
+---
+
+## 2026-09-13 · Cada transición del grafo elimina el destino que deja, no el de arranque
+
+**Contexto.** El grafo de navegación de HU-01 reemplazaba la pila con
+`popUpTo(graph.startDestinationId) { inclusive = true }`. Copilot lo señaló en el
+pull request #2 y el fuente de Navigation 2.10.1 lo confirma: cuando `popUpTo`
+apunta a un destino que ya no está en la pila, `NavControllerImpl` **ignora el
+pop entero** —«Better to ignore the popBackStack than accidentally popping the
+entire stack»—.
+
+**Decisión.** `replaceCurrentWith` elimina el destino que la transición abandona,
+leído de `currentDestination`, en vez del destino de arranque.
+
+**Razonamiento.** La primera transición, de arranque a bienvenida, eliminaba el
+destino de arranque; a partir de ahí ninguna otra encontraba su objetivo y la
+pila crecía. Ingresar dejaba la bienvenida debajo de la cuenta, y cerrar sesión
+dejaba la cuenta debajo de la bienvenida, una entrada más por cada ciclo. El
+retroceso desde «Mi cuenta» llevaba a la bienvenida en lugar de salir de la
+aplicación.
+
+**Razonamiento sobre lo que el revisor exageró.** Copilot afirmó que el
+retroceso podía «revelar datos de la cuenta tras cerrar sesión». No podía:
+`AccountViewModel` conserva `SignedOut` como último valor emitido y `stateIn` lo
+reproduce al volver, así que la pantalla mostraba el indicador de carga y
+rebotaba sola. El defecto era real; el daño que describía, no. Se corrigió por
+el defecto, no por el daño.
+
+**Consecuencia.** La corrección no tiene prueba automática: fijarla exige una
+prueba instrumentada con `TestNavHostController`, y el proyecto todavía no tiene
+nada bajo `androidTest`. Queda anotada como deuda en `plan.md`, HU-01.
+
+---
+
+## 2026-09-13 · El estado de fallo del cierre de sesión ofrece dos salidas, no una
+
+**Contexto.** El botón del estado de fallo de «Mi cuenta» decía «Reintentar» y
+solo descartaba el error, sin volver a intentar nada. Lo señaló Copilot en el
+pull request #2 y contradice `.claude/rules/compose.md`: «Los controles dicen
+exactamente qué ocurre al pulsarlos».
+
+**Decisión.** «Reintentar» vuelve a ejecutar el cierre de sesión, y se agrega un
+control secundario, «Seguir con la sesión abierta», que descarta el error.
+
+**Razonamiento.** Cablear «Reintentar» al cierre de sesión y nada más habría
+dejado a la persona encerrada en la pantalla de error mientras el fallo
+persistiera, sin forma de volver a su cuenta. Dos acciones distintas necesitan
+dos controles, y cada etiqueta dice exactamente lo que hace.
+
+**Consecuencia.** `AccountViewModel` y `SignOutUseCase` pasaron de no tener
+ninguna prueba a tener `AccountViewModelTest`, que fija el contrato en que se
+apoya el botón: pedir otra vez alcanza al repositorio una segunda vez, y el
+fallo solo se borra cuando la operación tiene éxito. Esa prueba **no** atrapa el
+cableado del botón en sí, que es lo que estaba roto; para eso hace falta una
+prueba de Compose sobre `AccountContent`. Queda anotado como deuda.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

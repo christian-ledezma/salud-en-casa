@@ -868,6 +868,58 @@ aceptó esa misma equivalencia en HT-05, así que la historia se da por
 terminada en ese mismo criterio; si el autor prueba igual en un teléfono y
 encuentra una diferencia, se registra como hallazgo nuevo.
 
+#### Revisión del pull request #2
+
+El revisor automático de GitHub señaló cinco observaciones. Cada una se
+verificó contra el código real —y, en dos casos, contra el fuente de la
+biblioteca— antes de aceptarla o descartarla. **Cuatro eran reales y una no.**
+Revisando el resto del cambio aparecieron dos defectos más que el revisor no
+vio, uno de ellos más grave que cualquiera de los suyos.
+
+| # | Observación | Veredicto |
+|---|---|---|
+| 1 | El grafo elimina siempre el destino de arranque | **Real.** El fuente de Navigation 2.10.1 confirma que un `popUpTo` a un destino ausente se ignora entero, así que la pila crecía una entrada por ciclo. El daño que el revisor describía —ver datos de la cuenta tras cerrar sesión— **no** era cierto |
+| 2 | «Reintentar» del fallo de cierre de sesión no reintenta | **Real.** Contradice `.claude/rules/compose.md`: el control no decía lo que hacía |
+| 3 | `auth-sequence.md` describe símbolos borrados | **Real, y mayor de lo señalado:** eran nueve referencias muertas, no dos |
+| 4 | `components.md` apunta a `GoogleAuthClient.kt` | **Real.** Una línea |
+| 5 | La tabla de pruebas de `plan.md` documenta lo contrario de lo implementado | **Falso positivo.** El encabezado de esa columna es «El error real que atrapa»: la celda describe el defecto del que la prueba protege, no la conducta implementada |
+
+**Los dos hallazgos propios.**
+
+- **El tiempo de espera agotado no se reconocía como falla de red.** supabase-kt
+  relanza `HttpRequestTimeoutException` sin envolverla, de modo que caía en la
+  rama genérica y salía como error inesperado. Lo grave no era el mensaje sino
+  que el respaldo del cierre de sesión sin conexión vive en la rama de red: la
+  sesión guardada no se limpiaba cuando la falta de conexión se manifestaba
+  como tiempo agotado. Registrado en `docs/decisions.md`, 2026-09-13.
+- **`AccountViewModel` y `SignOutUseCase` no los tocaba ninguna prueba.** Era el
+  único camino de la característica sin cobertura, y es donde vivía el
+  defecto 2.
+
+**Qué se corrigió y qué quedó como deuda.** Las cuatro observaciones reales y
+los dos hallazgos propios se corrigieron. La suite pasa de 54 a 60 pruebas: seis
+nuevas entre `AccountViewModelTest` y `AuthErrorMapperTest`. Esta última se
+comprobó revirtiendo el mapeo al anterior y viéndola fallar, igual que se hizo
+con las reglas de arquitectura en HT-08.
+
+Quedan dos deudas anotadas, ninguna de ellas corregible con una prueba de la
+máquina virtual de Java:
+
+1. **La corrección del grafo no tiene prueba automática.** Fijarla exige una
+   prueba instrumentada con `TestNavHostController`, y el proyecto no tiene
+   todavía nada bajo `androidTest`. Se verificó a mano en el emulador que el
+   retroceso desde la bienvenida sale de la aplicación; las dos transiciones
+   posteriores al ingreso se razonaron desde el fuente de la biblioteca, porque
+   el emulador se quedó sin cuenta de Google al verificar el criterio 4.
+2. **El cableado del botón «Reintentar» tampoco.** `AccountViewModelTest` fija
+   el contrato en que ese botón se apoya, pero no puede ver a qué lambda está
+   conectado; eso lo atraparía una prueba de Compose sobre `AccountContent`.
+
+**El pull request arrastra HT-09.** `master` estaba en `0f4ca75`, así que la
+rama de HU-01 lleva también el commit de los cuatro diagramas de arquitectura.
+Al fusionar, el Sprint 0 queda cerrado en `master` junto con esta historia. Se
+anota para que el registro no dé a entender que HT-09 entró por su cuenta.
+
 ### HU-02 · Elegir mi rol `[ ]` — 5 puntos
 
 > Como **usuario que ingresa por primera vez**, quiero **indicar si soy paciente o
