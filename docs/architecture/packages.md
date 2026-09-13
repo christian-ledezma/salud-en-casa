@@ -19,7 +19,7 @@ flowchart TB
     di["di/<br/>un modulo de Koin por caracteristica"]
     ui["ui/<br/>theme, components, animations"]
     navigation["navigation/<br/>grafo y rutas tipadas"]
-    core["core/<br/>error, network, util"]
+    core["core/<br/>error, network, util, vo"]
 
     presentation["features/&lt;feature&gt;/presentation/"]
     domain["features/&lt;feature&gt;/domain/"]
@@ -43,7 +43,14 @@ no depende de Compose, de Android ni del cliente de Supabase, lo que
 `ArchitectureRulesTest.domainLayerHasNoPlatformImports` (la prueba obligatoria
 `domainLayerHasNoPlatformImports` de `.claude/rules/testing.md`) verifica
 buscando importaciones de `androidx.*`, `android.*` e
-`io.github.jan.supabase.*` en cada archivo bajo `domain/`.
+`io.github.jan.supabase.*` en cada archivo bajo `domain/` y bajo `core/vo/`.
+
+`core/vo/` guarda los objetos de valor que comparten varias características
+—`Email`, `PhoneNumber`, `PersonName`—. Es código de dominio que no pertenece a
+ninguna característica, de modo que la regla anterior lo alcanza igual; la
+alternativa, que una característica dependa del `domain` de otra solo para
+obtener un objeto de valor, invierte la razón de haberlas separado
+(`docs/decisions.md`, 2026-09-12).
 
 `di/` inyecta hacia las tres capas —de ahí las flechas punteadas—, pero ninguna
 capa inyecta hacia `di/`: la dirección de la inyección de dependencias es la
@@ -71,14 +78,17 @@ pide y cuál provee.
 
 ## Estado real hoy
 
-Solo existe `features/auth/presentation/`, con la pantalla de prueba de
-conexión de HT-05. No hay todavía ningún paquete `domain/` ni `data/` en el
-proyecto, así que dos de las tres reglas de este documento —la que protege
-`domain/` y la que impide que una característica importe la `data/` de
-otra— no tienen todavía ninguna violación posible que atrapar. Se verificaron
-de todos modos provocando su fallo con archivos de prueba desechables antes de
-cerrar HT-08, precisamente para no dejar una prueba que pasa en verde sin haber
-mirado nunca nada; el registro de ese experimento está en `plan.md`, HT-08.
+`features/auth/` existe con sus tres capas desde HU-01: `domain/` con los
+modelos, la interfaz `IAuthRepository` y los tres casos de uso; `data/` con
+`SupabaseAuthDataSource`, el transformador y `AuthRepository`; y `presentation/`
+con las tres pantallas, sus modelos de vista y `GoogleCredentialClient`. La
+pantalla de prueba de conexión de HT-05 desapareció con ella.
 
-`features/auth/presentation/` desaparece con HU-01, que construye las pantallas
-reales de ingreso y sí atraviesa las tres capas.
+Es la primera característica que atraviesa las tres capas, así que la regla que
+protege `domain/` ya vigila código real y no un paquete vacío. La tercera regla
+—la que impide que una característica importe la `data/` de otra— sigue sin
+tener una segunda característica con la que fallar; se verificó provocando su
+fallo con archivos desechables al cerrar HT-08, y la que protege `core/vo/` se
+verificó del mismo modo al cerrar HU-01.
+
+Ninguna otra característica existe todavía.

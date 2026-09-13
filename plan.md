@@ -98,7 +98,7 @@ Una historia está terminada cuando **todo** lo siguiente se cumple:
 | # | Sprint | Objetivo específico | Puntos | Estado |
 |---|---|---|---|---|
 | 0 | Fundación técnica | 1 · Arquitectura | — | `[~]` |
-| 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[ ]` |
+| 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[~]` |
 | 2 | Perfiles y ubicación | 2 · Perfiles | 24 | `[ ]` |
 | 3 | Verificación de usuarios | 2 · Perfiles | 21 | `[ ]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[ ]` |
@@ -436,7 +436,10 @@ es su dueña. Pantalla desechable con un botón que recorre la cadena completa:
 - [x] La fila es visible en el panel de la base de datos
 
 Si los cinco ocurren, toda la cadena de configuración es correcta. El código se
-elimina al implementar HU-01.
+elimina al implementar HU-01, **y así ocurrió**: `AuthSmokeTestScreen`,
+`AuthSmokeTestViewModel` y `GoogleAuthClient` ya no existen. El botón de fallo
+provocado sobrevivió, porque HT-08 todavía lo necesita: vive ahora en la
+pantalla «Mi cuenta» y solo aparece en compilaciones de depuración.
 
 **Los cinco verificados sobre el emulador el 2026-09-12**, recorriendo el flujo
 completo: selector de cuentas, pantalla de consentimiento, sesión creada y fila
@@ -463,10 +466,11 @@ cero. El identificador que muestra la pantalla coincide con el de la base.
 
 El README explica en qué orden revisar cuando el ingreso falla.
 
-**Deuda reconocida.** El modelo de vista consume un cliente de infraestructura en
-lugar de un caso de uso, que no es la forma que pide la arquitectura. Se acepta
-solo porque esta pantalla es andamiaje sin dominio detrás: HU-01 la reemplaza por
-el flujo real con su caso de uso. Queda anotado para que no se copie el patrón.
+**Deuda reconocida, saldada en HU-01.** El modelo de vista consumía un cliente de
+infraestructura en lugar de un caso de uso, que no es la forma que pide la
+arquitectura. Se aceptó solo porque esa pantalla era andamiaje sin dominio
+detrás. HU-01 la reemplazó por el flujo real: ningún modelo de vista del
+proyecto inyecta ya otra cosa que casos de uso.
 
 **Comentarios revisados contra la sección nueva de `CLAUDE.md`.** Los nueve
 archivos Kotlin de esta historia se depuraron: sin bloques KDoc, y cada
@@ -638,9 +642,11 @@ Etapas del flujo, en `.github/workflows/ci.yml`:
 - [x] La prueba `domainLayerHasNoPlatformImports` existe y pasa
 - [x] Un error provocado deliberadamente aparece en el panel de monitoreo —
       **pendiente del autor.** Exige habilitar Crashlytics en la consola de
-      Firebase, instalar la aplicación, pulsar «Provocar un fallo de prueba» en la
-      pantalla de prueba de conexión y **volver a abrirla**: Crashlytics sube el
-      reporte en el arranque siguiente, no en el momento del fallo
+      Firebase, instalar la aplicación, pulsar «Provocar un fallo de prueba» y
+      **volver a abrirla**: Crashlytics sube el reporte en el arranque siguiente,
+      no en el momento del fallo. Desde HU-01 ese botón vive en la pantalla «Mi
+      cuenta», a la que se llega después de ingresar, y solo aparece en
+      compilaciones de depuración
 
 **Requisitos:** RNF-06, RNF-09.
 
@@ -730,6 +736,8 @@ _Completar al cerrar el sprint._
 
 # Sprint 1 — Ingreso e identidad
 
+**Estado:** `[~]` en curso.
+
 **Objetivo del sprint.** Una persona ingresa con su cuenta de Google, elige si es
 paciente o profesional, y completa sus datos básicos.
 
@@ -737,7 +745,7 @@ paciente o profesional, y completa sus datos básicos.
 
 **Puntos:** 21.
 
-### HU-01 · Ingresar con cuenta de Google `[ ]` — 8 puntos
+### HU-01 · Ingresar con cuenta de Google `[~]` — 8 puntos
 
 > Como **persona que necesita atención domiciliaria**, quiero **ingresar con mi
 > cuenta de Google sin crear una contraseña**, para **empezar a usar la
@@ -764,6 +772,92 @@ pruebas · `IAuthRepository` en dominio y su implementación en datos · casos d
 de ingreso, cierre de sesión y consulta de sesión · `SupabaseAuthDataSource` ·
 integración de Credential Manager con nonce en la capa de presentación · pantalla de
 bienvenida y modelo de vista · pantalla de arranque que decide destino según sesión.
+
+**Las nueve tareas técnicas están terminadas.** La característica `auth` es la
+primera del proyecto con sus tres capas:
+
+| Capa | Qué contiene |
+|---|---|
+| `domain/model/` | `AuthSession`, `SessionState`, `AuthError`, `AuthResult`, `SignOutResult` |
+| `domain/repository/` | `IAuthRepository` |
+| `domain/usecase/` | `SignInWithGoogleUseCase`, `SignOutUseCase`, `ObserveSessionUseCase` |
+| `data/datasource/` | `SupabaseAuthDataSource` |
+| `data/mapper/` | `AuthSessionMapper`, de `UserInfo` y `SessionStatus` al dominio |
+| `data/repository/` | `AuthRepository`, único lugar donde una excepción de la biblioteca se convierte en un tipo de error |
+| `presentation/` | `StartupScreen`, `WelcomeScreen`, `AccountScreen`, sus tres modelos de vista y `GoogleCredentialClient` |
+| `navigation/` | Rutas tipadas y el grafo con las tres pantallas |
+| `core/vo/` | `Email`, `PhoneNumber`, `PersonName` |
+
+**Esta característica no tiene objeto de transporte.** El resto del proyecto
+tendrá su `<Entity>Dto` en `data/model/`, pero aquí el transporte lo define la
+biblioteca: `UserInfo` y `SessionStatus` ya son los tipos que llegan del
+servidor. Copiarlos a un tipo propio idéntico no habría agregado nada, así que
+el transformador va directo de ellos al dominio.
+
+**Decisiones no evidentes, en `docs/decisions.md`, 2026-09-12.** Dónde viven los
+objetos de valor compartidos · por qué Credential Manager queda en la
+presentación y el modelo de vista recibe la petición como función · por qué el
+cierre de sesión sin conexión limpia la sesión guardada · por qué el teléfono se
+guarda con su código de país.
+
+**Qué atrapan las pruebas nuevas.** Cuarenta y cinco pruebas nuevas, que llevan
+la suite de 9 a 54. Todas viven en `app/src/test` y corren sin emulador:
+
+| Prueba | El error real que atrapa |
+|---|---|
+| `EmailTest`, `PersonNameTest`, `PhoneNumberTest` | Los límites exactos de cada regla, y que el código de país no mutile un número nacional que empieza por `591` |
+| `SignInWithGoogleUseCaseTest` | Un token vacío viajando al servidor, y el token y el nonce intercambiados entre sí |
+| `WelcomeViewModelTest` | Que cancelar el selector aparezca como error, y que la pantalla avance con la credencial obtenida aunque Supabase la rechace |
+| `StartupViewModelTest` | El defecto de HT-05: decidir el destino antes de que la sesión guardada termine de restaurarse |
+| `AuthSessionMapperTest` | Leer una sola de las dos formas en que Google escribe el nombre, y tratar como sesión iniciada un estado autenticado sin usuario |
+| `DataStoreSessionManagerTest` | Que la sesión no sobreviva el viaje de ida y vuelta por la serialización, que en el dispositivo se ve como pedir el ingreso cada mañana |
+
+`ArchitectureRulesTest.domainLayerHasNoPlatformImports` se amplió para recorrer
+también `core/vo/`, y la ampliación se comprobó provocando su fallo con un
+archivo sonda que importaba `android.util.Log`, igual que se hizo en HT-08.
+
+**Los cuatro estados de cada pantalla.** «Vacío» no aplica a ninguna de las tres:
+ninguna presenta una colección. Arranque resuelve cargando; bienvenida resuelve
+reposo, ingresando y error; cuenta resuelve cargando, con contenido y error. Las
+diez previsualizaciones cubren esos estados en ambos esquemas.
+
+**Verificación pendiente en dispositivo.** Los seis criterios de aceptación
+describen lo que ocurre frente al selector de cuentas del sistema, y ninguno se
+puede dar por verificado sin ejecutar la aplicación. El procedimiento está abajo,
+en «Cómo verificar HU-01 en el dispositivo». Hasta recorrerlo, la historia queda
+en curso: `./gradlew build`, `./gradlew test` y `./gradlew staticAnalysis`
+concluyen sin error, pero eso cubre los puntos 3 a 8 de la Definición de
+Terminado, no el 1 ni el 11.
+
+#### Cómo verificar HU-01 en el dispositivo
+
+Con el emulador o el teléfono conectado, `./gradlew installDebug`. Después, en
+este orden:
+
+1. **El selector nativo aparece.** Abrir la aplicación con sesión cerrada, pulsar
+   «Continuar con Google». Debe aparecer la hoja del sistema con las cuentas del
+   dispositivo. Si no aparece nada y el botón queda girando, revisar el orden de
+   `README.md`, «Verificar la configuración».
+2. **La autenticación concluye sin escribir credenciales.** Elegir una cuenta.
+   Debe llegarse a «Mi cuenta» con el nombre y el correo de esa cuenta.
+3. **Cancelar no deja error.** Volver a la bienvenida cerrando sesión, pulsar el
+   botón y descartar el selector con el gesto de retroceso. La pantalla debe
+   quedar como estaba, con el botón disponible y **sin ningún texto rojo**.
+4. **Sin cuentas en el dispositivo.** En el emulador, Ajustes → Cuentas, quitar
+   la cuenta de Google, y pulsar el botón. Debe leerse el mensaje que indica
+   agregar una cuenta desde Ajustes.
+5. **La sesión persiste.** Con sesión iniciada, cerrar la aplicación por
+   completo desde la lista de recientes y volver a abrirla. Debe entrar directo a
+   «Mi cuenta», sin pasar por la bienvenida más allá del indicador de carga.
+6. **El cierre de sesión se sostiene.** Pulsar «Cerrar sesión», cerrar la
+   aplicación por completo y volver a abrirla. Debe pedir el ingreso.
+7. **Tamaño de fuente al 200 %.** Ajustes → Pantalla → Tamaño de fuente, al
+   máximo. Las tres pantallas deben poder leerse enteras, desplazándose si hace
+   falta, sin texto recortado.
+8. **Esquema oscuro.** Repetir el paso 2 con el tema oscuro del sistema activo.
+
+Al terminar, marcar los seis criterios de arriba y cambiar el estado de la
+historia a `[x]`.
 
 ### HU-02 · Elegir mi rol `[ ]` — 5 puntos
 
