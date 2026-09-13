@@ -23,14 +23,9 @@ sealed interface GoogleCredentialResult {
     ) : GoogleCredentialResult
 }
 
-// The client identifier handed to Credential Manager is the Web one, not the
-// Android one (docs/decisions.md, 2026-09-05).
 class GoogleCredentialClient(
     private val webClientId: String,
 ) {
-    // Credential Manager needs the activity to raise the account chooser, which
-    // is why the context arrives per call instead of being held: this class
-    // outlives any single screen, the activity does not.
     suspend fun requestIdToken(activityContext: Context): GoogleCredentialResult {
         if (webClientId.isBlank()) return GoogleCredentialResult.Failure(AuthError.MissingConfiguration)
 
@@ -41,11 +36,8 @@ class GoogleCredentialClient(
                 .addCredentialOption(
                     GetGoogleIdOption
                         .Builder()
-                        // False so a first time user still sees their accounts
-                        // instead of an empty chooser.
                         .setFilterByAuthorizedAccounts(false)
                         .setServerClientId(webClientId)
-                        // Google signs over the hash; Supabase verifies the raw value.
                         .setNonce(nonce.hashed)
                         .build(),
                 ).build()

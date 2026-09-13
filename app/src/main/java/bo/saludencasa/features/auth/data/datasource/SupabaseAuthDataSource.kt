@@ -13,9 +13,6 @@ class SupabaseAuthDataSource(
     private val supabaseUrl: String,
     private val supabaseAnonKey: String,
 ) {
-    // A clean checkout compiles with empty secrets on purpose, so the absence
-    // is detected here and reported as configuration rather than as a rejected
-    // token (README, "Archivos que no estan en el repositorio").
     val isConfigured: Boolean
         get() = supabaseUrl.isNotBlank() && supabaseAnonKey.isNotBlank()
 
@@ -29,8 +26,6 @@ class SupabaseAuthDataSource(
         supabase.auth.signInWith(IDToken) {
             this.idToken = idToken
             this.provider = Google
-            // The raw value, never the hash: Google signs over the digest and
-            // Supabase verifies the original (docs/decisions.md, 2026-09-12).
             this.nonce = rawNonce
         }
         return supabase.auth.currentUserOrNull()

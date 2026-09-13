@@ -800,6 +800,23 @@ presentación y el modelo de vista recibe la petición como función · por qué
 cierre de sesión sin conexión limpia la sesión guardada · por qué el teléfono se
 guarda con su código de país.
 
+**Los porqués menores, que no llegan a decisión pero tampoco se deducen leyendo.**
+El código de HU-01 no lleva comentarios: la regla de `CLAUDE.md` los reserva para
+lo que el código no puede expresar, y el «por qué» del sistema vive aquí y en
+`docs/decisions.md`. Estos ocho son los que sostenían un comentario y ahora
+viven en esta lista.
+
+| Dónde | Por qué está así |
+|---|---|
+| `AuthSession` trae el correo y el nombre anulables | El proveedor puede entregar un valor que los objetos de valor de este proyecto rechazan, y eso debe costar el dato, nunca la sesión que Supabase ya aceptó |
+| `Email` valida la forma de manera laxa | La dirección que llega es la que el proveedor de identidad ya verificó; un patrón más estricto solo rechaza direcciones válidas que nadie previó |
+| `SupabaseAuthDataSource.isConfigured` | Una copia limpia del repositorio compila con los secretos vacíos a propósito, así que la ausencia se detecta aquí y se informa como configuración y no como token rechazado |
+| `setFilterByAuthorizedAccounts(false)` | Con el filtro activo, quien entra por primera vez ve un selector de cuentas vacío |
+| Las cuatro banderas de `install(Auth)` en `CoreModule` | Se escriben aunque sean las de omisión porque RF-01.6 depende de que sigan siendo esas |
+| El grafo reemplaza la pila al ingresar y al cerrar sesión | Ambos cambios alteran de quién es la aplicación, y el botón de retroceso no debe devolver a la pantalla de quien ya no está |
+| La bienvenida desplaza el encabezado y fija la llamada a la acción al pie | Es lo que mantiene la pantalla utilizable con el tamaño de fuente del sistema al 200 % |
+| `AuthError.Cancelled` tiene clave de recurso pero nunca se muestra | El modelo de vista lo convierte en estado de reposo antes de que llegue a la pantalla; la clave existe para que el `when` sea exhaustivo |
+
 **Qué atrapan las pruebas nuevas.** Cuarenta y cinco pruebas nuevas, que llevan
 la suite de 9 a 54. Todas viven en `app/src/test` y corren sin emulador:
 

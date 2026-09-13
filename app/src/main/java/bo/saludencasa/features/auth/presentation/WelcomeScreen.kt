@@ -63,8 +63,6 @@ private fun WelcomeContent(
                 .padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
         verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap),
     ) {
-        // The heading scrolls and the call to action stays at the foot, which is
-        // what keeps the screen usable at a 200 % system font size.
         Column(
             modifier =
                 Modifier

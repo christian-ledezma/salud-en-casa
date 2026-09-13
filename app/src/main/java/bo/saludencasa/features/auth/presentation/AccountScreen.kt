@@ -112,8 +112,6 @@ private fun AccountContent(
     }
 }
 
-// The Crashlytics check of HT-08 needs a reachable crash, and it is the only
-// reason this exists: it never ships in a release build.
 @Composable
 private fun ForceCrashButton() {
     if (!BuildConfig.DEBUG) return

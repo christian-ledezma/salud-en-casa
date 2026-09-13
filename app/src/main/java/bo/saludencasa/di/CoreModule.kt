@@ -16,7 +16,6 @@ import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
-// preferencesDataStore guarantees a single instance per process.
 private val Context.sessionStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
 val coreModule =
@@ -36,13 +35,9 @@ val coreModule =
         single<SupabaseClient> {
             createSupabaseClient(
                 supabaseUrl = BuildConfig.SUPABASE_URL,
-                // Anonymous key only; row level security decides access, not the
-                // key itself (docs/decisions.md, 2026-09-05). INV-14.
                 supabaseKey = BuildConfig.SUPABASE_ANON_KEY,
             ) {
                 install(Auth) {
-                    // Written out even though they are the defaults: RF-01.6
-                    // depends on them staying this way.
                     sessionManager = get<DataStoreSessionManager>()
                     autoLoadFromStorage = true
                     autoSaveToStorage = true

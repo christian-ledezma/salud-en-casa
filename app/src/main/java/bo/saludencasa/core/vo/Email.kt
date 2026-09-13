@@ -5,10 +5,6 @@ value class Email private constructor(
     val value: String,
 ) {
     companion object {
-        // RFC 5321 caps the whole address at 254 characters. The shape check is
-        // deliberately loose: the address that matters is the one the identity
-        // provider already verified, and a stricter pattern only rejects valid
-        // addresses nobody expected.
         private const val MAX_LENGTH = 254
         private val FORMAT = Regex("""^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$""")
 

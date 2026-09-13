@@ -28,9 +28,6 @@ class WelcomeViewModel(
     private val _uiState = MutableStateFlow<WelcomeUiState>(WelcomeUiState.Idle)
     val uiState: StateFlow<WelcomeUiState> = _uiState.asStateFlow()
 
-    // The credential request arrives as a lambda because Credential Manager
-    // needs an activity, and holding one here would outlive it. The screen owns
-    // the context; this class stays free of Android and testable on the JVM.
     fun signIn(requestCredential: suspend () -> GoogleCredentialResult) {
         _uiState.value = WelcomeUiState.SigningIn
         viewModelScope.launch {
@@ -48,8 +45,6 @@ class WelcomeViewModel(
             is AuthResult.Failure -> result.error.toUiState()
         }
 
-    // Dismissing the account chooser is a decision, not a failure: RF-01 asks
-    // that the screen come back untouched and ready for another attempt.
     private fun AuthError.toUiState(): WelcomeUiState =
         if (this == AuthError.Cancelled) WelcomeUiState.Idle else WelcomeUiState.Error(this)
 }

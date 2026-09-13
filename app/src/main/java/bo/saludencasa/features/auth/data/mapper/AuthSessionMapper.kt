@@ -9,9 +9,6 @@ import io.github.jan.supabase.auth.user.UserInfo
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-// Google fills the identity claims under two spellings depending on the scope
-// that produced them, and Supabase copies them into the metadata verbatim, so
-// both have to be read.
 private val FULL_NAME_KEYS = listOf("full_name", "name")
 
 fun UserInfo.toAuthSession(): AuthSession =

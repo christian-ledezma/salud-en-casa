@@ -48,9 +48,6 @@ class AuthRepository(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: HttpRequestException) {
-            // The client keeps the stored session when the logout request never
-            // reaches the server. Clearing it here is what makes RF-01.7 hold
-            // with no connection: the sign out is local in scope anyway.
             dataSource.clearStoredSession()
             SignOutResult.Success
         } catch (_: Exception) {

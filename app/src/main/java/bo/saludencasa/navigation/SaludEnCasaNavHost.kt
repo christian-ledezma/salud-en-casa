@@ -37,8 +37,6 @@ fun SaludEnCasaNavHost(
     }
 }
 
-// Signing in and signing out both change who the application belongs to, so the
-// previous destination must not survive the back button.
 private fun NavHostController.replaceGraphWith(route: Any) {
     navigate(route) {
         popUpTo(graph.startDestinationId) { inclusive = true }

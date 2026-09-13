@@ -5,10 +5,6 @@ value class PhoneNumber private constructor(
     val value: String,
 ) {
     companion object {
-        // Bolivia is the only country the product operates in, so the number is
-        // stored already qualified with its country code: a bare eight digit
-        // number is ambiguous the day a second country appears, and rewriting
-        // stored rows then is worse than qualifying them now.
         private const val COUNTRY_CODE = "591"
         private const val NATIONAL_LENGTH = 8
         private val SEPARATORS = Regex("""[\s\-().]""")
@@ -19,9 +15,6 @@ value class PhoneNumber private constructor(
             if (compact.isEmpty()) return failure("phone_required")
             if (!DIGITS.matches(compact)) return failure("phone_invalid_characters")
 
-            // The prefix is only stripped when what remains is a whole national
-            // number, so a local number that happens to begin with those digits
-            // is not mutilated into an invalid one.
             val national =
                 compact
                     .takeIf { it.length == COUNTRY_CODE.length + NATIONAL_LENGTH && it.startsWith(COUNTRY_CODE) }
