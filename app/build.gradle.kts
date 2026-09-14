@@ -90,10 +90,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.bundles.auth)
 
-    // Network engine deferred: nothing fetches a remote image yet
-    // (docs/decisions.md, 2026-09-12). Coil falls back to the placeholder
-    // state on its own until one is added.
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.ktor3)
 
     testImplementation(libs.bundles.test)
 
