@@ -84,11 +84,30 @@ modelos, la interfaz `IAuthRepository` y los tres casos de uso; `data/` con
 con las tres pantallas, sus modelos de vista y `GoogleCredentialClient`. La
 pantalla de prueba de conexión de HT-05 desapareció con ella.
 
-Es la primera característica que atraviesa las tres capas, así que la regla que
-protege `domain/` ya vigila código real y no un paquete vacío. La tercera regla
-—la que impide que una característica importe la `data/` de otra— sigue sin
-tener una segunda característica con la que fallar; se verificó provocando su
-fallo con archivos desechables al cerrar HT-08, y la que protege `core/vo/` se
-verificó del mismo modo al cerrar HU-01.
+`features/profile/` es la segunda, desde HU-02, y también atraviesa las tres
+capas: `domain/` con `UserRole`, `AssignableRole`, `UserProfile` y los casos de
+uso de leer y elegir el rol y de leer y guardar el perfil; `domain/vo/` con
+`BirthDate`; `data/` con `SupabaseProfileDataSource`, que lee y escribe
+`profiles` y `patients` y llama a `assign_my_role`; y `presentation/` con la
+pantalla de elección de rol y la de perfil.
+
+`BirthDate` vive en `features/profile/domain/vo/` y no en `core/vo/` porque
+ninguna otra característica lo usa. Es la primera vez que el proyecto ocupa ese
+hueco de la estructura: `Email`, `PhoneNumber` y `PersonName` viven en
+`core/vo/` porque los comparten varias (`docs/decisions.md`, 2026-09-12). La
+regla que mantiene el dominio libre de plataforma alcanza a los dos lugares.
+
+**La tercera regla de dependencia deja de ser teórica con esta segunda
+característica.** Hasta HU-01 no había dos características entre las que
+cruzarse. Ahora sí las hay, y el cruce existe y es del tipo permitido:
+`StartupViewModel`, en `features/auth/presentation/`, consume
+`GetRoleUseCase`, que vive en `features/profile/domain/usecase/`. Pide por el
+caso de uso, nunca por `features/profile/data/`, que es exactamente lo que
+`ArchitectureRulesTest.featureNeverImportsTheDataLayerOfAnotherFeature`
+vigila. Esa prueba se había verificado en HT-08 provocando su fallo con
+archivos sonda desechables; desde HU-02 recorre un cruce real.
+
+La regla que protege `domain/` y `core/vo/` se verificó del mismo modo al
+cerrar HU-01.
 
 Ninguna otra característica existe todavía.

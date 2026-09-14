@@ -267,7 +267,13 @@ desviación se acepta deliberadamente a cambio de la consistencia con el código
 
 ---
 
-## 2026-09-09 · Sprints de dos semanas con velocidad medida, no supuesta
+## 2026-09-09 · Sprints de dos semanas con velocidad medida, no supuesta — SUPERADA EN PARTE
+
+> **La duración quedó superada por la entrada del 2026-09-14**, que la corrige a
+> una semana con el tramo real medido. Lo demás de esta entrada sigue vigente: la
+> capacidad estimada, la velocidad medida en vez de supuesta y el traslado de
+> historias como mecanismo de ajuste. Se conserva porque documenta el
+> razonamiento original.
 
 **Contexto.** El proyecto sigue SCRUM y requiere planificación por sprints.
 
@@ -1261,6 +1267,346 @@ apoya el botón: pedir otra vez alcanza al repositorio una segunda vez, y el
 fallo solo se borra cuando la operación tiene éxito. Esa prueba **no** atrapa el
 cableado del botón en sí, que es lo que estaba roto; para eso hace falta una
 prueba de Compose sobre `AccountContent`. Queda anotado como deuda.
+
+---
+
+## 2026-09-13 · La elección del rol se escribe con una función almacenada
+
+**Contexto.** HU-02 tiene que escribir dos cosas: el rol en `profiles` y la fila
+de `patients` o de `professionals`. Desde el cliente son dos peticiones, y
+`patients_insert_own` exige que el rol ya esté escrito, así que además tienen un
+orden obligatorio.
+
+**Decisión.** Una función almacenada, `assign_my_role(p_role user_role)`, hace
+las dos escrituras en una sola transacción. Es `security invoker`.
+
+**Razonamiento.** Si la segunda escritura fallara, la persona quedaría con un
+rol sin la fila que lo sostiene, la aplicación la enviaría a la pantalla de un
+rol cuyo registro no existe, y nada volvería a intentarlo: la pregunta no se
+repite porque el rol ya está puesto. Es el primero de los tres casos que
+`.claude/rules/supabase.md` reserva para una función de servidor, la transacción
+atómica que el cliente no puede garantizar, y el mismo motivo por el que
+`.claude/rules/testing.md` exige `failedAcceptanceLeavesNoPartialRecord` para la
+aceptación de una oferta.
+
+La función es `security invoker` y no `security definer` porque no necesita
+saltarse ninguna política: cada una de sus escrituras ya la permite la política
+del propio usuario. Aporta atomicidad y nada más. Una función definidora que no
+la necesita es un agujero sin razón de existir.
+
+**Consecuencia.** `ProfileRepository` hace una sola llamada y tiene una sola
+superficie de error. La regla que RF-01.4 y RF-01.5 expresan —el rol se elige
+una vez y nunca es `ADMIN`— queda escrita tres veces, y a propósito: en el caso
+de uso, en la función, y en el disparador `profiles_guard_role` que ya existía.
+La del caso de uso evita la petición inútil; las otras dos son la garantía.
+
+---
+
+## 2026-09-13 · El tipo y la tarifa del profesional pasan a ser nulos
+
+**Contexto.** `professionals.professional_type` y `professionals.base_rate_bob`
+se crearon `not null`, y `base_rate_bob` además con `check (> 0)`, de modo que
+no admiten un valor de relleno. El esquema daba por supuesto que la fila del
+profesional nace completa. El plan del proyecto dice otra cosa: RF-01.4 pide el
+rol antes que cualquier otra funcionalidad, en HU-02, y RF-02.2 pone el tipo y
+la tarifa en el perfil profesional, que HU-04 recoge en el sprint siguiente.
+
+**Decisión.** Ambas columnas admiten nulo, y la restricción
+`professionals_approved_profile_is_complete` impide que un profesional sin tipo
+o sin tarifa alcance `verification_status = 'APPROVED'`.
+
+**Razonamiento.** La alternativa era inventar un tipo y una tarifa en nombre de
+la persona al elegir el rol, o pedirle en HU-02 datos que la historia no pide y
+que HU-04 va a volver a pedirle. Ninguna de las dos es aceptable: la primera
+escribe un dato que nadie declaró, y la segunda adelanta alcance de otro sprint.
+
+Aflojar una columna abre un hueco, así que se cierra en la misma migración. La
+restricción no es una comodidad: `professional_directory` y
+`search_nearby_professionals` filtran por `APPROVED`, de modo que amarrar la
+completitud a ese estado deja INV-07 sostenido por el motor y no por la
+disciplina de quien programe la pantalla de verificación.
+
+**Consecuencia.** La historia de verificación del Sprint 3 no necesita
+comprobar en el cliente que el perfil esté completo antes de aprobar: si lo
+intenta con datos faltantes, la base de datos lo rechaza. Un profesional
+incompleto existe, pero es invisible para todo el producto.
+
+---
+
+## 2026-09-13 · El rol que se elige es un tipo distinto del rol que se tiene
+
+**Contexto.** `profiles.role` admite tres valores —`PATIENT`, `PROFESSIONAL` y
+`ADMIN`—, pero RF-01.5 dice que el administrador nunca se autoasigna, y el
+criterio de aceptación de HU-02 lo dice como interfaz: «el rol de administrador
+nunca aparece como opción».
+
+**Decisión.** `UserRole` tiene los tres valores, porque un perfil puede tener
+cualquiera de ellos. `AssignableRole` tiene dos, y es el tipo que recibe
+`ChooseRoleUseCase` y con el que la pantalla construye sus opciones.
+
+**Razonamiento.** Con un solo enumerado, no ofrecer `ADMIN` es una condición que
+alguien escribe en la pantalla y que otro puede borrar sin que nada se queje.
+Con dos tipos, ofrecerlo exige agregarlo a `AssignableRole`, que es un cambio
+deliberado y visible en la revisión. La prueba `adminRoleIsNeverSelfAssignable`
+vigila exactamente ese archivo.
+
+**Consecuencia.** La pantalla recorre `AssignableRole.entries` en vez de filtrar
+una lista, así que agregar un rol elegible en el futuro es agregar una constante
+y sus dos cadenas, sin tocar la pantalla.
+
+---
+
+## 2026-09-13 · El arranque resuelve sesión y rol juntos, y el ingreso vuelve al arranque
+
+**Contexto.** RF-01.4 exige que quien no tiene rol lo elija antes de acceder a
+cualquier otra funcionalidad. Hasta HU-01 el arranque solo miraba la sesión y
+enviaba a la bienvenida o a la pantalla principal.
+
+**Decisión.** `StartupViewModel` resuelve sesión y rol y devuelve un único
+destino: bienvenida, elección de rol, pantalla principal, o un error con
+«Reintentar». `WelcomeScreen`, al terminar el ingreso, navega de vuelta al
+arranque en lugar de a la pantalla principal.
+
+**Razonamiento.** Quien acaba de ingresar puede ser alguien que entra por
+primera vez o alguien que ya eligió su rol hace meses, y la bienvenida no tiene
+forma de distinguirlos sin repetir la consulta que el arranque ya sabe hacer.
+Repartir la decisión en dos pantallas es como se desincronizan: basta con que
+una de las dos deje de mirar el rol para que RF-01.4 se rompa en ese camino y no
+en el otro. Volver al arranque cuesta un indicador de carga y deja un solo lugar
+que decide.
+
+**Razonamiento sobre el error.** Un rol que no se puede leer no es un rol que
+falta. Si la consulta falla por red, suponer «no hay rol» pondría a alguien que
+ya eligió frente a la pregunta otra vez, y la base de datos rechazaría su
+respuesta con `role_already_assigned`. El arranque se detiene y ofrece
+reintentar.
+
+**Consecuencia.** La pantalla de arranque deja de ser solo un indicador de carga
+y pasa a tener estado de error, que es también lo que la Definición de Terminado
+pide para cualquier pantalla que cargue datos. `StartupViewModelTest` fija los
+cinco caminos.
+
+---
+
+## 2026-09-13 · La fotografía se muestra; reemplazarla espera a que exista Storage
+
+**Contexto.** RF-02.1 incluye la fotografía entre lo que el paciente registra y
+edita, y el primer criterio de HU-03 pide ver «la fotografía que trajo Google».
+El disparador `handle_new_user()` ya guarda esa dirección en
+`profiles.photo_url` desde el primer ingreso, de modo que el dato existe. Lo que
+no existe es Storage: ninguna migración ha creado un contenedor, y
+`docs/decisions.md` del 2026-09-12 dejó Coil sin motor de red porque nada hacía
+todavía una petición de imagen real.
+
+**Decisión.** HU-03 dibuja la fotografía que trajo Google y no permite
+reemplazarla. Se agrega `coil-network-ktor3`, que reutiliza el cliente Ktor que
+supabase-kt ya trae. Reemplazarla entra con RF-04.1, en el Sprint 3, que es la
+historia que obliga a que Storage exista de verdad.
+
+**Razonamiento.** Permitir reemplazarla convertiría a HU-03 en la primera
+historia con Storage, y eso no es un campo más: es un contenedor con sus
+políticas sobre `storage.objects`, un selector de imágenes, compresión en el
+cliente —que `.claude/rules/compose.md` exige— y una decisión sobre URL firmada
+frente a URL pública que la regla de Supabase solo contesta para los documentos
+de verificación. Esa decisión condiciona también la ficha pública del
+profesional del Sprint 4, donde una lista de resultados necesitaría una URL
+firmada por cada tarjeta. Tomarla de paso, dentro de una historia de formulario,
+es como se elige mal.
+
+**Consecuencia.** El motor de red de Coil deja de estar pendiente: la aplicación
+hace ahora una petición real a `googleusercontent.com`, que figura en
+`docs/architecture/components.md`. Queda anotado en `plan.md`, HU-03, que el
+criterio de reemplazar la fotografía se cierra con la historia de verificación.
+
+---
+
+## 2026-09-13 · El perfil se lee tal como está guardado; el objeto de valor cuida la escritura
+
+**Contexto.** `PersonName` exige entre 2 y 80 caracteres y rechaza dígitos, pero
+`handle_new_user()` copia en `full_name` lo que entrega Google sin pasar por el
+objeto de valor. Un perfil puede sostener legítimamente un nombre que el objeto
+de valor rechazaría.
+
+**Decisión.** `UserProfile.fullName` es la cadena guardada, sin validar. La
+validación ocurre al escribir: `SaveProfileUseCase` construye `PersonName`,
+`PhoneNumber` y `BirthDate`, y el repositorio recibe un `ProfileUpdate` que solo
+contiene objetos de valor.
+
+**Razonamiento.** Leer el nombre a través del objeto de valor lo habría
+convertido en nulo, la pantalla habría mostrado un campo vacío y la persona
+habría sobrescrito su nombre real con lo que recordara en ese momento. Perder el
+dato al leer es distinto de rechazarlo al escribir: HU-01 aceptó perderlo en
+`AuthSession` porque ahí el dato era decorativo y la sesión era lo que
+importaba; aquí el dato **es** la pantalla.
+
+La regla no se relaja: ningún valor entra al sistema sin pasar por su objeto de
+valor. Lo que cambia es que la puerta está en la escritura, que es la única por
+la que el cliente puede escribir, y no en la lectura, que refleja filas que el
+disparador escribió antes de que la regla existiera.
+
+**Consecuencia.** `ProfileMapperTest` fija que un nombre con un dígito llega
+entero, y que un rol desconocido o una fecha ilegible cuestan ese campo y nunca
+el perfil completo: la persona tiene que poder abrir la pantalla y corregirlo.
+
+---
+
+## 2026-09-13 · El nombre sale de «Mi cuenta» y vive en «Mi perfil»
+
+**Contexto.** «Mi cuenta» mostraba el nombre y el correo que venían de la sesión
+de Supabase, es decir, de los metadatos de Google. HU-03 hace editable el nombre
+en `profiles.full_name`. Desde el momento en que alguien lo edita, las dos
+pantallas mostrarían nombres distintos.
+
+**Decisión.** «Mi cuenta» deja de mostrar el nombre y conserva el correo. El
+nombre pasa a «Mi perfil», que es donde se edita y de donde sale la fila de
+`profiles`.
+
+**Razonamiento.** El correo identifica la cuenta de Google con la que se
+ingresó, no se edita en ninguna parte y por lo tanto no puede divergir. El
+nombre sí. Mantenerlo en dos pantallas con dos orígenes distintos habría hecho
+que alguien editara su nombre, volviera a «Mi cuenta», viera el anterior y
+concluyera que no se guardó. La alternativa —que «Mi cuenta» también leyera
+`profiles`— obligaba a recargarla al volver de «Mi perfil», que es mecanismo
+para sostener una duplicación que no hace falta.
+
+**Consecuencia.** Nada mutable queda duplicado entre las dos pantallas. «Mi
+cuenta» es la sesión: correo, rol, cerrar sesión. «Mi perfil» es lo que la
+aplicación guarda de la persona. La clave `auth_account_name_unavailable` se
+eliminó de ambos idiomas al quedar sin uso.
+
+---
+
+## 2026-09-13 · La fecha de nacimiento se elige con el selector de Material 3
+
+**Contexto.** `patients.birth_date` es una fecha con la restricción
+`birth_date < current_date`. Había dos formas de pedirla: un campo de texto con
+un formato fijo que el objeto de valor analiza, o el selector de fecha de
+Material 3.
+
+**Decisión.** El selector de Material 3, con `selectableDates` limitado a fechas
+anteriores a hoy. Obliga a `@OptIn(ExperimentalMaterial3Api::class)`.
+
+**Razonamiento.** Un campo de texto fija un formato en el código —`dd/MM/aaaa`—
+que ningún traductor puede cambiar, y contradice la regla de
+`.claude/rules/i18n.md` de que las fechas se formatean con las utilidades de la
+plataforma según la configuración regional. El selector es regional por
+construcción, permite escribir la fecha además de navegarla, y expresa la
+restricción de la columna en el propio control en vez de dejarla para el mensaje
+de error.
+
+**Sobre la anotación.** La regla del proyecto prohíbe dependencias en versión
+`alpha`, `beta`, `rc` o `SNAPSHOT`; Material 3 está en versión estable y lo
+experimental es la marca de una API dentro de ella. Se acepta de forma
+deliberada y acotada a este control. Si esa API cambiara en una versión
+posterior, el cambio queda contenido en `BirthDateField`.
+
+**Consecuencia.** La restricción de la columna queda expresada dos veces, y en
+capas distintas: el selector impide elegir una fecha futura y
+`BirthDate.create` la rechaza igual. `BirthDateTest` fija los límites exactos,
+incluido hoy mismo, que es el borde que la columna rechaza.
+
+---
+
+## 2026-09-14 · Guardar el perfil también es una sola transacción
+
+**Contexto.** `saveProfile` enviaba dos peticiones: una a `profiles` y otra a
+`patients`. Lo señaló el revisor automático en el pull request #3. Una conexión
+que se cortara entre las dos dejaba el nombre y el teléfono guardados, las
+columnas del paciente sin guardar, y la pantalla informando que el guardado había
+fallado.
+
+**Decisión.** La migración `20260914043306_save_profile_atomically` agrega
+`save_my_profile`, que hace las dos escrituras en una transacción. El cliente
+hace una sola llamada. La función lee el rol del servidor en vez de recibirlo del
+cliente.
+
+**Razonamiento.** Es el mismo remedio y el mismo motivo que la entrada del
+2026-09-13 sobre `assign_my_role`, y no haberlo visto aquí una historia después
+fue una incoherencia, no un matiz: el proyecto había construido una función
+almacenada por este problema exacto y luego escribió el caso siguiente con dos
+peticiones.
+
+El daño era menor que en la elección del rol, y conviene decirlo con precisión
+porque el revisor lo describió peor de lo que era: este guardado es una
+sobrescritura completa de las dos filas, así que **reintentar lo repara**,
+mientras que un rol a medio asignar no se reparaba nunca. El problema real es
+quien no reintenta, porque la pantalla le dijo que había fallado y en el servidor
+quedó la mitad escrita.
+
+Que el rol lo lea el servidor no es un detalle de implementación: un profesional
+no tiene fila en `patients` y esas columnas no son suyas. Decidir por el rol
+guardado significa que un argumento enviado por error se ignora en vez de
+escribirse, que es más fuerte que confiar en que el cliente mande nulos.
+
+**Consecuencia.** El guardado pasó de tres peticiones a dos —la función y la
+relectura que redibuja la pantalla—. Queda una ventana menor: si la relectura
+falla después de una escritura correcta, la pantalla informa un fallo que no
+ocurrió. Se repara sola al reintentar, porque la escritura es idempotente, y se
+deja así a propósito antes que devolver la fila desde la función y duplicar el
+transformador.
+
+---
+
+## 2026-09-14 · La ruta no lleva tipos de dominio, y el rol se muestra donde ya se carga
+
+**Contexto.** `AccountRoute` llevaba `val role: UserRole` para que «Mi cuenta»
+pudiera mostrar el rol sin una consulta más. El revisor del pull request #3
+señaló que `.claude/rules/compose.md` exige que los argumentos de ruta sean
+identificadores y nunca objetos serializados, y que así el formato de la pila de
+retroceso quedaba atado al enumerado del dominio.
+
+**Decisión.** `AccountRoute` vuelve a ser un `data object`, igual que
+`StartupDestination.Home`, y la etiqueta del rol se muestra en «Mi perfil».
+
+**Razonamiento.** La corrección obvia era pasar `role.name` como cadena y
+convertirla en el límite de la navegación, pero eso deja una conversión que puede
+fallar dentro de la capa de presentación y un rol anulable que la pantalla tiene
+que contemplar. Mover la etiqueta sale más barato y además corrige algo que
+estaba mal colocado: «Mi perfil» ya carga el perfil entero, de modo que ya conoce
+el rol sin pedir nada, y el rol vive en `profiles`, que es lo que esa pantalla
+muestra.
+
+Es la continuación de la entrada del 2026-09-13 sobre el nombre. La línea es la
+misma: «Mi cuenta» es la sesión de Google —el correo, cerrar sesión— y «Mi
+perfil» es lo que la aplicación guarda de la persona. El rol estaba del lado
+equivocado de esa línea y el revisor lo encontró por otro camino.
+
+**Consecuencia.** `navigation/` deja de importar `features/profile/domain/`.
+Cuando el Sprint 4 introduzca pantallas principales distintas por rol,
+`StartupDestination.Home` volverá a necesitar el dato; entonces se agrega, con
+una pantalla que lo consuma de verdad.
+
+---
+
+## 2026-09-14 · La duración del sprint se corrige a una semana con el dato medido
+
+> Supera en parte la entrada del 2026-09-09, que declaraba dos semanas.
+
+**Contexto.** El marco declaraba sprints de dos semanas. Al registrar en la
+retrospectiva las fechas reales del Sprint 1 —del 11 al 14 de septiembre de
+2026— resultó que había durado cuatro días. La declaración y la práctica no
+coincidían.
+
+**Decisión.** La duración declarada pasa a **una semana**. El rango de capacidad
+de veinte a veinticinco puntos se conserva, porque los 21 puntos medidos caen
+dentro de él; lo que cambia es la unidad a la que se refiere.
+
+**Razonamiento.** SCRUM pide que la duración del sprint sea fija y conocida, y un
+marco declarado que nadie sigue es más difícil de defender que una duración corta
+bien registrada. Corregir la declaración para que coincida con lo que se hace es
+además el propio mecanismo de inspección y adaptación: el dato apareció al medir,
+y la planificación se ajustó con él.
+
+**Razonamiento sobre lo que el 21 no dice.** El Sprint 1 terminó cuando se agotó
+el alcance, no cuando se agotó el plazo, de modo que su velocidad no mide la
+capacidad: mide lo que se planificó. Es un piso, no un techo. Por eso el traslado
+de HU-06 al Sprint 3 se apoya sobre todo en la otra razón registrada en la
+retrospectiva —HU-05 vale 13 puntos e introduce mapa, permisos de ubicación y
+geocodificación, ninguno tocado antes— y no sobre la comparación de 21 contra 24.
+
+**Consecuencia.** El Sprint 2 será la primera medición que diga algo sobre la
+capacidad, porque se cerrará por tiempo y no por alcance. Hasta entonces el rango
+de veinte a veinticinco sigue siendo una estimación, no un valor medido.
 
 ---
 

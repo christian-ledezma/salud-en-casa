@@ -2,8 +2,11 @@
 
 Qué habla con qué, y con qué protocolo o biblioteca. Se deriva de
 `gradle/libs.versions.toml`, `app/build.gradle.kts`, `di/CoreModule.kt`,
-`di/AuthModule.kt`, `features/auth/` —donde `GoogleCredentialClient` habla con
-Credential Manager y `SupabaseAuthDataSource` con Supabase—,
+`di/AuthModule.kt`, `di/ProfileModule.kt`, `features/auth/` —donde
+`GoogleCredentialClient` habla con Credential Manager y
+`SupabaseAuthDataSource` con Supabase—, `features/profile/` —donde
+`SupabaseProfileDataSource` lee y escribe `profiles` y `patients`, llama a
+`assign_my_role`, y `ProfileAvatar` descarga la fotografía con Coil—,
 `.github/workflows/ci.yml` y las decisiones registradas en `docs/decisions.md`.
 Si alguno de esos archivos cambia de forma que esta relación deje de ser cierta,
 este diagrama cambia con él.
@@ -30,6 +33,8 @@ flowchart LR
         maps["Maps Platform<br/>declarado, sin integrar"]
     end
 
+    usercontent["googleusercontent.com<br/>fotografia de la cuenta"]
+
     subgraph firebase ["Firebase — mismo proyecto que Google Cloud"]
         crashlytics["Crashlytics"]
         fcm["Cloud Messaging<br/>habilitado, sin integrar"]
@@ -49,6 +54,7 @@ flowchart LR
     app -- "postgrest-kt" --> db
     app -- "realtime-kt" --> realtime
     app -- "storage-kt" --> storage
+    app -- "descarga la fotografia con Coil" --> usercontent
     app -- "reporta fallos" --> crashlytics
     repo -- "dispara en cada push" --> actions
     actions -- "staticAnalysis, test, assembleDebug" --> repo

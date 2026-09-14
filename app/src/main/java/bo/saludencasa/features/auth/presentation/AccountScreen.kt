@@ -36,6 +36,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AccountScreen(
     onSignedOut: () -> Unit,
+    onOpenProfile: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AccountViewModel = koinViewModel(),
 ) {
@@ -49,6 +50,7 @@ fun AccountScreen(
         uiState = uiState,
         onSignOutClick = viewModel::signOut,
         onDismissError = viewModel::dismissError,
+        onOpenProfile = onOpenProfile,
         modifier = modifier,
     )
 }
@@ -58,6 +60,7 @@ private fun AccountContent(
     uiState: AccountUiState,
     onSignOutClick: () -> Unit,
     onDismissError: () -> Unit,
+    onOpenProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -97,21 +100,19 @@ private fun AccountContent(
                 )
                 Text(
                     text =
-                        uiState.session.fullName
-                            ?.value
-                            ?: stringResource(R.string.auth_account_name_unavailable),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text =
                         uiState.session.email
                             ?.value
                             ?: stringResource(R.string.auth_account_email_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                PrimaryButton(text = stringResource(R.string.auth_account_sign_out), onClick = onSignOutClick)
+                PrimaryButton(text = stringResource(R.string.auth_account_open_profile), onClick = onOpenProfile)
+                OutlinedButton(
+                    onClick = onSignOutClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(text = stringResource(R.string.auth_account_sign_out))
+                }
                 ForceCrashButton()
             }
         }
@@ -157,7 +158,7 @@ private fun previewSession(): AuthSession =
 @Composable
 private fun AccountContentLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Content(previewSession()), {}, {})
+        AccountContent(AccountUiState.Content(previewSession()), {}, {}, {})
     }
 }
 
@@ -165,7 +166,7 @@ private fun AccountContentLightPreview() {
 @Composable
 private fun AccountContentDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AccountContent(AccountUiState.Content(previewSession()), {}, {})
+        AccountContent(AccountUiState.Content(previewSession()), {}, {}, {})
     }
 }
 
@@ -173,7 +174,7 @@ private fun AccountContentDarkPreview() {
 @Composable
 private fun AccountLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Loading, {}, {})
+        AccountContent(AccountUiState.Loading, {}, {}, {})
     }
 }
 
@@ -181,6 +182,6 @@ private fun AccountLoadingPreview() {
 @Composable
 private fun AccountErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {})
+        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {})
     }
 }

@@ -9,4 +9,10 @@ data object StartupRoute
 data object WelcomeRoute
 
 @Serializable
+data object RoleSelectionRoute
+
+@Serializable
+data object ProfileRoute
+
+@Serializable
 data object AccountRoute

@@ -9,6 +9,8 @@ import androidx.navigation.compose.rememberNavController
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
+import bo.saludencasa.features.profile.presentation.ProfileScreen
+import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 
 @Composable
 fun SaludEnCasaNavHost(
@@ -22,17 +24,31 @@ fun SaludEnCasaNavHost(
     ) {
         composable<StartupRoute> {
             StartupScreen(
-                onSignedIn = { navController.replaceCurrentWith(AccountRoute) },
-                onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
+                onSignIn = { navController.replaceCurrentWith(WelcomeRoute) },
+                onChooseRole = { navController.replaceCurrentWith(RoleSelectionRoute) },
+                onHome = { navController.replaceCurrentWith(AccountRoute) },
             )
         }
 
         composable<WelcomeRoute> {
-            WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(AccountRoute) })
+            WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(StartupRoute) })
+        }
+
+        composable<RoleSelectionRoute> {
+            RoleSelectionScreen(
+                onRoleAssigned = { navController.replaceCurrentWith(AccountRoute) },
+            )
         }
 
         composable<AccountRoute> {
-            AccountScreen(onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) })
+            AccountScreen(
+                onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
+                onOpenProfile = { navController.navigate(ProfileRoute) },
+            )
+        }
+
+        composable<ProfileRoute> {
+            ProfileScreen()
         }
     }
 }
