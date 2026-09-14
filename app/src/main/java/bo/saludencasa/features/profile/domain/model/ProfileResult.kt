@@ -21,3 +21,13 @@ sealed interface ChooseRoleResult {
         val error: ProfileError,
     ) : ChooseRoleResult
 }
+
+sealed interface ProfileResult {
+    data class Success(
+        val profile: UserProfile,
+    ) : ProfileResult
+
+    data class Failure(
+        val error: ProfileError,
+    ) : ProfileResult
+}
