@@ -2,8 +2,10 @@
 
 Qué habla con qué, y con qué protocolo o biblioteca. Se deriva de
 `gradle/libs.versions.toml`, `app/build.gradle.kts`, `di/CoreModule.kt`,
-`di/AuthModule.kt`, `features/auth/` —donde `GoogleCredentialClient` habla con
-Credential Manager y `SupabaseAuthDataSource` con Supabase—,
+`di/AuthModule.kt`, `di/ProfileModule.kt`, `features/auth/` —donde
+`GoogleCredentialClient` habla con Credential Manager y
+`SupabaseAuthDataSource` con Supabase—, `features/profile/` —donde
+`SupabaseProfileDataSource` lee el rol y llama a `assign_my_role`—,
 `.github/workflows/ci.yml` y las decisiones registradas en `docs/decisions.md`.
 Si alguno de esos archivos cambia de forma que esta relación deje de ser cierta,
 este diagrama cambia con él.

@@ -233,7 +233,7 @@ un invariante dejó de cumplirse.
 | INV-04 · `services.final_amount_bob` congelado | Disparador `services_guard_frozen` |
 | INV-05 · No se corrige el histórico | Sin política de borrado en `services`, `payments`, `request_offers` ni `reviews`; disparadores `services_guard_transition` y `payments_guard_frozen` |
 | INV-06 · Ofertas de solo agregar | Disparador `request_offers_guard_append_only` y ausencia de política de borrado |
-| INV-07 · Solo profesionales aprobados y activos | Vista `professional_directory` y filtro de `search_nearby_professionals` |
+| INV-07 · Solo profesionales aprobados y activos | Vista `professional_directory`, filtro de `search_nearby_professionals` y restricción `professionals_approved_profile_is_complete`, que impide aprobar un profesional sin tipo ni tarifa |
 | INV-08 · Cercanía con PostGIS | `search_nearby_professionals` con `st_dwithin` sobre el índice GIST `idx_addresses_location` |
 | INV-09 · Pago confirmado solo por ambas partes | Restricción `confirmations_match_status` y disparador `payments_guard_confirmation` |
 | INV-10 · Total igual a comisión más monto del profesional | Restricción `total_equals_fee_plus_professional_amount` |
@@ -259,6 +259,7 @@ constantes de Kotlin.
 | `professional_directory` | Proyección pública del profesional. La seguridad a nivel de fila no puede ocultar una sola columna, así que la ficha pública es una vista que simplemente no contiene el teléfono |
 | `search_nearby_professionals` | Búsqueda por cercanía. Devuelve distancia y ordena de forma ascendente. Es la única vía de la búsqueda geográfica |
 | `handle_new_user` | Crea el perfil al primer ingreso, con el rol sin asignar |
+| `assign_my_role` | Escribe el rol elegido y crea la fila de `patients` o de `professionals` en una sola transacción. `security invoker`: cada escritura ya la permite la política del propio usuario, de modo que la función aporta atomicidad y nada más |
 | `recalculate_reputation` | Recalcula `average_rating` y `total_reviews` en cada calificación |
 | `is_admin`, `shares_service_with`, `professional_covers` | Auxiliares que usan las políticas |
 
@@ -266,6 +267,20 @@ constantes de Kotlin.
 `is_admin` y `shares_service_with` son `security definer` porque deben leer filas
 que el usuario no puede leer por sí mismo. Todas declaran `set search_path = ''`
 y califican cada objeto con su esquema.
+
+`assign_my_role` es la excepción: es `security invoker`, porque no necesita
+saltarse ninguna política. Existe por la atomicidad. Dos escrituras separadas
+desde el cliente no pueden garantizarla, y si la segunda fallara la persona
+quedaría con un rol sin la fila que lo sostiene, sin que nada lo reintentara
+(`docs/decisions.md`, 2026-09-13).
+
+**`professionals.professional_type` y `professionals.base_rate_bob` son nulos
+hasta HU-04.** RF-01.4 pide el rol antes que cualquier otra funcionalidad y
+RF-02.2 pone el tipo y la tarifa en el perfil profesional, que se completa
+después. La restricción `professionals_approved_profile_is_complete` impide que
+un profesional incompleto llegue a `APPROVED`, que es la condición que
+`professional_directory` y `search_nearby_professionals` exigen para mostrarlo
+(INV-07).
 
 ## Lo que este esquema no incluye, de forma deliberada
 

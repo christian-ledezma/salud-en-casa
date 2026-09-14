@@ -123,6 +123,75 @@ haga el cliente: la fila de `profiles` aparece sola en el primer ingreso, con
 alguna vez `profiles` no se crea al ingresar por primera vez, el disparador —no
 el cliente— es lo primero que hay que revisar.
 
+## La puerta del rol, después del ingreso
+
+RF-01.4 exige que quien no tiene rol lo elija **antes de cualquier otra
+funcionalidad**, así que la decisión no vive en la pantalla de bienvenida sino
+en el arranque: `StartupViewModel` resuelve sesión y rol juntos y devuelve un
+único destino. Por eso el ingreso no navega a la pantalla principal, sino de
+vuelta al arranque: es el único lugar que sabe decidir, y hacerlo dos veces en
+dos lugares distintos es como se desincronizan.
+
+```mermaid
+sequenceDiagram
+    actor U as Persona
+    participant SVM as StartupViewModel
+    participant GR as GetRoleUseCase
+    participant CR as ChooseRoleUseCase
+    participant Repo as ProfileRepository
+    participant DB as PostgreSQL
+
+    SVM->>SVM: observa la sesion
+
+    alt sin sesion
+        SVM-->>U: pantalla de bienvenida
+    else con sesion
+        SVM->>GR: invoke()
+        GR->>Repo: getRole()
+        Repo->>DB: select role from profiles where id = auth.uid()
+
+        alt la lectura falla
+            DB-->>Repo: sin red o tiempo agotado
+            Repo-->>SVM: ProfileError.NetworkUnavailable
+            SVM-->>U: error con "Reintentar", sin adivinar el rol
+        else role no nulo
+            DB-->>Repo: PATIENT o PROFESSIONAL
+            Repo-->>SVM: RoleResult.Assigned
+            SVM-->>U: pantalla principal de su rol
+        else role nulo
+            DB-->>Repo: null
+            Repo-->>SVM: RoleResult.Unassigned
+            SVM-->>U: pantalla de eleccion de rol
+            U->>CR: elige paciente o profesional y confirma
+            CR->>Repo: getRole(), para no escribir dos veces
+            CR->>Repo: assignRole(rol)
+            Repo->>DB: rpc assign_my_role(rol)
+
+            DB->>DB: update profiles.role
+            DB->>DB: insert en patients o en professionals
+            Note over DB: una sola transaccion: o las dos escrituras, o ninguna
+
+            DB-->>Repo: el rol registrado
+            Repo-->>CR: ChooseRoleResult.Success
+            CR-->>U: pantalla principal de su rol
+        end
+    end
+```
+
+**Por qué la escritura es una función almacenada.** Escribir el rol y crear la
+fila del rol son dos operaciones, y desde el cliente serían dos peticiones. Si
+la segunda fallara, la persona quedaría con un rol sin la fila que lo sostiene
+y nada volvería a intentarlo: la aplicación la enviaría a la pantalla de un rol
+cuyo registro no existe. `assign_my_role` es el caso 1 de
+`.claude/rules/supabase.md`, la transacción atómica que el cliente no puede
+garantizar. Registrado en `docs/decisions.md`, 2026-09-13.
+
+**Un rol que no se puede leer no es un rol que falta.** Si la lectura falla, el
+arranque se detiene en un error con «Reintentar» en vez de suponer que no hay
+rol. Suponerlo pondría a alguien que ya eligió frente a la pregunta otra vez, y
+la base de datos rechazaría su respuesta con `role_already_assigned`.
+`StartupViewModelTest` fija las dos mitades.
+
 ## Los errores y dónde se traducen
 
 `AuthError` es un tipo sellado sin ninguna frase.
