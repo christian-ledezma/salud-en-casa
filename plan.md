@@ -1028,7 +1028,7 @@ entra por primera vez:
 |---|---|---|
 | 1 | Se pide elegir | Se ingresó con Google desde la bienvenida; la aplicación llegó a «¿Cómo vas a usar Salud en Casa?» en vez de a «Mi cuenta», con dos opciones y «Continuar» deshabilitado mientras no hubiera ninguna elegida |
 | 4 | Abandonar sin elegir | **Se verificó antes que el 2, porque después ya no se puede.** Con la pregunta en pantalla y sin elegir nada, `am force-stop` y relanzamiento: volvió a la misma pregunta, no a la bienvenida, así que la sesión siguió intacta y la pregunta también |
-| 2 | Se crea el registro | Se eligió «Paciente» —la tarjeta se rellenó en `primaryContainer` y «Continuar» se habilitó— y la aplicación llegó a «Mi cuenta» mostrando «Paciente» bajo el correo |
+| 2 | Se crea el registro | Se eligió «Paciente» —la tarjeta se rellenó en `primaryContainer` y «Continuar» se habilitó— y la aplicación llegó a «Mi cuenta» mostrando «Paciente» bajo el correo. **La revisión del pull request #3 movió después esa etiqueta a «Mi perfil»**; el criterio se verificó así en su momento y se volvió a comprobar en la pantalla nueva |
 | 3 | Se va directo | `am force-stop` y relanzamiento: entró directo a «Mi cuenta», sin pasar por la pregunta. El rol que muestra se lee del servidor en cada arranque, no de la memoria de la sesión anterior |
 | 5 | El administrador no aparece | La pantalla ofrece exactamente dos opciones. No es una condición de la interfaz: `AssignableRole` no tiene una constante para `ADMIN`, y `AssignableRoleTest` falla si alguien se la agrega |
 
@@ -1172,6 +1172,66 @@ de la pantalla está en español. Las cadenas del selector son las de Material 3
 siguen el idioma del dispositivo; las de la aplicación salen de `values/`, que
 es el idioma de reserva y hoy está en español porque `values-en/` es de una fase
 posterior (HT-07). En un dispositivo en español las dos coinciden.
+
+#### Revisión del pull request #3
+
+El revisor automático de GitHub señaló tres observaciones. Cada una se verificó
+contra el código real antes de aceptarla. **Las tres eran reales**, aunque una
+describía una consecuencia peor que la verdadera. Revisando el resto del cambio
+apareció una cuarta que el revisor no vio.
+
+| # | Observación | Veredicto |
+|---|---|---|
+| 1 | Guardar el perfil son dos peticiones independientes y puede dejar un guardado parcial | **Real, con un matiz.** El revisor escribió que «un reintento no puede evitar dejar un guardado parcial»; al revés: el guardado es una sobrescritura completa de las dos filas, así que reintentar lo repara. El daño real es para quien no reintenta, porque la pantalla dijo que falló y en el servidor quedó la mitad escrita |
+| 2 | La ruta lleva un tipo de dominio en vez de un identificador | **Real.** `.claude/rules/compose.md` dice que los argumentos son identificadores, nunca objetos serializados, y `AccountRoute(val role: UserRole)` ataba el formato de la pila de retroceso al enumerado del dominio |
+| 3 | Un comentario de código en español | **Real.** Un descuido propio, en `AssignableRole.kt`. La regla de idioma de `CLAUDE.md` no admite excepciones para comentarios. Era el único del cambio: se revisaron los demás archivos nuevos |
+
+**El hallazgo propio.** `ProfileAvatar` no tenía marcador de posición ni estado
+de error. Con una dirección de fotografía válida pero lenta o caída, el círculo
+quedaba vacío en vez de mostrar algo. `.claude/rules/compose.md` lo exige de toda
+imagen cargada con Coil. La silueta se dibuja ahora siempre y la fotografía
+encima, de modo que sirve de las dos cosas sin una rama más.
+
+**Qué se corrigió.**
+
+1. **La observación 1, con el mismo remedio que HU-02.** La migración
+   `20260914043306_save_profile_atomically` agrega `save_my_profile`, que escribe
+   `profiles` y, si el rol es `PATIENT`, `patients`, en una sola transacción. El
+   cliente pasó de dos peticiones a una. La función **lee el rol en el servidor**
+   en vez de confiar en lo que mande el cliente, así que un argumento de paciente
+   enviado por error se ignora en lugar de escribirse. Es incoherente haber
+   construido `assign_my_role` por este motivo exacto una historia antes y no
+   haberlo visto aquí.
+2. **La observación 2, arreglada de raíz en vez de traducida.** En lugar de pasar
+   el rol como cadena, la ruta dejó de llevarlo: `AccountRoute` vuelve a ser un
+   `data object` y `StartupDestination.Home` también. La etiqueta del rol se
+   movió a «Mi perfil», que **ya carga el perfil completo** y por lo tanto ya
+   conoce el rol sin una consulta más. Queda además más coherente con la decisión
+   del 2026-09-13: «Mi cuenta» es la sesión, «Mi perfil» es lo que la aplicación
+   guarda de la persona, y el rol vive en `profiles`, no en la cuenta de Google.
+3. **La observación 3**, traducida al inglés.
+4. **El hallazgo propio**, con la silueta como marcador de posición y estado de error.
+
+**Verificado otra vez en el emulador**, porque el camino de guardado cambió
+entero y una prueba de la máquina virtual de Java no lo alcanza:
+
+| Qué se comprobó | Resultado |
+|---|---|
+| Guardar como paciente | El teléfono volvió normalizado del servidor y los tres campos de paciente siguieron intactos: la transacción escribió las dos filas |
+| Guardar como profesional | El nombre se guardó sin error y la función omitió `patients`, que para esa cuenta no existe |
+| El teléfono inválido sigue rechazándose | Nueve dígitos por un error de tecleo produjeron el mensaje correcto y ningún guardado |
+| Persistencia | Cierre completo del proceso y relanzamiento: los dos perfiles volvieron enteros |
+| Nada espurio en la base | `profiles` 2, `patients` 1, `professionals` 1 |
+
+La suite pasa de 97 a 99 pruebas: `ProfileMapperTest` gana las dos que fijan los
+cinco argumentos de la función, incluida la fecha en formato ISO —el argumento es
+de tipo `date` y cualquier otro formato lo rechaza el servidor con un error de
+conversión, no con un mensaje de validación—.
+
+**El pull request arrastra HU-02.** La rama de HU-03 salió de la de HU-02 sin que
+esta se fusionara, así que los doce commits del pull request cierran las dos
+historias a la vez. Se anota para que el registro no dé a entender que HU-02
+entró por su cuenta.
 
 **Deuda reconocida.** Reemplazar la fotografía, que espera a que exista Storage
 (Sprint 3, RF-04.1). Y la de siempre: el grafo de navegación sigue sin prueba

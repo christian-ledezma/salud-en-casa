@@ -1501,6 +1501,77 @@ incluido hoy mismo, que es el borde que la columna rechaza.
 
 ---
 
+## 2026-09-14 · Guardar el perfil también es una sola transacción
+
+**Contexto.** `saveProfile` enviaba dos peticiones: una a `profiles` y otra a
+`patients`. Lo señaló el revisor automático en el pull request #3. Una conexión
+que se cortara entre las dos dejaba el nombre y el teléfono guardados, las
+columnas del paciente sin guardar, y la pantalla informando que el guardado había
+fallado.
+
+**Decisión.** La migración `20260914043306_save_profile_atomically` agrega
+`save_my_profile`, que hace las dos escrituras en una transacción. El cliente
+hace una sola llamada. La función lee el rol del servidor en vez de recibirlo del
+cliente.
+
+**Razonamiento.** Es el mismo remedio y el mismo motivo que la entrada del
+2026-09-13 sobre `assign_my_role`, y no haberlo visto aquí una historia después
+fue una incoherencia, no un matiz: el proyecto había construido una función
+almacenada por este problema exacto y luego escribió el caso siguiente con dos
+peticiones.
+
+El daño era menor que en la elección del rol, y conviene decirlo con precisión
+porque el revisor lo describió peor de lo que era: este guardado es una
+sobrescritura completa de las dos filas, así que **reintentar lo repara**,
+mientras que un rol a medio asignar no se reparaba nunca. El problema real es
+quien no reintenta, porque la pantalla le dijo que había fallado y en el servidor
+quedó la mitad escrita.
+
+Que el rol lo lea el servidor no es un detalle de implementación: un profesional
+no tiene fila en `patients` y esas columnas no son suyas. Decidir por el rol
+guardado significa que un argumento enviado por error se ignora en vez de
+escribirse, que es más fuerte que confiar en que el cliente mande nulos.
+
+**Consecuencia.** El guardado pasó de tres peticiones a dos —la función y la
+relectura que redibuja la pantalla—. Queda una ventana menor: si la relectura
+falla después de una escritura correcta, la pantalla informa un fallo que no
+ocurrió. Se repara sola al reintentar, porque la escritura es idempotente, y se
+deja así a propósito antes que devolver la fila desde la función y duplicar el
+transformador.
+
+---
+
+## 2026-09-14 · La ruta no lleva tipos de dominio, y el rol se muestra donde ya se carga
+
+**Contexto.** `AccountRoute` llevaba `val role: UserRole` para que «Mi cuenta»
+pudiera mostrar el rol sin una consulta más. El revisor del pull request #3
+señaló que `.claude/rules/compose.md` exige que los argumentos de ruta sean
+identificadores y nunca objetos serializados, y que así el formato de la pila de
+retroceso quedaba atado al enumerado del dominio.
+
+**Decisión.** `AccountRoute` vuelve a ser un `data object`, igual que
+`StartupDestination.Home`, y la etiqueta del rol se muestra en «Mi perfil».
+
+**Razonamiento.** La corrección obvia era pasar `role.name` como cadena y
+convertirla en el límite de la navegación, pero eso deja una conversión que puede
+fallar dentro de la capa de presentación y un rol anulable que la pantalla tiene
+que contemplar. Mover la etiqueta sale más barato y además corrige algo que
+estaba mal colocado: «Mi perfil» ya carga el perfil entero, de modo que ya conoce
+el rol sin pedir nada, y el rol vive en `profiles`, que es lo que esa pantalla
+muestra.
+
+Es la continuación de la entrada del 2026-09-13 sobre el nombre. La línea es la
+misma: «Mi cuenta» es la sesión de Google —el correo, cerrar sesión— y «Mi
+perfil» es lo que la aplicación guarda de la persona. El rol estaba del lado
+equivocado de esa línea y el revisor lo encontró por otro camino.
+
+**Consecuencia.** `navigation/` deja de importar `features/profile/domain/`.
+Cuando el Sprint 4 introduzca pantallas principales distintas por rol,
+`StartupDestination.Home` volverá a necesitar el dato; entonces se agrega, con
+una pantalla que lo consuma de verdad.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

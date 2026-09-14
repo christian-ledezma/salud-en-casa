@@ -259,6 +259,7 @@ constantes de Kotlin.
 | `professional_directory` | Proyección pública del profesional. La seguridad a nivel de fila no puede ocultar una sola columna, así que la ficha pública es una vista que simplemente no contiene el teléfono |
 | `search_nearby_professionals` | Búsqueda por cercanía. Devuelve distancia y ordena de forma ascendente. Es la única vía de la búsqueda geográfica |
 | `handle_new_user` | Crea el perfil al primer ingreso, con el rol sin asignar |
+| `save_my_profile` | Escribe `profiles` y, si el rol es `PATIENT`, `patients`, en una sola transacción. Lee el rol del servidor en vez de recibirlo del cliente, de modo que un argumento de paciente enviado por error se ignora en vez de escribirse |
 | `assign_my_role` | Escribe el rol elegido y crea la fila de `patients` o de `professionals` en una sola transacción. `security invoker`: cada escritura ya la permite la política del propio usuario, de modo que la función aporta atomicidad y nada más |
 | `recalculate_reputation` | Recalcula `average_rating` y `total_reviews` en cada calificación |
 | `is_admin`, `shares_service_with`, `professional_covers` | Auxiliares que usan las políticas |
@@ -268,8 +269,8 @@ constantes de Kotlin.
 que el usuario no puede leer por sí mismo. Todas declaran `set search_path = ''`
 y califican cada objeto con su esquema.
 
-`assign_my_role` es la excepción: es `security invoker`, porque no necesita
-saltarse ninguna política. Existe por la atomicidad. Dos escrituras separadas
+`assign_my_role` y `save_my_profile` son la excepción: son `security invoker`,
+porque no necesitan saltarse ninguna política. Existe por la atomicidad. Dos escrituras separadas
 desde el cliente no pueden garantizarla, y si la segunda fallara la persona
 quedaría con un rol sin la fila que lo sostiene, sin que nada lo reintentara
 (`docs/decisions.md`, 2026-09-13).
