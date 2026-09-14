@@ -18,12 +18,25 @@
     <string name="auth_account_sign_out">Cerrar sesión</string>
     <string name="auth_account_keep_session">Seguir con la sesión abierta</string>
 
+    <string name="profile_role_selection_title">¿Cómo vas a usar Salud en Casa?</string>
+    <string name="profile_role_selection_subtitle">Elige una opción para continuar. Define lo que ves en la aplicación y se responde una sola vez.</string>
+    <string name="profile_role_selection_confirm">Continuar</string>
+    <string name="profile_role_patient">Paciente</string>
+    <string name="profile_role_patient_description">Busco atención de salud en mi domicilio, para mí o para un familiar.</string>
+    <string name="profile_role_professional">Profesional de salud</string>
+    <string name="profile_role_professional_description">Ofrezco atención domiciliaria como médico, enfermera, fisioterapeuta o estudiante del área.</string>
+    <string name="profile_role_admin">Administración</string>
+
     <string name="error_sign_in_missing_configuration">Falta configurar las claves en local.properties.</string>
     <string name="error_sign_in_no_google_account">No hay ninguna cuenta de Google en este dispositivo. Agrégala en Ajustes, Cuentas, Agregar cuenta, y vuelve a intentarlo.</string>
     <string name="error_sign_in_credential_provider_failure">No se pudo obtener la credencial de Google. Revisa tu conexión e inténtalo de nuevo.</string>
     <string name="error_sign_in_token_rejected">Supabase no aceptó el ingreso. Revisa la configuración del proveedor de Google.</string>
     <string name="error_network_unavailable">No hay conexión. Revisa tu red e inténtalo de nuevo.</string>
     <string name="error_unexpected">Ocurrió un error inesperado. Inténtalo de nuevo.</string>
+
+    <string name="error_profile_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
+    <string name="error_profile_not_found">No encontramos tu perfil. Cierra sesión y vuelve a ingresar.</string>
+    <string name="error_profile_role_already_assigned">Ya elegiste tu rol. Vuelve a abrir la aplicación para continuar.</string>
 
     <string name="cd_loading">Cargando</string>
 
