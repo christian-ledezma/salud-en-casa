@@ -85,9 +85,17 @@ con las tres pantallas, sus modelos de vista y `GoogleCredentialClient`. La
 pantalla de prueba de conexión de HT-05 desapareció con ella.
 
 `features/profile/` es la segunda, desde HU-02, y también atraviesa las tres
-capas: `domain/` con `UserRole`, `AssignableRole` y los casos de uso de leer y
-elegir el rol; `data/` con `SupabaseProfileDataSource`, que lee `profiles.role`
-y llama a `assign_my_role`; y `presentation/` con la pantalla de elección.
+capas: `domain/` con `UserRole`, `AssignableRole`, `UserProfile` y los casos de
+uso de leer y elegir el rol y de leer y guardar el perfil; `domain/vo/` con
+`BirthDate`; `data/` con `SupabaseProfileDataSource`, que lee y escribe
+`profiles` y `patients` y llama a `assign_my_role`; y `presentation/` con la
+pantalla de elección de rol y la de perfil.
+
+`BirthDate` vive en `features/profile/domain/vo/` y no en `core/vo/` porque
+ninguna otra característica lo usa. Es la primera vez que el proyecto ocupa ese
+hueco de la estructura: `Email`, `PhoneNumber` y `PersonName` viven en
+`core/vo/` porque los comparten varias (`docs/decisions.md`, 2026-09-12). La
+regla que mantiene el dominio libre de plataforma alcanza a los dos lugares.
 
 **La tercera regla de dependencia deja de ser teórica con esta segunda
 característica.** Hasta HU-01 no había dos características entre las que
