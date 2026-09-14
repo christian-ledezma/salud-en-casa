@@ -3,9 +3,8 @@ package bo.saludencasa.features.profile.data.mapper
 import bo.saludencasa.core.vo.Email
 import bo.saludencasa.core.vo.PhoneNumber
 import bo.saludencasa.features.profile.data.model.PatientDto
-import bo.saludencasa.features.profile.data.model.PatientUpdateDto
 import bo.saludencasa.features.profile.data.model.ProfileDto
-import bo.saludencasa.features.profile.data.model.ProfileUpdateDto
+import bo.saludencasa.features.profile.data.model.SaveProfileParams
 import bo.saludencasa.features.profile.domain.model.PatientDetails
 import bo.saludencasa.features.profile.domain.model.ProfileUpdate
 import bo.saludencasa.features.profile.domain.model.UserProfile
@@ -30,17 +29,13 @@ internal fun PatientDto.toPatientDetails(): PatientDetails =
         medicalNotes = medicalNotes?.takeIf(String::isNotBlank),
     )
 
-internal fun ProfileUpdate.toProfileUpdateDto(): ProfileUpdateDto =
-    ProfileUpdateDto(
+internal fun ProfileUpdate.toSaveProfileParams(): SaveProfileParams =
+    SaveProfileParams(
         fullName = fullName.value,
         phone = phone?.value,
-    )
-
-internal fun PatientDetails.toPatientUpdateDto(): PatientUpdateDto =
-    PatientUpdateDto(
-        birthDate = birthDate?.value?.toString(),
-        emergencyContact = emergencyContact,
-        medicalNotes = medicalNotes,
+        birthDate = patient?.birthDate?.value?.toString(),
+        emergencyContact = patient?.emergencyContact,
+        medicalNotes = patient?.medicalNotes,
     )
 
 private fun String.toBirthDate(): BirthDate? =

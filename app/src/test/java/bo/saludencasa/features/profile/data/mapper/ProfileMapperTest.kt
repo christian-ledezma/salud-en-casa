@@ -1,8 +1,13 @@
 package bo.saludencasa.features.profile.data.mapper
 
+import bo.saludencasa.core.vo.PersonName
+import bo.saludencasa.core.vo.PhoneNumber
 import bo.saludencasa.features.profile.data.model.PatientDto
 import bo.saludencasa.features.profile.data.model.ProfileDto
+import bo.saludencasa.features.profile.domain.model.PatientDetails
+import bo.saludencasa.features.profile.domain.model.ProfileUpdate
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.profile.domain.vo.BirthDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -56,6 +61,49 @@ class ProfileMapperTest {
         assertEquals("Ana Quispe", profile.fullName)
         assertNull(profile.role)
         assertNull(profile.patient?.birthDate)
+    }
+
+    // The save travels as one call to save_my_profile, so the five arguments are
+    // flattened here. A birth date has to leave as an ISO date because the
+    // argument is typed `date`; anything else is rejected by the server with a
+    // cast error rather than a validation message.
+    @Test
+    fun aPatientSaveCarriesTheFiveArgumentsTheFunctionExpects() {
+        val params =
+            ProfileUpdate(
+                fullName = PersonName.create("Ana Quispe").getOrThrow(),
+                phone = PhoneNumber.create("71234567").getOrThrow(),
+                patient =
+                    PatientDetails(
+                        birthDate = BirthDate.create(LocalDate.of(1990, 5, 14)).getOrThrow(),
+                        emergencyContact = "Luis Quispe",
+                        medicalNotes = null,
+                    ),
+            ).toSaveProfileParams()
+
+        assertEquals("Ana Quispe", params.fullName)
+        assertEquals("+59171234567", params.phone)
+        assertEquals("1990-05-14", params.birthDate)
+        assertEquals("Luis Quispe", params.emergencyContact)
+        assertNull(params.medicalNotes)
+    }
+
+    // A professional has no patient section. Flattening it into the same five
+    // arguments makes it easy to leak one by accident, and the columns are not
+    // theirs to fill.
+    @Test
+    fun aProfessionalSaveCarriesNoPatientArgument() {
+        val params =
+            ProfileUpdate(
+                fullName = PersonName.create("Ana Quispe").getOrThrow(),
+                phone = null,
+                patient = null,
+            ).toSaveProfileParams()
+
+        assertNull(params.phone)
+        assertNull(params.birthDate)
+        assertNull(params.emergencyContact)
+        assertNull(params.medicalNotes)
     }
 }
 

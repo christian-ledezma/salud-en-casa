@@ -1,10 +1,9 @@
 package bo.saludencasa.features.profile.data.repository
 
 import bo.saludencasa.features.profile.data.datasource.SupabaseProfileDataSource
-import bo.saludencasa.features.profile.data.mapper.toPatientUpdateDto
 import bo.saludencasa.features.profile.data.mapper.toProfileError
-import bo.saludencasa.features.profile.data.mapper.toProfileUpdateDto
 import bo.saludencasa.features.profile.data.mapper.toRoleResult
+import bo.saludencasa.features.profile.data.mapper.toSaveProfileParams
 import bo.saludencasa.features.profile.data.mapper.toUserProfile
 import bo.saludencasa.features.profile.data.mapper.toUserRole
 import bo.saludencasa.features.profile.domain.model.AssignableRole
@@ -60,11 +59,10 @@ class ProfileRepository(
     }
 
     override suspend fun saveProfile(update: ProfileUpdate): ProfileResult {
-        val userId = dataSource.currentUserId() ?: return ProfileResult.Failure(ProfileError.NotSignedIn)
+        if (dataSource.currentUserId() == null) return ProfileResult.Failure(ProfileError.NotSignedIn)
 
         return try {
-            dataSource.updateProfile(userId, update.toProfileUpdateDto())
-            update.patient?.let { dataSource.updatePatient(userId, it.toPatientUpdateDto()) }
+            dataSource.saveProfile(update.toSaveProfileParams())
             getProfile()
         } catch (cancellation: CancellationException) {
             throw cancellation
