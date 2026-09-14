@@ -1,5 +1,6 @@
 package bo.saludencasa.navigation
 
+import bo.saludencasa.features.profile.domain.model.UserRole
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -9,4 +10,9 @@ data object StartupRoute
 data object WelcomeRoute
 
 @Serializable
-data object AccountRoute
+data object RoleSelectionRoute
+
+@Serializable
+data class AccountRoute(
+    val role: UserRole,
+)

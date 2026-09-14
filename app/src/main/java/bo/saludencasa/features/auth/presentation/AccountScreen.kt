@@ -1,5 +1,6 @@
 package bo.saludencasa.features.auth.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import bo.saludencasa.core.vo.Email
 import bo.saludencasa.core.vo.PersonName
 import bo.saludencasa.features.auth.domain.model.AuthError
 import bo.saludencasa.features.auth.domain.model.AuthSession
+import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
@@ -35,6 +37,7 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun AccountScreen(
+    role: UserRole,
     onSignedOut: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AccountViewModel = koinViewModel(),
@@ -47,6 +50,7 @@ fun AccountScreen(
 
     AccountContent(
         uiState = uiState,
+        role = role,
         onSignOutClick = viewModel::signOut,
         onDismissError = viewModel::dismissError,
         modifier = modifier,
@@ -56,6 +60,7 @@ fun AccountScreen(
 @Composable
 private fun AccountContent(
     uiState: AccountUiState,
+    role: UserRole,
     onSignOutClick: () -> Unit,
     onDismissError: () -> Unit,
     modifier: Modifier = Modifier,
@@ -111,12 +116,25 @@ private fun AccountContent(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    text = stringResource(role.labelRes()),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
                 PrimaryButton(text = stringResource(R.string.auth_account_sign_out), onClick = onSignOutClick)
                 ForceCrashButton()
             }
         }
     }
 }
+
+@StringRes
+private fun UserRole.labelRes(): Int =
+    when (this) {
+        UserRole.PATIENT -> R.string.profile_role_patient
+        UserRole.PROFESSIONAL -> R.string.profile_role_professional
+        UserRole.ADMIN -> R.string.profile_role_admin
+    }
 
 @Composable
 private fun ForceCrashButton() {
@@ -157,7 +175,7 @@ private fun previewSession(): AuthSession =
 @Composable
 private fun AccountContentLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Content(previewSession()), {}, {})
+        AccountContent(AccountUiState.Content(previewSession()), UserRole.PATIENT, {}, {})
     }
 }
 
@@ -165,7 +183,7 @@ private fun AccountContentLightPreview() {
 @Composable
 private fun AccountContentDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AccountContent(AccountUiState.Content(previewSession()), {}, {})
+        AccountContent(AccountUiState.Content(previewSession()), UserRole.PROFESSIONAL, {}, {})
     }
 }
 
@@ -173,7 +191,7 @@ private fun AccountContentDarkPreview() {
 @Composable
 private fun AccountLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Loading, {}, {})
+        AccountContent(AccountUiState.Loading, UserRole.PATIENT, {}, {})
     }
 }
 
@@ -181,6 +199,6 @@ private fun AccountLoadingPreview() {
 @Composable
 private fun AccountErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {})
+        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), UserRole.PATIENT, {}, {})
     }
 }

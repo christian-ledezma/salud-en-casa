@@ -6,9 +6,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
+import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 
 @Composable
 fun SaludEnCasaNavHost(
@@ -22,17 +24,27 @@ fun SaludEnCasaNavHost(
     ) {
         composable<StartupRoute> {
             StartupScreen(
-                onSignedIn = { navController.replaceCurrentWith(AccountRoute) },
-                onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
+                onSignIn = { navController.replaceCurrentWith(WelcomeRoute) },
+                onChooseRole = { navController.replaceCurrentWith(RoleSelectionRoute) },
+                onHome = { role -> navController.replaceCurrentWith(AccountRoute(role)) },
             )
         }
 
         composable<WelcomeRoute> {
-            WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(AccountRoute) })
+            WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(StartupRoute) })
         }
 
-        composable<AccountRoute> {
-            AccountScreen(onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) })
+        composable<RoleSelectionRoute> {
+            RoleSelectionScreen(
+                onRoleAssigned = { role -> navController.replaceCurrentWith(AccountRoute(role)) },
+            )
+        }
+
+        composable<AccountRoute> { entry ->
+            AccountScreen(
+                role = entry.toRoute<AccountRoute>().role,
+                onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
+            )
         }
     }
 }

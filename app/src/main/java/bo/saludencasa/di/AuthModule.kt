@@ -32,7 +32,7 @@ val authModule =
         factory { SignOutUseCase(get()) }
         factory { ObserveSessionUseCase(get()) }
 
-        viewModel { StartupViewModel(get()) }
+        viewModel { StartupViewModel(get(), get()) }
         viewModel { WelcomeViewModel(get()) }
         viewModel { AccountViewModel(get(), get()) }
     }
