@@ -6,7 +6,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
@@ -27,7 +26,7 @@ fun SaludEnCasaNavHost(
             StartupScreen(
                 onSignIn = { navController.replaceCurrentWith(WelcomeRoute) },
                 onChooseRole = { navController.replaceCurrentWith(RoleSelectionRoute) },
-                onHome = { role -> navController.replaceCurrentWith(AccountRoute(role)) },
+                onHome = { navController.replaceCurrentWith(AccountRoute) },
             )
         }
 
@@ -37,13 +36,12 @@ fun SaludEnCasaNavHost(
 
         composable<RoleSelectionRoute> {
             RoleSelectionScreen(
-                onRoleAssigned = { role -> navController.replaceCurrentWith(AccountRoute(role)) },
+                onRoleAssigned = { navController.replaceCurrentWith(AccountRoute) },
             )
         }
 
-        composable<AccountRoute> { entry ->
+        composable<AccountRoute> {
             AccountScreen(
-                role = entry.toRoute<AccountRoute>().role,
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
                 onOpenProfile = { navController.navigate(ProfileRoute) },
             )

@@ -6,7 +6,6 @@ import bo.saludencasa.features.auth.domain.model.SessionState
 import bo.saludencasa.features.auth.domain.usecase.ObserveSessionUseCase
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.RoleResult
-import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.domain.usecase.GetRoleUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,9 +23,7 @@ sealed interface StartupDestination {
 
     data object ChooseRole : StartupDestination
 
-    data class Home(
-        val role: UserRole,
-    ) : StartupDestination
+    data object Home : StartupDestination
 
     data class Error(
         val error: ProfileError,
@@ -61,7 +58,7 @@ class StartupViewModel(
 
     private suspend fun resolveRole(): StartupDestination =
         when (val result = getRole()) {
-            is RoleResult.Assigned -> StartupDestination.Home(result.role)
+            is RoleResult.Assigned -> StartupDestination.Home
             RoleResult.Unassigned -> StartupDestination.ChooseRole
             is RoleResult.Failure -> StartupDestination.Error(result.error)
         }

@@ -64,7 +64,7 @@ class StartupViewModelTest {
 
             viewModel.destination.test {
                 assertEquals(StartupDestination.Loading, awaitItem())
-                assertEquals(StartupDestination.Home(UserRole.PROFESSIONAL), awaitItem())
+                assertEquals(StartupDestination.Home, awaitItem())
             }
         }
 
@@ -98,7 +98,7 @@ class StartupViewModelTest {
                 repository.roleResult = RoleResult.Assigned(UserRole.PATIENT)
                 viewModel.retry()
 
-                assertEquals(StartupDestination.Home(UserRole.PATIENT), awaitItem())
+                assertEquals(StartupDestination.Home, awaitItem())
             }
 
             assertEquals(2, repository.roleReads)

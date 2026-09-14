@@ -20,7 +20,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.features.profile.domain.model.ProfileError
-import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.presentation.messageRes
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
@@ -31,18 +30,18 @@ import org.koin.androidx.compose.koinViewModel
 fun StartupScreen(
     onSignIn: () -> Unit,
     onChooseRole: () -> Unit,
-    onHome: (UserRole) -> Unit,
+    onHome: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: StartupViewModel = koinViewModel(),
 ) {
     val destination by viewModel.destination.collectAsStateWithLifecycle()
 
     LaunchedEffect(destination) {
-        when (val current = destination) {
+        when (destination) {
             StartupDestination.Loading, is StartupDestination.Error -> Unit
             StartupDestination.SignIn -> onSignIn()
             StartupDestination.ChooseRole -> onChooseRole()
-            is StartupDestination.Home -> onHome(current.role)
+            StartupDestination.Home -> onHome()
         }
     }
 

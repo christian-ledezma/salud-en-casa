@@ -1,5 +1,6 @@
 package bo.saludencasa.features.profile.presentation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -143,6 +144,15 @@ private fun EditableProfile(
             contentDescription = stringResource(R.string.cd_profile_photo),
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
+
+        content.header.role?.let { role ->
+            Text(
+                text = stringResource(role.labelRes()),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
 
         FormField(
             label = stringResource(R.string.profile_full_name_label),
@@ -300,6 +310,14 @@ private object PastDatesOnly : SelectableDates {
 
     override fun isSelectableYear(year: Int): Boolean = year <= LocalDate.now().year
 }
+
+@StringRes
+private fun UserRole.labelRes(): Int =
+    when (this) {
+        UserRole.PATIENT -> R.string.profile_role_patient
+        UserRole.PROFESSIONAL -> R.string.profile_role_professional
+        UserRole.ADMIN -> R.string.profile_role_admin
+    }
 
 private fun ProfileError.isAboutAField(): Boolean =
     this == ProfileError.InvalidName ||
