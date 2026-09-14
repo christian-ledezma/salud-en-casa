@@ -20,6 +20,10 @@ import coil3.compose.AsyncImage
 
 // docs/design-system.md, section 3: the avatar is circular. The size lives here
 // rather than in the screen so no measurement is written into a screen.
+//
+// The silhouette is drawn always and the photograph on top of it, so it serves
+// as the placeholder while the image loads and as the error state if it never
+// arrives, which .claude/rules/compose.md requires of every image.
 @Composable
 fun ProfileAvatar(
     photoUrl: String?,
@@ -34,14 +38,14 @@ fun ProfileAvatar(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
-        if (photoUrl == null) {
-            Icon(
-                imageVector = Icons.Filled.Person,
-                contentDescription = contentDescription,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(48.dp),
-            )
-        } else {
+        Icon(
+            imageVector = Icons.Filled.Person,
+            contentDescription = if (photoUrl == null) contentDescription else null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
+        )
+
+        if (photoUrl != null) {
             AsyncImage(
                 model = photoUrl,
                 contentDescription = contentDescription,
