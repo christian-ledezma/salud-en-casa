@@ -1264,6 +1264,124 @@ prueba de Compose sobre `AccountContent`. Queda anotado como deuda.
 
 ---
 
+## 2026-09-13 · La elección del rol se escribe con una función almacenada
+
+**Contexto.** HU-02 tiene que escribir dos cosas: el rol en `profiles` y la fila
+de `patients` o de `professionals`. Desde el cliente son dos peticiones, y
+`patients_insert_own` exige que el rol ya esté escrito, así que además tienen un
+orden obligatorio.
+
+**Decisión.** Una función almacenada, `assign_my_role(p_role user_role)`, hace
+las dos escrituras en una sola transacción. Es `security invoker`.
+
+**Razonamiento.** Si la segunda escritura fallara, la persona quedaría con un
+rol sin la fila que lo sostiene, la aplicación la enviaría a la pantalla de un
+rol cuyo registro no existe, y nada volvería a intentarlo: la pregunta no se
+repite porque el rol ya está puesto. Es el primero de los tres casos que
+`.claude/rules/supabase.md` reserva para una función de servidor, la transacción
+atómica que el cliente no puede garantizar, y el mismo motivo por el que
+`.claude/rules/testing.md` exige `failedAcceptanceLeavesNoPartialRecord` para la
+aceptación de una oferta.
+
+La función es `security invoker` y no `security definer` porque no necesita
+saltarse ninguna política: cada una de sus escrituras ya la permite la política
+del propio usuario. Aporta atomicidad y nada más. Una función definidora que no
+la necesita es un agujero sin razón de existir.
+
+**Consecuencia.** `ProfileRepository` hace una sola llamada y tiene una sola
+superficie de error. La regla que RF-01.4 y RF-01.5 expresan —el rol se elige
+una vez y nunca es `ADMIN`— queda escrita tres veces, y a propósito: en el caso
+de uso, en la función, y en el disparador `profiles_guard_role` que ya existía.
+La del caso de uso evita la petición inútil; las otras dos son la garantía.
+
+---
+
+## 2026-09-13 · El tipo y la tarifa del profesional pasan a ser nulos
+
+**Contexto.** `professionals.professional_type` y `professionals.base_rate_bob`
+se crearon `not null`, y `base_rate_bob` además con `check (> 0)`, de modo que
+no admiten un valor de relleno. El esquema daba por supuesto que la fila del
+profesional nace completa. El plan del proyecto dice otra cosa: RF-01.4 pide el
+rol antes que cualquier otra funcionalidad, en HU-02, y RF-02.2 pone el tipo y
+la tarifa en el perfil profesional, que HU-04 recoge en el sprint siguiente.
+
+**Decisión.** Ambas columnas admiten nulo, y la restricción
+`professionals_approved_profile_is_complete` impide que un profesional sin tipo
+o sin tarifa alcance `verification_status = 'APPROVED'`.
+
+**Razonamiento.** La alternativa era inventar un tipo y una tarifa en nombre de
+la persona al elegir el rol, o pedirle en HU-02 datos que la historia no pide y
+que HU-04 va a volver a pedirle. Ninguna de las dos es aceptable: la primera
+escribe un dato que nadie declaró, y la segunda adelanta alcance de otro sprint.
+
+Aflojar una columna abre un hueco, así que se cierra en la misma migración. La
+restricción no es una comodidad: `professional_directory` y
+`search_nearby_professionals` filtran por `APPROVED`, de modo que amarrar la
+completitud a ese estado deja INV-07 sostenido por el motor y no por la
+disciplina de quien programe la pantalla de verificación.
+
+**Consecuencia.** La historia de verificación del Sprint 3 no necesita
+comprobar en el cliente que el perfil esté completo antes de aprobar: si lo
+intenta con datos faltantes, la base de datos lo rechaza. Un profesional
+incompleto existe, pero es invisible para todo el producto.
+
+---
+
+## 2026-09-13 · El rol que se elige es un tipo distinto del rol que se tiene
+
+**Contexto.** `profiles.role` admite tres valores —`PATIENT`, `PROFESSIONAL` y
+`ADMIN`—, pero RF-01.5 dice que el administrador nunca se autoasigna, y el
+criterio de aceptación de HU-02 lo dice como interfaz: «el rol de administrador
+nunca aparece como opción».
+
+**Decisión.** `UserRole` tiene los tres valores, porque un perfil puede tener
+cualquiera de ellos. `AssignableRole` tiene dos, y es el tipo que recibe
+`ChooseRoleUseCase` y con el que la pantalla construye sus opciones.
+
+**Razonamiento.** Con un solo enumerado, no ofrecer `ADMIN` es una condición que
+alguien escribe en la pantalla y que otro puede borrar sin que nada se queje.
+Con dos tipos, ofrecerlo exige agregarlo a `AssignableRole`, que es un cambio
+deliberado y visible en la revisión. La prueba `adminRoleIsNeverSelfAssignable`
+vigila exactamente ese archivo.
+
+**Consecuencia.** La pantalla recorre `AssignableRole.entries` en vez de filtrar
+una lista, así que agregar un rol elegible en el futuro es agregar una constante
+y sus dos cadenas, sin tocar la pantalla.
+
+---
+
+## 2026-09-13 · El arranque resuelve sesión y rol juntos, y el ingreso vuelve al arranque
+
+**Contexto.** RF-01.4 exige que quien no tiene rol lo elija antes de acceder a
+cualquier otra funcionalidad. Hasta HU-01 el arranque solo miraba la sesión y
+enviaba a la bienvenida o a la pantalla principal.
+
+**Decisión.** `StartupViewModel` resuelve sesión y rol y devuelve un único
+destino: bienvenida, elección de rol, pantalla principal, o un error con
+«Reintentar». `WelcomeScreen`, al terminar el ingreso, navega de vuelta al
+arranque en lugar de a la pantalla principal.
+
+**Razonamiento.** Quien acaba de ingresar puede ser alguien que entra por
+primera vez o alguien que ya eligió su rol hace meses, y la bienvenida no tiene
+forma de distinguirlos sin repetir la consulta que el arranque ya sabe hacer.
+Repartir la decisión en dos pantallas es como se desincronizan: basta con que
+una de las dos deje de mirar el rol para que RF-01.4 se rompa en ese camino y no
+en el otro. Volver al arranque cuesta un indicador de carga y deja un solo lugar
+que decide.
+
+**Razonamiento sobre el error.** Un rol que no se puede leer no es un rol que
+falta. Si la consulta falla por red, suponer «no hay rol» pondría a alguien que
+ya eligió frente a la pregunta otra vez, y la base de datos rechazaría su
+respuesta con `role_already_assigned`. El arranque se detiene y ofrece
+reintentar.
+
+**Consecuencia.** La pantalla de arranque deja de ser solo un indicador de carga
+y pasa a tener estado de error, que es también lo que la Definición de Terminado
+pide para cualquier pantalla que cargue datos. `StartupViewModelTest` fija los
+cinco caminos.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

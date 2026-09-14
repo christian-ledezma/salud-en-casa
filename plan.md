@@ -920,24 +920,144 @@ rama de HU-01 lleva también el commit de los cuatro diagramas de arquitectura.
 Al fusionar, el Sprint 0 queda cerrado en `master` junto con esta historia. Se
 anota para que el registro no dé a entender que HT-09 entró por su cuenta.
 
-### HU-02 · Elegir mi rol `[ ]` — 5 puntos
+### HU-02 · Elegir mi rol `[x]` — 5 puntos
 
 > Como **usuario que ingresa por primera vez**, quiero **indicar si soy paciente o
 > profesional de salud**, para **que la aplicación me muestre lo que me corresponde**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que ingreso por primera vez, cuando la sesión se establece, entonces se
+- [x] Dado que ingreso por primera vez, cuando la sesión se establece, entonces se
       me pide elegir entre paciente y profesional.
-- [ ] Dado que elijo un rol, cuando confirmo, entonces se crea mi registro
+- [x] Dado que elijo un rol, cuando confirmo, entonces se crea mi registro
       específico y no se me vuelve a preguntar.
-- [ ] Dado que ya tengo rol, cuando vuelvo a ingresar, entonces voy directo a la
+- [x] Dado que ya tengo rol, cuando vuelvo a ingresar, entonces voy directo a la
       pantalla principal de mi rol.
-- [ ] Dado que abandono la aplicación sin elegir, cuando vuelvo a entrar, entonces
+- [x] Dado que abandono la aplicación sin elegir, cuando vuelvo a entrar, entonces
       se me vuelve a pedir la elección.
-- [ ] El rol de administrador nunca aparece como opción.
+- [x] El rol de administrador nunca aparece como opción.
 
 **Requisitos:** RF-01.3, RF-01.4, RF-01.5.
+
+**Tareas técnicas.** Migración que hace atómica la elección · `IProfileRepository`
+en dominio y su implementación en datos · casos de uso de leer y elegir el rol ·
+`SupabaseProfileDataSource` · pantalla de elección de rol y modelo de vista ·
+arranque que decide entre bienvenida, elección y pantalla principal.
+
+**`features/profile/` es la segunda característica del proyecto**, y la primera
+que se cruza con otra:
+
+| Capa | Qué contiene |
+|---|---|
+| `domain/model/` | `UserRole`, `AssignableRole`, `ProfileError`, `RoleResult`, `ChooseRoleResult` |
+| `domain/repository/` | `IProfileRepository` |
+| `domain/usecase/` | `GetRoleUseCase`, `ChooseRoleUseCase` |
+| `data/model/` | `ProfileRoleDto` y `AssignRoleParams` |
+| `data/datasource/` | `SupabaseProfileDataSource` |
+| `data/mapper/` | `ProfileRoleMapper` y `ProfileErrorMapper` |
+| `data/repository/` | `ProfileRepository` |
+| `presentation/` | `RoleSelectionScreen`, `RoleSelectionViewModel`, `ProfileErrorMessages` |
+
+**Esta característica sí tiene objeto de transporte**, al revés que `auth`: lo
+que llega de `profiles` es una fila cualquiera de PostgREST, no un tipo que la
+biblioteca ya modele, así que `ProfileRoleDto` existe y el transformador va de
+él al dominio.
+
+**El cruce entre características.** `StartupViewModel` vive en
+`features/auth/presentation/` y consume `GetRoleUseCase`, que vive en
+`features/profile/domain/usecase/`. Es el tipo de cruce que la regla de
+dependencia permite —por el caso de uso, nunca por la capa `data` de la otra
+característica— y, hasta HU-02, no existía ninguno real:
+`ArchitectureRulesTest.featureNeverImportsTheDataLayerOfAnotherFeature` se había
+verificado en HT-08 con archivos sonda desechables porque no había dos
+características entre las que fallar.
+
+**Decisiones no evidentes, en `docs/decisions.md`, 2026-09-13.** Por qué la
+elección del rol se escribe con una función almacenada · por qué el tipo y la
+tarifa del profesional pasan a admitir nulo · por qué el rol que se elige es un
+tipo distinto del rol que se tiene · por qué el arranque resuelve sesión y rol
+juntos y el ingreso vuelve al arranque.
+
+**Los porqués menores, que no llegan a decisión pero tampoco se deducen leyendo.**
+
+| Dónde | Por qué está así |
+|---|---|
+| `ChooseRoleUseCase` lee el rol antes de escribirlo | La regla de negocio vive en el caso de uso, y la lectura evita una petición que la base de datos iba a rechazar. La garantía sigue siendo de la base: la función y el disparador `profiles_guard_role` la repiten |
+| `ProfileError.Unexpected` cubre lo que rechaza la función almacenada | El caso de uso ya filtró el rol repetido y el administrador, así que si la base los rechaza es por una condición que la aplicación creía imposible, y esa es la definición de inesperado |
+| Un rol desconocido no se lee como rol ausente | Si `user_role` gana un valor que esta versión no conoce, tratarlo como «todavía no eligió» pondría a esa persona frente a una pregunta cuya respuesta la base rechazaría |
+| El estado de fallo conserva la opción elegida | Sin ella, «Reintentar» no tendría qué reintentar y la persona volvería a una pantalla vacía |
+| `assign_my_role` devuelve el rol que escribió | El resultado del dominio transporta lo que la base registró, no lo que el cliente pidió |
+| El arranque tiene estado de error | Un rol que no se puede leer no es un rol que falta, y adivinar cualquiera de los dos lados rompe un criterio distinto |
+
+**Qué atrapan las pruebas nuevas.** Diecisiete pruebas nuevas, que llevan la
+suite de 60 a 77. Todas viven en `app/src/test` y corren sin emulador:
+
+| Prueba | El error real que atrapa |
+|---|---|
+| `AssignableRoleTest` | Que `ADMIN` llegue a la lista de opciones de la pantalla. Es la prueba obligatoria `adminRoleIsNeverSelfAssignable` |
+| `ChooseRoleUseCaseTest` | Un segundo rol viajando al servidor —la prueba obligatoria `assignsRoleOnlyOnceAndRejectsSecondAssignment`— y una escritura hecha cuando ni siquiera se pudo leer el rol actual |
+| `ProfileRoleMapperTest` | Leer el rol nulo del primer ingreso como un fallo, y leer un valor desconocido de `user_role` como si no hubiera rol |
+| `ProfileErrorMapperTest` | El mismo tiempo de espera agotado que la revisión del PR #2 encontró en `auth`, esta vez en el arranque |
+| `RoleSelectionViewModelTest` | Confirmar sin haber elegido, y perder la opción elegida al fallar, que dejaría «Reintentar» sin nada que reintentar |
+| `StartupViewModelTest` | Las cinco salidas del arranque, incluida la peor: tratar un fallo de lectura como «no hay rol» y repetir la pregunta a quien ya respondió |
+
+**Lo que la base de datos hace cumplir, y la aplicación no puede.** La migración
+`20260913202844_assign_role_atomically` se aplicó sobre el proyecto remoto el
+2026-09-13 y se verificó con los tipos generados desde ahí:
+
+| Qué se comprobó | Resultado |
+|---|---|
+| La función existe con su firma | `assign_my_role(p_role: user_role) → user_role` |
+| Las dos columnas admiten nulo | `professional_type` y `base_rate_bob` figuran como anulables |
+| La restricción de completitud existe | `professionals_approved_profile_is_complete` |
+
+**Los cuatro estados de la pantalla de elección.** «Vacío» no aplica: no presenta
+una colección. Resuelve reposo —con y sin opción elegida—, guardando y error.
+Las cinco previsualizaciones cubren esos estados en ambos esquemas. El arranque
+suma su estado de error, que antes no tenía.
+
+**Verificado en el emulador el 2026-09-13**, con la cuenta real de Google del
+autor, recién repuesta en el dispositivo, dirigiendo el emulador por `adb` y
+capturando pantalla en cada paso. El perfil del autor llegaba a esta historia con
+`role` nulo, de modo que el recorrido empezó donde empieza el de cualquiera que
+entra por primera vez:
+
+| # | Criterio | Cómo se verificó |
+|---|---|---|
+| 1 | Se pide elegir | Se ingresó con Google desde la bienvenida; la aplicación llegó a «¿Cómo vas a usar Salud en Casa?» en vez de a «Mi cuenta», con dos opciones y «Continuar» deshabilitado mientras no hubiera ninguna elegida |
+| 4 | Abandonar sin elegir | **Se verificó antes que el 2, porque después ya no se puede.** Con la pregunta en pantalla y sin elegir nada, `am force-stop` y relanzamiento: volvió a la misma pregunta, no a la bienvenida, así que la sesión siguió intacta y la pregunta también |
+| 2 | Se crea el registro | Se eligió «Paciente» —la tarjeta se rellenó en `primaryContainer` y «Continuar» se habilitó— y la aplicación llegó a «Mi cuenta» mostrando «Paciente» bajo el correo |
+| 3 | Se va directo | `am force-stop` y relanzamiento: entró directo a «Mi cuenta», sin pasar por la pregunta. El rol que muestra se lee del servidor en cada arranque, no de la memoria de la sesión anterior |
+| 5 | El administrador no aparece | La pantalla ofrece exactamente dos opciones. No es una condición de la interfaz: `AssignableRole` no tiene una constante para `ADMIN`, y `AssignableRoleTest` falla si alguien se la agrega |
+
+**La transacción fue de verdad atómica.** Terminado el recorrido, las
+estadísticas de tablas del proyecto remoto dan `profiles` con una fila,
+`patients` con una fila y `professionals` con cero. Que la fila de `patients`
+exista es lo que prueba las dos mitades a la vez: la política
+`patients_insert_own` exige que `profiles.role` ya diga `PATIENT` cuando la fila
+se inserta, de modo que la inserción solo pudo pasar viendo la actualización
+hecha en la misma transacción.
+
+De paso se verificó el esquema oscuro y el tamaño de fuente del sistema al 200 %
+sobre «Mi cuenta», que es la pantalla que esta historia cambió: el nombre, el
+correo y la línea del rol se leen completos, sin recortes, y el rol en `primary`
+contrasta correctamente sobre el fondo oscuro. Ambos ajustes se devolvieron a su
+valor original al terminar.
+
+**Lo que no se pudo verificar en el dispositivo.** El esquema oscuro y el 200 %
+**de la pantalla de elección de rol**. El rol se elige una sola vez y la base de
+datos no deja deshacerlo, así que esa pantalla dejó de ser alcanzable en el
+momento en que se verificó el criterio 2. Queda cubierta por sus cinco
+previsualizaciones, que la dibujan en ambos esquemas, y por que cada color y cada
+medida salen del tema; su estructura —encabezado desplazable con la llamada a la
+acción fija al pie— es la misma de la bienvenida, que sí se verificó al 200 % en
+HU-01. Se verifica en el dispositivo la próxima vez que exista una cuenta nueva
+sin rol, por ejemplo al preparar la demostración del sprint.
+
+**Deuda reconocida.** La misma que dejó HU-01 y que esta historia no salda: el
+grafo de navegación sigue sin prueba automática, y ahora tiene una transición
+más. Fijarlo exige `TestNavHostController` bajo `androidTest`, que el proyecto
+todavía no tiene.
 
 ### HU-03 · Completar mis datos básicos `[ ]` — 8 puntos
 
