@@ -267,7 +267,13 @@ desviación se acepta deliberadamente a cambio de la consistencia con el código
 
 ---
 
-## 2026-09-09 · Sprints de dos semanas con velocidad medida, no supuesta
+## 2026-09-09 · Sprints de dos semanas con velocidad medida, no supuesta — SUPERADA EN PARTE
+
+> **La duración quedó superada por la entrada del 2026-09-14**, que la corrige a
+> una semana con el tramo real medido. Lo demás de esta entrada sigue vigente: la
+> capacidad estimada, la velocidad medida en vez de supuesta y el traslado de
+> historias como mecanismo de ajuste. Se conserva porque documenta el
+> razonamiento original.
 
 **Contexto.** El proyecto sigue SCRUM y requiere planificación por sprints.
 
@@ -1569,6 +1575,38 @@ equivocado de esa línea y el revisor lo encontró por otro camino.
 Cuando el Sprint 4 introduzca pantallas principales distintas por rol,
 `StartupDestination.Home` volverá a necesitar el dato; entonces se agrega, con
 una pantalla que lo consuma de verdad.
+
+---
+
+## 2026-09-14 · La duración del sprint se corrige a una semana con el dato medido
+
+> Supera en parte la entrada del 2026-09-09, que declaraba dos semanas.
+
+**Contexto.** El marco declaraba sprints de dos semanas. Al registrar en la
+retrospectiva las fechas reales del Sprint 1 —del 11 al 14 de septiembre de
+2026— resultó que había durado cuatro días. La declaración y la práctica no
+coincidían.
+
+**Decisión.** La duración declarada pasa a **una semana**. El rango de capacidad
+de veinte a veinticinco puntos se conserva, porque los 21 puntos medidos caen
+dentro de él; lo que cambia es la unidad a la que se refiere.
+
+**Razonamiento.** SCRUM pide que la duración del sprint sea fija y conocida, y un
+marco declarado que nadie sigue es más difícil de defender que una duración corta
+bien registrada. Corregir la declaración para que coincida con lo que se hace es
+además el propio mecanismo de inspección y adaptación: el dato apareció al medir,
+y la planificación se ajustó con él.
+
+**Razonamiento sobre lo que el 21 no dice.** El Sprint 1 terminó cuando se agotó
+el alcance, no cuando se agotó el plazo, de modo que su velocidad no mide la
+capacidad: mide lo que se planificó. Es un piso, no un techo. Por eso el traslado
+de HU-06 al Sprint 3 se apoya sobre todo en la otra razón registrada en la
+retrospectiva —HU-05 vale 13 puntos e introduce mapa, permisos de ubicación y
+geocodificación, ninguno tocado antes— y no sobre la comparación de 21 contra 24.
+
+**Consecuencia.** El Sprint 2 será la primera medición que diga algo sobre la
+capacidad, porque se cerrará por tiempo y no por alcance. Hasta entonces el rango
+de veinte a veinticinco sigue siendo una estimación, no un valor medido.
 
 ---
 

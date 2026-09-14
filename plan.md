@@ -33,7 +33,7 @@ forma reducida y así se documenta.
 | **Product Owner** | El autor, con la validación del docente tutor y de la contraparte del negocio |
 | **Scrum Master** | El autor. Las ceremonias se autoadministran |
 | **Equipo de desarrollo** | El autor |
-| **Duración del sprint** | 2 semanas |
+| **Duración del sprint** | 1 semana. Se declaró en dos semanas al planificar y se corrigió al cerrar el Sprint 1 con el tramo real medido. Ver la retrospectiva de ese sprint |
 | **Product Backlog** | El índice de historias de este archivo, ordenado por dependencia y valor |
 | **Sprint Backlog** | Las historias del sprint activo, con sus tareas técnicas |
 | **Sprint Planning** | Al inicio de cada sprint: seleccionar historias y descomponer en tareas |
@@ -50,6 +50,11 @@ siguientes con el valor real. La capacidad inicial estimada es de **20 a 25 punt
 por sprint**; si la velocidad medida resulta menor, la historia de menor prioridad
 se traslada al sprint siguiente. Ese traslado no es un fracaso: es el mecanismo
 de ajuste de SCRUM y debe quedar documentado en la retrospectiva.
+
+**El rango vale por sprint de una semana.** Se escribió cuando el sprint se
+declaraba de dos, y el Sprint 1 entregó 21 puntos en cuatro días. Al corregir la
+duración se mantuvieron los números porque el dato medido cae dentro del rango;
+lo que cambió es la unidad a la que se refiere.
 
 ### Diseño previo a cada sprint
 
@@ -1291,6 +1296,23 @@ como principal. Elegir entre varias sigue siendo trabajo de HU-06.
 
 
 > El Sprint 1 se ejecutó del **11/09/2026** al **14/09/2026**.
+
+**Cuatro días, no dos semanas, y de ahí salió una corrección del marco.** El
+apartado «Marco SCRUM aplicado» declaraba sprints de dos semanas. Medido el
+tramo real, la duración declarada pasó a **una semana**, que es la cadencia que
+el proyecto practica de verdad. Corregir la declaración para que coincida con lo
+que se hace es preferible a sostener un número que no se cumple: SCRUM pide que
+la duración sea fija y conocida, y un marco declarado que nadie sigue es más
+difícil de defender que una duración corta bien registrada.
+
+**Qué significa entonces el 21, con precisión.** Este sprint terminó cuando se
+agotó el alcance, no cuando se agotó el plazo, así que los 21 puntos **no miden
+la capacidad**: miden lo que se planificó. Es un piso, no un techo. La
+consecuencia práctica es que el traslado de HU-06 se apoya menos en la velocidad
+de lo que parecía, y más en la otra razón, que sigue en pie por sí sola: HU-05
+vale 13 puntos e introduce mapa, permisos de ubicación y geocodificación, tres
+cosas que el proyecto no ha tocado nunca. El Sprint 2 es la primera medición que
+sí dirá algo sobre la capacidad, porque se cerrará por tiempo.
 
 
 ### Qué funcionó

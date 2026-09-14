@@ -3,7 +3,7 @@
 Aplicación móvil Android que vincula pacientes con profesionales de salud para
 atención domiciliaria en Bolivia.
 
-Proyecto de grado. El desarrollo sigue SCRUM con sprints de dos semanas.
+Proyecto de grado. El desarrollo sigue SCRUM con sprints de una semana.
 
 | Documento | Contenido |
 |---|---|
