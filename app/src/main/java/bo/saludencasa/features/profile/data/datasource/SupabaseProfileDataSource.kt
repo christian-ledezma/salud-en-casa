@@ -1,7 +1,11 @@
 package bo.saludencasa.features.profile.data.datasource
 
 import bo.saludencasa.features.profile.data.model.AssignRoleParams
+import bo.saludencasa.features.profile.data.model.PatientDto
+import bo.saludencasa.features.profile.data.model.PatientUpdateDto
+import bo.saludencasa.features.profile.data.model.ProfileDto
 import bo.saludencasa.features.profile.data.model.ProfileRoleDto
+import bo.saludencasa.features.profile.data.model.ProfileUpdateDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
@@ -25,4 +29,36 @@ class SupabaseProfileDataSource(
         supabase.postgrest
             .rpc("assign_my_role", AssignRoleParams(role = role))
             .decodeAs<String>()
+
+    suspend fun findProfile(userId: String): ProfileDto? =
+        supabase
+            .from("profiles")
+            .select {
+                filter { eq("id", userId) }
+            }.decodeSingleOrNull<ProfileDto>()
+
+    suspend fun findPatient(userId: String): PatientDto? =
+        supabase
+            .from("patients")
+            .select {
+                filter { eq("id", userId) }
+            }.decodeSingleOrNull<PatientDto>()
+
+    suspend fun updateProfile(
+        userId: String,
+        update: ProfileUpdateDto,
+    ) {
+        supabase.from("profiles").update(update) {
+            filter { eq("id", userId) }
+        }
+    }
+
+    suspend fun updatePatient(
+        userId: String,
+        update: PatientUpdateDto,
+    ) {
+        supabase.from("patients").update(update) {
+            filter { eq("id", userId) }
+        }
+    }
 }
