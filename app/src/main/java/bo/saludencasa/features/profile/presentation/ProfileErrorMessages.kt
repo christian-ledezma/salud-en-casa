@@ -10,6 +10,9 @@ internal fun ProfileError.messageRes(): Int =
         ProfileError.NotSignedIn -> R.string.error_profile_not_signed_in
         ProfileError.ProfileNotFound -> R.string.error_profile_not_found
         ProfileError.RoleAlreadyAssigned -> R.string.error_profile_role_already_assigned
+        ProfileError.InvalidName -> R.string.error_profile_invalid_name
+        ProfileError.InvalidPhone -> R.string.error_profile_invalid_phone
+        ProfileError.InvalidBirthDate -> R.string.error_profile_invalid_birth_date
         ProfileError.NetworkUnavailable -> R.string.error_network_unavailable
         ProfileError.Unexpected -> R.string.error_unexpected
     }
