@@ -13,6 +13,9 @@ data object WelcomeRoute
 data object RoleSelectionRoute
 
 @Serializable
+data object ProfileRoute
+
+@Serializable
 data class AccountRoute(
     val role: UserRole,
 )

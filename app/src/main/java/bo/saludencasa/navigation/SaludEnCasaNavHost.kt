@@ -10,6 +10,7 @@ import androidx.navigation.toRoute
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
+import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 
 @Composable
@@ -44,7 +45,12 @@ fun SaludEnCasaNavHost(
             AccountScreen(
                 role = entry.toRoute<AccountRoute>().role,
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
+                onOpenProfile = { navController.navigate(ProfileRoute) },
             )
+        }
+
+        composable<ProfileRoute> {
+            ProfileScreen()
         }
     }
 }

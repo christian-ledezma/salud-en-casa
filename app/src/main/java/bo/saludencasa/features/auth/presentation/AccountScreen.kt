@@ -39,6 +39,7 @@ import org.koin.androidx.compose.koinViewModel
 fun AccountScreen(
     role: UserRole,
     onSignedOut: () -> Unit,
+    onOpenProfile: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AccountViewModel = koinViewModel(),
 ) {
@@ -53,6 +54,7 @@ fun AccountScreen(
         role = role,
         onSignOutClick = viewModel::signOut,
         onDismissError = viewModel::dismissError,
+        onOpenProfile = onOpenProfile,
         modifier = modifier,
     )
 }
@@ -63,6 +65,7 @@ private fun AccountContent(
     role: UserRole,
     onSignOutClick: () -> Unit,
     onDismissError: () -> Unit,
+    onOpenProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -102,14 +105,6 @@ private fun AccountContent(
                 )
                 Text(
                     text =
-                        uiState.session.fullName
-                            ?.value
-                            ?: stringResource(R.string.auth_account_name_unavailable),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text =
                         uiState.session.email
                             ?.value
                             ?: stringResource(R.string.auth_account_email_unavailable),
@@ -121,7 +116,13 @@ private fun AccountContent(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                PrimaryButton(text = stringResource(R.string.auth_account_sign_out), onClick = onSignOutClick)
+                PrimaryButton(text = stringResource(R.string.auth_account_open_profile), onClick = onOpenProfile)
+                OutlinedButton(
+                    onClick = onSignOutClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(text = stringResource(R.string.auth_account_sign_out))
+                }
                 ForceCrashButton()
             }
         }
@@ -175,7 +176,7 @@ private fun previewSession(): AuthSession =
 @Composable
 private fun AccountContentLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Content(previewSession()), UserRole.PATIENT, {}, {})
+        AccountContent(AccountUiState.Content(previewSession()), UserRole.PATIENT, {}, {}, {})
     }
 }
 
@@ -183,7 +184,7 @@ private fun AccountContentLightPreview() {
 @Composable
 private fun AccountContentDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AccountContent(AccountUiState.Content(previewSession()), UserRole.PROFESSIONAL, {}, {})
+        AccountContent(AccountUiState.Content(previewSession()), UserRole.PROFESSIONAL, {}, {}, {})
     }
 }
 
@@ -191,7 +192,7 @@ private fun AccountContentDarkPreview() {
 @Composable
 private fun AccountLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Loading, UserRole.PATIENT, {}, {})
+        AccountContent(AccountUiState.Loading, UserRole.PATIENT, {}, {}, {})
     }
 }
 
@@ -199,6 +200,6 @@ private fun AccountLoadingPreview() {
 @Composable
 private fun AccountErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), UserRole.PATIENT, {}, {})
+        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), UserRole.PATIENT, {}, {}, {})
     }
 }
