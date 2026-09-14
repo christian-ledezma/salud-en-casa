@@ -98,9 +98,9 @@ Una historia está terminada cuando **todo** lo siguiente se cumple:
 | # | Sprint | Objetivo específico | Puntos | Estado |
 |---|---|---|---|---|
 | 0 | Fundación técnica | 1 · Arquitectura | — | `[~]` |
-| 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[~]` |
-| 2 | Perfiles y ubicación | 2 · Perfiles | 24 | `[ ]` |
-| 3 | Verificación de usuarios | 2 · Perfiles | 21 | `[ ]` |
+| 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[x]` |
+| 2 | Perfiles y ubicación | 2 · Perfiles | 21 | `[ ]` |
+| 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[ ]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[ ]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[ ]` |
 | 6 | Negociación de tarifas | 3 · Coordinación | 26 | `[ ]` |
@@ -736,7 +736,9 @@ _Completar al cerrar el sprint._
 
 # Sprint 1 — Ingreso e identidad
 
-**Estado:** `[~]` en curso.
+**Estado:** `[x]` terminado. Las tres historias cumplen la Definición de
+Terminado y sus dieciséis criterios de aceptación están verificados en el
+emulador.
 
 **Objetivo del sprint.** Una persona ingresa con su cuenta de Google, elige si es
 paciente o profesional, y completa sus datos básicos.
@@ -1059,29 +1061,122 @@ grafo de navegación sigue sin prueba automática, y ahora tiene una transición
 más. Fijarlo exige `TestNavHostController` bajo `androidTest`, que el proyecto
 todavía no tiene.
 
-### HU-03 · Completar mis datos básicos `[ ]` — 8 puntos
+### HU-03 · Completar mis datos básicos `[x]` — 8 puntos
 
 > Como **usuario registrado**, quiero **completar y editar mi nombre, teléfono y
 > fotografía**, para **que la contraparte sepa con quién trata**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que elegí mi rol, cuando llego a mi perfil, entonces veo el nombre y la
+- [x] Dado que elegí mi rol, cuando llego a mi perfil, entonces veo el nombre y la
       fotografía que trajo Google, editables.
-- [ ] Dado que escribo un teléfono con formato inválido, cuando intento guardar,
+- [x] Dado que escribo un teléfono con formato inválido, cuando intento guardar,
       entonces se me indica el error y no se guarda.
-- [ ] Dado que soy paciente, cuando abro mi perfil, entonces puedo registrar fecha
+- [x] Dado que soy paciente, cuando abro mi perfil, entonces puedo registrar fecha
       de nacimiento, contacto de emergencia y notas relevantes.
-- [ ] Dado que guardo cambios, cuando vuelvo a abrir la aplicación, entonces los
+- [x] Dado que guardo cambios, cuando vuelvo a abrir la aplicación, entonces los
       cambios persisten.
-- [ ] Dado que la carga falla por conexión, cuando reintento, entonces se muestra
+- [x] Dado que la carga falla por conexión, cuando reintento, entonces se muestra
       un mensaje que explica qué ocurrió y cómo reintentar.
+
+> **Sobre el primer criterio.** La fotografía **se muestra** y no se reemplaza.
+> Cambiarla convertiría a HU-03 en la primera historia con Supabase Storage
+> —contenedor, políticas sobre `storage.objects`, selector de imágenes,
+> compresión en el cliente y la decisión entre URL firmada y URL pública—, y esa
+> decisión condiciona además la ficha pública del profesional del Sprint 4.
+> Entra con RF-04.1, en el Sprint 3, que es la historia que obliga a que Storage
+> exista. Acordado con el autor antes de empezar y registrado en
+> `docs/decisions.md`, 2026-09-13. El nombre sí es editable, que es la otra
+> mitad del criterio.
 
 **Requisitos:** RF-02.1.
 
 **Tareas técnicas.** `IProfileRepository` y casos de uso · `SupabaseProfileDataSource`
 · pantalla de perfil de paciente con validación por objetos de valor · manejo de
 error de red con tipo de error, no con frase.
+
+**Las cuatro tareas están terminadas**, extendiendo la característica que HU-02
+creó en lugar de abrir una nueva:
+
+| Capa | Qué se agregó |
+|---|---|
+| `domain/vo/` | `BirthDate`, el primer objeto de valor del proyecto que pertenece a una sola característica |
+| `domain/model/` | `UserProfile`, `PatientDetails`, `ProfileDraft`, `PatientDraft`, `ProfileUpdate`, `ProfileResult`, y tres variantes nuevas de `ProfileError` |
+| `domain/usecase/` | `GetProfileUseCase`, `SaveProfileUseCase` |
+| `data/model/` | `ProfileDto`, `PatientDto` y sus dos objetos de escritura |
+| `data/datasource/` | Lectura y escritura de `profiles` y de `patients` |
+| `data/mapper/` | `ProfileMapper` |
+| `presentation/` | `ProfileScreen` y `ProfileViewModel` |
+| `ui/components/` | `ProfileAvatar` |
+
+**Ninguna migración.** `profiles` y `patients` ya tenían las siete columnas y las
+políticas que esta historia necesita, desde HT-04. Es la primera historia del
+proyecto que no toca el esquema, y conviene que se note: el modelo de datos se
+diseñó completo por adelantado justamente para esto.
+
+**Decisiones no evidentes, en `docs/decisions.md`, 2026-09-13.** Por qué la
+fotografía se muestra y no se reemplaza · por qué el perfil se lee tal como está
+guardado mientras el objeto de valor cuida la escritura · por qué el nombre sale
+de «Mi cuenta» y vive en «Mi perfil» · por qué la fecha de nacimiento se elige
+con el selector de Material 3.
+
+**Los porqués menores, que no llegan a decisión pero tampoco se deducen leyendo.**
+
+| Dónde | Por qué está así |
+|---|---|
+| El teléfono vacío se guarda como nulo | La columna lo admite, así que un campo en blanco es alguien que todavía no dio su número, no alguien que escribió algo inválido |
+| El contacto de emergencia y las notas en blanco se guardan como nulos | Una cadena vacía en la columna se ve llena para cualquier consulta que solo pregunte si es nula |
+| Tras guardar, la pantalla se redibuja con lo que devolvió el servidor | Es lo único que permite afirmar que el cambio quedó, y no solo que la petición salió del dispositivo. Se nota en el teléfono, que vuelve normalizado a `+591…` |
+| Un fallo de validación conserva lo que la persona escribió | Vaciar el formulario para mostrar un error obligaría a reescribirlo entero para corregir un campo |
+| La lectura del perfil son dos consultas y no una incrustada | `patients` solo se consulta cuando el rol es `PATIENT`, y una relación uno a uno incrustada devuelve objeto o arreglo según cómo PostgREST la detecte |
+| `BirthDate.create` recibe la fecha de hoy como parámetro | Sin eso la prueba del borde exacto —hoy mismo— dependería del día en que se ejecute |
+
+**Qué atrapan las pruebas nuevas.** Veinte pruebas nuevas, que llevan la suite de
+77 a 97. Todas viven en `app/src/test` y corren sin emulador:
+
+| Prueba | El error real que atrapa |
+|---|---|
+| `BirthDateTest` | Los cinco bordes de la regla, incluido hoy mismo, que es exactamente lo que la restricción `birth_date < current_date` rechaza |
+| `SaveProfileUseCaseTest` | Un teléfono inválido viajando al servidor, un campo vaciado que llega como cadena vacía en vez de nulo, y un profesional escribiendo columnas de paciente |
+| `ProfileMapperTest` | El peor de todos: leer el nombre a través de `PersonName` y devolverle un campo vacío a quien tiene un nombre que el objeto de valor rechaza. También que un rol o una fecha ilegibles cuesten ese campo y no el perfil entero |
+| `ProfileViewModelTest` | Mostrar un formulario vacío tras una lectura fallida —que invita a guardarlo encima del real—, perder lo escrito al reportar un error, y afirmar que se guardó sin mirar lo que respondió el servidor |
+
+**Verificado en el emulador el 2026-09-13**, con las dos cuentas de Google reales
+del autor, que a esta altura cubren los dos roles: `chris.ledezma.s@gmail.com` es
+profesional y `christian.ledezma@ucb.edu.bo` es paciente. Eso permitió recorrer
+las dos formas de la pantalla sin inventar datos:
+
+| # | Criterio | Cómo se verificó |
+|---|---|---|
+| 1 | Nombre y fotografía de Google, editables | «Mi perfil» abrió con el nombre ya escrito en su campo y la fotografía de la cuenta descargada de `googleusercontent.com`, distinta en cada cuenta. Es la primera petición HTTP de imagen real del proyecto |
+| 2 | Teléfono inválido | Se escribió `123` y se pulsó «Guardar cambios»: apareció `error_profile_invalid_phone` bajo el campo, el `123` siguió en pantalla y no se mostró «Cambios guardados.» |
+| 3 | Campos de paciente | Con la cuenta paciente la pantalla mostró fecha de nacimiento, contacto de emergencia y notas médicas; con la cuenta profesional mostró solo nombre y teléfono |
+| 4 | Los cambios persisten | Se guardó teléfono en una cuenta y fecha, contacto y notas en la otra; `am force-stop` y relanzamiento devolvieron los tres valores. El teléfono volvió como `+59171234567`, normalizado por el objeto de valor y releído del servidor |
+| 5 | La carga falla por conexión | Con `svc wifi disable` y `svc data disable` se abrió «Mi perfil»: apareció `error_network_unavailable` con «Reintentar». Restaurada la red, «Reintentar» cargó el perfil completo |
+
+**El selector de fecha expresa la restricción de la columna.** En la captura del
+selector, hoy y todos los días posteriores aparecen atenuados, y en la vista de
+años lo están 2027 en adelante. La misma regla la vuelve a comprobar
+`BirthDate.create` antes de que nada salga del dispositivo.
+
+También se verificaron el esquema oscuro y el tamaño de fuente del sistema al
+200 % sobre «Mi perfil»: las siete etiquetas y los cinco campos se leen
+completos, el formulario se desplaza y el contraste es correcto. El campo del
+nombre desplaza su contenido en horizontal cuando no cabe, que es el
+comportamiento propio de un campo de una sola línea y no un recorte del diseño.
+Ambos ajustes se devolvieron a su valor original al terminar.
+
+**Una mezcla de idiomas que no es un defecto.** En el emulador, cuyo idioma de
+sistema es inglés, el selector de fecha rotula «Select date» mientras el resto
+de la pantalla está en español. Las cadenas del selector son las de Material 3 y
+siguen el idioma del dispositivo; las de la aplicación salen de `values/`, que
+es el idioma de reserva y hoy está en español porque `values-en/` es de una fase
+posterior (HT-07). En un dispositivo en español las dos coinciden.
+
+**Deuda reconocida.** Reemplazar la fotografía, que espera a que exista Storage
+(Sprint 3, RF-04.1). Y la de siempre: el grafo de navegación sigue sin prueba
+automática, y ahora tiene una transición más, la de «Mi cuenta» a «Mi perfil»,
+que además es la primera que apila en vez de reemplazar.
 
 ## Incremento del sprint
 
@@ -1090,7 +1185,94 @@ ve persistido al reabrir la aplicación. **Primera demostración a la contrapart
 
 ## Retrospectiva
 
-_Completar al cerrar el sprint. Registrar aquí la velocidad medida._
+**El incremento se demostró de punta a punta.** Una persona ingresa con Google,
+elige su rol, completa su perfil y lo encuentra intacto al reabrir la
+aplicación. Se recorrió entero sobre el emulador con dos cuentas reales, una por
+cada rol.
+
+### Velocidad medida: 21 puntos por sprint
+
+Es el número que el apartado «Estimación» mandaba medir aquí, y se mide contando
+lo que se cerró, no lo que se planificó: HU-01 (8) + HU-02 (5) + HU-03 (8) = 21.
+Las tres cumplen la Definición de Terminado, así que las tres cuentan enteras.
+Ninguna historia se trasladó al sprint siguiente.
+
+**Cae dentro de la capacidad estimada**, que era de 20 a 25 puntos. La
+estimación inicial, que era una suposición, resultó razonable. Eso es lo que
+había que averiguar.
+
+**Consecuencia para el Sprint 2, que es lo único que este número decide.** El
+Sprint 2 tiene 24 puntos planificados —HU-04 (8), HU-05 (13) y HU-06 (3)—, tres
+por encima de la velocidad medida. La regla del apartado «Estimación» dice qué
+hacer: «si la velocidad medida resulta menor, la historia de menor prioridad se
+traslada al sprint siguiente». La de menor prioridad es HU-06, administrar las
+direcciones, y moverla deja el Sprint 2 en exactamente 21.
+
+**Decisión tomada: HU-06 se traslada al Sprint 3.** El Sprint 2 queda en 21
+puntos, exactamente la velocidad medida, y el Sprint 3 sube de 21 a 24. El
+traslado no es un fracaso: es el mecanismo de ajuste que SCRUM prevé y que el
+apartado «Estimación» de este archivo describe.
+
+Se eligió mover en vez de sostener los 24 porque el Sprint 2 es el más caro de
+los tres que quedan del objetivo de perfiles —HU-05 sola vale 13 puntos e
+introduce mapa, permisos de ubicación y geocodificación, tres cosas que el
+proyecto no ha tocado nunca—, y es mal sprint para descubrir que la capacidad no
+alcanzaba. La alternativa era defendible: tres puntos de diferencia sobre una
+sola medición no son evidencia fuerte, y una velocidad se vuelve confiable con
+dos o tres sprints medidos, no con uno. Se vuelve a evaluar al cerrar el
+Sprint 2, con dos mediciones en la mano.
+
+**El traslado obligó a un ajuste en HU-05.** `search_nearby_professionals` une
+con `addresses` filtrando por `is_primary`, que viene por omisión en falso, de
+modo que sacar HU-06 del sprint habría dejado a los profesionales invisibles
+para la búsqueda y habría incumplido el incremento que el Sprint 2 promete.
+HU-05 gana un criterio: la primera dirección que alguien registra queda marcada
+como principal. Elegir entre varias sigue siendo trabajo de HU-06.
+
+
+> El Sprint 1 se ejecutó del **11/09/2026** al **14/09/2026**.
+
+
+### Qué funcionó
+
+- **Verificar contra la fuente en vez de contra la suposición.** La revisión del
+  pull request #2 aceptó cuatro de cinco observaciones y descartó una, y en dos
+  casos la decisión se tomó leyendo el fuente de la biblioteca, no el mensaje
+  del revisor. La misma disciplina encontró dos defectos que el revisor no vio,
+  uno de ellos más grave que cualquiera de los suyos.
+- **Provocar el fallo de una prueba antes de confiar en ella.** Se hizo con
+  `AuthErrorMapperTest` revirtiendo el mapeo, igual que en HT-08 con las reglas
+  de arquitectura. Una red de seguridad que nunca se vio fallar no es una red.
+- **El esquema completo desde HT-04 se pagó solo.** HU-03 no necesitó ninguna
+  migración: las columnas y las políticas ya estaban. Diseñar el modelo de datos
+  por adelantado fue lo contrario de una carga.
+
+### Qué no funcionó
+
+- **La secuencia de commits de HU-01 separó los archivos eliminados del código
+  que los reemplazaba**, y un archivo quedó sin versionar hasta la sesión
+  siguiente. Corregido: cada borrado se entrega con `git rm` explícito, en el
+  mismo commit que su reemplazo.
+- **Verificar un criterio destruyó la posibilidad de verificar otros.** Quitar
+  la cuenta de Google del emulador para probar el criterio 4 de HU-01 dejó el
+  dispositivo sin forma de ingresar durante una sesión entera. Y elegir el rol
+  en HU-02 dejó esa pantalla inalcanzable para siempre, de modo que su esquema
+  oscuro quedó sin comprobar en dispositivo.
+- **El orden de verificación importa y no estaba escrito en ninguna parte.** En
+  HU-02 el criterio 4 —abandonar sin elegir— hubo que probarlo antes que el 2,
+  porque el 2 es irreversible.
+
+### Qué cambiar en el Sprint 2
+
+1. **Ordenar los criterios de aceptación por reversibilidad antes de empezar a
+   verificar**, y recorrer primero los que dejan de ser alcanzables después.
+2. **Mantener dos cuentas de Google en el emulador**, una por rol. Ya están, y
+   fue lo que permitió verificar las dos formas de la pantalla de perfil sin
+   inventar datos.
+3. **Saldar la deuda de `androidTest`.** Tres correcciones del grafo de
+   navegación se acumulan sin prueba automática. Sprint 2 agrega HU-05, con
+   permisos y mapa, que es exactamente donde una prueba instrumentada deja de
+   ser opcional.
 
 ---
 
@@ -1101,7 +1283,12 @@ ambos roles registran sus direcciones georreferenciadas.
 
 **Objetivo específico.** 2 · Desarrollar la gestión de perfiles de usuarios.
 
-**Puntos:** 24.
+**Puntos:** 21.
+
+> **HU-06 se trasladó al Sprint 3 al medir la velocidad.** El sprint tenía 24
+> puntos planificados contra una velocidad medida de 21, y el apartado
+> «Estimación» manda mover la historia de menor prioridad. Registrado en la
+> retrospectiva del Sprint 1.
 
 ### HU-04 · Publicar mi perfil profesional `[ ]` — 8 puntos
 
@@ -1147,30 +1334,23 @@ profesional · pantalla de perfil público.
       ubicación está almacenada como punto geográfico.
 - [ ] Dado que registro una referencia textual, cuando la contraparte vea la
       atención, entonces la referencia estará disponible.
+- [ ] Dado que registro mi primera dirección, cuando la guardo, entonces queda
+      marcada como principal.
 
-**Requisitos:** RF-03.1, RF-03.2, RF-03.3, RF-03.6.
+**Requisitos:** RF-03.1, RF-03.2, RF-03.3, RF-03.4, RF-03.6.
+
+> **El último criterio llegó con el traslado de HU-06.** `is_primary` viene por
+> omisión en falso y `search_nearby_professionals` une con `addresses` filtrando
+> por esa columna, así que un profesional con una dirección que no es principal
+> es invisible para la búsqueda. Sin este criterio, sacar HU-06 del sprint
+> habría dejado sin cumplir el incremento que el propio sprint promete. El
+> disparador que desmarca la anterior ya existe desde HT-04, de modo que elegir
+> entre varias sigue siendo trabajo de HU-06.
 
 **Tareas técnicas.** Objeto de valor `Coordinate` con pruebas de rango ·
 `ILocationRepository` y casos de uso · fuente de datos con caché de geocodificación
 · solicitud de permisos con justificación previa · pantalla de mapa con marcador
 arrastrable.
-
-### HU-06 · Administrar mis direcciones `[ ]` — 3 puntos
-
-> Como **usuario**, quiero **tener varias direcciones y marcar una como
-> principal**, para **solicitar atención en distintos lugares**.
-
-**Criterios de aceptación**
-
-- [ ] Dado que tengo varias direcciones, cuando abro la lista, entonces las veo
-      con su alias y su referencia.
-- [ ] Dado que marco una como principal, cuando marco otra, entonces la anterior
-      deja de serlo automáticamente.
-- [ ] Dado que elimino una dirección, cuando confirmo, entonces desaparece de la lista.
-- [ ] Dado que soy profesional, cuando no tengo dirección principal, entonces no
-      aparezco en búsquedas.
-
-**Requisitos:** RF-03.4, RF-03.5, RN-02.
 
 ## Incremento del sprint
 
@@ -1190,7 +1370,30 @@ administrador los aprueba o rechaza.
 
 **Objetivo específico.** 2 · Desarrollar la gestión de perfiles de usuarios.
 
-**Puntos:** 21.
+**Puntos:** 24.
+
+> **HU-06 llega del Sprint 2** y se trabaja primero, como corresponde a una
+> historia ya comprometida. Encaja con el objetivo mejor de lo que su origen
+> sugiere: su último criterio —un profesional sin dirección principal no aparece
+> en búsquedas— es la misma condición de visibilidad que este sprint cierra por
+> el lado de la verificación.
+
+### HU-06 · Administrar mis direcciones `[ ]` — 3 puntos
+
+> Como **usuario**, quiero **tener varias direcciones y marcar una como
+> principal**, para **solicitar atención en distintos lugares**.
+
+**Criterios de aceptación**
+
+- [ ] Dado que tengo varias direcciones, cuando abro la lista, entonces las veo
+      con su alias y su referencia.
+- [ ] Dado que marco una como principal, cuando marco otra, entonces la anterior
+      deja de serlo automáticamente.
+- [ ] Dado que elimino una dirección, cuando confirmo, entonces desaparece de la lista.
+- [ ] Dado que soy profesional, cuando no tengo dirección principal, entonces no
+      aparezco en búsquedas.
+
+**Requisitos:** RF-03.4, RF-03.5, RN-02.
 
 ### HU-07 · Cargar mis documentos de verificación `[ ]` — 8 puntos
 

@@ -1382,6 +1382,125 @@ cinco caminos.
 
 ---
 
+## 2026-09-13 · La fotografía se muestra; reemplazarla espera a que exista Storage
+
+**Contexto.** RF-02.1 incluye la fotografía entre lo que el paciente registra y
+edita, y el primer criterio de HU-03 pide ver «la fotografía que trajo Google».
+El disparador `handle_new_user()` ya guarda esa dirección en
+`profiles.photo_url` desde el primer ingreso, de modo que el dato existe. Lo que
+no existe es Storage: ninguna migración ha creado un contenedor, y
+`docs/decisions.md` del 2026-09-12 dejó Coil sin motor de red porque nada hacía
+todavía una petición de imagen real.
+
+**Decisión.** HU-03 dibuja la fotografía que trajo Google y no permite
+reemplazarla. Se agrega `coil-network-ktor3`, que reutiliza el cliente Ktor que
+supabase-kt ya trae. Reemplazarla entra con RF-04.1, en el Sprint 3, que es la
+historia que obliga a que Storage exista de verdad.
+
+**Razonamiento.** Permitir reemplazarla convertiría a HU-03 en la primera
+historia con Storage, y eso no es un campo más: es un contenedor con sus
+políticas sobre `storage.objects`, un selector de imágenes, compresión en el
+cliente —que `.claude/rules/compose.md` exige— y una decisión sobre URL firmada
+frente a URL pública que la regla de Supabase solo contesta para los documentos
+de verificación. Esa decisión condiciona también la ficha pública del
+profesional del Sprint 4, donde una lista de resultados necesitaría una URL
+firmada por cada tarjeta. Tomarla de paso, dentro de una historia de formulario,
+es como se elige mal.
+
+**Consecuencia.** El motor de red de Coil deja de estar pendiente: la aplicación
+hace ahora una petición real a `googleusercontent.com`, que figura en
+`docs/architecture/components.md`. Queda anotado en `plan.md`, HU-03, que el
+criterio de reemplazar la fotografía se cierra con la historia de verificación.
+
+---
+
+## 2026-09-13 · El perfil se lee tal como está guardado; el objeto de valor cuida la escritura
+
+**Contexto.** `PersonName` exige entre 2 y 80 caracteres y rechaza dígitos, pero
+`handle_new_user()` copia en `full_name` lo que entrega Google sin pasar por el
+objeto de valor. Un perfil puede sostener legítimamente un nombre que el objeto
+de valor rechazaría.
+
+**Decisión.** `UserProfile.fullName` es la cadena guardada, sin validar. La
+validación ocurre al escribir: `SaveProfileUseCase` construye `PersonName`,
+`PhoneNumber` y `BirthDate`, y el repositorio recibe un `ProfileUpdate` que solo
+contiene objetos de valor.
+
+**Razonamiento.** Leer el nombre a través del objeto de valor lo habría
+convertido en nulo, la pantalla habría mostrado un campo vacío y la persona
+habría sobrescrito su nombre real con lo que recordara en ese momento. Perder el
+dato al leer es distinto de rechazarlo al escribir: HU-01 aceptó perderlo en
+`AuthSession` porque ahí el dato era decorativo y la sesión era lo que
+importaba; aquí el dato **es** la pantalla.
+
+La regla no se relaja: ningún valor entra al sistema sin pasar por su objeto de
+valor. Lo que cambia es que la puerta está en la escritura, que es la única por
+la que el cliente puede escribir, y no en la lectura, que refleja filas que el
+disparador escribió antes de que la regla existiera.
+
+**Consecuencia.** `ProfileMapperTest` fija que un nombre con un dígito llega
+entero, y que un rol desconocido o una fecha ilegible cuestan ese campo y nunca
+el perfil completo: la persona tiene que poder abrir la pantalla y corregirlo.
+
+---
+
+## 2026-09-13 · El nombre sale de «Mi cuenta» y vive en «Mi perfil»
+
+**Contexto.** «Mi cuenta» mostraba el nombre y el correo que venían de la sesión
+de Supabase, es decir, de los metadatos de Google. HU-03 hace editable el nombre
+en `profiles.full_name`. Desde el momento en que alguien lo edita, las dos
+pantallas mostrarían nombres distintos.
+
+**Decisión.** «Mi cuenta» deja de mostrar el nombre y conserva el correo. El
+nombre pasa a «Mi perfil», que es donde se edita y de donde sale la fila de
+`profiles`.
+
+**Razonamiento.** El correo identifica la cuenta de Google con la que se
+ingresó, no se edita en ninguna parte y por lo tanto no puede divergir. El
+nombre sí. Mantenerlo en dos pantallas con dos orígenes distintos habría hecho
+que alguien editara su nombre, volviera a «Mi cuenta», viera el anterior y
+concluyera que no se guardó. La alternativa —que «Mi cuenta» también leyera
+`profiles`— obligaba a recargarla al volver de «Mi perfil», que es mecanismo
+para sostener una duplicación que no hace falta.
+
+**Consecuencia.** Nada mutable queda duplicado entre las dos pantallas. «Mi
+cuenta» es la sesión: correo, rol, cerrar sesión. «Mi perfil» es lo que la
+aplicación guarda de la persona. La clave `auth_account_name_unavailable` se
+eliminó de ambos idiomas al quedar sin uso.
+
+---
+
+## 2026-09-13 · La fecha de nacimiento se elige con el selector de Material 3
+
+**Contexto.** `patients.birth_date` es una fecha con la restricción
+`birth_date < current_date`. Había dos formas de pedirla: un campo de texto con
+un formato fijo que el objeto de valor analiza, o el selector de fecha de
+Material 3.
+
+**Decisión.** El selector de Material 3, con `selectableDates` limitado a fechas
+anteriores a hoy. Obliga a `@OptIn(ExperimentalMaterial3Api::class)`.
+
+**Razonamiento.** Un campo de texto fija un formato en el código —`dd/MM/aaaa`—
+que ningún traductor puede cambiar, y contradice la regla de
+`.claude/rules/i18n.md` de que las fechas se formatean con las utilidades de la
+plataforma según la configuración regional. El selector es regional por
+construcción, permite escribir la fecha además de navegarla, y expresa la
+restricción de la columna en el propio control en vez de dejarla para el mensaje
+de error.
+
+**Sobre la anotación.** La regla del proyecto prohíbe dependencias en versión
+`alpha`, `beta`, `rc` o `SNAPSHOT`; Material 3 está en versión estable y lo
+experimental es la marca de una API dentro de ella. Se acepta de forma
+deliberada y acotada a este control. Si esa API cambiara en una versión
+posterior, el cambio queda contenido en `BirthDateField`.
+
+**Consecuencia.** La restricción de la columna queda expresada dos veces, y en
+capas distintas: el selector impide elegir una fecha futura y
+`BirthDate.create` la rechaza igual. `BirthDateTest` fija los límites exactos,
+incluido hoy mismo, que es el borde que la columna rechaza.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
