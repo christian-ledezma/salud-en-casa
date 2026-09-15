@@ -1627,8 +1627,8 @@ no por `BuildConfig`.
 | El punto se escribe con siete decimales y configuración regional raíz | Un teléfono en español formatearía la coma, y PostGIS lee la coma como el separador entre dos puntos de una geometría |
 | El mapa se instancia sin identificador de estilo en la nube | `.claude/rules/compose.md`: eso reclasifica cada carga a una categoría facturable |
 
-**Qué atrapan las pruebas nuevas.** Cuarenta y cuatro pruebas nuevas, que llevan la
-suite de 140 a 184. Todas corren en la máquina virtual de Java, sin emulador:
+**Qué atrapan las pruebas nuevas.** Cuarenta y seis pruebas nuevas, que llevan la
+suite de 140 a 186. Todas corren en la máquina virtual de Java, sin emulador:
 
 | Prueba | El error real que atrapa |
 |---|---|
@@ -1637,6 +1637,7 @@ suite de 140 a 184. Todas corren en la máquina virtual de Java, sin emulador:
 | `AddressMapperTest` | El peor error de esta historia: PostGIS lee longitud primero y latitud después. Escribir el par como se dice guarda sin error y deja la dirección a 6 780 kilómetros, donde la búsqueda por cercanía no encuentra a nadie. También la coma decimal de un teléfono en español y la notación científica de un punto cercano al origen |
 | `AddressAliasTest`, `AddressTextTest`, `CityNameTest`, `AddressReferenceTest` | Los límites exactos de cada columna. Un alias de 61 caracteres llega hoy como un error del servidor que nadie puede accionar, en vez de como un mensaje bajo su campo |
 | `SaveAddressUseCaseTest` | Guardar una dirección escrita sin punto —una fila que la búsqueda no puede devolver nunca—, una referencia vacía viajando como cadena vacía a una columna que empieza en un carácter, y una corrección que pierde el identificador y termina creando una segunda dirección |
+| `AddressViewModelTest`, sobre el guardado en curso | Un toque en el mapa o una búsqueda mientras la petición viaja: el marcador se movía y la fila que volvía del servidor lo devolvía a su sitio, descartando el punto recién elegido sin decir nada |
 | `AddressViewModelTest` | Una pantalla que vuelve a geocodificar lo que ya está guardado, un geocodificador mudo que borra la dirección escrita a mano, una búsqueda sin resultados presentada como fallo de conexión, y un guardado rechazado que se lleva por delante lo que la persona escribió |
 
 **Verificado en el emulador el 2026-09-15**, con la cuenta de Google del autor y el
@@ -1673,6 +1674,31 @@ porque en un dispositivo sin geocodificador esa línea es la dirección entera. 
 se conserva el texto y se avisa: «No pudimos convertir ese punto en una dirección
 escrita. Revisa que el texto de abajo corresponda al marcador.» Lo mismo vale para
 una respuesta que trae ciudad pero no calle. Dos pruebas nuevas lo fijan.
+
+**Lo que encontró la revisión del pull request #4.** Copilot dejó tres
+observaciones y se aceptaron dos, las dos reales:
+
+- **Una carrera en el disparador que marca la primera dirección.** La
+  comprobación de existencia no estaba serializada, de modo que dos inserciones
+  simultáneas del mismo perfil podían reclamar las dos el distintivo de principal
+  y perder una contra `idx_addresses_profile_primary`. El índice protegía la
+  invariante —nunca habría habido dos principales—, pero el guardado fallaba de
+  forma intermitente y sin explicación. Corregido en la migración
+  `20260915132619_serialize_first_address`, que bloquea la fila del perfil antes
+  de comprobar. Se bloquea el perfil y no la dirección porque no se puede
+  bloquear una fila que todavía no existe.
+- **Interacciones que seguían vivas durante un guardado.** Solo el formulario
+  ignoraba los cambios mientras la petición viajaba; tocar el mapa o buscar una
+  dirección movía el marcador, y la fila que volvía del servidor lo devolvía a su
+  sitio, descartando lo que la persona acababa de elegir. Ahora las tres puertas
+  se cierran igual, y una descripción que llega tarde ya no apaga el indicador de
+  guardado. Dos pruebas nuevas lo fijan.
+
+La tercera se descartó: decía que una previsualización pasaba ocho argumentos a
+`AddressContent`, que declara siete antes de su `modifier`, y que por eso el
+archivo no compilaba. Pasa siete, contadas una por una en las siete
+previsualizaciones, y el octavo argumento se habría tipado contra `Modifier` y
+habría roto la compilación, que pasa tanto aquí como en integración continua.
 
 **La clave de Mapas.** Se habilitó «Maps SDK for Android» en el proyecto
 `salud-en-casa-508102` y `MAPS_API_KEY` vive en `local.properties`, con una clave
@@ -1786,6 +1812,13 @@ historia que nunca se hace. Hay dos caminos defendibles y la elección es del au
 - **La verificación en dispositivo encontró lo que las pruebas no podían.** El
   defecto del punto que el geocodificador no sabe nombrar solo apareció con el mapa
   dibujando, porque hasta entonces no había coordenadas reales que consultar.
+- **La revisión automática del pull request #4 encontró dos defectos reales** que
+  ni las pruebas ni la verificación manual habían visto: una condición de carrera
+  en el disparador de la primera dirección y un guardado al que se le podía mover
+  el marcador por debajo. Se descartó una tercera observación comprobándola contra
+  el código, igual que en el Sprint 1 con el pull request #2. La revisión vale por
+  lo que encuentra, no por lo que afirma: las tres se verificaron antes de tocar
+  nada.
 
 ### Qué no funcionó
 

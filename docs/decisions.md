@@ -1903,6 +1903,44 @@ trae `app/google-services.json` no sirve para esto: el SDK responde
 
 ---
 
+## 2026-09-15 · La primera dirección se decide bloqueando la fila del perfil
+
+**Contexto.** El disparador `addresses_first_is_primary` comprueba si la persona
+ya tiene alguna dirección y, si no, marca la que entra como principal. La
+revisión del pull request #4 señaló que esa comprobación no está serializada:
+dos inserciones simultáneas del mismo perfil ven las dos que no hay ninguna,
+reclaman las dos el distintivo, y una pierde contra el índice único parcial
+`idx_addresses_profile_primary`.
+
+**Decisión.** El disparador bloquea la fila del perfil —`select 1 from
+public.profiles where id = new.profile_id for update`— antes de comprobar.
+
+**Razonamiento.** No se puede bloquear la fila que se quiere contar, porque
+todavía no existe; hay que bloquear algo que sí existe y que identifique a la
+misma persona, y el perfil es esa fila. Dos inserciones de la misma persona se
+ponen en fila, la segunda ve la primera y no reclama nada. El bloqueo dura lo que
+la transacción y no alcanza a los perfiles de nadie más, de modo que dos personas
+registrando su dirección a la vez no se estorban.
+
+Se descartaron dos alternativas. Un bloqueo consultivo, `pg_advisory_xact_lock`,
+no depende de permisos sobre otra tabla, pero introduce un espacio de nombres de
+identificadores numéricos que hay que documentar y respetar en cada uso futuro, y
+el proyecto no tiene ninguno todavía. Capturar la violación de unicidad y
+reintentar convierte un caso raro en código que se ejecuta siempre y que hay que
+probar. El bloqueo de fila es una línea y se lee.
+
+Se comprobó antes de escribirlo que el bloqueo funciona con las políticas
+puestas: con `set local role authenticated` y las credenciales del profesional,
+la consulta devuelve su fila y la bloquea.
+
+**Consecuencia.** Lo que fallaba no era la invariante sino el guardado: el índice
+único siempre impidió que hubiera dos direcciones principales. Corregir la
+carrera cambia un fallo intermitente sin explicación por una espera de
+milisegundos. HU-06, que agrega elegir entre varias direcciones, hereda el mismo
+disparador ya serializado.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
