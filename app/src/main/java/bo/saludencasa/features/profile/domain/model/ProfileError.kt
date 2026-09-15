@@ -13,6 +13,12 @@ sealed interface ProfileError {
 
     data object InvalidBirthDate : ProfileError
 
+    data object InvalidBaseRate : ProfileError
+
+    data object InvalidCoverageRadius : ProfileError
+
+    data object InvalidYearsOfExperience : ProfileError
+
     data object NetworkUnavailable : ProfileError
 
     data object Unexpected : ProfileError

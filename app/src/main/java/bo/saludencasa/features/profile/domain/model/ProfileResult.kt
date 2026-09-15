@@ -31,3 +31,29 @@ sealed interface ProfileResult {
         val error: ProfileError,
     ) : ProfileResult
 }
+
+sealed interface AvailabilityResult {
+    data class Success(
+        val availableNow: Boolean,
+    ) : AvailabilityResult
+
+    data class Failure(
+        val error: ProfileError,
+    ) : AvailabilityResult
+}
+
+// NotPublished is not an error and not an empty read either: it is INV-07
+// holding. professional_directory only carries professionals whose
+// verification is approved and whose profile is active, so a professional who
+// is neither is simply not there for anyone to see.
+sealed interface PublicProfileResult {
+    data class Success(
+        val profile: PublicProfile,
+    ) : PublicProfileResult
+
+    data object NotPublished : PublicProfileResult
+
+    data class Failure(
+        val error: ProfileError,
+    ) : PublicProfileResult
+}

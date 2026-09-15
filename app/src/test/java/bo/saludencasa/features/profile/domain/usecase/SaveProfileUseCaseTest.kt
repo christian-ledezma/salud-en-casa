@@ -2,6 +2,8 @@ package bo.saludencasa.features.profile.domain.usecase
 
 import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.PatientDraft
+import bo.saludencasa.features.profile.domain.model.ProfessionalDraft
+import bo.saludencasa.features.profile.domain.model.ProfessionalType
 import bo.saludencasa.features.profile.domain.model.ProfileDraft
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.ProfileResult
@@ -9,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.math.BigDecimal
 import java.time.LocalDate
 
 class SaveProfileUseCaseTest {
@@ -86,10 +89,118 @@ class SaveProfileUseCaseTest {
         runTest {
             val repository = FakeProfileRepository()
 
-            SaveProfileUseCase(repository)(draft(patient = null))
+            SaveProfileUseCase(repository)(draft(patient = null, professional = professionalDraft()))
 
             assertEquals(1, repository.saveAttempts)
             assertNull(repository.lastUpdate?.patient)
+        }
+
+    // The mirror of the rule above. A patient has no row in professionals, so a
+    // professional section reaching the update would be columns nobody may fill.
+    @Test
+    fun aPatientWritesNoProfessionalData() =
+        runTest {
+            val repository = FakeProfileRepository()
+
+            SaveProfileUseCase(repository)(draft())
+
+            assertEquals(1, repository.saveAttempts)
+            assertNull(repository.lastUpdate?.professional)
+        }
+
+    // The criterion of HU-04: a rate of zero or below is refused with a message,
+    // not with the constraint name the column would return.
+    @Test
+    fun rejectsARateTheValueObjectRefusesAndWritesNothing() =
+        runTest {
+            val repository = FakeProfileRepository()
+
+            val result =
+                SaveProfileUseCase(repository)(
+                    draft(patient = null, professional = professionalDraft(baseRateBob = "0")),
+                )
+
+            assertEquals(ProfileResult.Failure(ProfileError.InvalidBaseRate), result)
+            assertEquals(0, repository.saveAttempts)
+        }
+
+    @Test
+    fun rejectsARadiusOutsideTheAllowedRangeAndWritesNothing() =
+        runTest {
+            val repository = FakeProfileRepository()
+
+            val result =
+                SaveProfileUseCase(repository)(
+                    draft(patient = null, professional = professionalDraft(coverageRadiusKm = "60")),
+                )
+
+            assertEquals(ProfileResult.Failure(ProfileError.InvalidCoverageRadius), result)
+            assertEquals(0, repository.saveAttempts)
+        }
+
+    @Test
+    fun rejectsYearsOfExperienceOutsideTheAllowedRangeAndWritesNothing() =
+        runTest {
+            val repository = FakeProfileRepository()
+
+            val result =
+                SaveProfileUseCase(repository)(
+                    draft(patient = null, professional = professionalDraft(yearsOfExperience = "80")),
+                )
+
+            assertEquals(ProfileResult.Failure(ProfileError.InvalidYearsOfExperience), result)
+            assertEquals(0, repository.saveAttempts)
+        }
+
+    // base_rate_bob admits null, so a professional who has not priced their
+    // visit yet saves the rest of the profile. What they cannot do is become
+    // visible: professionals_approved_profile_is_complete blocks the approval.
+    @Test
+    fun anEmptyRateIsSavedAsNoRateAtAll() =
+        runTest {
+            val repository = FakeProfileRepository()
+
+            SaveProfileUseCase(repository)(
+                draft(patient = null, professional = professionalDraft(baseRateBob = "  ")),
+            )
+
+            assertEquals(1, repository.saveAttempts)
+            assertNull(repository.lastUpdate?.professional?.baseRateBob)
+        }
+
+    @Test
+    fun clearedProfessionalTextIsStoredAsNullAndNotAsAnEmptyString() =
+        runTest {
+            val repository = FakeProfileRepository()
+
+            SaveProfileUseCase(repository)(
+                draft(patient = null, professional = professionalDraft(specialty = "   ", biography = "")),
+            )
+
+            assertNull(repository.lastUpdate?.professional?.specialty)
+            assertNull(repository.lastUpdate?.professional?.biography)
+        }
+
+    // The professional type is nullable until the profile is complete, so a
+    // save with none chosen has to reach the repository rather than stop.
+    @Test
+    fun aProfessionalWithoutATypeChosenYetStillSavesTheRest() =
+        runTest {
+            val repository = FakeProfileRepository()
+
+            SaveProfileUseCase(repository)(
+                draft(patient = null, professional = professionalDraft(professionalType = null)),
+            )
+
+            assertEquals(1, repository.saveAttempts)
+            assertNull(repository.lastUpdate?.professional?.professionalType)
+            assertEquals(
+                BigDecimal("120.00"),
+                repository.lastUpdate
+                    ?.professional
+                    ?.baseRateBob
+                    ?.value,
+            )
         }
 }
 
@@ -97,7 +208,14 @@ private fun draft(
     fullName: String = "Ana Quispe",
     phone: String = "71234567",
     patient: PatientDraft? = patientDraft(),
-): ProfileDraft = ProfileDraft(fullName = fullName, phone = phone, patient = patient)
+    professional: ProfessionalDraft? = null,
+): ProfileDraft =
+    ProfileDraft(
+        fullName = fullName,
+        phone = phone,
+        patient = patient,
+        professional = professional,
+    )
 
 private fun patientDraft(
     birthDate: LocalDate? = LocalDate.of(1990, 5, 14),
@@ -108,4 +226,21 @@ private fun patientDraft(
         birthDate = birthDate,
         emergencyContact = emergencyContact,
         medicalNotes = medicalNotes,
+    )
+
+private fun professionalDraft(
+    professionalType: ProfessionalType? = ProfessionalType.NURSE,
+    specialty: String = "Enfermería geriátrica",
+    biography: String = "Diez años atendiendo a domicilio.",
+    yearsOfExperience: String = "10",
+    baseRateBob: String = "120.00",
+    coverageRadiusKm: String = "8",
+): ProfessionalDraft =
+    ProfessionalDraft(
+        professionalType = professionalType,
+        specialty = specialty,
+        biography = biography,
+        yearsOfExperience = yearsOfExperience,
+        baseRateBob = baseRateBob,
+        coverageRadiusKm = coverageRadiusKm,
     )

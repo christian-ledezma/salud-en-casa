@@ -2,8 +2,10 @@ package bo.saludencasa.features.profile.data.datasource
 
 import bo.saludencasa.features.profile.data.model.AssignRoleParams
 import bo.saludencasa.features.profile.data.model.PatientDto
+import bo.saludencasa.features.profile.data.model.ProfessionalDto
 import bo.saludencasa.features.profile.data.model.ProfileDto
 import bo.saludencasa.features.profile.data.model.ProfileRoleDto
+import bo.saludencasa.features.profile.data.model.PublicProfileDto
 import bo.saludencasa.features.profile.data.model.SaveProfileParams
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -43,7 +45,32 @@ class SupabaseProfileDataSource(
                 filter { eq("id", userId) }
             }.decodeSingleOrNull<PatientDto>()
 
+    suspend fun findProfessional(userId: String): ProfessionalDto? =
+        supabase
+            .from("professionals")
+            .select {
+                filter { eq("id", userId) }
+            }.decodeSingleOrNull<ProfessionalDto>()
+
+    suspend fun findPublicProfile(professionalId: String): PublicProfileDto? =
+        supabase
+            .from("professional_directory")
+            .select {
+                filter { eq("id", professionalId) }
+            }.decodeSingleOrNull<PublicProfileDto>()
+
     suspend fun saveProfile(params: SaveProfileParams) {
         supabase.postgrest.rpc("save_my_profile", params)
+    }
+
+    suspend fun setAvailableNow(
+        userId: String,
+        availableNow: Boolean,
+    ) {
+        supabase
+            .from("professionals")
+            .update({ set("available_now", availableNow) }) {
+                filter { eq("id", userId) }
+            }
     }
 }
