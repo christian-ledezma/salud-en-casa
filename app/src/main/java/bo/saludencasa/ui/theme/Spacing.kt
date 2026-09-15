@@ -13,6 +13,11 @@ object Spacing {
     val sectionGap: Dp = 24.dp
     val minTouchTarget: Dp = 48.dp
 
+    // docs/design-system.md, section 5: the map of the address screen. Tall
+    // enough to tell one block from the next and short enough to leave the
+    // written address on screen beside it.
+    val mapHeight: Dp = 280.dp
+
     val scale4: Dp = 4.dp
     val scale8: Dp = 8.dp
     val scale12: Dp = 12.dp

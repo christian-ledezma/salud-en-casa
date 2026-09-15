@@ -3,6 +3,7 @@ package bo.saludencasa
 import android.app.Application
 import bo.saludencasa.di.authModule
 import bo.saludencasa.di.coreModule
+import bo.saludencasa.di.locationModule
 import bo.saludencasa.di.profileModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -15,7 +16,7 @@ class SaludEnCasaApplication : Application() {
         startKoin {
             androidLogger(if (BuildConfig.DEBUG) Level.ERROR else Level.NONE)
             androidContext(this@SaludEnCasaApplication)
-            modules(coreModule, authModule, profileModule)
+            modules(coreModule, authModule, profileModule, locationModule)
         }
     }
 }

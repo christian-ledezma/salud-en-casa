@@ -17,6 +17,7 @@
     <string name="auth_account_title">Mi cuenta</string>
     <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
     <string name="auth_account_open_profile">Mi perfil</string>
+    <string name="auth_account_open_address">Mi dirección</string>
     <string name="auth_account_sign_out">Cerrar sesión</string>
     <string name="auth_account_keep_session">Seguir con la sesión abierta</string>
 
@@ -66,6 +67,26 @@
         <item quantity="other">%d atenciones realizadas</item>
     </plurals>
 
+    <string name="address_title">Mi dirección</string>
+    <string name="address_alias_label">Nombre de la dirección</string>
+    <string name="address_text_label">Dirección</string>
+    <string name="address_city_label">Ciudad</string>
+    <string name="address_reference_label">Referencia para llegar</string>
+    <string name="address_search_label">Buscar una dirección</string>
+    <string name="address_search_action">Buscar</string>
+    <string name="address_searching">Buscando…</string>
+    <string name="address_point_hint">Toca el mapa donde está tu domicilio para colocar el marcador.</string>
+    <string name="address_drag_hint">Arrastra el marcador hasta la puerta de tu domicilio.</string>
+    <string name="address_locating">Buscando tu ubicación…</string>
+    <string name="address_point_not_named">No pudimos convertir ese punto en una dirección escrita. Revisa que el texto de abajo corresponda al marcador.</string>
+    <string name="address_primary_notice">Esta es tu dirección principal.</string>
+    <string name="address_permission_title">Queremos centrar el mapa donde estás</string>
+    <string name="address_permission_description">Usamos tu ubicación solo para abrir el mapa en tu posición actual. No se comparte con nadie, y si prefieres, puedes marcar la dirección a mano.</string>
+    <string name="address_permission_allow">Usar mi ubicación</string>
+    <string name="address_permission_decline">Marcar en el mapa</string>
+    <string name="address_save">Guardar dirección</string>
+    <string name="address_saved">Dirección guardada.</string>
+
     <string name="profile_role_selection_title">¿Cómo vas a usar Salud en Casa?</string>
     <string name="profile_role_selection_subtitle">Elige una opción para continuar. Define lo que ves en la aplicación y se responde una sola vez.</string>
     <string name="profile_role_selection_confirm">Continuar</string>
@@ -92,9 +113,22 @@
     <string name="error_profile_invalid_coverage_radius">Escribe un radio entre 1 y 50 kilómetros.</string>
     <string name="error_profile_invalid_years_of_experience">Escribe los años de experiencia, entre 0 y 70.</string>
 
+    <string name="error_address_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
+    <string name="error_address_invalid_alias">Ponle un nombre a esta dirección, de 1 a 60 caracteres.</string>
+    <string name="error_address_invalid_text">Escribe la dirección, de 1 a 300 caracteres.</string>
+    <string name="error_address_invalid_city">Escribe la ciudad de esta dirección.</string>
+    <string name="error_address_invalid_reference">La referencia no puede pasar de 300 caracteres.</string>
+    <string name="error_address_point_not_chosen">Marca el punto en el mapa antes de guardar.</string>
+    <string name="error_address_geocoder_unavailable">Este dispositivo no puede convertir el mapa en una dirección escrita. Escríbela tú y marca el punto.</string>
+    <string name="error_address_permission_denied">Sin el permiso de ubicación el mapa no se centra solo. Busca la dirección o márcala en el mapa.</string>
+    <string name="error_address_location_unavailable">No pudimos obtener tu ubicación. Revisa que la ubicación del teléfono esté encendida, o marca el punto en el mapa.</string>
+    <string name="error_address_place_not_found">No encontramos esa dirección. Escríbela de otra forma o márcala en el mapa.</string>
+
     <string name="cd_loading">Cargando</string>
     <string name="cd_profile_photo">Tu fotografía de perfil</string>
     <string name="cd_professional_photo">Fotografía del profesional</string>
+    <string name="cd_address_map">Mapa para marcar tu dirección</string>
+    <string name="cd_address_marker">Marcador de tu dirección</string>
 
     <string name="debug_force_crash">Provocar un fallo de prueba</string>
 </resources>

@@ -177,6 +177,7 @@ Escala de 4 dp. Valores permitidos: 4, 8, 12, 16, 20, 24, 32, 40, 48.
 | Separación entre elementos de lista | 12 dp |
 | Separación entre etiqueta y campo | 8 dp |
 | Altura mínima de elemento tocable | 48 dp |
+| Altura del mapa de dirección | 280 dp |
 
 El espaciado entre elementos hermanos se resuelve con `Arrangement.spacedBy`,
 nunca con márgenes individuales que se dupliquen o se colapsen.
@@ -238,6 +239,23 @@ cuatro opciones excluyentes y el control segmentado admite dos o tres: con cuatr
 etiquetas como «Estudiante del área de salud» el segmento recorta el texto al
 ancho de un teléfono. El control segmentado sigue siendo la forma de dos o tres
 opciones cortas.
+
+### Mapa de dirección
+
+Recuadro de ancho completo y 280 dp de alto, con el radio de tarjeta del tema, un
+marcador arrastrable en el centro del punto elegido y los controles de acercamiento
+del propio mapa. Debajo va siempre una línea que dice qué hacer con él: colocar el
+marcador si todavía no hay punto, arrastrarlo si ya lo hay.
+
+**No figura en la referencia.** Los 280 dp salen de una restricción concreta: el
+mapa tiene que dejar ver una manzana completa y, al mismo tiempo, dejar la
+dirección escrita en pantalla junto a él, para que la persona compare lo que marcó
+con lo que dice el texto. Más alto obliga a desplazar para leer el texto; más bajo
+no distingue una calle de la siguiente.
+
+El mapa se instancia **sin identificador de estilo en la nube**, porque eso
+reclasifica cada carga a una categoría facturable, y adopta el esquema de color del
+sistema para que el esquema oscuro no quede con un mapa claro encima.
 
 ### Campo de formulario
 

@@ -89,9 +89,10 @@ erDiagram
         uuid profile_id FK
         text alias
         text address_text
+        text reference "hasta 300 caracteres"
         text city
         geography location "Point 4326, indice GIST"
-        boolean is_primary "una sola por persona"
+        boolean is_primary "una sola por persona, la primera automatica"
     }
 
     service_types {
@@ -252,16 +253,19 @@ constantes de Kotlin.
 `request_modality` · `request_status` · `offer_issuer` · `offer_status` ·
 `service_status` · `payment_method` · `payment_status` · `device_platform`
 
-## Vista y funciones
+## Vistas y funciones
 
 | Objeto | Para qué |
 |---|---|
 | `professional_directory` | Proyección pública del profesional. La seguridad a nivel de fila no puede ocultar una sola columna, así que la ficha pública es una vista que simplemente no contiene el teléfono |
+| `my_addresses` | Proyección de `addresses` que devuelve el punto como `latitude` y `longitude`. PostgREST entrega una columna `geography` como su codificación hexadecimal, que el cliente tendría que decodificar para dibujar un marcador. Es `security_invoker`, al revés que `professional_directory`: muestra filas propias, así que `addresses_select_own` sigue decidiendo cuáles (INV-13) |
 | `search_nearby_professionals` | Búsqueda por cercanía. Devuelve distancia y ordena de forma ascendente. Es la única vía de la búsqueda geográfica |
 | `handle_new_user` | Crea el perfil al primer ingreso, con el rol sin asignar |
 | `save_my_profile` | Escribe `profiles` y, según el rol guardado, `patients` o `professionals`, en una sola transacción. Lee el rol del servidor en vez de recibirlo del cliente, de modo que un argumento que no corresponde al rol se ignora en vez de escribirse. No toca `available_now`: esa columna la escribe el interruptor de disponibilidad por su cuenta |
 | `assign_my_role` | Escribe el rol elegido y crea la fila de `patients` o de `professionals` en una sola transacción. `security invoker`: cada escritura ya la permite la política del propio usuario, de modo que la función aporta atomicidad y nada más |
 | `recalculate_reputation` | Recalcula `average_rating` y `total_reviews` en cada calificación |
+| `first_address_is_primary` | Marca como principal la primera dirección de cada persona. La escribe la base y no el formulario, de modo que vale para toda fila que llegue a la tabla |
+| `unmark_previous_primary_address` | Desmarca la anterior cuando otra pasa a ser principal, en vez de fallar contra el índice único |
 | `is_admin`, `shares_service_with`, `professional_covers` | Auxiliares que usan las políticas |
 
 `search_nearby_professionals`, `handle_new_user`, `recalculate_reputation`,
@@ -284,6 +288,20 @@ que todavía no declaró el dato. La restricción
 incompleto llegue a `APPROVED`, que es la condición que
 `professional_directory` y `search_nearby_professionals` exigen para mostrarlo
 (INV-07).
+
+**`addresses.is_primary` la decide la base en la primera dirección.** La columna
+nace en falso y `search_nearby_professionals` une con `addresses` filtrando por
+ella, así que una persona con una sola dirección que no fuera la principal sería
+invisible para la búsqueda. El disparador `addresses_first_is_primary` la marca al
+insertar; elegir entre varias es RF-03.4 y lo recoge HU-06. Los dos disparadores de
+la tabla se ejecutan en orden alfabético, y ese nombre coloca a este antes de
+`addresses_unmark_previous_primary`, que es el orden que corresponde.
+
+**`addresses.reference` admite hasta 300 caracteres.** `alias` y `address_text`
+traen su límite desde la migración que creó la tabla; `reference` quedó abierta,
+lo que dejaba al único campo de texto libre del formulario como la única columna
+donde un cliente podía guardar una cantidad arbitraria de datos. Una referencia
+vacía se guarda como nulo, así que la restricción empieza en un carácter.
 
 **`professionals.coverage_radius_km` admite de 1 a 50 kilómetros.** La columna
 se creó aceptando cualquier valor mayor que cero; HU-04 fija el rango que la
