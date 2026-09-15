@@ -226,6 +226,19 @@ no responden al toque.
 Dos o tres opciones excluyentes en una píldora. La activa se rellena en `primary`.
 Se usa para modalidad de atención y para filtros de historial.
 
+### Grupo de opciones exclusivas
+
+Lista vertical de opciones con un círculo de selección a la izquierda y la
+etiqueta al lado. La fila entera es el elemento tocable, no el círculo, de modo
+que mide al menos 48 dp y sigue siendo alcanzable cuando el tamaño de fuente del
+sistema crece.
+
+**No figura en la referencia.** Se agrega porque el tipo de profesional tiene
+cuatro opciones excluyentes y el control segmentado admite dos o tres: con cuatro
+etiquetas como «Estudiante del área de salud» el segmento recorta el texto al
+ancho de un teléfono. El control segmentado sigue siendo la forma de dos o tres
+opciones cortas.
+
 ### Campo de formulario
 
 Etiqueta encima del campo, en `labelMedium` y `onSurfaceVariant`. Campo delineado

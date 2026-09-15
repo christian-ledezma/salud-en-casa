@@ -259,7 +259,7 @@ constantes de Kotlin.
 | `professional_directory` | Proyección pública del profesional. La seguridad a nivel de fila no puede ocultar una sola columna, así que la ficha pública es una vista que simplemente no contiene el teléfono |
 | `search_nearby_professionals` | Búsqueda por cercanía. Devuelve distancia y ordena de forma ascendente. Es la única vía de la búsqueda geográfica |
 | `handle_new_user` | Crea el perfil al primer ingreso, con el rol sin asignar |
-| `save_my_profile` | Escribe `profiles` y, si el rol es `PATIENT`, `patients`, en una sola transacción. Lee el rol del servidor en vez de recibirlo del cliente, de modo que un argumento de paciente enviado por error se ignora en vez de escribirse |
+| `save_my_profile` | Escribe `profiles` y, según el rol guardado, `patients` o `professionals`, en una sola transacción. Lee el rol del servidor en vez de recibirlo del cliente, de modo que un argumento que no corresponde al rol se ignora en vez de escribirse. No toca `available_now`: esa columna la escribe el interruptor de disponibilidad por su cuenta |
 | `assign_my_role` | Escribe el rol elegido y crea la fila de `patients` o de `professionals` en una sola transacción. `security invoker`: cada escritura ya la permite la política del propio usuario, de modo que la función aporta atomicidad y nada más |
 | `recalculate_reputation` | Recalcula `average_rating` y `total_reviews` en cada calificación |
 | `is_admin`, `shares_service_with`, `professional_covers` | Auxiliares que usan las políticas |
@@ -275,13 +275,21 @@ desde el cliente no pueden garantizarla, y si la segunda fallara la persona
 quedaría con un rol sin la fila que lo sostiene, sin que nada lo reintentara
 (`docs/decisions.md`, 2026-09-13).
 
-**`professionals.professional_type` y `professionals.base_rate_bob` son nulos
-hasta HU-04.** RF-01.4 pide el rol antes que cualquier otra funcionalidad y
-RF-02.2 pone el tipo y la tarifa en el perfil profesional, que se completa
-después. La restricción `professionals_approved_profile_is_complete` impide que
-un profesional incompleto llegue a `APPROVED`, que es la condición que
+**`professionals.professional_type` y `professionals.base_rate_bob` nacen
+nulos.** RF-01.4 pide el rol antes que cualquier otra funcionalidad y RF-02.2
+pone el tipo y la tarifa en el perfil profesional, que HU-04 recoge después. Un
+campo en blanco en esa pantalla sigue guardándose como nulo, porque es alguien
+que todavía no declaró el dato. La restricción
+`professionals_approved_profile_is_complete` impide que un profesional
+incompleto llegue a `APPROVED`, que es la condición que
 `professional_directory` y `search_nearby_professionals` exigen para mostrarlo
 (INV-07).
+
+**`professionals.coverage_radius_km` admite de 1 a 50 kilómetros.** La columna
+se creó aceptando cualquier valor mayor que cero; HU-04 fija el rango que la
+historia enuncia y lo cierra en el motor con
+`professionals_coverage_radius_km_range`, de modo que la regla no dependa de
+que la petición venga de la aplicación.
 
 ## Lo que este esquema no incluye, de forma deliberada
 

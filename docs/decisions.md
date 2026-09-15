@@ -1608,6 +1608,158 @@ geocodificación, ninguno tocado antes— y no sobre la comparación de 21 contr
 capacidad, porque se cerrará por tiempo y no por alcance. Hasta entonces el rango
 de veinte a veinticinco sigue siendo una estimación, no un valor medido.
 
+## 2026-09-14 · El perfil profesional entra en `save_my_profile`, y la firma anterior se elimina
+
+**Contexto.** HU-04 agrega seis columnas de `professionals` al formulario de «Mi
+perfil». Escribirlas con una segunda petición reproduce exactamente el defecto
+que encontró la revisión del pull request 3: una conexión que se corta entre las
+dos peticiones deja media persona guardada mientras la pantalla informa que el
+guardado falló.
+
+**Decisión.** `save_my_profile` recibe los argumentos del profesional y, según el
+rol que lee del servidor, escribe `patients` o `professionals` dentro de la misma
+transacción. La firma anterior de cinco argumentos se elimina en la misma
+migración.
+
+**Razonamiento.** Una función aparte para el profesional volvería a ser dos
+peticiones. Dejar además la firma vieja al lado de la nueva no produce una
+sobrecarga sino una ambigüedad: PostgREST resuelve una función almacenada por los
+argumentos que recibe, y una llamada con los cinco originales encajaría en las
+dos. PostgreSQL responde a eso con «function is not unique», no eligiendo una.
+
+`available_now` queda deliberadamente fuera de la función. Es la decisión de la
+entrada siguiente.
+
+**Consecuencia.** La lista de argumentos crece a once y seguirá creciendo si el
+perfil gana campos. Es el precio de que guardar el perfil sea una sola operación
+atómica, y se paga una vez por historia. Si algún día el perfil se parte en
+varias pantallas, cada una tendrá su propia función, no su propia petición suelta.
+
+---
+
+## 2026-09-14 · La disponibilidad inmediata se escribe sola, fuera del formulario
+
+**Contexto.** RF-02.5 pide que el profesional indique si está disponible para
+atención inmediata **en este momento**, y el criterio de HU-04 dice que al cambiar
+el interruptor el estado se refleje de inmediato. El resto de la pantalla es un
+formulario que se confirma con «Guardar cambios».
+
+**Decisión.** El interruptor escribe `professionals.available_now` por su cuenta,
+con una actualización directa que permite `professionals_update_own`, y no viaja
+dentro de `save_my_profile`. La pantalla muestra el valor nuevo antes de que el
+servidor conteste y lo devuelve a su lugar, con un mensaje, si la escritura falla.
+
+**Razonamiento.** Son dos cosas distintas. El formulario declara lo que el
+profesional ofrece; el interruptor declara si está disponible ahora, y obligarlo a
+pulsar «Guardar cambios» para dejar de recibir trabajo es exactamente el momento en
+que no va a hacerlo. Llevarlo dentro del guardado tendría además un efecto peor:
+un formulario enviado desde una pantalla que lleva minutos abierta reescribiría la
+disponibilidad con el valor que tenía cuando se abrió, deshaciendo un cambio hecho
+segundos antes.
+
+Mostrarlo antes de la confirmación del servidor no es una comodidad: un
+interruptor que tarda en moverse se lee como un interruptor que no funciona, y la
+persona lo vuelve a pulsar. Lo que no es aceptable es dejarlo encendido si la
+escritura falló, porque le diría que está recibiendo trabajo cuando el servidor
+sostiene lo contrario; por eso el fallo lo devuelve a su valor anterior y explica
+qué pasó.
+
+**Consecuencia.** `.claude/rules/supabase.md` manda resolver con una consulta del
+cliente lo que las políticas ya permiten, y esta lo es: una columna, una fila
+propia, sin nada que coordinar. No hace falta una función almacenada.
+
+---
+
+## 2026-09-14 · `AmountBob` nace en `core/vo/` y `CoverageRadiusKm` en la característica
+
+**Contexto.** HU-04 introduce los dos objetos de valor a la vez, y hoy los usa
+una sola característica: el perfil. La regla del 2026-09-12 dice que lo
+compartido vive en `core/vo/` y lo propio en el `domain/vo/` de su característica.
+
+**Decisión.** `AmountBob` va a `core/vo/`. `CoverageRadiusKm` va a
+`features/profile/domain/vo/`, junto a `BirthDate`.
+
+**Razonamiento.** El dinero no es del perfil. `request_offers.amount_bob`,
+`services.final_amount_bob` y las tres columnas de `payments` son el mismo
+concepto, y cuando lleguen sus características —Sprint 6 y Sprint 8— ninguna
+debería importar el dominio del perfil para obtener un monto. Es el caso que la
+entrada del 2026-09-12 describe: colocarlo en una característica la convierte en
+dueña de algo que no le pertenece.
+
+El radio de cobertura sí es del profesional. RF-06.1 habla de un radio de
+búsqueda configurable, pero ese es el radio que elige el paciente al buscar, no el
+que declara el profesional: coinciden en la unidad y no en el concepto. Adelantar
+una abstracción común a los dos sería suponer que van a compartir reglas, y todavía
+no hay una segunda regla que mirar.
+
+**Consecuencia.** Si HU-11 descubre que el radio de búsqueda tiene exactamente los
+mismos límites y el mismo comportamiento, moverlo a `core/vo/` será un cambio de
+paquete. Inventar hoy la abstracción y descubrir que no sirven igual costaría más.
+
+---
+
+## 2026-09-14 · Un monto viaja como el texto exacto del número, no como número de JSON
+
+**Contexto.** `base_rate_bob` es `numeric(10,2)` y llega desde PostgREST como un
+número de JSON. Al escribirlo, la forma evidente era construir el elemento JSON a
+partir del `BigDecimal` y dejar que kotlinx lo serializara.
+
+**Decisión.** `BigDecimalSerializer` lee el literal textual del número que llega y
+escribe `toPlainString()` como cadena de JSON. El servidor convierte esa cadena al
+tipo del argumento, que es el mismo camino que ya recorre la fecha de nacimiento
+para llegar a un argumento `date`.
+
+**Razonamiento.** Se comprobó con una prueba antes de confiar en la forma
+evidente, y falló: kotlinx serializa un `JsonPrimitive` numérico intentando primero
+`Long` y después `Double`, de modo que `120.00` sale como `120.0`. Con dos
+decimales y diez dígitos el valor sobrevive, así que el defecto es inofensivo hoy
+y es el hábito equivocado para el camino que van a reutilizar las ofertas y los
+pagos. El literal sin comillas que lo evitaría es una API experimental, y
+`CLAUDE.md` no admite depender de una.
+
+Al leer ocurre lo simétrico: decodificar como `Double` y construir el `BigDecimal`
+desde ahí pierde la escala guardada, y la pantalla mostraría `120.0` para una
+columna que contiene `120.00`.
+
+**Consecuencia.** Toda columna monetaria del proyecto usa este serializador en
+ambas direcciones. `ProfileDtoTest` fija las dos mitades del contrato: qué forma
+tiene lo que entra y qué forma tiene lo que sale.
+
+---
+
+## 2026-09-14 · El perfil público lee la vista, y su estado vacío es INV-07 a la vista
+
+**Contexto.** RF-02.6 pide que el paciente consulte el perfil público del
+profesional, y el criterio 4 de HU-04 pide ver publicado lo que se guardó. La
+proyección pública ya existe desde HT-04: la vista `professional_directory`, que
+filtra `verification_status = 'APPROVED'` y `profiles.active` y no contiene
+ninguna columna de contacto.
+
+**Decisión.** La pantalla lee únicamente esa vista. Cuando no devuelve fila, no
+muestra un error: muestra un estado que dice que el perfil todavía no está
+publicado y por qué.
+
+**Razonamiento.** Leer la tabla `professionals` habría mostrado el perfil siempre,
+y habría enseñado al profesional una ficha que ningún paciente puede ver. La vista
+es lo que el paciente lee, así que es lo que la pantalla tiene que leer para que
+la vista previa signifique algo.
+
+Que la vista no devuelva nada no es una falla de lectura. Es INV-07 funcionando:
+un profesional sin verificación aprobada no existe para nadie más. Presentarlo
+como error mandaría a la persona a revisar su conexión sobre una conexión que
+funciona. La vista se otorga a `authenticated` como un todo y no filtra por quien
+consulta, de modo que lo que ve el profesional en su vista previa es fila por fila
+lo que verá un paciente.
+
+**Consecuencia.** La misma pantalla sirve a HU-12 en el Sprint 4, cuando la
+búsqueda le dé al paciente un identificador con el que llegar. Mientras tanto, el
+estado con contenido solo se puede ver en un dispositivo si existe un profesional
+aprobado, y aprobar es trabajo del administrador, que llega en el Sprint 3 (HU-09).
+Los servicios declarados y los comentarios que RF-02.6 también menciona esperan a
+HU-10 y al Sprint 9.
+
+---
+
 ---
 
 ## Plantilla para entradas nuevas

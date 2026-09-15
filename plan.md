@@ -1372,7 +1372,7 @@ ambos roles registran sus direcciones georreferenciadas.
 > «Estimación» manda mover la historia de menor prioridad. Registrado en la
 > retrospectiva del Sprint 1.
 
-### HU-04 · Publicar mi perfil profesional `[ ]` — 8 puntos
+### HU-04 · Publicar mi perfil profesional `[x]` — 8 puntos
 
 > Como **profesional de salud**, quiero **declarar mi especialidad, experiencia,
 > tarifa base y radio de cobertura**, para **que los pacientes sepan qué ofrezco y
@@ -1380,15 +1380,15 @@ ambos roles registran sus direcciones georreferenciadas.
 
 **Criterios de aceptación**
 
-- [ ] Dado que soy profesional, cuando abro mi perfil, entonces puedo declarar
+- [x] Dado que soy profesional, cuando abro mi perfil, entonces puedo declarar
       tipo, especialidad, biografía, años de experiencia, tarifa base y radio.
-- [ ] Dado que ingreso una tarifa negativa o cero, cuando guardo, entonces se
+- [x] Dado que ingreso una tarifa negativa o cero, cuando guardo, entonces se
       rechaza con un mensaje claro.
-- [ ] Dado que ingreso un radio fuera del rango de 1 a 50 kilómetros, cuando
+- [x] Dado que ingreso un radio fuera del rango de 1 a 50 kilómetros, cuando
       guardo, entonces se rechaza.
-- [ ] Dado que guardo mi perfil, cuando lo consulto como paciente, entonces veo la
+- [x] Dado que guardo mi perfil, cuando lo consulto como paciente, entonces veo la
       información publicada.
-- [ ] Dado que activo o desactivo mi disponibilidad inmediata, cuando cambio el
+- [x] Dado que activo o desactivo mi disponibilidad inmediata, cuando cambio el
       interruptor, entonces el estado se refleja de inmediato.
 
 **Requisitos:** RF-02.2, RF-02.5, RF-02.6.
@@ -1396,6 +1396,123 @@ ambos roles registran sus direcciones georreferenciadas.
 **Tareas técnicas.** Objetos de valor `AmountBob` y `CoverageRadiusKm` con sus
 pruebas · repositorio y casos de uso de perfil profesional · pantalla de perfil
 profesional · pantalla de perfil público.
+
+**Las cuatro tareas están terminadas**, extendiendo otra vez la característica del
+perfil en lugar de abrir una nueva. El formulario es el mismo de HU-03: muestra la
+sección de paciente o la de profesional según el rol guardado.
+
+| Capa | Qué se agregó |
+|---|---|
+| `core/vo/` | `AmountBob`, el primer objeto de valor monetario del proyecto |
+| `core/network/` | `BigDecimalSerializer`, la forma en que un `numeric` viaja en las dos direcciones |
+| `core/util/` | `formatBob`, que da formato de moneda con la configuración regional del dispositivo |
+| `domain/vo/` | `CoverageRadiusKm` y `YearsOfExperience` |
+| `domain/model/` | `ProfessionalType`, `ProfessionalDetails`, `ProfessionalDraft`, `ProfessionalUpdate`, `PublicProfile`, `AvailabilityResult`, `PublicProfileResult` y tres variantes nuevas de `ProfileError` |
+| `domain/usecase/` | `SetAvailabilityUseCase`, `GetPublicProfileUseCase`, y `SaveProfileUseCase` extendido |
+| `data/model/` | `ProfessionalDto`, `PublicProfileDto` y seis argumentos más en `SaveProfileParams` |
+| `data/datasource/` | Lectura de `professionals` y de `professional_directory`, y escritura de `available_now` |
+| `presentation/` | `ProfessionalProfileSection`, `PublicProfileScreen` y `PublicProfileViewModel` |
+| `ui/components/` | `RadioOptionGroup`, y `FormField` con tipo de teclado |
+| `navigation/` | `PublicProfileRoute`, la primera ruta con argumento |
+
+**Una migración: `20260914054958_save_professional_profile`.** Hace dos cosas.
+`save_my_profile` recibe los argumentos del profesional y escribe `professionals`
+dentro de la misma transacción que `profiles`, y la firma anterior de cinco
+argumentos se elimina. Y `coverage_radius_km` pasa de aceptar cualquier valor
+mayor que cero a aceptar de 1 a 50 kilómetros, que es el rango que la historia
+enuncia. Aplicada sobre el proyecto remoto el 2026-09-14 con `npx supabase db
+push`, previo `--dry-run`, y verificada consultando el catálogo: la función queda
+con once argumentos y la restricción se llama
+`professionals_coverage_radius_km_range`.
+
+**Decisiones no evidentes, en `docs/decisions.md`, 2026-09-14.** Por qué el perfil
+profesional entra en `save_my_profile` y la firma anterior se elimina · por qué la
+disponibilidad inmediata se escribe sola y fuera del formulario · por qué
+`AmountBob` nace en `core/vo/` y `CoverageRadiusKm` en la característica · por qué
+un monto viaja como el texto exacto del número · por qué el perfil público lee la
+vista y su estado vacío es INV-07 a la vista.
+
+**Los porqués menores, que no llegan a decisión pero tampoco se deducen leyendo.**
+
+| Dónde | Por qué está así |
+|---|---|
+| La tarifa en blanco se guarda como nulo | `base_rate_bob` lo admite: es alguien que todavía no puso precio. Lo que no puede hacer es volverse visible, porque `professionals_approved_profile_is_complete` no deja aprobarlo sin tarifa |
+| Los años y el radio en blanco se rechazan | Sus columnas son `not null` y traen un valor por omisión, así que el campo nunca aparece vacío; vaciarlo es un descuido, no una respuesta |
+| El formulario muestra `8` donde la columna guarda `8.00` | La escala es de la columna, no de lo que la persona escribió. Devolvérsela haría que cada visita a la pantalla pareciera una edición pendiente |
+| La coma se acepta como separador decimal | El teclado decimal de un dispositivo en español ofrece la coma. Rechazar `120,50` sería rechazar lo que el propio teclado invita a escribir |
+| El tipo de profesional es un grupo de opciones y no un control segmentado | Son cuatro, y «Estudiante del área de salud» no cabe en un segmento al ancho de un teléfono (`docs/design-system.md`, sección 5) |
+| El perfil público no muestra la calificación cuando no hay ninguna | Un promedio de cero sobre cero calificaciones se lee como una estrella de cinco, no como un profesional sin calificar |
+| El radio de cobertura no aparece en el perfil público | RF-02.6 no lo pide: es un dato con el que trabaja la búsqueda, no algo que ayude al paciente a decidir |
+
+**Qué atrapan las pruebas nuevas.** Cuarenta y una pruebas nuevas, que llevan la
+suite de 99 a 140. Todas corren en la máquina virtual de Java, sin emulador:
+
+| Prueba | El error real que atrapa |
+|---|---|
+| `AmountBobTest` | El peor: `numeric(10,2)` no rechaza un tercer decimal, lo redondea, así que una tarifa escrita como `80.999` se guardaría como `81.00` y el profesional cobraría un boliviano que nunca declaró. También el cero, el negativo, el desborde de la columna y la coma del teclado en español |
+| `CoverageRadiusKmTest` | Los dos bordes exactos del rango que ahora también vigila la columna |
+| `YearsOfExperienceTest` | Los dos bordes del `check` de la columna, y que un campo vaciado no se lea como un cero |
+| `ProfileDtoTest` | Las dos mitades del contrato con PostgREST: que un `numeric` se lea sin perder su escala, y que un monto salga como su texto exacto y no redondeado a través de `Double` |
+| `SaveProfileUseCaseTest` | Una tarifa o un radio inválidos viajando al servidor, un campo vaciado que llega como cadena vacía en vez de nulo, y cada rol escribiendo las columnas del otro |
+| `ProfileMapperTest` | Que un valor que `professional_type` gane en el futuro cueste ese campo y no la tarifa ni el radio, y que el tipo salga como el nombre del enumerado y no como su etiqueta |
+| `ProfileViewModelTest` | Un interruptor que se queda encendido cuando el servidor lo rechazó —diciéndole al profesional que está recibiendo trabajo cuando no—, un interruptor que se lleva por delante lo que se estaba escribiendo, y una tarifa devuelta con la escala de la columna |
+| `PublicProfileViewModelTest` | Presentar INV-07 como un fallo de lectura, que mandaría a la persona a revisar una conexión que funciona |
+
+`StringResourcesTest.everyStringKeyUsedInCodeExistsInAllLocales` se amplió a los
+plurales: HU-04 es la primera historia que usa `plurals`, y sin esa ampliación la
+red que exige `.claude/rules/testing.md` habría dejado de cubrir lo que se
+agregaba.
+
+**Verificado en el emulador el 2026-09-14**, con las dos cuentas de Google del
+autor. Los criterios se recorrieron ordenados por reversibilidad, como pide la
+retrospectiva del Sprint 1: el estado «todavía no publicado» del perfil público se
+comprobó **antes** de cualquier intento de aprobación, porque aprobar lo vuelve
+inalcanzable.
+
+| # | Criterio | Cómo se verificó |
+|---|---|---|
+| 1 | Declarar los seis datos | Con la cuenta profesional, «Mi perfil» mostró el grupo de tipo, especialidad, biografía, años, tarifa y radio. Se eligió Enfermera, se escribieron los cinco campos y se guardó: la base quedó con `NURSE`, `Enfermeria geriatrica`, la biografía, `10`, `120.00` y `8.00` |
+| 2 | Tarifa cero | Se escribió `0` y se pulsó «Guardar cambios»: el campo se marcó en rojo con «Escribe una tarifa mayor a cero, con hasta dos decimales.», no apareció «Cambios guardados.» y la consulta a `professionals` mostró la fila sin tocar |
+| 3 | Radio fuera de rango | Se escribió `60`: apareció «Escribe un radio entre 1 y 50 kilómetros.», y la fila siguió intacta. Al corregir el valor el mensaje desapareció solo |
+| 4 | Ver la información publicada | Primero con la verificación en `PENDING`: «Ver mi perfil público» mostró «Este perfil todavía no está publicado», que es la respuesta correcta porque la vista tiene cero filas (INV-07). Después, aprobado el profesional a mano, la misma pantalla mostró la ficha con el nombre, «Enfermera o enfermero», la especialidad, «Todavía sin calificaciones», «10 años de experiencia», la tarifa, la disponibilidad, «0 atenciones realizadas» y la biografía. Es exactamente lo que se había guardado, leído de la vista y no de la tabla |
+| 5 | Disponibilidad inmediata | Se pulsó el interruptor y la captura tomada de inmediato ya lo muestra encendido, antes de que el servidor contestara. `professionals.available_now` quedó en `true` |
+| — | Sin regresión en HU-03 | Se ingresó con la cuenta paciente: la pantalla mostró solo los campos de paciente, sin interruptor ni perfil público, y guardar escribió `patients` con la función nueva. Es la comprobación que importaba, porque la firma anterior de `save_my_profile` se eliminó |
+| — | Persistencia | Cerrar sesión, volver a ingresar con la cuenta profesional y reabrir «Mi perfil» devolvió los seis datos y el interruptor encendido |
+
+También se revisaron el esquema oscuro y el tamaño de fuente del sistema al 200 %
+sobre las dos pantallas nuevas: las etiquetas envuelven, «Estudiante del área de
+salud» ocupa dos líneas dentro de su fila sin recortarse, el interruptor sigue
+alineado y el contraste es correcto. Ambos ajustes se devolvieron a su valor
+original al terminar.
+
+**Cómo se aprobó el profesional para verificar el criterio 4, y por qué se
+revirtió.** Aprobar es trabajo del administrador, que llega con HU-09 en el
+Sprint 3, y `professionals_guard_verification_status` lo impide incluso desde el
+editor SQL porque `is_admin()` es falso sin sesión. Se desactivó ese disparador, se
+escribió `APPROVED`, se volvió a activar, se abrió la ficha, y después se devolvió
+la fila a `PENDING`. Comprobado al terminar: `professional_directory` con cero
+filas, ningún disparador del esquema público desactivado, y el guardia rechazando
+de verdad —un `update` directo responde
+`verification_status_is_set_by_an_administrator` y la fila no cambia—.
+
+El estado en el que quedó la base es el correcto: ese profesional no tiene
+documentos verificados y el Sprint 3 empieza sin nadie aprobado. Un profesional
+aprobado a mano habría sido un dato falso sostenido por una excepción, que es
+justo lo que HU-09 existe para reemplazar.
+
+**Otra mezcla de idiomas que tampoco es un defecto.** En el emulador, cuyo idioma
+de sistema es inglés, la tarifa se lee «Tarifa base BOB120.00». El formateador de
+moneda de la plataforma decide la presentación según la configuración regional del
+dispositivo, que es lo que exige `.claude/rules/i18n.md`: con `es-BO` el mismo
+código produce «Bs120,00». Forzar el símbolo en español sería volver a componer el
+texto a mano, que es precisamente lo que la regla prohíbe.
+
+**Deuda reconocida.** Los servicios declarados y los comentarios recibidos que
+RF-02.6 también menciona no están en la ficha: llegan con HU-10 (Sprint 4) y con el
+Sprint 9, y hasta entonces no hay nada que mostrar. La fotografía sigue sin poder
+reemplazarse, a la espera de Storage (Sprint 3). Y el grafo de navegación sigue sin
+prueba instrumentada, ahora con una transición más y la primera que lleva un
+argumento.
 
 ### HU-05 · Registrar mi dirección en el mapa `[ ]` — 13 puntos
 
