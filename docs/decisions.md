@@ -1760,6 +1760,147 @@ HU-10 y al Sprint 9.
 
 ---
 
+## 2026-09-15 · La dirección se escribe con una consulta del cliente, no con una función almacenada
+
+**Contexto.** HU-03 y HU-04 guardan el perfil llamando a `save_my_profile`, y lo
+natural era continuar el patrón con un `save_my_address`. La dirección, además,
+tiene una trampa conocida: PostGIS construye el punto con longitud primero y
+latitud después, y `.claude/rules/supabase.md` advierte que invertirlas no produce
+ningún error.
+
+**Decisión.** La dirección se inserta y se corrige con las consultas del cliente
+que PostgREST ya expone sobre `addresses`, protegidas por las políticas que HT-04
+creó. No se agrega función almacenada.
+
+**Razonamiento.** `.claude/rules/supabase.md` reserva las funciones de servidor
+para tres casos: transacciones atómicas que el cliente no puede garantizar,
+operaciones privilegiadas y recepción de notificaciones externas. Guardar una
+dirección es una sola fila: no hay nada que coordinar. Y la regla cierra con «si
+algo puede resolverse con una consulta del cliente respetando las políticas, se
+resuelve así; no se crea una función de servidor por comodidad».
+
+Quedaban dos argumentos a favor de la función y ninguno resistió. El primero era
+la regla de que la primera dirección sea la principal, que parecía exigir leer
+antes de escribir dentro de la misma transacción; se resolvió mejor con un
+disparador, porque así vale para toda fila que llegue a la tabla y no solo para
+las que pasan por este camino. El segundo era contener el orden de las
+coordenadas; se resolvió concentrando la construcción del punto en una única
+función de transformación, `Coordinate.toEwkt()`, con una prueba que falla si
+alguien invierte el par. La prueba es mejor defensa que la función: una función
+también puede recibir los argumentos cambiados.
+
+**Consecuencia.** HU-06, que agrega elegir entre varias direcciones y eliminarlas,
+sigue el mismo camino y no hereda una función que mantener. La comprobación de que
+PostgREST acepta el punto se hizo antes de escribir el cliente, consultando
+`json_populate_record` sobre el tipo de la tabla, que es exactamente la ruta que
+PostgREST usa para convertir el JSON en fila.
+
+---
+
+## 2026-09-15 · El punto viaja como texto y se lee desde una vista
+
+**Contexto.** `addresses.location` es `geography(Point, 4326)`. No hay forma de
+JSON para un valor de PostGIS: al escribir hay que darle algo que su función de
+entrada sepa leer, y al leer PostgREST devuelve la codificación hexadecimal que
+PostGIS guarda en disco, del estilo `0101000020E6100000…`.
+
+**Decisión.** Al escribir, el punto sale como el texto `SRID=4326;POINT(lon lat)`.
+Al leer, la aplicación no consulta la tabla sino la vista `my_addresses`, que
+proyecta el mismo punto como `latitude` y `longitude`.
+
+**Razonamiento.** La alternativa al leer era decodificar el hexadecimal en el
+cliente, que es escribir un lector de un formato binario ajeno para obtener dos
+números que la base ya sabe calcular. La vista cuesta diez líneas de SQL y deja al
+cliente sin ninguna noción de PostGIS.
+
+La vista se declara `security_invoker = true`, al revés que
+`professional_directory`. Las dos decisiones son coherentes con lo que cada vista
+existe para hacer: el directorio muestra filas ajenas y por eso ignora las
+políticas de quien consulta; `my_addresses` muestra las filas propias, así que
+`addresses_select_own` tiene que seguir decidiendo (INV-13). Se comprobó con `set
+local role authenticated` y el identificador de cada perfil: cada uno ve solo su
+dirección.
+
+El texto del punto se escribe con siete decimales y configuración regional raíz.
+Sin lo primero, una coordenada cercana al origen saldría en notación científica;
+sin lo segundo, un teléfono configurado en español escribiría la coma decimal, y
+PostGIS lee la coma como el separador entre dos puntos de una geometría. Ninguna
+de las dos cosas produce un error legible.
+
+**Consecuencia.** Toda lectura de direcciones pasa por la vista, incluida la de
+HU-06. Si alguna vez hace falta otro dato geográfico en el cliente, se agrega a la
+vista y no se decodifica nada.
+
+---
+
+## 2026-09-15 · La geocodificación la resuelve el geocodificador de la plataforma
+
+**Contexto.** RF-03.3 pide convertir entre dirección escrita y coordenadas. El
+proveedor de mapas vende ese servicio por llamada, y la entrada del 2026-09-05
+sobre la búsqueda por cercanía ya dejó dicho que su servicio de proximidad se paga
+a un precio que el proyecto no puede sostener.
+
+**Decisión.** Se usa `android.location.Geocoder`, el geocodificador que trae
+Android, en las dos direcciones. El proveedor de mapas se usa solo para dibujar.
+
+**Razonamiento.** El geocodificador de la plataforma no cobra al proyecto por
+llamada y es el que la propia regla de internacionalización implica al pedir que
+los formatos se resuelvan con las utilidades de la plataforma. Su costo es otro: no
+existe en un dispositivo sin los servicios de Google, y `Geocoder.isPresent()` lo
+dice. Por eso la pantalla trata «este dispositivo no sabe nombrar puntos» como un
+estado en el que se sigue trabajando escribiendo la dirección a mano, y no como un
+fallo.
+
+La interfaz cambió en API 33, que introdujo la variante con escucha y marcó como
+obsoleta la que bloquea. Con `minSdk 26` hay que sostener las dos: la nueva se
+anota con `@RequiresApi` para que el análisis estático vea que las llamadas están
+protegidas, y la vieja corre fuera del hilo principal.
+
+**Consecuencia.** RF-03.3 pide además no repetir la consulta. La copia duradera es
+la columna `address_text`, que es lo que hace que reabrir una dirección guardada no
+consulte nada; el repositorio guarda además en memoria lo ya preguntado, con la
+coordenada redondeada a unos cinco decimales, porque dos puntos separados por un
+metro son la misma puerta.
+
+**Corrección del mismo día, encontrada en el emulador.** El geocodificador devuelve
+vacío de vez en cuando sin error ninguno: el mismo punto que no supo nombrar
+contestó «Ayacucho 166» minutos después. La pantalla trataba esa respuesta como si
+no hubiera pasado nada, y el resultado era peor que un fallo declarado: el marcador
+señalaba un sitio y la dirección escrita seguía describiendo el anterior, sin que
+nadie lo advirtiera. Guardar así deja una fila cuya ubicación y cuyo texto no
+coinciden, y es el texto lo que lee la contraparte para llegar.
+
+Borrar la línea tampoco es la respuesta, porque en un dispositivo sin
+geocodificador esa línea es la dirección entera y la escribió la persona. Así que
+se conserva y se avisa. Vale igual para una respuesta que trae ciudad pero no
+calle, que produce exactamente el mismo desajuste con otra forma.
+
+---
+
+## 2026-09-15 · La clave de Mapas viaja por el manifiesto
+
+**Contexto.** RNF-06 manda que ningún secreto viva en el código fuente, y el
+proyecto ya lee tres claves desde `local.properties` y las publica como campos de
+`BuildConfig`. El SDK de Mapas no lee `BuildConfig`: busca un `meta-data` llamado
+`com.google.android.geo.API_KEY` dentro del manifiesto.
+
+**Decisión.** `MAPS_API_KEY` se lee de `local.properties` con la misma función
+`secret()` que las demás, pero se entrega como marcador de posición del manifiesto
+en vez de como campo de `BuildConfig`.
+
+**Razonamiento.** Es la única forma de dársela al SDK sin escribirla en un archivo
+versionado. La consecuencia de no ponerla es visible y no rompe la compilación: el
+marcador queda vacío, la aplicación arranca, y el mapa dibuja una cuadrícula en
+blanco mientras el registro dice `Authorization failure`. Eso es preferible a un
+error de Gradle que impida compilar una copia limpia del repositorio, que es el
+mismo criterio que ya se aplicó a las claves de Supabase.
+
+**Consecuencia.** `README.md` suma la variable a la lista de claves que hay que
+poner antes de compilar, y habilitar «Maps SDK for Android» en el proyecto de
+Google Cloud pasa a ser un paso de puesta en marcha. Se comprobó que la clave que
+trae `app/google-services.json` no sirve para esto: el SDK responde
+`Authorization failure` porque esa clave no tiene habilitado ese servicio.
+
 ---
 
 ## Plantilla para entradas nuevas

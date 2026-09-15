@@ -52,7 +52,7 @@ Los valores se obtienen así:
 |---|---|
 | `SUPABASE_URL` y `SUPABASE_ANON_KEY` | Panel de Supabase → Configuración → API |
 | `GOOGLE_WEB_CLIENT_ID` | Google Cloud Console → Credenciales → ID de cliente OAuth de tipo **Web** |
-| `MAPS_API_KEY` | Google Cloud Console → API y servicios → Credenciales |
+| `MAPS_API_KEY` | Google Cloud Console → API y servicios → Credenciales. Antes hay que habilitar **Maps SDK for Android** en ese proyecto: sin eso la clave existe pero el mapa no dibuja |
 
 La **clave de servicio** de Supabase no se usa en la aplicación y nunca debe
 figurar en este archivo.
@@ -161,6 +161,21 @@ Si la autenticación con Google falla, el orden de revisión es:
 
 Si la aplicación funciona en depuración y falla firmada, falta registrar la huella
 SHA-1 de la clave de publicación en Google Cloud Console.
+
+Si el mapa de «Mi dirección» aparece como un recuadro en blanco con el logotipo de
+Google encima, el resto de la pantalla funciona pero las teselas no cargan. El
+registro lo dice con todas las letras:
+
+```bash
+adb logcat -d | grep -i "Google Android Maps SDK"
+```
+
+`Authorization failure` significa una de tres cosas, en este orden de
+probabilidad: **Maps SDK for Android** no está habilitado en el proyecto de Google
+Cloud; `MAPS_API_KEY` está vacío o no existe en `local.properties`; o la clave
+tiene restricción de API y no incluye ese servicio. La clave que trae
+`app/google-services.json` **no sirve** para esto: es la de Firebase y responde
+`Authorization failure`.
 
 ## Estructura
 
