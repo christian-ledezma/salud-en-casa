@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -24,6 +25,7 @@ fun FormField(
     modifier: Modifier = Modifier,
     errorText: String? = null,
     singleLine: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -38,6 +40,7 @@ fun FormField(
             modifier = Modifier.fillMaxWidth(),
             isError = errorText != null,
             singleLine = singleLine,
+            keyboardOptions = keyboardOptions,
             shape = MaterialTheme.shapes.small,
             colors = OutlinedTextFieldDefaults.colors(),
         )

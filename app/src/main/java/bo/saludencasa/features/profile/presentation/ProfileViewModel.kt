@@ -2,7 +2,10 @@ package bo.saludencasa.features.profile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import bo.saludencasa.features.profile.domain.model.AvailabilityResult
 import bo.saludencasa.features.profile.domain.model.PatientDraft
+import bo.saludencasa.features.profile.domain.model.ProfessionalDraft
+import bo.saludencasa.features.profile.domain.model.ProfessionalType
 import bo.saludencasa.features.profile.domain.model.ProfileDraft
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.ProfileResult
@@ -10,10 +13,12 @@ import bo.saludencasa.features.profile.domain.model.UserProfile
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.domain.usecase.GetProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.SaveProfileUseCase
+import bo.saludencasa.features.profile.domain.usecase.SetAvailabilityUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.math.BigDecimal
 import java.time.LocalDate
 
 data class ProfileForm(
@@ -22,11 +27,27 @@ data class ProfileForm(
     val birthDate: LocalDate?,
     val emergencyContact: String,
     val medicalNotes: String,
+    val professionalType: ProfessionalType?,
+    val specialty: String,
+    val biography: String,
+    val yearsOfExperience: String,
+    val baseRateBob: String,
+    val coverageRadiusKm: String,
 )
 
 data class ProfileHeader(
+    val userId: String,
     val photoUrl: String?,
     val role: UserRole?,
+)
+
+// Immediate availability is not part of the form. RF-02.5 is a statement about
+// this moment, so the switch writes on its own instead of waiting for the save
+// button, and it keeps the value the server accepted rather than the one the
+// finger asked for.
+data class AvailabilityState(
+    val availableNow: Boolean,
+    val error: ProfileError? = null,
 )
 
 sealed interface SaveStatus {
@@ -52,12 +73,14 @@ sealed interface ProfileUiState {
         val header: ProfileHeader,
         val form: ProfileForm,
         val status: SaveStatus,
+        val availability: AvailabilityState?,
     ) : ProfileUiState
 }
 
 class ProfileViewModel(
     private val getProfile: GetProfileUseCase,
     private val saveProfile: SaveProfileUseCase,
+    private val setAvailability: SetAvailabilityUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
 
@@ -90,7 +113,7 @@ class ProfileViewModel(
 
         state.value = content.copy(status = SaveStatus.Saving)
         viewModelScope.launch {
-            val draft = content.form.toDraft(isPatient = content.header.role == UserRole.PATIENT)
+            val draft = content.form.toDraft(content.header.role)
             state.value =
                 when (val result = saveProfile(draft)) {
                     is ProfileResult.Success -> result.profile.toContent(SaveStatus.Saved)
@@ -98,11 +121,25 @@ class ProfileViewModel(
                 }
         }
     }
+
+    fun onAvailabilityChange(availableNow: Boolean) {
+        val content = state.value as? ProfileUiState.Content ?: return
+        val previous = content.availability ?: return
+
+        state.value = content.copy(availability = AvailabilityState(availableNow = availableNow))
+        viewModelScope.launch {
+            val result = setAvailability(availableNow)
+            if (result is AvailabilityResult.Failure) {
+                val current = state.value as? ProfileUiState.Content ?: return@launch
+                state.value = current.copy(availability = previous.copy(error = result.error))
+            }
+        }
+    }
 }
 
 private fun UserProfile.toContent(status: SaveStatus): ProfileUiState.Content =
     ProfileUiState.Content(
-        header = ProfileHeader(photoUrl = photoUrl, role = role),
+        header = ProfileHeader(userId = userId, photoUrl = photoUrl, role = role),
         form =
             ProfileForm(
                 fullName = fullName,
@@ -110,16 +147,23 @@ private fun UserProfile.toContent(status: SaveStatus): ProfileUiState.Content =
                 birthDate = patient?.birthDate?.value,
                 emergencyContact = patient?.emergencyContact.orEmpty(),
                 medicalNotes = patient?.medicalNotes.orEmpty(),
+                professionalType = professional?.professionalType,
+                specialty = professional?.specialty.orEmpty(),
+                biography = professional?.biography.orEmpty(),
+                yearsOfExperience = professional?.yearsOfExperience?.toString().orEmpty(),
+                baseRateBob = professional?.baseRateBob?.toEditableText().orEmpty(),
+                coverageRadiusKm = professional?.coverageRadiusKm?.toEditableText().orEmpty(),
             ),
         status = status,
+        availability = professional?.let { AvailabilityState(availableNow = it.availableNow) },
     )
 
-private fun ProfileForm.toDraft(isPatient: Boolean): ProfileDraft =
+private fun ProfileForm.toDraft(role: UserRole?): ProfileDraft =
     ProfileDraft(
         fullName = fullName,
         phone = phone,
         patient =
-            if (isPatient) {
+            if (role == UserRole.PATIENT) {
                 PatientDraft(
                     birthDate = birthDate,
                     emergencyContact = emergencyContact,
@@ -128,4 +172,21 @@ private fun ProfileForm.toDraft(isPatient: Boolean): ProfileDraft =
             } else {
                 null
             },
+        professional =
+            if (role == UserRole.PROFESSIONAL) {
+                ProfessionalDraft(
+                    professionalType = professionalType,
+                    specialty = specialty,
+                    biography = biography,
+                    yearsOfExperience = yearsOfExperience,
+                    baseRateBob = baseRateBob,
+                    coverageRadiusKm = coverageRadiusKm,
+                )
+            } else {
+                null
+            },
     )
+
+// 5.00 is what the column stores and "5" is what the person typed. Showing the
+// stored scale back would make every visit to the screen look like an edit.
+private fun BigDecimal.toEditableText(): String = stripTrailingZeros().toPlainString()

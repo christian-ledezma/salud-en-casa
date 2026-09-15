@@ -16,3 +16,8 @@ data object ProfileRoute
 
 @Serializable
 data object AccountRoute
+
+@Serializable
+data class PublicProfileRoute(
+    val professionalId: String,
+)

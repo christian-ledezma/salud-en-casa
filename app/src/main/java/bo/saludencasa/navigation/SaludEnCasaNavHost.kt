@@ -6,10 +6,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
 import bo.saludencasa.features.profile.presentation.ProfileScreen
+import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 
 @Composable
@@ -48,7 +50,13 @@ fun SaludEnCasaNavHost(
         }
 
         composable<ProfileRoute> {
-            ProfileScreen()
+            ProfileScreen(
+                onOpenPublicProfile = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
+            )
+        }
+
+        composable<PublicProfileRoute> { entry ->
+            PublicProfileScreen(professionalId = entry.toRoute<PublicProfileRoute>().professionalId)
         }
     }
 }

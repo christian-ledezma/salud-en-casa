@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
+import bo.saludencasa.features.profile.domain.model.ProfessionalType
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.ui.components.FormField
@@ -49,6 +50,7 @@ import java.time.format.FormatStyle
 
 @Composable
 fun ProfileScreen(
+    onOpenPublicProfile: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
@@ -59,6 +61,8 @@ fun ProfileScreen(
         onFormChange = viewModel::onFormChange,
         onSaveClick = viewModel::save,
         onRetryClick = viewModel::load,
+        onAvailabilityChange = viewModel::onAvailabilityChange,
+        onOpenPublicProfile = onOpenPublicProfile,
         modifier = modifier,
     )
 }
@@ -69,6 +73,8 @@ private fun ProfileContent(
     onFormChange: (ProfileForm) -> Unit,
     onSaveClick: () -> Unit,
     onRetryClick: () -> Unit,
+    onAvailabilityChange: (Boolean) -> Unit,
+    onOpenPublicProfile: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -109,6 +115,8 @@ private fun ProfileContent(
                 content = uiState,
                 onFormChange = onFormChange,
                 onSaveClick = onSaveClick,
+                onAvailabilityChange = onAvailabilityChange,
+                onOpenPublicProfile = { onOpenPublicProfile(uiState.header.userId) },
                 modifier = modifier,
             )
         }
@@ -120,6 +128,8 @@ private fun EditableProfile(
     content: ProfileUiState.Content,
     onFormChange: (ProfileForm) -> Unit,
     onSaveClick: () -> Unit,
+    onAvailabilityChange: (Boolean) -> Unit,
+    onOpenPublicProfile: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val form = content.form
@@ -186,6 +196,17 @@ private fun EditableProfile(
                 value = form.medicalNotes,
                 onValueChange = { onFormChange(form.copy(medicalNotes = it)) },
                 singleLine = false,
+            )
+        }
+
+        content.availability?.let { availability ->
+            ProfessionalProfileSection(
+                form = form,
+                availability = availability,
+                fieldError = fieldError,
+                onFormChange = onFormChange,
+                onAvailabilityChange = onAvailabilityChange,
+                onOpenPublicProfile = onOpenPublicProfile,
             )
         }
 
@@ -319,37 +340,66 @@ private fun UserRole.labelRes(): Int =
         UserRole.ADMIN -> R.string.profile_role_admin
     }
 
-private fun ProfileError.isAboutAField(): Boolean =
-    this == ProfileError.InvalidName ||
-        this == ProfileError.InvalidPhone ||
-        this == ProfileError.InvalidBirthDate
+private fun previewForm(
+    professionalType: ProfessionalType? = null,
+    baseRateBob: String = "",
+    coverageRadiusKm: String = "",
+    yearsOfExperience: String = "",
+): ProfileForm =
+    ProfileForm(
+        fullName = "Ana Quispe",
+        phone = "+59171234567",
+        birthDate = LocalDate.of(1990, 5, 14),
+        emergencyContact = "Luis Quispe, 71234568",
+        medicalNotes = "Hipertensión controlada.",
+        professionalType = professionalType,
+        specialty = "Enfermería geriátrica",
+        biography = "Diez años atendiendo a domicilio en La Paz.",
+        yearsOfExperience = yearsOfExperience,
+        baseRateBob = baseRateBob,
+        coverageRadiusKm = coverageRadiusKm,
+    )
 
-@Composable
-private fun ProfileError?.messageFor(field: ProfileError): String? =
-    if (this == field) stringResource(messageRes()) else null
+private fun previewPatient(status: SaveStatus = SaveStatus.Idle): ProfileUiState.Content =
+    ProfileUiState.Content(
+        header =
+            ProfileHeader(
+                userId = "08ddb28f-0000-4000-8000-000000000000",
+                photoUrl = null,
+                role = UserRole.PATIENT,
+            ),
+        form = previewForm(),
+        status = status,
+        availability = null,
+    )
 
-private fun previewContent(
-    role: UserRole = UserRole.PATIENT,
+private fun previewProfessional(
     status: SaveStatus = SaveStatus.Idle,
+    availability: AvailabilityState = AvailabilityState(availableNow = true),
 ): ProfileUiState.Content =
     ProfileUiState.Content(
-        header = ProfileHeader(photoUrl = null, role = role),
+        header =
+            ProfileHeader(
+                userId = "fcab94c0-0000-4000-8000-000000000000",
+                photoUrl = null,
+                role = UserRole.PROFESSIONAL,
+            ),
         form =
-            ProfileForm(
-                fullName = "Ana Quispe",
-                phone = "+59171234567",
-                birthDate = LocalDate.of(1990, 5, 14),
-                emergencyContact = "Luis Quispe, 71234568",
-                medicalNotes = "Hipertensión controlada.",
+            previewForm(
+                professionalType = ProfessionalType.NURSE,
+                baseRateBob = "120",
+                coverageRadiusKm = "8",
+                yearsOfExperience = "10",
             ),
         status = status,
+        availability = availability,
     )
 
 @Preview(showBackground = true, name = "Perfil de paciente, claro")
 @Composable
 private fun ProfilePatientLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewContent(), {}, {}, {})
+        ProfileContent(previewPatient(), {}, {}, {}, {}, {})
     }
 }
 
@@ -357,15 +407,38 @@ private fun ProfilePatientLightPreview() {
 @Composable
 private fun ProfilePatientDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(previewContent(), {}, {}, {})
+        ProfileContent(previewPatient(), {}, {}, {}, {}, {})
     }
 }
 
-@Preview(showBackground = true, name = "Perfil de profesional")
+@Preview(showBackground = true, heightDp = 1400, name = "Perfil de profesional, claro")
 @Composable
-private fun ProfileProfessionalPreview() {
+private fun ProfileProfessionalLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewContent(role = UserRole.PROFESSIONAL), {}, {}, {})
+        ProfileContent(previewProfessional(), {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, heightDp = 1400, name = "Perfil de profesional, oscuro")
+@Composable
+private fun ProfileProfessionalDarkPreview() {
+    SaludEnCasaTheme(darkTheme = true) {
+        ProfileContent(previewProfessional(), {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, heightDp = 1400, name = "Perfil de profesional con tarifa invalida")
+@Composable
+private fun ProfileInvalidRatePreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        ProfileContent(
+            previewProfessional(status = SaveStatus.Failed(ProfileError.InvalidBaseRate)),
+            {},
+            {},
+            {},
+            {},
+            {},
+        )
     }
 }
 
@@ -373,7 +446,7 @@ private fun ProfileProfessionalPreview() {
 @Composable
 private fun ProfileInvalidPhonePreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewContent(status = SaveStatus.Failed(ProfileError.InvalidPhone)), {}, {}, {})
+        ProfileContent(previewPatient(status = SaveStatus.Failed(ProfileError.InvalidPhone)), {}, {}, {}, {}, {})
     }
 }
 
@@ -381,7 +454,7 @@ private fun ProfileInvalidPhonePreview() {
 @Composable
 private fun ProfileLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(ProfileUiState.Loading, {}, {}, {})
+        ProfileContent(ProfileUiState.Loading, {}, {}, {}, {}, {})
     }
 }
 
@@ -389,6 +462,6 @@ private fun ProfileLoadingPreview() {
 @Composable
 private fun ProfileFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(ProfileUiState.Failed(ProfileError.NetworkUnavailable), {}, {}, {})
+        ProfileContent(ProfileUiState.Failed(ProfileError.NetworkUnavailable), {}, {}, {}, {}, {})
     }
 }

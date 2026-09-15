@@ -5,9 +5,12 @@ import bo.saludencasa.features.profile.data.repository.ProfileRepository
 import bo.saludencasa.features.profile.domain.repository.IProfileRepository
 import bo.saludencasa.features.profile.domain.usecase.ChooseRoleUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetProfileUseCase
+import bo.saludencasa.features.profile.domain.usecase.GetPublicProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetRoleUseCase
 import bo.saludencasa.features.profile.domain.usecase.SaveProfileUseCase
+import bo.saludencasa.features.profile.domain.usecase.SetAvailabilityUseCase
 import bo.saludencasa.features.profile.presentation.ProfileViewModel
+import bo.saludencasa.features.profile.presentation.PublicProfileViewModel
 import bo.saludencasa.features.profile.presentation.RoleSelectionViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -22,7 +25,10 @@ val profileModule =
         factory { ChooseRoleUseCase(get()) }
         factory { GetProfileUseCase(get()) }
         factory { SaveProfileUseCase(get()) }
+        factory { SetAvailabilityUseCase(get()) }
+        factory { GetPublicProfileUseCase(get()) }
 
         viewModel { RoleSelectionViewModel(get()) }
-        viewModel { ProfileViewModel(get(), get()) }
+        viewModel { ProfileViewModel(get(), get(), get()) }
+        viewModel { (professionalId: String) -> PublicProfileViewModel(professionalId, get()) }
     }

@@ -30,6 +30,42 @@
     <string name="profile_save">Guardar cambios</string>
     <string name="profile_saved">Cambios guardados.</string>
 
+    <string name="profile_professional_type_label">Tipo de profesional</string>
+    <string name="profile_professional_type_doctor">Médico</string>
+    <string name="profile_professional_type_nurse">Enfermera o enfermero</string>
+    <string name="profile_professional_type_physiotherapist">Fisioterapeuta</string>
+    <string name="profile_professional_type_student">Estudiante del área de salud</string>
+    <string name="profile_specialty_label">Especialidad</string>
+    <string name="profile_biography_label">Biografía</string>
+    <string name="profile_years_of_experience_label">Años de experiencia</string>
+    <string name="profile_base_rate_label">Tarifa base por visita, en bolivianos</string>
+    <string name="profile_coverage_radius_label">Radio de cobertura, en kilómetros</string>
+    <string name="profile_available_now_label">Disponible para atención inmediata</string>
+    <string name="profile_available_now_description">Actívalo cuando puedas salir a atender ahora mismo.</string>
+    <string name="profile_open_public_profile">Ver mi perfil público</string>
+
+    <string name="public_profile_title">Perfil público</string>
+    <string name="public_profile_not_published_title">Este perfil todavía no está publicado</string>
+    <string name="public_profile_not_published_description">Un profesional aparece ante los pacientes cuando su verificación está aprobada y su cuenta está activa.</string>
+    <string name="public_profile_base_rate">Tarifa base %1$s</string>
+    <string name="public_profile_base_rate_unset">Todavía sin tarifa base declarada</string>
+    <string name="public_profile_available_now">Disponible para atención inmediata</string>
+    <string name="public_profile_not_available_now">No disponible para atención inmediata en este momento</string>
+    <string name="public_profile_no_reviews">Todavía sin calificaciones</string>
+
+    <plurals name="public_profile_years_of_experience">
+        <item quantity="one">%d año de experiencia</item>
+        <item quantity="other">%d años de experiencia</item>
+    </plurals>
+    <plurals name="public_profile_total_reviews">
+        <item quantity="one">%d calificación</item>
+        <item quantity="other">%d calificaciones</item>
+    </plurals>
+    <plurals name="public_profile_total_services">
+        <item quantity="one">%d atención realizada</item>
+        <item quantity="other">%d atenciones realizadas</item>
+    </plurals>
+
     <string name="profile_role_selection_title">¿Cómo vas a usar Salud en Casa?</string>
     <string name="profile_role_selection_subtitle">Elige una opción para continuar. Define lo que ves en la aplicación y se responde una sola vez.</string>
     <string name="profile_role_selection_confirm">Continuar</string>
@@ -52,9 +88,13 @@
     <string name="error_profile_invalid_name">Escribe tu nombre completo, entre 2 y 80 letras y sin números.</string>
     <string name="error_profile_invalid_phone">Escribe un número de Bolivia de ocho dígitos, por ejemplo 71234567.</string>
     <string name="error_profile_invalid_birth_date">Elige una fecha de nacimiento anterior a hoy.</string>
+    <string name="error_profile_invalid_base_rate">Escribe una tarifa mayor a cero, con hasta dos decimales.</string>
+    <string name="error_profile_invalid_coverage_radius">Escribe un radio entre 1 y 50 kilómetros.</string>
+    <string name="error_profile_invalid_years_of_experience">Escribe los años de experiencia, entre 0 y 70.</string>
 
     <string name="cd_loading">Cargando</string>
     <string name="cd_profile_photo">Tu fotografía de perfil</string>
+    <string name="cd_professional_photo">Fotografía del profesional</string>
 
     <string name="debug_force_crash">Provocar un fallo de prueba</string>
 </resources>

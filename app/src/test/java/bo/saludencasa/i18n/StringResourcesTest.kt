@@ -3,15 +3,14 @@ package bo.saludencasa.i18n
 import bo.saludencasa.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class StringResourcesTest {
     @Test
     fun everyStringKeyUsedInCodeExistsInAllLocales() {
-        val usedKeys =
-            ProjectSources
-                .mainKotlinFiles()
-                .flatMap { stringResourceUsage.findAll(it.readText()).map { match -> match.groupValues[1] } }
-                .toSet()
+        val sources = ProjectSources.mainKotlinFiles().map(File::readText)
+        val usedKeys = sources.flatMap { keysIn(it, stringResourceUsage) }.toSet()
+        val usedPluralKeys = sources.flatMap { keysIn(it, pluralResourceUsage) }.toSet()
 
         val localeFiles = ProjectSources.localeStringsXmlFiles()
         assertTrue("No strings.xml locale files were found under app/src/main/res.", localeFiles.isNotEmpty())
@@ -19,8 +18,10 @@ class StringResourcesTest {
         val missingByLocale =
             localeFiles
                 .associate { file ->
-                    val declaredKeys = declaredStringKey.findAll(file.readText()).map { it.groupValues[1] }.toSet()
-                    file.path to (usedKeys - declaredKeys)
+                    val declared = file.readText()
+                    val missing = usedKeys - keysIn(declared, declaredStringKey).toSet()
+                    val missingPlurals = usedPluralKeys - keysIn(declared, declaredPluralKey).toSet()
+                    file.path to (missing + missingPlurals)
                 }.filterValues { it.isNotEmpty() }
 
         assertTrue(
@@ -49,7 +50,14 @@ class StringResourcesTest {
 }
 
 private val stringResourceUsage = Regex("""R\.string\.([A-Za-z0-9_]+)""")
+private val pluralResourceUsage = Regex("""R\.plurals\.([A-Za-z0-9_]+)""")
 private val declaredStringKey = Regex("""<string\s+name="([A-Za-z0-9_]+)"""")
+private val declaredPluralKey = Regex("""<plurals\s+name="([A-Za-z0-9_]+)"""")
+
+private fun keysIn(
+    text: String,
+    pattern: Regex,
+): List<String> = pattern.findAll(text).map { it.groupValues[1] }.toList()
 
 // Preview composables render only in tooling, never in the running app, so
 // their sample literals are not user-visible text and are excluded before

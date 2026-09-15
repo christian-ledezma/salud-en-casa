@@ -1,17 +1,26 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package bo.saludencasa.features.profile.presentation
 
 import app.cash.turbine.test
 import bo.saludencasa.MainDispatcherRule
 import bo.saludencasa.features.profile.FakeProfileRepository
+import bo.saludencasa.features.profile.domain.model.AvailabilityResult
 import bo.saludencasa.features.profile.domain.model.PatientDetails
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.ProfileResult
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.domain.usecase.GetProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.SaveProfileUseCase
+import bo.saludencasa.features.profile.domain.usecase.SetAvailabilityUseCase
+import bo.saludencasa.features.profile.professionalDetails
+import bo.saludencasa.features.profile.professionalProfile
 import bo.saludencasa.features.profile.userProfile
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 
@@ -141,14 +150,150 @@ class ProfileViewModelTest {
                 awaitItem()
             }
 
-            assertEquals(null, repository.lastUpdate?.patient)
+            assertNull(repository.lastUpdate?.patient)
+        }
+
+    // A patient has no professionals row, so the screen must not hand the use
+    // case a professional section built out of the empty half of the form.
+    @Test
+    fun `a patient saves no professional data`() =
+        runTest {
+            val repository = FakeProfileRepository()
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.save()
+                awaitItem()
+                awaitItem()
+            }
+
+            assertNull(repository.lastUpdate?.professional)
+        }
+
+    // numeric(10, 2) stores 120.00 for a rate typed as 120. Showing the stored
+    // scale back would make every visit to the screen look like a pending edit,
+    // and the radius would read 8.00 for a number nobody wrote that way.
+    @Test
+    fun `a stored rate is shown without the scale the column added`() =
+        runTest {
+            val viewModel =
+                viewModel(FakeProfileRepository(profileResult = ProfileResult.Success(professionalProfile())))
+
+            viewModel.uiState.test {
+                awaitItem()
+                val content = awaitItem() as ProfileUiState.Content
+
+                assertEquals("120", content.form.baseRateBob)
+                assertEquals("8", content.form.coverageRadiusKm)
+            }
+        }
+
+    // The criterion says the switch reflects the change at once. Waiting for the
+    // server would leave the switch sitting on the old value while the request
+    // travels, which reads as a switch that does not work.
+    @Test
+    fun `the availability switch shows the new state before the server answers`() =
+        runTest {
+            val repository = FakeProfileRepository(profileResult = ProfileResult.Success(professionalProfile()))
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                assertEquals(false, (awaitItem() as ProfileUiState.Content).availability?.availableNow)
+
+                viewModel.onAvailabilityChange(true)
+
+                assertEquals(true, (awaitItem() as ProfileUiState.Content).availability?.availableNow)
+            }
+            advanceUntilIdle()
+
+            assertEquals(1, repository.availabilityWrites)
+            assertEquals(true, repository.lastAvailability)
+        }
+
+    // The other half of showing it at once: if the write fails, the switch has
+    // to go back. A switch left on while the server holds the opposite value
+    // would tell the professional they are taking work when they are not.
+    @Test
+    fun `a failed availability write puts the switch back and says why`() =
+        runTest {
+            val repository =
+                FakeProfileRepository(
+                    profileResult = ProfileResult.Success(professionalProfile()),
+                    availabilityResult = AvailabilityResult.Failure(ProfileError.NetworkUnavailable),
+                )
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onAvailabilityChange(true)
+                assertEquals(true, (awaitItem() as ProfileUiState.Content).availability?.availableNow)
+
+                val reverted = (awaitItem() as ProfileUiState.Content).availability
+                assertEquals(false, reverted?.availableNow)
+                assertEquals(ProfileError.NetworkUnavailable, reverted?.error)
+            }
+        }
+
+    // The switch writes on its own while the form is still being edited, so it
+    // must not take the typed text with it.
+    @Test
+    fun `toggling availability keeps what the person was typing`() =
+        runTest {
+            val repository = FakeProfileRepository(profileResult = ProfileResult.Success(professionalProfile()))
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                val content = awaitItem() as ProfileUiState.Content
+
+                viewModel.onFormChange(content.form.copy(baseRateBob = "150"))
+                awaitItem()
+
+                viewModel.onAvailabilityChange(true)
+
+                assertEquals("150", (awaitItem() as ProfileUiState.Content).form.baseRateBob)
+            }
+        }
+
+    // A patient has no professionals row, so there is no switch to draw.
+    @Test
+    fun `a patient has no availability switch at all`() =
+        runTest {
+            val viewModel = viewModel(FakeProfileRepository())
+
+            viewModel.uiState.test {
+                awaitItem()
+                assertNull((awaitItem() as ProfileUiState.Content).availability)
+            }
+        }
+
+    // A professional who has not filled the form yet still opens the screen. The
+    // empty rate has to stay empty rather than become a zero the column refuses.
+    @Test
+    fun `a professional with nothing declared yet opens on an empty rate`() =
+        runTest {
+            val profile = professionalProfile(professionalDetails(baseRateBob = null, professionalType = null))
+            val viewModel = viewModel(FakeProfileRepository(profileResult = ProfileResult.Success(profile)))
+
+            viewModel.uiState.test {
+                awaitItem()
+                val content = awaitItem() as ProfileUiState.Content
+
+                assertEquals("", content.form.baseRateBob)
+                assertNull(content.form.professionalType)
+            }
         }
 }
-
-private fun professionalProfile() = userProfile(role = UserRole.PROFESSIONAL, patient = null)
 
 private fun viewModel(repository: FakeProfileRepository): ProfileViewModel =
     ProfileViewModel(
         getProfile = GetProfileUseCase(repository),
         saveProfile = SaveProfileUseCase(repository),
+        setAvailability = SetAvailabilityUseCase(repository),
     )
