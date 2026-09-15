@@ -46,6 +46,10 @@ android {
         // The client identifier handed to Credential Manager is the Web one,
         // not the Android one. Registered in docs/decisions.md.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${secret("GOOGLE_WEB_CLIENT_ID")}\"")
+        // The Maps SDK reads its key from the manifest and not from BuildConfig,
+        // so this one secret travels as a placeholder. Registered in
+        // docs/decisions.md, 2026-09-14.
+        manifestPlaceholders["MAPS_API_KEY"] = secret("MAPS_API_KEY")
     }
 
     buildTypes {
@@ -89,6 +93,7 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.bundles.auth)
+    implementation(libs.bundles.maps)
 
     implementation(libs.coil.compose)
     implementation(libs.coil.network.ktor3)
