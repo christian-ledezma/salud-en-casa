@@ -294,6 +294,76 @@ class AddressViewModelTest {
             }
         }
 
+    // Found reviewing pull request #4: only the form ignored changes while a save
+    // was in flight. A tap on the map moved the marker, and the row that came
+    // back from the server put it where it had been, throwing away the point the
+    // person had just chosen and explaining nothing.
+    @Test
+    fun `a save in flight ignores a tap on the map`() =
+        runTest {
+            val geocoder = FakeGeocodingRepository()
+            val repository =
+                FakeAddressRepository(saveResult = SaveAddressResult.Success(address()))
+            val viewModel = viewModel(addresses = repository, geocoder = geocoder)
+
+            viewModel.uiState.test {
+                awaitItem()
+                val content = awaitItem() as AddressUiState.Content
+
+                viewModel.onFormChange(
+                    content.form.copy(alias = "Casa", addressText = "Avenida Arce 2081", city = "La Paz"),
+                )
+                awaitItem()
+                viewModel.onPointPicked(-16.4957, -68.1335)
+                awaitItem()
+                awaitItem()
+
+                viewModel.save()
+                assertEquals(SaveStatus.Saving, (awaitItem() as AddressUiState.Content).status)
+
+                viewModel.onPointPicked(-17.7833, -63.1821)
+
+                assertEquals(SaveStatus.Saved, (awaitItem() as AddressUiState.Content).status)
+            }
+
+            assertEquals(1, geocoder.describeCalls)
+        }
+
+    // The same reason, through the other door: a search that succeeds also moves
+    // the marker.
+    @Test
+    fun `a save in flight ignores a search`() =
+        runTest {
+            val geocoder = FakeGeocodingRepository()
+            val repository =
+                FakeAddressRepository(saveResult = SaveAddressResult.Success(address()))
+            val viewModel = viewModel(addresses = repository, geocoder = geocoder)
+
+            viewModel.uiState.test {
+                awaitItem()
+                val content = awaitItem() as AddressUiState.Content
+
+                viewModel.onFormChange(
+                    content.form.copy(alias = "Casa", addressText = "Avenida Arce 2081", city = "La Paz"),
+                )
+                awaitItem()
+                viewModel.onPointPicked(-16.4957, -68.1335)
+                awaitItem()
+                awaitItem()
+                viewModel.onQueryChange("Plaza Murillo")
+                awaitItem()
+
+                viewModel.save()
+                assertEquals(SaveStatus.Saving, (awaitItem() as AddressUiState.Content).status)
+
+                viewModel.onSearch()
+
+                assertEquals(SaveStatus.Saved, (awaitItem() as AddressUiState.Content).status)
+            }
+
+            assertEquals(0, geocoder.findCalls)
+        }
+
     // Losing what was typed while showing the error would cost the person the
     // whole form to correct one field.
     @Test

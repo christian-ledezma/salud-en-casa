@@ -172,6 +172,11 @@ class AddressViewModel(
         longitude: Double,
     ) {
         val content = currentContent() ?: return
+        // El guardado ya se llevó el punto que había cuando empezó. Mover el
+        // marcador mientras la petición viaja haría que la fila que vuelve del
+        // servidor lo devolviera a su sitio sin explicación, descartando lo que
+        // la persona acaba de elegir (revisión del pull request #4).
+        if (content.status is SaveStatus.Saving) return
         val coordinate = Coordinate.create(latitude, longitude).getOrNull() ?: return
 
         state.value =
@@ -184,6 +189,9 @@ class AddressViewModel(
     fun onSearch() {
         val content = currentContent() ?: return
         if (content.query.isBlank() || content.isSearching) return
+        // Por la misma razón que el toque en el mapa: una búsqueda que acierta
+        // mueve el marcador, y el guardado en curso lo desharía.
+        if (content.status is SaveStatus.Saving) return
 
         state.value = content.copy(isSearching = true, notice = null)
         viewModelScope.launch {
@@ -290,7 +298,10 @@ private fun AddressUiState.Content.withPlace(place: Place): AddressUiState.Conte
                 city = place.city.ifBlank { form.city },
             ),
         notice = if (place.addressText.isBlank()) AddressNotice.PointNotNamed else null,
-        status = SaveStatus.Idle,
+        // Limpiar el estado es para retirar el error de un guardado anterior,
+        // no para tapar uno en curso: una descripción que llega tarde apagaría
+        // el indicador de guardando mientras la petición sigue viajando.
+        status = if (status is SaveStatus.Saving) status else SaveStatus.Idle,
     )
 
 private fun Address.toContent(
