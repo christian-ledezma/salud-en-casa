@@ -2011,6 +2011,195 @@ reales.
 
 ---
 
+## 2026-09-15 · HU-06: marcar como principal vuelve a leer la lista, y el cuarto criterio no agrega código
+
+**Contexto.** HU-06 extiende la característica de direcciones de HU-05 —hasta
+entonces limitada a una sola, siempre la principal— para listar varias,
+marcar cualquiera como principal y eliminarlas. Dos preguntas de diseño no
+tenían una respuesta evidente, y una tercera resultó no ser una pregunta de
+diseño en absoluto.
+
+**Decisión 1. Marcar una dirección como principal se implementa como un
+`PATCH` de un solo campo (`PrimaryAddressRow`, solo `is_primary`), y el
+resultado que ve la pantalla se obtiene volviendo a pedir la lista completa,
+no calculando en el cliente cuál otra fila dejó de ser principal.**
+
+**Razonamiento.** Quién deja de ser principal ya lo decide
+`addresses_unmark_previous_primary`, el disparador que existe desde HT-04.
+Repetir esa regla en Kotlin —"busca la fila que hoy es principal y ponle
+`false`"— crearía una segunda fuente de verdad que puede desincronizarse de
+la primera, y es exactamente el tipo de optimismo que ya causó una carrera en
+HU-05 con la primera dirección. Releer la lista tras un `PATCH` exitoso es
+más lento en un salto de red, pero el mismo principio ya rige
+`AddressRepository.saveAddress`, que redibuja desde la fila que devolvió el
+servidor y no desde el texto que se escribió: es la forma establecida de este
+proyecto de tratar al servidor como la verdad.
+
+**Consecuencia.** `AddressListViewModel.onSetPrimaryClick` no tiene ninguna
+lógica de reordenamiento; su única responsabilidad tras un éxito es llamar a
+`load()` de nuevo. Cualquier característica futura que también dependa de
+qué dirección es la principal debe seguir el mismo patrón: pedir el dato, no
+inferirlo de una respuesta parcial.
+
+**Decisión 2. Eliminar una dirección exige un paso de confirmación explícito
+en el modelo de vista (`confirmingDeleteId`), separado del identificador que
+efectivamente se está borrando (`pendingId`).**
+
+**Razonamiento.** El criterio de aceptación dice «cuando confirmo, entonces
+desaparece», lo que implica que existe un paso previo que no borra nada. Sin
+un estado propio para «esperando confirmación», la única forma de exigirlo
+sería un diálogo controlado enteramente por la capa de presentación sin que
+el modelo de vista supiera de él, lo que habría dejado sin probar con JUnit
+la regla de negocio más importante del criterio: que un toque en «Eliminar»
+por sí solo nunca llega al repositorio.
+
+**Decisión 3. El cuarto criterio —«un profesional sin dirección principal no
+aparece en búsquedas»— no se implementa: ya lo garantiza el esquema desde que
+HT-04 se aplicó, y esta historia no le agrega código.**
+
+**Razonamiento.** `search_nearby_professionals` une `professionals` con
+`addresses` mediante `join ... on a.profile_id = pro.id and a.is_primary`. Al
+ser una unión interna, un profesional sin ninguna fila con `is_primary =
+true` no genera fila de resultado, sin que haga falta ningún `where` que lo
+excluya a propósito. RN-02 —«la búsqueda considera únicamente la dirección
+principal»— ya estaba resuelta por el mismo motivo. El único trabajo real de
+esta historia sobre este criterio fue confirmarlo leyendo la función en
+`20260911120600_functions.sql`, no escribir nada nuevo.
+
+**Consecuencia.** Nadie debe reabrir este criterio al construir HU-11 (la
+búsqueda por cercanía, Sprint 4) esperando encontrar una condición de
+visibilidad pendiente: la condición ya está en la función que HU-11 va a
+consumir. Si HU-11 alguna vez necesita relajar esta regla —por ejemplo, para
+degradarse a la ciudad declarada cuando no hay dirección principal—, es un
+cambio de `search_nearby_professionals`, no de `addresses`.
+
+**Nota sobre la verificación de este criterio.** No se comprobó con un
+experimento nuevo contra la base remota, como sí hicieron HU-04 y HU-05 para
+invariantes de esta clase: las consultas de solo lectura contra el proyecto
+quedaron bloqueadas por el clasificador de modo automático de la sesión que
+implementó esta historia, a mitad de una comprobación de la fila de un
+profesional (motivo indicado por la herramienta: «Production Reads»). La
+verificación queda como procedimiento para el autor en `plan.md`, historia
+HU-06, «Verificación pendiente del autor».
+
+---
+
+## 2026-09-16 · Marcar como principal no escribía nada
+
+**Contexto.** El autor probó HU-06 apenas se entregó y reportó que «marcar
+como principal» no funcionaba, ni desde la aplicación ni comprobándolo por
+SQL, y pidió reproducir el error hasta la raíz antes de corregirlo.
+
+**Decisión.** `SupabaseAddressDataSource.setPrimary` deja de mandar un objeto
+`@Serializable` (`PrimaryAddressRow`, ya eliminado) y construye el cuerpo del
+`PATCH` con el operador `update({ set("is_primary", true) })` del SDK, igual
+que `SupabaseProfileDataSource.setAvailableNow` desde HU-04.
+
+**Razonamiento.** La reproducción, hecha con `npx supabase db query --linked`
+dentro de transacciones con `rollback` sobre las direcciones de prueba que el
+autor ya había creado, descartó primero la base: los tres disparadores de
+`addresses` estaban bien definidos y en el orden correcto, y un
+`update ... set is_primary = true` directo funcionaba tanto con privilegios
+completos como simulando al usuario autenticado con `set local role
+authenticated` y `set local request.jwt.claims`. El problema estaba en el
+cliente. `install(Postgrest)`, en `CoreModule`, no recibe el
+`Json { encodeDefaults = true }` que ese mismo archivo construye para
+`DataStoreSessionManager` — no hay ninguna línea que lo conecte—, así que cae
+al serializador propio de supabase-kt
+(`KotlinXSerializer(Json { ignoreUnknownKeys = true })`), con
+`encodeDefaults` en `false`, el valor de la biblioteca. `PrimaryAddressRow`
+declaraba `isPrimary: Boolean = true`; como el valor codificado coincidía con
+el valor por omisión declarado, kotlinx.serialization lo omitía del cuerpo.
+El `PATCH` viajaba como `{}`: ninguna columna cambiaba, y
+`addresses_unmark_previous_primary` —que solo se dispara en
+`update of is_primary`— nunca se evaluaba. Se confirmó con una prueba JVM
+desechable antes de tocar el código: codificar `PrimaryAddressRow(isPrimary =
+true)` con el `Json` real de producción daba `{}`. La prueba se retiró junto
+con la clase, una vez aplicada la corrección.
+
+Se descartó simplemente quitarle el valor por omisión a `isPrimary` — habría
+bastado para arreglar este caso puntual— porque el operador `update({ set(...)
+})` no depende en absoluto de `encodeDefaults`: escribe directo a un mapa de
+`JsonElement`, así que ninguna futura propiedad con un valor por omisión que
+coincida con el valor real puede volver a desaparecer del cuerpo. Es además el
+patrón que ya existía en el proyecto para una actualización parcial de una
+sola columna.
+
+**Consecuencia.** Ninguna otra escritura del proyecto depende hoy de un valor
+por omisión que kotlinx.serialization pueda omitir: `AddressRow.reference` no
+declara uno, y los campos de `SaveProfileParams` viajan como argumentos
+nombrados de `save_my_profile`, cuyo valor por omisión vive en la firma SQL de
+la función, no en la fila. Pero cualquier característica futura que escriba
+una fila parcial desde un objeto serializable —no una llamada a función—
+tiene que evitar declarar un valor por omisión en la propiedad que va a
+cambiar, o preferir directamente `update({ set(...) })`. Vale la pena, en
+algún momento sin apuro, decidir si `install(Postgrest)` debería recibir de
+forma explícita el `Json` de `CoreModule` para que ambos coincidan de raíz;
+no se hizo aquí porque cambiar la configuración global del cliente para
+corregir un solo campo era más alcance del que este defecto pedía.
+
+---
+
+## 2026-09-16 · Guardar una dirección vuelve a la lista
+
+**Contexto.** El autor pidió que, tras guardar una dirección, la aplicación
+fuera directamente a «Mis direcciones» en vez de quedarse en el formulario
+mostrando «Dirección guardada.».
+
+**Decisión.** `AddressScreen` recibe `onSaved: () -> Unit` y lo dispara con
+`LaunchedEffect(uiState)` en cuanto el estado llega a `SaveStatus.Saved`; el
+grafo de navegación lo conecta con `navController.popBackStack()`.
+
+**Razonamiento.** Es el mismo patrón que `WelcomeScreen.onSignedIn` y
+`RoleSelectionScreen.onRoleAssigned` ya usan para navegar tras un resultado
+asíncrono, así que no hacía falta inventar uno nuevo. `popBackStack()` y no
+`navigate(AddressListRoute)`: `AddressRoute` solo se alcanza hoy desde
+`AddressListRoute`, que ya está debajo en la pila, y navegar hacia adelante
+apilaría una segunda copia de la lista en vez de volver a la que ya estaba
+abierta.
+
+**Consecuencia.** Si alguna vez `AddressRoute` se vuelve alcanzable desde otra
+pantalla que no sea la lista, esta decisión habría que revisarla.
+
+> **Corregida el mismo día.** La primera versión de esta decisión conectaba
+> `onSaved` con `popBackStack()`. El autor probó guardar una tercera
+> dirección con dos ya registradas y la lista, al volver, seguía mostrando
+> solo las dos anteriores. Ver la entrada siguiente.
+
+---
+
+## 2026-09-16 · La lista de direcciones no se refrescaba al volver de guardar
+
+**Contexto.** Con el ajuste anterior ya aplicado —`onSaved` navegando de
+vuelta a la lista—, el autor probó guardar una tercera dirección teniendo ya
+dos registradas y la lista, al volver, seguía mostrando solo las dos
+anteriores. Pidió que lo mismo se revisara para editar.
+
+**Decisión.** `onSaved` deja de usar `navController.popBackStack()` y pasa a
+`navController.navigate(AddressListRoute) { popUpTo(AddressListRoute) {
+inclusive = true } }`.
+
+**Razonamiento.** `popBackStack()` vuelve a la entrada de `AddressListRoute`
+que ya estaba en la pila desde antes de abrir el formulario, y Navigation
+Compose conserva el `AddressListViewModel` de esa entrada mientras no se
+destruye. Ese modelo de vista carga la lista una sola vez, en su `init`, así
+que volver a él no la actualiza: sigue mostrando la foto de cuando se abrió
+la pantalla, sin la dirección que se acaba de guardar ni el cambio que se
+acaba de editar. Sacar la entrada vieja de la pila con `popUpTo(...) {
+inclusive = true }` y volver a navegar a la misma ruta crea una entrada
+nueva, con un `AddressListViewModel` recién creado que carga la lista
+completa por primera vez —ya con el cambio adentro—, en vez de reutilizar uno
+que nunca se enteró de que algo cambió.
+
+**Consecuencia.** El mismo `onSaved` cubre agregar y editar, así que ambos
+flujos quedan corregidos con un solo cambio. Cualquier pantalla futura de
+este proyecto que vuelva a una lista después de crear o editar uno de sus
+elementos debe recordar este mismo problema: un modelo de vista de Compose
+Navigation no se entera solo de que la pantalla a la que pertenece volvió a
+primer plano.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

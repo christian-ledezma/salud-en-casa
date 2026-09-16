@@ -1889,9 +1889,11 @@ administrador los aprueba o rechaza.
 - [ ] Dado que tengo varias direcciones, cuando abro la lista, entonces las veo
       con su alias y su referencia. **Implementado y probado con JUnit; falta
       la verificación en dispositivo, ver «Deuda reconocida».**
-- [ ] Dado que marco una como principal, cuando marco otra, entonces la anterior
-      deja de serlo automáticamente. **Implementado y probado con JUnit; falta
-      la verificación en dispositivo.**
+- [x] Dado que marco una como principal, cuando marco otra, entonces la anterior
+      deja de serlo automáticamente. **El autor probó esto en su dispositivo,
+      encontró que no funcionaba, se corrigió — ver «Defecto encontrado por el
+      autor probando la historia» — y el autor confirmó que ahora sí cambia la
+      dirección principal.**
 - [ ] Dado que elimino una dirección, cuando confirmo, entonces desaparece de la
       lista. **Implementado y probado con JUnit; falta la verificación en
       dispositivo.**
@@ -1917,7 +1919,6 @@ salda.
 |---|---|
 | `domain/model/` | `AddressListResult`, `SetPrimaryAddressResult`, `DeleteAddressResult` |
 | `domain/usecase/` | `GetAddressUseCase` (reemplaza a `GetMyAddressUseCase`), `GetMyAddressesUseCase`, `SetPrimaryAddressUseCase`, `DeleteAddressUseCase` |
-| `data/model/` | `PrimaryAddressRow`, el parche que solo toca `is_primary` |
 | `data/datasource/` | `findAllAddresses()` reemplaza a `findPrimaryAddress()`; `setPrimary()` y `deleteAddress()` nuevos |
 | `data/repository/` | `AddressRepository` implementa los tres métodos nuevos de la interfaz |
 | `presentation/` | `AddressListScreen`, `AddressListViewModel`; `AddressScreen` y `AddressViewModel` reciben un `addressId` opcional |
@@ -1973,6 +1974,88 @@ La suite de `AddressViewModelTest` se actualizó para el nuevo parámetro
 —la pantalla en blanco para registrar una dirección nueva—, y las dos pruebas
 sobre una dirección ya guardada ahora lo pasan de forma explícita.
 
+**Defecto encontrado por el autor probando la historia: marcar como principal
+no escribía nada.** El autor reportó que el botón no funcionaba ni desde la
+aplicación ni comprobándolo por SQL, y pidió reproducirlo y llegar a la raíz
+antes de corregir.
+
+*Reproducción.* Con el CLI de Supabase ya vinculado al proyecto remoto
+(`npx supabase db query --linked`), se leyeron los disparadores reales de
+`addresses` —los tres estaban bien definidos, en el orden correcto— y se
+probó un `update ... set is_primary = true` directo, primero con privilegios
+completos y después simulando al usuario autenticado con
+`set local role authenticated` y `set local request.jwt.claims`, sobre las
+propias direcciones de prueba que el autor ya había creado («trabajo» y
+«casa»). Las dos formas funcionaron: el disparador y la política de seguridad
+estaban correctos. Todas las pruebas se hicieron dentro de transacciones con
+`rollback`, así que las direcciones reales del autor no se tocaron; se
+verificó al terminar que seguían exactamente como estaban.
+
+*Causa.* El problema estaba en el cliente, no en la base. `install(Postgrest)`
+en `CoreModule` no recibe el `Json { encodeDefaults = true }` que ese mismo
+archivo construye para `DataStoreSessionManager`: sin configuración explícita,
+el complemento cae al serializador propio de supabase-kt
+(`KotlinXSerializer(Json { ignoreUnknownKeys = true })`), que deja
+`encodeDefaults` en su valor de la biblioteca, `false`. `PrimaryAddressRow`
+declaraba `isPrimary: Boolean = true`; como el valor coincidía con su valor
+por omisión, kotlinx.serialization lo omitía del cuerpo de la petición. El
+`PATCH` que la aplicación mandaba era `{}`: ninguna columna cambiaba, y el
+disparador `addresses_unmark_previous_primary` —que solo se dispara en
+`update of is_primary`— nunca llegaba a evaluarse.
+
+Se confirmó con una prueba JVM desechable, antes de corregir nada: codificar
+`PrimaryAddressRow(isPrimary = true)` con el mismo `Json` que usa producción
+producía `{}`, no `{"is_primary":true}`. La prueba falló como se esperaba y
+se retiró una vez aplicada la corrección, porque la clase que probaba dejó de
+existir.
+
+*Corrección.* `SupabaseAddressDataSource.setPrimary` dejó de mandar un objeto
+serializable y pasó a construir el cuerpo con el operador `update({ set(...) })`
+del SDK, que escribe directo a un mapa de `JsonElement` y nunca pasa por
+`encodeDefaults`. Es el mismo patrón que `SupabaseProfileDataSource
+.setAvailableNow` ya usaba desde HU-04, verificado entonces contra la base
+remota. `PrimaryAddressRow` se eliminó: sin ese patrón, no hacía falta.
+
+*Consecuencia para el resto del proyecto.* Ninguna otra escritura actual
+depende de un valor por omisión que coincida con el que kotlinx.serialization
+podría omitir —`AddressRow.reference` y los campos de `SaveProfileParams` no
+tienen ese problema porque, o no declaran valor por omisión, o se usan como
+argumentos de una función remota con su propio valor por omisión en SQL, no
+como columnas de una fila—, pero cualquier característica futura que escriba
+una fila parcial desde un objeto serializable debe evitar declarar un valor
+por omisión en la propiedad que va a cambiar, o preferir directamente
+`update({ set(...) })`. Registrado en `docs/decisions.md`, 2026-09-16.
+
+**Segundo ajuste pedido por el autor: guardar una dirección vuelve a la
+lista.** Antes, `AddressScreen` se quedaba en el formulario tras guardar,
+mostrando «Dirección guardada.» El autor pidió que el flujo fuera «se guarda
+la ubicación y se dirige a la pantalla de direcciones». `AddressScreen` ahora
+recibe `onSaved: () -> Unit` y lo dispara con un `LaunchedEffect(uiState)` en
+cuanto el estado llega a `SaveStatus.Saved` —el mismo patrón que
+`WelcomeScreen.onSignedIn` y `RoleSelectionScreen.onRoleAssigned` ya usan para
+navegar tras un resultado asíncrono—.
+
+**Tercer defecto encontrado por el autor probando el ajuste anterior: la lista
+volvía sin la dirección recién guardada.** El primer intento conectó
+`onSaved` con `navController.popBackStack()`. El autor probó guardar una
+tercera dirección con dos ya registradas y, al volver, la lista seguía
+mostrando solo las dos anteriores; señaló que lo mismo debía pasar al editar.
+
+*Causa.* `popBackStack()` vuelve a la **misma** entrada de `AddressListRoute`
+que ya estaba en la pila desde antes de abrir el formulario, y Navigation
+Compose conserva el `AddressListViewModel` de esa entrada mientras no se
+destruye. Ese modelo de vista solo carga la lista una vez, en su `init`; nada
+lo avisa de que hay una dirección nueva que leer, así que sigue mostrando la
+foto de cuando se abrió.
+
+*Corrección.* `onSaved` pasó a `navController.navigate(AddressListRoute) {
+popUpTo(AddressListRoute) { inclusive = true } }`. Esto saca de la pila la
+entrada vieja de `AddressListRoute` —con su modelo de vista y su lista
+obsoleta— y empuja una entrada nueva, cuyo `AddressListViewModel` recién
+creado carga la lista completa por primera vez, ya con la dirección que se
+acaba de guardar. Vale tanto para agregar como para editar, porque las dos
+pasan por el mismo `onSaved`.
+
 **Deuda reconocida.** Ni la verificación manual en un dispositivo real ni el
 experimento contra la base remota que HU-04 y HU-05 usaron para probar
 invariantes de este tipo pudieron correrse en esta sesión: el entorno no tiene
@@ -1993,23 +2076,30 @@ continuación, en «Verificación pendiente del autor».
    ninguna dirección registrada todavía, la pantalla debe mostrar «Todavía no
    registraste ninguna dirección» con un botón «Agregar dirección» — es el
    estado vacío, el primero que ve alguien nuevo).
-3. **Registrar dos direcciones.** Pulsar «Agregar dirección», completar el
-   formulario ya conocido de HU-05 con alias «Casa» y guardar; el sistema
-   vuelve atrás con el botón físico o el gesto de retroceso. Repetir con alias
-   «Trabajo». La lista debe mostrar ambas, con «Casa» marcada «Principal»
-   —la primera dirección se marca sola, como ya hacía HU-05— y ambas con su
+3. **Registrar tres direcciones.** Pulsar «Agregar dirección», completar el
+   formulario ya conocido de HU-05 con alias «Casa» y guardar; la pantalla debe
+   volver sola a «Mis direcciones» apenas se guarda, sin tocar el botón de
+   retroceso. Repetir con alias «Trabajo» y, después, con alias «Consultorio».
+   Cada vez que se guarda, la nueva dirección debe verse en la lista de
+   inmediato —es el defecto de la lista que no se refrescaba, ya corregido—.
+   Al terminar, la lista muestra las tres, con «Casa» marcada «Principal» —la
+   primera dirección se marca sola, como ya hacía HU-05— y las tres con su
    alias y su referencia visibles (**criterio 1**).
-4. **Marcar «Trabajo» como principal.** Pulsar «Marcar como principal» en su
+4. **Editar «Consultorio».** Pulsar «Editar» en su fila, cambiar la referencia
+   y guardar. Igual que al agregar, la pantalla debe volver a la lista con el
+   cambio ya visible, sin salir y volver a entrar para verlo.
+5. **Marcar «Trabajo» como principal.** Pulsar «Marcar como principal» en su
    fila. Al terminar, «Trabajo» debe mostrar la insignia «Principal» y «Casa»
-   debe perderla, sin recargar la pantalla a mano (**criterio 2**).
-5. **Cancelar una eliminación.** Pulsar «Eliminar» en «Casa», y en el diálogo
+   debe perderla, sin recargar la pantalla a mano (**criterio 2**, ya
+   confirmado por el autor el 2026-09-16).
+6. **Cancelar una eliminación.** Pulsar «Eliminar» en «Casa», y en el diálogo
    pulsar «Cancelar». «Casa» debe seguir en la lista.
-6. **Confirmar la eliminación.** Pulsar «Eliminar» en «Casa» otra vez y esta
+7. **Confirmar la eliminación.** Pulsar «Eliminar» en «Casa» otra vez y esta
    vez confirmar. «Casa» debe desaparecer de la lista (**criterio 3**).
-7. **Repetir con la cuenta profesional** los pasos 2 a 6, para confirmar que
+8. **Repetir con la cuenta profesional** los pasos 2 a 7, para confirmar que
    el mismo flujo vale para ambos roles, tal como enuncia la historia
    («Como usuario…»).
-8. **Criterio 4, por consulta directa.** HU-11 —la búsqueda por cercanía en la
+9. **Criterio 4, por consulta directa.** HU-11 —la búsqueda por cercanía en la
    aplicación— todavía no existe, así que este criterio no se puede
    demostrar tocando la pantalla; se demuestra llamando a la función que HU-11
    va a consumir. Abrir el editor SQL del proyecto en
@@ -2042,7 +2132,7 @@ continuación, en «Verificación pendiente del autor».
    código: ya lo garantiza `join public.addresses a on a.profile_id = pro.id
    and a.is_primary`, la unión interna de la función, aplicada desde HT-04.
 
-9. **Marcar los cuatro criterios en `[x]`** una vez confirmados y cambiar el
+10. **Marcar los cuatro criterios en `[x]`** una vez confirmados y cambiar el
    estado de la historia a `[x]`.
 
 ### HU-07 · Cargar mis documentos de verificación `[ ]` — 8 puntos
