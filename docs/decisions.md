@@ -1941,6 +1941,76 @@ disparador ya serializado.
 
 ---
 
+## 2026-09-15 · Rediseño de la pantalla de bienvenida sin cifras reales ni fotografía del kit
+
+**Contexto.** El autor pidió, fuera del flujo normal de una historia de usuario,
+rediseñar `WelcomeScreen` a partir de una referencia visual (`startup.svg`) que
+él mismo aportó, reconociendo de entrada que el pedido «tal vez se sale de las
+normas»: una cabecera con degradado, una insignia de calificación («4.9
+Valoración»), una insignia de disponibilidad («40+ profesionales») con un punto
+verde parpadeante, una fotografía circular de una paciente y una profesional, y
+enlaces a «Términos y condiciones» / «Política de privacidad» que la aplicación
+todavía no tiene. Ninguna historia de `plan.md` pide estas cifras ni esos
+enlaces, así que la Disciplina de alcance de `CLAUDE.md` los habría rechazado
+por defecto; el autor autorizó explícitamente la excepción al elegir, entre las
+opciones planteadas, incluir el diseño completo como contenido de mercadeo.
+
+**Decisión.** Se reconstruyó `WelcomeScreen` siguiendo la referencia, con tres
+salvedades que si se sostienen sin autorización expresa:
+
+1. **La fotografía de la referencia no se usa.** El archivo SVG traía incrustada
+   una fotografía de una paciente y una profesional que resultó ser del mismo
+   tipo que ya prohíbe `docs/design-system.md`, sección «Fotografías de
+   personas»: material de un kit de terceros, de licencia no verificada. Se
+   sustituyó por un círculo decorativo con un corazón de Material Symbols, sin
+   representar a ninguna persona real. El autor pidió después una animación de
+   latido en vez de un icono fijo; el resultado es `PulsingHeartIcon`
+   (`ui/components/`), con un pulso de dos tiempos («lub-dub») en vez de una
+   respiración genérica, que también respeta «Quitar animaciones».
+2. **«4.9 Valoración» y «40+ profesionales» son texto de mercadeo fijo**, en
+   `values-es/strings.xml` y `values/strings.xml`, no una cifra calculada desde
+   `reviews` ni desde `professional_directory`. No se presentan como si
+   estuvieran leyendo la base, y ninguna prueba las trata como tales.
+3. **Los enlaces legales son texto, no controles.** No hay pantalla de
+   términos ni de política de privacidad todavía, así que no reaccionan al
+   toque: `.claude/rules/compose.md` exige que un control diga lo que hace al
+   pulsarlo, y un enlace sin destino incumpliría esa regla si se viera como uno.
+   El día que esa pantalla exista, dejan de ser `Text` y pasan a serlo.
+
+De la referencia también salieron tres componentes nuevos, pensados para
+reutilizarse: `AvailabilityDot` y `PulsingHeartIcon` (`ui/components/`), que
+comparten la comprobación de «Quitar animaciones» del sistema
+(`core/util/MotionPreference.kt`), y el parámetro `leadingIcon` agregado a
+`PrimaryButton` para el logotipo de Google, con valor por omisión nulo para no
+afectar los ocho usos existentes. Ese logotipo se dibuja sobre un círculo blanco
+fijo —nunca `MaterialTheme.colorScheme.surface`— porque la marca de Google se
+diseña para fondo claro sin importar el tema de la aplicación que lo aloja; sin
+el círculo, la «G» se pierde contra el teal del botón. El patrón completo de la
+cabecera queda documentado en `docs/design-system.md`, sección 5, «Cabecera de
+bienvenida con degradado», para las próximas pantallas que el autor mencionó
+que vendrán.
+
+**Razonamiento.** Verificar en el emulador con el tamaño de fuente del sistema
+al 200 % reveló un defecto real, no solo cosmético: la primera versión fijaba la
+altura de la cabecera con un cálculo en `dp` a partir del alto de pantalla, y con
+texto más grande —o con una pantalla angosta, probado con `wm size` en 360 dp de
+ancho— la insignia de calificación crecía lo suficiente para encajarse contra el
+círculo decorativo, dejando asomar solo la punta del icono. La cabecera se
+reescribió para que `Column` mida su propio contenido con espaciado en vez de
+posiciones absolutas calculadas para el tamaño de reposo: crece con el texto en
+lugar de solaparlo. `.claude/rules/compose.md` exige verificar toda pantalla al
+200 %; este hallazgo es la razón concreta de por qué esa regla existe.
+
+**Consecuencia.** El copy de bienvenida cambió (`auth_welcome_title` pasa de
+«Atención de salud en tu casa» a «Salud en Casa», y el subtítulo se reescribió
+para coincidir con la referencia), así que cualquier historia futura que cite
+ese texto literal debe releerlo. Los enlaces legales quedan como deuda visible:
+en cuanto exista una historia de términos y política de privacidad, hay que
+volver a `WelcomeLegalFooter` en `WelcomeScreen.kt` y convertirlos en controles
+reales.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

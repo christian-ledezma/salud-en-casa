@@ -265,7 +265,52 @@ con radio de 12 dp. El error se muestra debajo, en `error`, y explica qué corre
 ### Botón principal
 
 Ancho completo, alto de 56 dp, radio de 16 dp, relleno en `primary` con texto en
-`onPrimary`. Fijo al pie de la pantalla en los flujos de varios pasos.
+`onPrimary`. Fijo al pie de la pantalla en los flujos de varios pasos. Admite un
+icono inicial opcional (`leadingIcon`), como el logotipo de Google en el botón de
+ingreso: sin ese parámetro se comporta exactamente igual que antes.
+
+El logotipo de Google, cuando aparece como `leadingIcon`, va sobre un círculo
+blanco fijo de 24 dp, nunca sobre `MaterialTheme.colorScheme.surface`: la marca
+multicolor de Google está diseñada para fondo claro sin importar el tema de
+quien la aloja, y sin ese círculo se pierde contra el relleno `primary` del
+botón, tanto en claro como en oscuro.
+
+### Cabecera de bienvenida con degradado
+
+Introducida en la pantalla de bienvenida (2026-09-15) y pensada para
+reutilizarse en otras pantallas de entrada al producto. Tres bloques en
+secuencia vertical dentro de la cabecera con degradado de la sección 1:
+
+1. Encabezado: icono de marca en una caja de 36 dp sobre `onPrimary` al 20 % de
+   opacidad, y el nombre de la aplicación en `titleLarge`.
+2. Una o más insignias flotantes (`ExtraShapes.featuredCard`, 24 dp de radio,
+   fondo `surface`) con un icono o punto a la izquierda y dos líneas de texto a
+   la derecha: la cifra en `labelLarge` sobre `onSurface`, la aclaración en
+   `labelSmall` sobre `onSurfaceVariant` o sobre el color de estado que
+   corresponda.
+3. Un círculo decorativo centrado, con un icono de Material Symbols sobre
+   `onPrimary` al 15 % de opacidad —**nunca una fotografía**, por la razón de la
+   sección 7— que sugiere el tema de la pantalla sin representar a nadie en
+   particular. Puede llevar una animación de pulso suave (`PulsingHeartIcon`,
+   `ui/components/`) en vez de quedar estático, para reforzar el tema de salud
+   sin caer en el parpadeo genérico de una carga.
+
+**Nunca se fija la altura de la cabecera con un valor en `dp` calculado a partir
+del alto de pantalla.** La primera versión de esta cabecera lo hacía y, con el
+tamaño de fuente del sistema al 200 % o en una pantalla angosta, el texto de la
+insignia crecía más de lo previsto y terminaba encajado contra el círculo
+decorativo. La cabecera deja que `Column` mida su propio contenido con
+espaciado (`Arrangement.spacedBy`), nunca con posiciones absolutas
+superpuestas calculadas para el tamaño de reposo: así crece con el contenido en
+vez de recortarlo o de solaparlo. Verificado en el emulador a 200 % de fuente y
+en un ancho de 360 dp.
+
+Una insignia puede llevar un punto de disponibilidad parpadeante en vez de un
+icono fijo: es el componente `AvailabilityDot` (`ui/components/`), que se
+apaga (queda fijo en vez de parpadear) cuando el sistema tiene activada la
+opción de accesibilidad «Quitar animaciones». Pensado para la insignia de
+mercadeo de esta pantalla y también para el indicador real de «disponible
+ahora» de un profesional, el día que esa historia lo necesite.
 
 ---
 
