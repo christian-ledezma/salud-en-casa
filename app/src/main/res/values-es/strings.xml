@@ -8,11 +8,22 @@
     <string name="common_nav_requests">Solicitudes</string>
     <string name="common_nav_profile">Perfil</string>
 
-    <string name="auth_welcome_title">Atención de salud en tu casa</string>
-    <string name="auth_welcome_subtitle">Encuentra profesionales verificados cerca de tu domicilio, acuerda la tarifa y coordina la visita.</string>
+    <string name="auth_welcome_title">Salud en Casa</string>
+    <string name="auth_welcome_subtitle">Conectamos pacientes con profesionales de la salud. Encuentra atención a tu puerta u ofrece tus servicios independientes en tu zona de cobertura.</string>
     <string name="auth_welcome_sign_in_with_google">Continuar con Google</string>
     <string name="auth_welcome_signing_in">Ingresando…</string>
     <string name="auth_welcome_no_password_notice">No necesitas crear ninguna contraseña.</string>
+    <string name="auth_welcome_rating_score">4.9</string>
+    <string name="auth_welcome_rating_label">Valoración</string>
+    <string name="auth_welcome_rating_caption">Pacientes satisfechos</string>
+    <string name="auth_welcome_availability_count">40+ profesionales</string>
+    <string name="auth_welcome_availability_caption">Disponibles en tu zona</string>
+    <string name="auth_welcome_feature_home_care_title">Atención de salud en tu puerta</string>
+    <string name="auth_welcome_feature_home_care_description">Médicos, enfermeros(as), fisioterapeutas y estudiantes calificados cerca de tu radio.</string>
+    <string name="auth_welcome_feature_geolocation_title">Geolocalización por cercanía</string>
+    <string name="auth_welcome_feature_geolocation_description">Conexión directa según tu radio y perfiles verificados.</string>
+    <string name="auth_welcome_access_hint">Accede como paciente o profesional</string>
+    <string name="auth_welcome_legal_footer">Términos y condiciones • Política de privacidad</string>
 
     <string name="auth_account_title">Mi cuenta</string>
     <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
@@ -129,6 +140,4 @@
     <string name="cd_professional_photo">Fotografía del profesional</string>
     <string name="cd_address_map">Mapa para marcar tu dirección</string>
     <string name="cd_address_marker">Marcador de tu dirección</string>
-
-    <string name="debug_force_crash">Provocar un fallo de prueba</string>
 </resources>
