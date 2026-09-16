@@ -17,8 +17,8 @@ import bo.saludencasa.features.location.domain.model.PositionResult
 import bo.saludencasa.features.location.domain.model.SaveAddressResult
 import bo.saludencasa.features.location.domain.usecase.DescribePointUseCase
 import bo.saludencasa.features.location.domain.usecase.FindPlaceUseCase
+import bo.saludencasa.features.location.domain.usecase.GetAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.GetCurrentPositionUseCase
-import bo.saludencasa.features.location.domain.usecase.GetMyAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.SaveAddressUseCase
 import bo.saludencasa.features.location.place
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,7 +43,11 @@ class AddressViewModelTest {
         runTest {
             val geocoder = FakeGeocodingRepository()
             val viewModel =
-                viewModel(addresses = FakeAddressRepository(MyAddressResult.Registered(address())), geocoder = geocoder)
+                viewModel(
+                    addressId = address().id,
+                    addresses = FakeAddressRepository(MyAddressResult.Registered(address())),
+                    geocoder = geocoder,
+                )
 
             viewModel.uiState.test {
                 assertEquals(AddressUiState.Loading, awaitItem())
@@ -399,7 +403,7 @@ class AddressViewModelTest {
     fun `an address that cannot be read stops on an error the person can retry`() =
         runTest {
             val repository = FakeAddressRepository(MyAddressResult.Failure(AddressError.NetworkUnavailable))
-            val viewModel = viewModel(addresses = repository)
+            val viewModel = viewModel(addressId = address().id, addresses = repository)
 
             viewModel.uiState.test {
                 assertEquals(AddressUiState.Loading, awaitItem())
@@ -416,13 +420,18 @@ class AddressViewModelTest {
         }
 }
 
+// A null id is the "add a new address" flow: the screen never asks the
+// repository for anything and starts blank, which is why it is the default
+// here and every test about an existing row passes its id explicitly.
 private fun viewModel(
+    addressId: String? = null,
     addresses: FakeAddressRepository = FakeAddressRepository(),
     geocoder: FakeGeocodingRepository = FakeGeocodingRepository(),
     device: FakeDeviceLocationRepository = FakeDeviceLocationRepository(),
 ): AddressViewModel =
     AddressViewModel(
-        getMyAddress = GetMyAddressUseCase(addresses),
+        addressId = addressId,
+        getAddress = GetAddressUseCase(addresses),
         saveAddress = SaveAddressUseCase(addresses),
         describePoint = DescribePointUseCase(geocoder),
         findPlace = FindPlaceUseCase(geocoder),

@@ -2,12 +2,15 @@ package bo.saludencasa.features.location
 
 import bo.saludencasa.core.vo.Coordinate
 import bo.saludencasa.features.location.domain.model.Address
+import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.model.AddressUpdate
+import bo.saludencasa.features.location.domain.model.DeleteAddressResult
 import bo.saludencasa.features.location.domain.model.GeocodingResult
 import bo.saludencasa.features.location.domain.model.MyAddressResult
 import bo.saludencasa.features.location.domain.model.Place
 import bo.saludencasa.features.location.domain.model.PositionResult
 import bo.saludencasa.features.location.domain.model.SaveAddressResult
+import bo.saludencasa.features.location.domain.model.SetPrimaryAddressResult
 import bo.saludencasa.features.location.domain.repository.IAddressRepository
 import bo.saludencasa.features.location.domain.repository.IDeviceLocationRepository
 import bo.saludencasa.features.location.domain.repository.IGeocodingRepository
@@ -15,15 +18,27 @@ import bo.saludencasa.features.location.domain.repository.IGeocodingRepository
 class FakeAddressRepository(
     var myAddressResult: MyAddressResult = MyAddressResult.NotRegistered,
     var saveResult: SaveAddressResult? = null,
+    var listResult: AddressListResult = AddressListResult.Success(emptyList()),
+    var setPrimaryResult: SetPrimaryAddressResult = SetPrimaryAddressResult.Success,
+    var deleteResult: DeleteAddressResult = DeleteAddressResult.Success,
 ) : IAddressRepository {
     var reads: Int = 0
+        private set
+    var listReads: Int = 0
         private set
     var saveAttempts: Int = 0
         private set
     var lastUpdate: AddressUpdate? = null
         private set
+    val setPrimaryAttempts: MutableList<String> = mutableListOf()
+    val deleteAttempts: MutableList<String> = mutableListOf()
 
-    override suspend fun getMyPrimaryAddress(): MyAddressResult {
+    override suspend fun getMyAddresses(): AddressListResult {
+        listReads++
+        return listResult
+    }
+
+    override suspend fun getAddress(id: String): MyAddressResult {
         reads++
         return myAddressResult
     }
@@ -40,6 +55,16 @@ class FakeAddressRepository(
                 coordinate = update.coordinate,
             ),
         )
+    }
+
+    override suspend fun setPrimaryAddress(id: String): SetPrimaryAddressResult {
+        setPrimaryAttempts.add(id)
+        return setPrimaryResult
+    }
+
+    override suspend fun deleteAddress(id: String): DeleteAddressResult {
+        deleteAttempts.add(id)
+        return deleteResult
     }
 }
 
