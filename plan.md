@@ -443,8 +443,9 @@ es su dueña. Pantalla desechable con un botón que recorre la cadena completa:
 Si los cinco ocurren, toda la cadena de configuración es correcta. El código se
 elimina al implementar HU-01, **y así ocurrió**: `AuthSmokeTestScreen`,
 `AuthSmokeTestViewModel` y `GoogleAuthClient` ya no existen. El botón de fallo
-provocado sobrevivió, porque HT-08 todavía lo necesita: vive ahora en la
-pantalla «Mi cuenta» y solo aparece en compilaciones de depuración.
+provocado sobrevivió más tiempo, porque HT-08 todavía lo necesitaba: vivió en la
+pantalla «Mi cuenta», solo en compilaciones de depuración, hasta que el autor
+verificó Crashlytics con él y se retiró (ver HT-08, 2026-09-15).
 
 **Los cinco verificados sobre el emulador el 2026-09-12**, recorriendo el flujo
 completo: selector de cuentas, pantalla de consentimiento, sesión creada y fila
@@ -646,12 +647,12 @@ Etapas del flujo, en `.github/workflows/ci.yml`:
 - [x] El análisis estático incluye la regla de texto escrito en el código
 - [x] La prueba `domainLayerHasNoPlatformImports` existe y pasa
 - [x] Un error provocado deliberadamente aparece en el panel de monitoreo —
-      **pendiente del autor.** Exige habilitar Crashlytics en la consola de
-      Firebase, instalar la aplicación, pulsar «Provocar un fallo de prueba» y
-      **volver a abrirla**: Crashlytics sube el reporte en el arranque siguiente,
-      no en el momento del fallo. Desde HU-01 ese botón vive en la pantalla «Mi
-      cuenta», a la que se llega después de ingresar, y solo aparece en
-      compilaciones de depuración
+      **verificado por el autor.** El botón «Provocar un fallo de prueba» vivía en
+      la pantalla «Mi cuenta», solo en compilaciones de depuración; el autor lo
+      pulsó, cerró y volvió a abrir la aplicación, y el reporte llegó al panel de
+      Crashlytics en el arranque siguiente, como se esperaba. El botón ya cumplió
+      su propósito y se retiró de `AccountScreen.kt` el 2026-09-15, junto con el
+      recurso `debug_force_crash` que ya no usaba nadie
 
 **Requisitos:** RNF-06, RNF-09.
 
