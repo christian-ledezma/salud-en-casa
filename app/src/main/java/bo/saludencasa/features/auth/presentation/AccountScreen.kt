@@ -22,7 +22,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bo.saludencasa.BuildConfig
 import bo.saludencasa.R
 import bo.saludencasa.core.vo.Email
 import bo.saludencasa.core.vo.PersonName
@@ -122,20 +121,8 @@ private fun AccountContent(
                 ) {
                     Text(text = stringResource(R.string.auth_account_sign_out))
                 }
-                ForceCrashButton()
             }
         }
-    }
-}
-
-@Composable
-private fun ForceCrashButton() {
-    if (!BuildConfig.DEBUG) return
-    OutlinedButton(
-        onClick = { throw IllegalStateException("Crashlytics smoke test") },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(text = stringResource(R.string.debug_force_crash))
     }
 }
 
