@@ -14,8 +14,8 @@ import bo.saludencasa.features.location.domain.model.PositionResult
 import bo.saludencasa.features.location.domain.model.SaveAddressResult
 import bo.saludencasa.features.location.domain.usecase.DescribePointUseCase
 import bo.saludencasa.features.location.domain.usecase.FindPlaceUseCase
+import bo.saludencasa.features.location.domain.usecase.GetAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.GetCurrentPositionUseCase
-import bo.saludencasa.features.location.domain.usecase.GetMyAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.SaveAddressUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -90,8 +90,12 @@ sealed interface AddressUiState {
     ) : AddressUiState
 }
 
+// A null id is a blank address waiting to be registered — HU-06 opens this
+// screen both from "add a new address" and from editing one already on the
+// list, and the two cases differ only in whether there is anything to fetch.
 class AddressViewModel(
-    private val getMyAddress: GetMyAddressUseCase,
+    private val addressId: String?,
+    private val getAddress: GetAddressUseCase,
     private val saveAddress: SaveAddressUseCase,
     private val describePoint: DescribePointUseCase,
     private val findPlace: FindPlaceUseCase,
@@ -111,11 +115,16 @@ class AddressViewModel(
     fun load() {
         state.value = AddressUiState.Loading
         viewModelScope.launch {
+            val id = addressId
             state.value =
-                when (val result = getMyAddress()) {
-                    is MyAddressResult.Registered -> result.address.toContent(SaveStatus.Idle)
-                    MyAddressResult.NotRegistered -> emptyContent()
-                    is MyAddressResult.Failure -> AddressUiState.Failed(result.error)
+                if (id == null) {
+                    emptyContent()
+                } else {
+                    when (val result = getAddress(id)) {
+                        is MyAddressResult.Registered -> result.address.toContent(SaveStatus.Idle)
+                        MyAddressResult.NotRegistered -> emptyContent()
+                        is MyAddressResult.Failure -> AddressUiState.Failed(result.error)
+                    }
                 }
         }
     }

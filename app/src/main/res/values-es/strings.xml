@@ -4,6 +4,8 @@
     <string name="common_retry">Reintentar</string>
     <string name="common_accept">Aceptar</string>
     <string name="common_cancel">Cancelar</string>
+    <string name="common_edit">Editar</string>
+    <string name="common_delete">Eliminar</string>
     <string name="common_nav_home">Inicio</string>
     <string name="common_nav_requests">Solicitudes</string>
     <string name="common_nav_profile">Perfil</string>
@@ -28,7 +30,7 @@
     <string name="auth_account_title">Mi cuenta</string>
     <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
     <string name="auth_account_open_profile">Mi perfil</string>
-    <string name="auth_account_open_address">Mi dirección</string>
+    <string name="auth_account_open_address">Mis direcciones</string>
     <string name="auth_account_sign_out">Cerrar sesión</string>
     <string name="auth_account_keep_session">Seguir con la sesión abierta</string>
 
@@ -97,6 +99,15 @@
     <string name="address_permission_decline">Marcar en el mapa</string>
     <string name="address_save">Guardar dirección</string>
     <string name="address_saved">Dirección guardada.</string>
+
+    <string name="address_list_title">Mis direcciones</string>
+    <string name="address_list_empty_title">Todavía no registraste ninguna dirección</string>
+    <string name="address_list_empty_description">Agrega una dirección para que la atención llegue al lugar correcto.</string>
+    <string name="address_list_add">Agregar dirección</string>
+    <string name="address_list_primary_badge">Principal</string>
+    <string name="address_list_set_primary_action">Marcar como principal</string>
+    <string name="address_list_delete_confirm_title">¿Eliminar esta dirección?</string>
+    <string name="address_list_delete_confirm_message">Esta acción no se puede deshacer.</string>
 
     <string name="profile_role_selection_title">¿Cómo vas a usar Salud en Casa?</string>
     <string name="profile_role_selection_subtitle">Elige una opción para continuar. Define lo que ves en la aplicación y se responde una sola vez.</string>

@@ -23,4 +23,9 @@ data class PublicProfileRoute(
 )
 
 @Serializable
-data object AddressRoute
+data object AddressListRoute
+
+@Serializable
+data class AddressRoute(
+    val addressId: String? = null,
+)

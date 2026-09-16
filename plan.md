@@ -105,7 +105,7 @@ Una historia está terminada cuando **todo** lo siguiente se cumple:
 | 0 | Fundación técnica | 1 · Arquitectura | — | `[~]` |
 | 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[x]` |
 | 2 | Perfiles y ubicación | 2 · Perfiles | 21 | `[x]` |
-| 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[ ]` |
+| 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[~]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[ ]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[ ]` |
 | 6 | Negociación de tarifas | 3 · Coordinación | 26 | `[ ]` |
@@ -1864,6 +1864,8 @@ historia que nunca se hace. Hay dos caminos defendibles y la elección es del au
 
 # Sprint 3 — Verificación de usuarios
 
+**Estado:** `[~]` en curso.
+
 **Objetivo del sprint.** Ambos roles someten sus documentos a verificación y el
 administrador los aprueba o rechaza.
 
@@ -1877,7 +1879,7 @@ administrador los aprueba o rechaza.
 > en búsquedas— es la misma condición de visibilidad que este sprint cierra por
 > el lado de la verificación.
 
-### HU-06 · Administrar mis direcciones `[ ]` — 3 puntos
+### HU-06 · Administrar mis direcciones `[~]` — 3 puntos
 
 > Como **usuario**, quiero **tener varias direcciones y marcar una como
 > principal**, para **solicitar atención en distintos lugares**.
@@ -1885,14 +1887,163 @@ administrador los aprueba o rechaza.
 **Criterios de aceptación**
 
 - [ ] Dado que tengo varias direcciones, cuando abro la lista, entonces las veo
-      con su alias y su referencia.
+      con su alias y su referencia. **Implementado y probado con JUnit; falta
+      la verificación en dispositivo, ver «Deuda reconocida».**
 - [ ] Dado que marco una como principal, cuando marco otra, entonces la anterior
-      deja de serlo automáticamente.
-- [ ] Dado que elimino una dirección, cuando confirmo, entonces desaparece de la lista.
+      deja de serlo automáticamente. **Implementado y probado con JUnit; falta
+      la verificación en dispositivo.**
+- [ ] Dado que elimino una dirección, cuando confirmo, entonces desaparece de la
+      lista. **Implementado y probado con JUnit; falta la verificación en
+      dispositivo.**
 - [ ] Dado que soy profesional, cuando no tengo dirección principal, entonces no
-      aparezco en búsquedas.
+      aparezco en búsquedas. **Ya lo garantiza el esquema desde HT-04, sin
+      código nuevo: ver «Por qué el cuarto criterio no agrega código».**
 
 **Requisitos:** RF-03.4, RF-03.5, RN-02.
+
+**Tareas técnicas.** Extender `IAddressRepository` con listar, marcar principal
+y eliminar · casos de uso `GetMyAddressesUseCase`, `SetPrimaryAddressUseCase`,
+`DeleteAddressUseCase`, y `GetAddressUseCase` en lugar del antiguo
+`GetMyAddressUseCase` · pantalla de lista con confirmación de eliminación ·
+`AddressScreen` acepta un identificador opcional para editar cualquier
+dirección, no solo la principal.
+
+**Las cuatro tareas están escritas y probadas; falta la verificación manual.**
+HU-05 dejó anotado como deuda que la pantalla de dirección «trabaja siempre
+sobre la dirección principal»; esa es exactamente la deuda que esta historia
+salda.
+
+| Capa | Qué se agregó |
+|---|---|
+| `domain/model/` | `AddressListResult`, `SetPrimaryAddressResult`, `DeleteAddressResult` |
+| `domain/usecase/` | `GetAddressUseCase` (reemplaza a `GetMyAddressUseCase`), `GetMyAddressesUseCase`, `SetPrimaryAddressUseCase`, `DeleteAddressUseCase` |
+| `data/model/` | `PrimaryAddressRow`, el parche que solo toca `is_primary` |
+| `data/datasource/` | `findAllAddresses()` reemplaza a `findPrimaryAddress()`; `setPrimary()` y `deleteAddress()` nuevos |
+| `data/repository/` | `AddressRepository` implementa los tres métodos nuevos de la interfaz |
+| `presentation/` | `AddressListScreen`, `AddressListViewModel`; `AddressScreen` y `AddressViewModel` reciben un `addressId` opcional |
+| `navigation/` | `AddressListRoute` nueva; `AddressRoute` pasa de objeto a clase con `addressId: String? = null` |
+
+**Ninguna migración nueva.** Las cuatro políticas de `addresses`
+—`addresses_select_own`, `addresses_insert_own`, `addresses_update_own`,
+`addresses_delete_own`— y el disparador `addresses_unmark_previous_primary`
+existen desde HT-04 y ya cubren listar, marcar como principal y eliminar. Esta
+historia es la primera en consumir `addresses_delete_own` y en escribir
+`is_primary` por sí misma desde el cliente en lugar de dejar que el disparador
+`addresses_first_is_primary` la ponga.
+
+**Por qué marcar como principal vuelve a leer la lista en vez de calcular el
+resultado en el cliente.** Quién deja de ser principal lo decide
+`addresses_unmark_previous_primary`, un disparador de la base, no una regla que
+el cliente pueda repetir sin arriesgarse a que las dos copias diverjan. Después
+de un `PATCH` exitoso, `AddressListViewModel` vuelve a pedir la lista completa
+en vez de suponer cuál fila cambió; es el mismo principio que ya regía en
+`AddressRepository.saveAddress`, que redibuja desde la fila que devolvió el
+servidor y no desde el texto que se escribió.
+
+**Por qué el cuarto criterio no agrega código.** `search_nearby_professionals`
+—la función de HT-04, todavía sin consumidor porque HU-11 llega en el
+Sprint 4— une `professionals` con `addresses` mediante
+`join public.addresses a on a.profile_id = pro.id and a.is_primary`. Es una
+unión interna: un profesional sin ninguna fila con `is_primary = true`
+simplemente no genera fila de resultado, sin necesidad de un `where` que lo
+excluya. El criterio ya estaba satisfecho por el esquema desde que HT-04 se
+aplicó; esta historia lo hereda en lugar de implementarlo. Verificado leyendo
+la migración `20260911120600_functions.sql` (líneas 88-107), no con un
+experimento nuevo contra la base remota: las consultas de solo lectura contra
+el proyecto remoto quedaron bloqueadas por el clasificador de modo automático
+de esta sesión a mitad de la verificación —ver «Deuda reconocida»—, después de
+confirmar sin problema que `addresses` seguía en cero filas tras el Sprint 2.
+
+**Qué atrapan las pruebas nuevas.** Ocho pruebas nuevas en
+`AddressListViewModelTest`, que llevan la suite de 186 a 194:
+
+| Prueba | El error real que atrapa |
+|---|---|
+| `no registered addresses shows the empty state` | Una pantalla en blanco la primera vez que alguien la abre, sin invitación a agregar una dirección |
+| `the list carries the alias and the reference of every address` | Que la pantalla muestre algo distinto de lo que el repositorio devolvió |
+| `marking an address as primary reloads the list instead of guessing the result` | Una insignia de «Principal» que se queda en la fila vieja porque el cliente calculó el cambio en lugar de leerlo de vuelta |
+| `a refused primary change reports the error and keeps the previous list` | Una actualización optimista que le hace creer a un profesional que cambió su dirección principal cuando el servidor nunca lo aceptó — el hueco exacto del que depende RN-02 |
+| `deleting an address asks for confirmation before touching the repository` | Un toque de más que borra una dirección sin paso atrás |
+| `dismissing the delete confirmation leaves the address on the list` | Un diálogo que cancela en la pantalla pero borra igual en el servidor |
+| `confirming the deletion removes the address once the server confirms it` | Una fila que desaparece de la lista antes de que el servidor confirme que la eliminó |
+| `a refused deletion reports the error and keeps the address on the list` | Una eliminación fallida que igual desaparece de la lista, dejando a la persona sin saber que la dirección sigue existiendo |
+
+La suite de `AddressViewModelTest` se actualizó para el nuevo parámetro
+`addressId`, sin perder ninguna de sus catorce pruebas: por omisión es `null`
+—la pantalla en blanco para registrar una dirección nueva—, y las dos pruebas
+sobre una dirección ya guardada ahora lo pasan de forma explícita.
+
+**Deuda reconocida.** Ni la verificación manual en un dispositivo real ni el
+experimento contra la base remota que HU-04 y HU-05 usaron para probar
+invariantes de este tipo pudieron correrse en esta sesión: el entorno no tiene
+`adb` ni un emulador disponible, y las consultas de solo lectura contra el
+proyecto remoto quedaron bloqueadas por el clasificador de modo automático a
+mitad de una comprobación de la fila de un profesional (motivo: «Production
+Reads»). Por eso los cuatro criterios quedan sin marcar y la historia en
+`[~]`. El procedimiento para que el autor complete esa verificación está a
+continuación, en «Verificación pendiente del autor».
+
+**Verificación pendiente del autor.**
+
+1. **Compilar e instalar.** Con un dispositivo o emulador conectado:
+   `./gradlew installDebug`. Si no hay ninguno conectado, `adb devices` lo
+   confirma antes de intentarlo.
+2. **Ingresar y abrir la pantalla.** Desde «Mi cuenta», pulsar «Mis
+   direcciones» (antes decía «Mi dirección»; si el dispositivo no tenía
+   ninguna dirección registrada todavía, la pantalla debe mostrar «Todavía no
+   registraste ninguna dirección» con un botón «Agregar dirección» — es el
+   estado vacío, el primero que ve alguien nuevo).
+3. **Registrar dos direcciones.** Pulsar «Agregar dirección», completar el
+   formulario ya conocido de HU-05 con alias «Casa» y guardar; el sistema
+   vuelve atrás con el botón físico o el gesto de retroceso. Repetir con alias
+   «Trabajo». La lista debe mostrar ambas, con «Casa» marcada «Principal»
+   —la primera dirección se marca sola, como ya hacía HU-05— y ambas con su
+   alias y su referencia visibles (**criterio 1**).
+4. **Marcar «Trabajo» como principal.** Pulsar «Marcar como principal» en su
+   fila. Al terminar, «Trabajo» debe mostrar la insignia «Principal» y «Casa»
+   debe perderla, sin recargar la pantalla a mano (**criterio 2**).
+5. **Cancelar una eliminación.** Pulsar «Eliminar» en «Casa», y en el diálogo
+   pulsar «Cancelar». «Casa» debe seguir en la lista.
+6. **Confirmar la eliminación.** Pulsar «Eliminar» en «Casa» otra vez y esta
+   vez confirmar. «Casa» debe desaparecer de la lista (**criterio 3**).
+7. **Repetir con la cuenta profesional** los pasos 2 a 6, para confirmar que
+   el mismo flujo vale para ambos roles, tal como enuncia la historia
+   («Como usuario…»).
+8. **Criterio 4, por consulta directa.** HU-11 —la búsqueda por cercanía en la
+   aplicación— todavía no existe, así que este criterio no se puede
+   demostrar tocando la pantalla; se demuestra llamando a la función que HU-11
+   va a consumir. Abrir el editor SQL del proyecto en
+   `https://supabase.com/dashboard/project/lckgbklfmkjpuvmebuha/sql/new` y,
+   con la cuenta profesional ya aprobada por un administrador (todavía no hay
+   ninguno: ver la nota de HU-05 sobre cómo se aprobó y revirtió uno a mano
+   para probar HU-04), ejecutar:
+
+   ```sql
+   -- Quita la marca de principal a todas las direcciones del profesional de
+   -- prueba, sin borrar ninguna fila.
+   update public.addresses set is_primary = false
+   where profile_id = '<id del profesional de prueba>';
+
+   -- Debe devolver cero filas: sin dirección principal, la unión interna de
+   -- search_nearby_professionals con addresses no genera fila para él.
+   select * from public.search_nearby_professionals(-16.5000, -68.1500, 50);
+
+   -- Vuelve a marcar una como principal.
+   update public.addresses set is_primary = true
+   where profile_id = '<id del profesional de prueba>'
+     and id = '<id de esa dirección>';
+
+   -- Ahora sí debe aparecer.
+   select * from public.search_nearby_professionals(-16.5000, -68.1500, 50);
+   ```
+
+   Si la primera consulta devuelve cero filas y la segunda devuelve la fila
+   del profesional, el criterio 4 está verificado y no exige ningún cambio de
+   código: ya lo garantiza `join public.addresses a on a.profile_id = pro.id
+   and a.is_primary`, la unión interna de la función, aplicada desde HT-04.
+
+9. **Marcar los cuatro criterios en `[x]`** una vez confirmados y cambiar el
+   estado de la historia a `[x]`.
 
 ### HU-07 · Cargar mis documentos de verificación `[ ]` — 8 puntos
 

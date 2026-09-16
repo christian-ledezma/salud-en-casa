@@ -9,11 +9,15 @@ import bo.saludencasa.features.location.data.repository.GeocodingRepository
 import bo.saludencasa.features.location.domain.repository.IAddressRepository
 import bo.saludencasa.features.location.domain.repository.IDeviceLocationRepository
 import bo.saludencasa.features.location.domain.repository.IGeocodingRepository
+import bo.saludencasa.features.location.domain.usecase.DeleteAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.DescribePointUseCase
 import bo.saludencasa.features.location.domain.usecase.FindPlaceUseCase
+import bo.saludencasa.features.location.domain.usecase.GetAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.GetCurrentPositionUseCase
-import bo.saludencasa.features.location.domain.usecase.GetMyAddressUseCase
+import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.location.domain.usecase.SaveAddressUseCase
+import bo.saludencasa.features.location.domain.usecase.SetPrimaryAddressUseCase
+import bo.saludencasa.features.location.presentation.AddressListViewModel
 import bo.saludencasa.features.location.presentation.AddressViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -31,11 +35,15 @@ val locationModule =
         single<IGeocodingRepository> { GeocodingRepository(get()) }
         single<IDeviceLocationRepository> { DeviceLocationRepository(get()) }
 
-        factory { GetMyAddressUseCase(get()) }
+        factory { GetAddressUseCase(get()) }
+        factory { GetMyAddressesUseCase(get()) }
         factory { SaveAddressUseCase(get()) }
+        factory { SetPrimaryAddressUseCase(get()) }
+        factory { DeleteAddressUseCase(get()) }
         factory { DescribePointUseCase(get()) }
         factory { FindPlaceUseCase(get()) }
         factory { GetCurrentPositionUseCase(get()) }
 
-        viewModel { AddressViewModel(get(), get(), get(), get(), get()) }
+        viewModel { (addressId: String?) -> AddressViewModel(addressId, get(), get(), get(), get(), get()) }
+        viewModel { AddressListViewModel(get(), get(), get()) }
     }

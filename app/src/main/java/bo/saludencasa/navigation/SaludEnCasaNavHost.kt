@@ -10,6 +10,7 @@ import androidx.navigation.toRoute
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
+import bo.saludencasa.features.location.presentation.AddressListScreen
 import bo.saludencasa.features.location.presentation.AddressScreen
 import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
@@ -47,7 +48,7 @@ fun SaludEnCasaNavHost(
             AccountScreen(
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
                 onOpenProfile = { navController.navigate(ProfileRoute) },
-                onOpenAddress = { navController.navigate(AddressRoute) },
+                onOpenAddress = { navController.navigate(AddressListRoute) },
             )
         }
 
@@ -57,8 +58,29 @@ fun SaludEnCasaNavHost(
             )
         }
 
-        composable<AddressRoute> {
-            AddressScreen()
+        composable<AddressListRoute> {
+            AddressListScreen(
+                onAddClick = { navController.navigate(AddressRoute()) },
+                onEditClick = { addressId -> navController.navigate(AddressRoute(addressId)) },
+            )
+        }
+
+        composable<AddressRoute> { entry ->
+            AddressScreen(
+                addressId = entry.toRoute<AddressRoute>().addressId,
+                // A plain popBackStack() would return to the same
+                // AddressListRoute entry, whose AddressListViewModel already
+                // loaded once and never reloads on its own: the address just
+                // saved would be missing until the person left the screen and
+                // came back. Popping the list route itself and navigating to
+                // it again tears down that stale instance and starts a fresh
+                // one, which loads the list the address was just added to.
+                onSaved = {
+                    navController.navigate(AddressListRoute) {
+                        popUpTo(AddressListRoute) { inclusive = true }
+                    }
+                },
+            )
         }
 
         composable<PublicProfileRoute> { entry ->

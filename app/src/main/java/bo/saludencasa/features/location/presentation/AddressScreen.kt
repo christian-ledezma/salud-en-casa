@@ -18,6 +18,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,13 +36,21 @@ import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 fun AddressScreen(
+    onSaved: () -> Unit,
+    addressId: String? = null,
     modifier: Modifier = Modifier,
-    viewModel: AddressViewModel = koinViewModel(),
+    viewModel: AddressViewModel = koinViewModel { parametersOf(addressId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(uiState) {
+        val content = uiState as? AddressUiState.Content ?: return@LaunchedEffect
+        if (content.status is SaveStatus.Saved) onSaved()
+    }
 
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->

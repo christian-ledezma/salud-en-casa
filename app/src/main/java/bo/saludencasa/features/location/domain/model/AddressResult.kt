@@ -26,6 +26,32 @@ sealed interface SaveAddressResult {
     ) : SaveAddressResult
 }
 
+sealed interface AddressListResult {
+    data class Success(
+        val addresses: List<Address>,
+    ) : AddressListResult
+
+    data class Failure(
+        val error: AddressError,
+    ) : AddressListResult
+}
+
+sealed interface SetPrimaryAddressResult {
+    data object Success : SetPrimaryAddressResult
+
+    data class Failure(
+        val error: AddressError,
+    ) : SetPrimaryAddressResult
+}
+
+sealed interface DeleteAddressResult {
+    data object Success : DeleteAddressResult
+
+    data class Failure(
+        val error: AddressError,
+    ) : DeleteAddressResult
+}
+
 // A geocoder that answers nothing is not a geocoder that failed. RF-03.6 asks
 // the screen to keep working either way, and it keeps working differently: an
 // unanswered point leaves the written address for the person to fill in, while
