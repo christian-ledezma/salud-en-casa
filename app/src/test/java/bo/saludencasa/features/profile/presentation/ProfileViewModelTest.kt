@@ -13,6 +13,7 @@ import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.domain.usecase.GetProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.SaveProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.SetAvailabilityUseCase
+import bo.saludencasa.features.profile.dualRoleProfile
 import bo.saludencasa.features.profile.professionalDetails
 import bo.saludencasa.features.profile.professionalProfile
 import bo.saludencasa.features.profile.userProfile
@@ -42,7 +43,7 @@ class ProfileViewModelTest {
                 val content = awaitItem() as ProfileUiState.Content
                 assertEquals("Ana Quispe", content.form.fullName)
                 assertEquals("+59171234567", content.form.phone)
-                assertEquals(UserRole.PATIENT, content.header.role)
+                assertEquals(UserRole.PATIENT, content.header.activeRole)
             }
         }
 
@@ -133,8 +134,9 @@ class ProfileViewModelTest {
             assertEquals("+59176543210", repository.lastUpdate?.phone?.value)
         }
 
-    // A professional has no patients row. Sending the patient section anyway
-    // would write columns that are not theirs and that no policy lets them fill.
+    // Someone who only holds the professional role has no patients row. Sending
+    // the patient section anyway would write columns that are not theirs and
+    // that no policy lets them fill.
     @Test
     fun `a professional saves no patient data`() =
         runTest {
@@ -153,8 +155,9 @@ class ProfileViewModelTest {
             assertNull(repository.lastUpdate?.patient)
         }
 
-    // A patient has no professionals row, so the screen must not hand the use
-    // case a professional section built out of the empty half of the form.
+    // Someone who only holds the patient role has no professionals row, so the
+    // screen must not hand the use case a professional section built out of the
+    // empty half of the form.
     @Test
     fun `a patient saves no professional data`() =
         runTest {
@@ -261,7 +264,8 @@ class ProfileViewModelTest {
             }
         }
 
-    // A patient has no professionals row, so there is no switch to draw.
+    // Someone who only holds the patient role has no professionals row, so there
+    // is no switch to draw.
     @Test
     fun `a patient has no availability switch at all`() =
         runTest {
@@ -270,6 +274,79 @@ class ProfileViewModelTest {
             viewModel.uiState.test {
                 awaitItem()
                 assertNull((awaitItem() as ProfileUiState.Content).availability)
+            }
+        }
+
+    // The one this sprint exists for. Someone who holds both roles carries both
+    // sections, so deciding what to write by which section loaded would send
+    // professional columns on an edit made as a patient. The active role decides,
+    // and save_my_profile reads the same active role on the server.
+    @Test
+    fun aPersonWithBothRolesEditingAsPatientWritesNoProfessionalData() =
+        runTest {
+            val profile = dualRoleProfile(activeRole = UserRole.PATIENT)
+            val repository = FakeProfileRepository(profileResult = ProfileResult.Success(profile))
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.save()
+                awaitItem()
+                awaitItem()
+            }
+
+            assertNull(repository.lastUpdate?.professional)
+            assertEquals(null, repository.lastUpdate?.patient?.birthDate)
+        }
+
+    @Test
+    fun `a person with both roles editing as a professional writes no patient data`() =
+        runTest {
+            val profile = dualRoleProfile(activeRole = UserRole.PROFESSIONAL)
+            val repository = FakeProfileRepository(profileResult = ProfileResult.Success(profile))
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.save()
+                awaitItem()
+                awaitItem()
+            }
+
+            assertNull(repository.lastUpdate?.patient)
+        }
+
+    // The professionals row exists for this person while they work as a patient,
+    // so a switch drawn from the row existing would appear in patient mode.
+    // RF-02.5 is a statement a patient has no way to make.
+    @Test
+    fun `a person with both roles sees no availability switch while working as a patient`() =
+        runTest {
+            val profile = dualRoleProfile(activeRole = UserRole.PATIENT)
+            val viewModel = viewModel(FakeProfileRepository(profileResult = ProfileResult.Success(profile)))
+
+            viewModel.uiState.test {
+                awaitItem()
+                assertNull((awaitItem() as ProfileUiState.Content).availability)
+            }
+        }
+
+    @Test
+    fun `the same person sees the availability switch once they switch to professional`() =
+        runTest {
+            val profile = dualRoleProfile(activeRole = UserRole.PROFESSIONAL)
+            val viewModel = viewModel(FakeProfileRepository(profileResult = ProfileResult.Success(profile)))
+
+            viewModel.uiState.test {
+                awaitItem()
+                assertEquals(
+                    AvailabilityState(availableNow = false),
+                    (awaitItem() as ProfileUiState.Content).availability,
+                )
             }
         }
 

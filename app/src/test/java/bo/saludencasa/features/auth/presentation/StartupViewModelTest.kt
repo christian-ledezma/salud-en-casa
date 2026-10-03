@@ -10,7 +10,8 @@ import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.RoleResult
 import bo.saludencasa.features.profile.domain.model.UserRole
-import bo.saludencasa.features.profile.domain.usecase.GetRoleUseCase
+import bo.saludencasa.features.profile.domain.usecase.GetRolesUseCase
+import bo.saludencasa.features.profile.loadedRoles
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -44,9 +45,10 @@ class StartupViewModelTest {
     // signed in person to the home because the session exists would skip the
     // question and leave patients and professionals without their record.
     @Test
-    fun `a signed in person without a role is sent to choose one`() =
+    fun `a signed in person with no roles at all is sent to choose one`() =
         runTest {
-            val viewModel = viewModel(signedIn(), FakeProfileRepository(roleResult = RoleResult.Unassigned))
+            val repository = FakeProfileRepository(roleResult = noRoles())
+            val viewModel = viewModel(signedIn(), repository)
 
             viewModel.destination.test {
                 assertEquals(StartupDestination.Loading, awaitItem())
@@ -57,9 +59,9 @@ class StartupViewModelTest {
     // RF-01.4, the other half: somebody who already answered never sees the
     // question again, on this launch or any later one.
     @Test
-    fun `a signed in person with a role goes straight to the home of that role`() =
+    fun `a signed in person who already holds a role goes straight to the home`() =
         runTest {
-            val repository = FakeProfileRepository(roleResult = RoleResult.Assigned(UserRole.PROFESSIONAL))
+            val repository = FakeProfileRepository(roleResult = loadedRoles(onlyProfessional, UserRole.PROFESSIONAL))
             val viewModel = viewModel(signedIn(), repository)
 
             viewModel.destination.test {
@@ -95,7 +97,7 @@ class StartupViewModelTest {
                 assertEquals(StartupDestination.Loading, awaitItem())
                 assertEquals(StartupDestination.Error(ProfileError.NetworkUnavailable), awaitItem())
 
-                repository.roleResult = RoleResult.Assigned(UserRole.PATIENT)
+                repository.roleResult = loadedRoles()
                 viewModel.retry()
 
                 assertEquals(StartupDestination.Home, awaitItem())
@@ -107,11 +109,15 @@ class StartupViewModelTest {
 
 private fun signedIn(): MutableStateFlow<SessionState> = MutableStateFlow(SessionState.SignedIn(authSession()))
 
+private val onlyProfessional = setOf(UserRole.PROFESSIONAL)
+
+private fun noRoles(): RoleResult = loadedRoles(held = emptySet(), active = null)
+
 private fun viewModel(
     sessions: MutableStateFlow<SessionState>,
     profiles: FakeProfileRepository,
 ): StartupViewModel =
     StartupViewModel(
         observeSession = ObserveSessionUseCase(FakeAuthRepository(sessions = sessions)),
-        getRole = GetRoleUseCase(profiles),
+        getRoles = GetRolesUseCase(profiles),
     )

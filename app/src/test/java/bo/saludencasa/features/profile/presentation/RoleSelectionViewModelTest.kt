@@ -3,11 +3,11 @@ package bo.saludencasa.features.profile.presentation
 import app.cash.turbine.test
 import bo.saludencasa.MainDispatcherRule
 import bo.saludencasa.features.profile.FakeProfileRepository
+import bo.saludencasa.features.profile.domain.model.AddRoleResult
 import bo.saludencasa.features.profile.domain.model.AssignableRole
-import bo.saludencasa.features.profile.domain.model.ChooseRoleResult
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.UserRole
-import bo.saludencasa.features.profile.domain.usecase.ChooseRoleUseCase
+import bo.saludencasa.features.profile.domain.usecase.AddRoleUseCase
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -19,16 +19,16 @@ class RoleSelectionViewModelTest {
 
     // RF-01.4 asks for a deliberate choice. Confirming with nothing selected
     // would have to pick a default, and a default role is one the person never
-    // chose and can never change afterwards.
+    // chose, and nothing on the screen says which one.
     @Test
     fun `confirming without a choice writes nothing`() =
         runTest {
             val repository = FakeProfileRepository()
-            val viewModel = RoleSelectionViewModel(ChooseRoleUseCase(repository))
+            val viewModel = RoleSelectionViewModel(AddRoleUseCase(repository))
 
             viewModel.confirm()
 
-            assertEquals(0, repository.assignAttempts)
+            assertEquals(0, repository.addAttempts)
             assertEquals(RoleSelectionUiState.Choosing(selected = null), viewModel.uiState.value)
         }
 
@@ -36,7 +36,7 @@ class RoleSelectionViewModelTest {
     fun `the chosen role reaches the repository and the screen learns it was assigned`() =
         runTest {
             val repository = FakeProfileRepository()
-            val viewModel = RoleSelectionViewModel(ChooseRoleUseCase(repository))
+            val viewModel = RoleSelectionViewModel(AddRoleUseCase(repository))
 
             viewModel.uiState.test {
                 assertEquals(RoleSelectionUiState.Choosing(selected = null), awaitItem())
@@ -49,7 +49,7 @@ class RoleSelectionViewModelTest {
                 assertEquals(RoleSelectionUiState.Assigned(UserRole.PATIENT), awaitItem())
             }
 
-            assertEquals(AssignableRole.PATIENT, repository.lastAssignedRole)
+            assertEquals(AssignableRole.PATIENT, repository.lastAddedRole)
         }
 
     // A failed choice has to keep the selection. Dropping it would send the
@@ -59,9 +59,9 @@ class RoleSelectionViewModelTest {
         runTest {
             val repository =
                 FakeProfileRepository(
-                    assignResult = ChooseRoleResult.Failure(ProfileError.NetworkUnavailable),
+                    addResult = AddRoleResult.Failure(ProfileError.NetworkUnavailable),
                 )
-            val viewModel = RoleSelectionViewModel(ChooseRoleUseCase(repository))
+            val viewModel = RoleSelectionViewModel(AddRoleUseCase(repository))
 
             viewModel.uiState.test {
                 assertEquals(RoleSelectionUiState.Choosing(selected = null), awaitItem())
@@ -76,12 +76,12 @@ class RoleSelectionViewModelTest {
                     awaitItem(),
                 )
 
-                repository.assignResult = null
+                repository.addResult = null
                 viewModel.confirm()
                 assertEquals(RoleSelectionUiState.Saving(AssignableRole.PROFESSIONAL), awaitItem())
                 assertEquals(RoleSelectionUiState.Assigned(UserRole.PROFESSIONAL), awaitItem())
             }
 
-            assertEquals(2, repository.assignAttempts)
+            assertEquals(2, repository.addAttempts)
         }
 }

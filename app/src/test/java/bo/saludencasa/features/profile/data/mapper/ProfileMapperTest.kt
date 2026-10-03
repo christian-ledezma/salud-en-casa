@@ -42,7 +42,7 @@ class ProfileMapperTest {
                 )
 
         assertEquals("+59171234567", profile.phone?.value)
-        assertEquals(UserRole.PATIENT, profile.role)
+        assertEquals(UserRole.PATIENT, profile.activeRole)
         assertEquals(LocalDate.of(1990, 5, 14), profile.patient?.birthDate?.value)
         assertEquals("Luis", profile.patient?.emergencyContact)
         assertNull(profile.patient?.medicalNotes)
@@ -71,7 +71,7 @@ class ProfileMapperTest {
                 .toUserProfile(PatientDto(birthDate = "14/05/1990"), null)
 
         assertEquals("Ana Quispe", profile.fullName)
-        assertNull(profile.role)
+        assertNull(profile.activeRole)
         assertNull(profile.patient?.birthDate)
     }
 
@@ -200,7 +200,7 @@ private fun profileDto(
         email = "ana.quispe@example.com",
         phone = phone,
         photoUrl = photoUrl,
-        role = role,
+        activeRole = role,
     )
 
 private fun professionalDto(
