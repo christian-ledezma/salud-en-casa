@@ -27,7 +27,15 @@ import bo.saludencasa.core.vo.Email
 import bo.saludencasa.core.vo.PersonName
 import bo.saludencasa.features.auth.domain.model.AuthError
 import bo.saludencasa.features.auth.domain.model.AuthSession
+import bo.saludencasa.features.profile.domain.model.AssignableRole
+import bo.saludencasa.features.profile.domain.model.ProfileError
+import bo.saludencasa.features.profile.domain.model.ProfileRoles
+import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.profile.presentation.activateRes
+import bo.saludencasa.features.profile.presentation.messageRes
+import bo.saludencasa.features.profile.presentation.shortLabelRes
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.SegmentedControl
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -52,6 +60,8 @@ fun AccountScreen(
         onDismissError = viewModel::dismissError,
         onOpenProfile = onOpenProfile,
         onOpenAddress = onOpenAddress,
+        onSwitchTo = viewModel::switchTo,
+        onActivate = viewModel::activate,
         modifier = modifier,
     )
 }
@@ -63,6 +73,8 @@ private fun AccountContent(
     onDismissError: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenAddress: () -> Unit,
+    onSwitchTo: (UserRole) -> Unit,
+    onActivate: (AssignableRole) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -108,6 +120,11 @@ private fun AccountContent(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                RoleSwitch(
+                    section = uiState.roleSection,
+                    onSwitchTo = onSwitchTo,
+                    onActivate = onActivate,
+                )
                 PrimaryButton(text = stringResource(R.string.auth_account_open_profile), onClick = onOpenProfile)
                 OutlinedButton(
                     onClick = onOpenAddress,
@@ -123,6 +140,58 @@ private fun AccountContent(
                 }
             }
         }
+    }
+}
+
+// The control appears only when there is somewhere to switch into. For a person
+// with one role it is replaced by the invitation to activate the other, so the
+// screen never offers a choice that does nothing.
+@Composable
+private fun RoleSwitch(
+    section: RoleSection,
+    onSwitchTo: (UserRole) -> Unit,
+    onActivate: (AssignableRole) -> Unit,
+) {
+    val active = section.roles.active
+    // Resolved here because optionLabel is a plain lambda, not a composable one.
+    val labels = UserRole.entries.associateWith { stringResource(it.shortLabelRes()) }
+    val loadingDescription = stringResource(R.string.cd_loading)
+
+    if (section.roles.canSwitch && active != null) {
+        Text(
+            text = stringResource(R.string.auth_account_role_switch_label),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SegmentedControl(
+            options = section.roles.switchable,
+            selected = active,
+            onSelectedChange = onSwitchTo,
+            optionLabel = { labels.getValue(it) },
+        )
+    }
+
+    section.roles.addable.forEach { role ->
+        OutlinedButton(
+            onClick = { onActivate(role) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(text = stringResource(role.activateRes()))
+        }
+    }
+
+    if (section.busy) {
+        CircularProgressIndicator(
+            modifier = Modifier.semantics { contentDescription = loadingDescription },
+        )
+    }
+
+    section.error?.let { error ->
+        Text(
+            text = stringResource(error.messageRes()),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
     }
 }
 
@@ -150,19 +219,61 @@ private fun previewSession(): AuthSession =
         fullName = PersonName.create("Ana Quispe").getOrNull(),
     )
 
-@Preview(showBackground = true, name = "Cuenta con contenido, claro")
+private fun previewRoles(
+    held: Set<UserRole>,
+    active: UserRole,
+    error: ProfileError? = null,
+): RoleSection =
+    RoleSection(
+        roles = ProfileRoles.create(held, active).getOrThrow(),
+        error = error,
+    )
+
+private val bothRoles = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
+private val onlyPatient = setOf(UserRole.PATIENT)
+
+@Preview(showBackground = true, name = "Cuenta con los dos roles, claro")
 @Composable
-private fun AccountContentLightPreview() {
+private fun AccountBothRolesLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Content(previewSession()), {}, {}, {}, {})
+        val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PATIENT))
+        AccountContent(state, {}, {}, {}, {}, {}, {})
     }
 }
 
-@Preview(showBackground = true, name = "Cuenta con contenido, oscuro")
+@Preview(showBackground = true, name = "Cuenta con los dos roles, oscuro")
 @Composable
-private fun AccountContentDarkPreview() {
+private fun AccountBothRolesDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AccountContent(AccountUiState.Content(previewSession()), {}, {}, {}, {})
+        val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PROFESSIONAL))
+        AccountContent(state, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, name = "Cuenta con un solo rol, claro")
+@Composable
+private fun AccountSingleRoleLightPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
+        AccountContent(state, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, name = "Cuenta con un solo rol, oscuro")
+@Composable
+private fun AccountSingleRoleDarkPreview() {
+    SaludEnCasaTheme(darkTheme = true) {
+        val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
+        AccountContent(state, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, name = "Cuenta con cambio de rol fallido")
+@Composable
+private fun AccountRoleSwitchErrorPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        val roles = previewRoles(bothRoles, UserRole.PATIENT, ProfileError.NetworkUnavailable)
+        AccountContent(AccountUiState.Content(previewSession(), roles), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -170,7 +281,7 @@ private fun AccountContentDarkPreview() {
 @Composable
 private fun AccountLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Loading, {}, {}, {}, {})
+        AccountContent(AccountUiState.Loading, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -178,6 +289,6 @@ private fun AccountLoadingPreview() {
 @Composable
 private fun AccountErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {})
+        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {}, {}, {})
     }
 }

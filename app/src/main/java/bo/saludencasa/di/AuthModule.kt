@@ -34,5 +34,5 @@ val authModule =
 
         viewModel { StartupViewModel(get(), get()) }
         viewModel { WelcomeViewModel(get()) }
-        viewModel { AccountViewModel(get(), get()) }
+        viewModel { AccountViewModel(get(), get(), get(), get(), get()) }
     }
