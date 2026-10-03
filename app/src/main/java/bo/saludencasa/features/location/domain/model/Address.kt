@@ -10,6 +10,7 @@ data class Address(
     val city: String,
     val coordinate: Coordinate,
     val isPrimary: Boolean,
+    val isProfessionalBase: Boolean,
 )
 
 // What the geocoder can say about a point, and what a search for a written

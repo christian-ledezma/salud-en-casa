@@ -44,6 +44,14 @@ sealed interface SetPrimaryAddressResult {
     ) : SetPrimaryAddressResult
 }
 
+sealed interface SetProfessionalBaseResult {
+    data object Success : SetProfessionalBaseResult
+
+    data class Failure(
+        val error: AddressError,
+    ) : SetProfessionalBaseResult
+}
+
 sealed interface DeleteAddressResult {
     data object Success : DeleteAddressResult
 

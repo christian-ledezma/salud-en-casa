@@ -17,6 +17,7 @@ import bo.saludencasa.features.location.domain.usecase.GetCurrentPositionUseCase
 import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.location.domain.usecase.SaveAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.SetPrimaryAddressUseCase
+import bo.saludencasa.features.location.domain.usecase.SetProfessionalBaseAddressUseCase
 import bo.saludencasa.features.location.presentation.AddressListViewModel
 import bo.saludencasa.features.location.presentation.AddressViewModel
 import org.koin.android.ext.koin.androidContext
@@ -39,11 +40,12 @@ val locationModule =
         factory { GetMyAddressesUseCase(get()) }
         factory { SaveAddressUseCase(get()) }
         factory { SetPrimaryAddressUseCase(get()) }
+        factory { SetProfessionalBaseAddressUseCase(get()) }
         factory { DeleteAddressUseCase(get()) }
         factory { DescribePointUseCase(get()) }
         factory { FindPlaceUseCase(get()) }
         factory { GetCurrentPositionUseCase(get()) }
 
         viewModel { (addressId: String?) -> AddressViewModel(addressId, get(), get(), get(), get(), get()) }
-        viewModel { AddressListViewModel(get(), get(), get()) }
+        viewModel { AddressListViewModel(get(), get(), get(), get(), get()) }
     }

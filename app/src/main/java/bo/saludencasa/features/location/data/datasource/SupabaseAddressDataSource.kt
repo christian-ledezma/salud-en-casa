@@ -67,6 +67,14 @@ class SupabaseAddressDataSource(
             }
     }
 
+    suspend fun setProfessionalBase(id: String) {
+        supabase
+            .from("addresses")
+            .update({ set("is_professional_base", true) }) {
+                filter { eq("id", id) }
+            }
+    }
+
     suspend fun deleteAddress(id: String) {
         supabase
             .from("addresses")

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +48,7 @@ fun AddressListScreen(
     AddressListContent(
         uiState = uiState,
         onSetPrimaryClick = viewModel::onSetPrimaryClick,
+        onSetProfessionalBaseClick = viewModel::onSetProfessionalBaseClick,
         onDeleteClick = viewModel::onDeleteClick,
         onConfirmDeleteClick = viewModel::onConfirmDelete,
         onDismissDeleteClick = viewModel::onDismissDeleteConfirmation,
@@ -61,6 +63,7 @@ fun AddressListScreen(
 private fun AddressListContent(
     uiState: AddressListUiState,
     onSetPrimaryClick: (String) -> Unit,
+    onSetProfessionalBaseClick: (String) -> Unit,
     onDeleteClick: (String) -> Unit,
     onConfirmDeleteClick: () -> Unit,
     onDismissDeleteClick: () -> Unit,
@@ -111,6 +114,7 @@ private fun AddressListContent(
             AddressListItems(
                 content = uiState,
                 onSetPrimaryClick = onSetPrimaryClick,
+                onSetProfessionalBaseClick = onSetProfessionalBaseClick,
                 onDeleteClick = onDeleteClick,
                 onConfirmDeleteClick = onConfirmDeleteClick,
                 onDismissDeleteClick = onDismissDeleteClick,
@@ -146,6 +150,7 @@ private fun CenteredMessage(
 private fun AddressListItems(
     content: AddressListUiState.Content,
     onSetPrimaryClick: (String) -> Unit,
+    onSetProfessionalBaseClick: (String) -> Unit,
     onDeleteClick: (String) -> Unit,
     onConfirmDeleteClick: () -> Unit,
     onDismissDeleteClick: () -> Unit,
@@ -188,7 +193,9 @@ private fun AddressListItems(
                 AddressListRow(
                     address = address,
                     isPending = content.pendingId == address.id,
+                    canDeclareProfessionalBase = content.canDeclareProfessionalBase,
                     onSetPrimaryClick = { onSetPrimaryClick(address.id) },
+                    onSetProfessionalBaseClick = { onSetProfessionalBaseClick(address.id) },
                     onEditClick = { onEditClick(address.id) },
                     onDeleteClick = { onDeleteClick(address.id) },
                 )
@@ -219,7 +226,9 @@ private fun AddressListItems(
 private fun AddressListRow(
     address: Address,
     isPending: Boolean,
+    canDeclareProfessionalBase: Boolean,
     onSetPrimaryClick: () -> Unit,
+    onSetProfessionalBaseClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -242,12 +251,21 @@ private fun AddressListRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(text = address.alias, style = MaterialTheme.typography.titleMedium)
-                if (address.isPrimary) {
-                    Text(
-                        text = stringResource(R.string.address_list_primary_badge),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = SaludEnCasaTheme.statusColors.positive,
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+                    if (address.isPrimary) {
+                        Text(
+                            text = stringResource(R.string.address_list_primary_badge),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = SaludEnCasaTheme.statusColors.positive,
+                        )
+                    }
+                    if (address.isProfessionalBase && canDeclareProfessionalBase) {
+                        Text(
+                            text = stringResource(R.string.address_list_professional_base_badge),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
 
@@ -266,10 +284,23 @@ private fun AddressListRow(
                     modifier = Modifier.semantics { contentDescription = loadingDescription },
                 )
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+                // FlowRow and not Row: a plain Row does not wrap, and the fourth
+                // action pushed "Editar" and "Eliminar" clean out of the layout
+                // -- they were not clipped, they stopped being composed at all,
+                // which left an address impossible to edit or delete. It is also
+                // what keeps the actions reachable at 200 % font size.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+                ) {
                     if (!address.isPrimary) {
                         TextButton(onClick = onSetPrimaryClick) {
                             Text(text = stringResource(R.string.address_list_set_primary_action))
+                        }
+                    }
+                    if (canDeclareProfessionalBase && !address.isProfessionalBase) {
+                        TextButton(onClick = onSetProfessionalBaseClick) {
+                            Text(text = stringResource(R.string.address_list_set_professional_base_action))
                         }
                     }
                     TextButton(onClick = onEditClick) {
@@ -288,6 +319,7 @@ private fun previewAddress(
     id: String,
     alias: String,
     isPrimary: Boolean,
+    isProfessionalBase: Boolean = false,
     reference: String? = "Portón verde, al lado de la farmacia",
 ): Address =
     Address(
@@ -298,12 +330,14 @@ private fun previewAddress(
         city = "La Paz",
         coordinate = Coordinate.create(-16.4957, -68.1335).getOrThrow(),
         isPrimary = isPrimary,
+        isProfessionalBase = isProfessionalBase,
     )
 
 private fun previewContent(
     pendingId: String? = null,
     confirmingDeleteId: String? = null,
     notice: AddressError? = null,
+    canDeclareProfessionalBase: Boolean = false,
 ): AddressListUiState.Content =
     AddressListUiState.Content(
         addresses =
@@ -314,13 +348,14 @@ private fun previewContent(
         pendingId = pendingId,
         confirmingDeleteId = confirmingDeleteId,
         notice = notice,
+        canDeclareProfessionalBase = canDeclareProfessionalBase,
     )
 
 @Preview(showBackground = true, heightDp = 700, name = "Lista de direcciones, claro")
 @Composable
 private fun AddressListContentLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -328,7 +363,7 @@ private fun AddressListContentLightPreview() {
 @Composable
 private fun AddressListContentDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -336,7 +371,7 @@ private fun AddressListContentDarkPreview() {
 @Composable
 private fun AddressListContentConfirmingDeletePreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(confirmingDeleteId = "2"), {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(confirmingDeleteId = "2"), {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -344,7 +379,7 @@ private fun AddressListContentConfirmingDeletePreview() {
 @Composable
 private fun AddressListEmptyPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(AddressListUiState.Empty, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(AddressListUiState.Empty, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -352,7 +387,7 @@ private fun AddressListEmptyPreview() {
 @Composable
 private fun AddressListLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(AddressListUiState.Loading, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(AddressListUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -362,6 +397,7 @@ private fun AddressListFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         AddressListContent(
             AddressListUiState.Failed(AddressError.NetworkUnavailable),
+            {},
             {},
             {},
             {},

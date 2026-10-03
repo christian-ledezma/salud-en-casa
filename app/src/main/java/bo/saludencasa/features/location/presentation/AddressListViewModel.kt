@@ -7,9 +7,14 @@ import bo.saludencasa.features.location.domain.model.AddressError
 import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.model.DeleteAddressResult
 import bo.saludencasa.features.location.domain.model.SetPrimaryAddressResult
+import bo.saludencasa.features.location.domain.model.SetProfessionalBaseResult
 import bo.saludencasa.features.location.domain.usecase.DeleteAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.location.domain.usecase.SetPrimaryAddressUseCase
+import bo.saludencasa.features.location.domain.usecase.SetProfessionalBaseAddressUseCase
+import bo.saludencasa.features.profile.domain.model.RoleResult
+import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.profile.domain.usecase.GetRolesUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,13 +37,19 @@ sealed interface AddressListUiState {
         val pendingId: String?,
         val confirmingDeleteId: String?,
         val notice: AddressError?,
+        // A patient has no coverage area, so the base is not something they can
+        // declare. It depends on holding the professional role and not on it
+        // being active: the address is the same wherever they are working from.
+        val canDeclareProfessionalBase: Boolean,
     ) : AddressListUiState
 }
 
 class AddressListViewModel(
     private val getMyAddresses: GetMyAddressesUseCase,
     private val setPrimaryAddress: SetPrimaryAddressUseCase,
+    private val setProfessionalBaseAddress: SetProfessionalBaseAddressUseCase,
     private val deleteAddress: DeleteAddressUseCase,
+    private val getRoles: GetRolesUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<AddressListUiState>(AddressListUiState.Loading)
 
@@ -51,6 +62,12 @@ class AddressListViewModel(
     fun load() {
         state.value = AddressListUiState.Loading
         viewModelScope.launch {
+            // A role read that fails costs the base action, not the list. The
+            // addresses are what this screen is for, and hiding one control is a
+            // smaller loss than refusing to show them.
+            val isProfessional =
+                (getRoles() as? RoleResult.Loaded)?.roles?.has(UserRole.PROFESSIONAL) == true
+
             state.value =
                 when (val result = getMyAddresses()) {
                     is AddressListResult.Success -> {
@@ -62,6 +79,7 @@ class AddressListViewModel(
                                 pendingId = null,
                                 confirmingDeleteId = null,
                                 notice = null,
+                                canDeclareProfessionalBase = isProfessional,
                             )
                         }
                     }
@@ -70,6 +88,29 @@ class AddressListViewModel(
                         AddressListUiState.Failed(result.error)
                     }
                 }
+        }
+    }
+
+    fun onSetProfessionalBaseClick(id: String) {
+        val content = currentContent() ?: return
+        if (content.pendingId != null || !content.canDeclareProfessionalBase) return
+
+        state.value = content.copy(pendingId = id, notice = null)
+        viewModelScope.launch {
+            when (val result = setProfessionalBaseAddress(id)) {
+                // Re-read for the same reason marking a primary address does:
+                // which row stops being the base is decided by
+                // addresses_unmark_previous_professional_base, a trigger, and
+                // repeating that rule here is how the two copies diverge.
+                SetProfessionalBaseResult.Success -> {
+                    load()
+                }
+
+                is SetProfessionalBaseResult.Failure -> {
+                    val current = currentContent() ?: return@launch
+                    state.value = current.copy(pendingId = null, notice = result.error)
+                }
+            }
         }
     }
 

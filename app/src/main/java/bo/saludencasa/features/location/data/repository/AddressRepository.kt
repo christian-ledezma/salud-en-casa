@@ -11,6 +11,7 @@ import bo.saludencasa.features.location.domain.model.DeleteAddressResult
 import bo.saludencasa.features.location.domain.model.MyAddressResult
 import bo.saludencasa.features.location.domain.model.SaveAddressResult
 import bo.saludencasa.features.location.domain.model.SetPrimaryAddressResult
+import bo.saludencasa.features.location.domain.model.SetProfessionalBaseResult
 import bo.saludencasa.features.location.domain.repository.IAddressRepository
 import kotlinx.coroutines.CancellationException
 
@@ -78,6 +79,19 @@ class AddressRepository(
             throw cancellation
         } catch (failure: Exception) {
             SetPrimaryAddressResult.Failure(failure.toAddressError())
+        }
+    }
+
+    override suspend fun setProfessionalBaseAddress(id: String): SetProfessionalBaseResult {
+        if (dataSource.currentUserId() == null) return SetProfessionalBaseResult.Failure(AddressError.NotSignedIn)
+
+        return try {
+            dataSource.setProfessionalBase(id)
+            SetProfessionalBaseResult.Success
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            SetProfessionalBaseResult.Failure(failure.toAddressError())
         }
     }
 

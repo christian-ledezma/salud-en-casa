@@ -16,6 +16,7 @@ data class AddressDto(
     val latitude: Double,
     val longitude: Double,
     @SerialName("is_primary") val isPrimary: Boolean = false,
+    @SerialName("is_professional_base") val isProfessionalBase: Boolean = false,
 )
 
 // What travels towards public.addresses. The point leaves as the text PostGIS

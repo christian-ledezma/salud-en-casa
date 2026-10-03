@@ -17,6 +17,7 @@ internal fun AddressDto.toAddress(): Address? {
         city = city,
         coordinate = coordinate,
         isPrimary = isPrimary,
+        isProfessionalBase = isProfessionalBase,
     )
 }
 
