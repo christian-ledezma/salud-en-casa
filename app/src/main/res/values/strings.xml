@@ -31,6 +31,11 @@
     <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
     <string name="auth_account_open_profile">Mi perfil</string>
     <string name="auth_account_open_address">Mis direcciones</string>
+    <string name="auth_account_role_short_patient">Paciente</string>
+    <string name="auth_account_role_short_professional">Profesional</string>
+    <string name="auth_account_role_switch_label">Estás usando la aplicación como</string>
+    <string name="auth_account_activate_patient">Activar mi perfil de paciente</string>
+    <string name="auth_account_activate_professional">Activar mi perfil profesional</string>
     <string name="auth_account_sign_out">Cerrar sesión</string>
     <string name="auth_account_keep_session">Seguir con la sesión abierta</string>
 
@@ -105,12 +110,14 @@
     <string name="address_list_empty_description">Agrega una dirección para que la atención llegue al lugar correcto.</string>
     <string name="address_list_add">Agregar dirección</string>
     <string name="address_list_primary_badge">Principal</string>
+    <string name="address_list_professional_base_badge">Base profesional</string>
+    <string name="address_list_set_professional_base_action">Usar como base profesional</string>
     <string name="address_list_set_primary_action">Marcar como principal</string>
     <string name="address_list_delete_confirm_title">¿Eliminar esta dirección?</string>
     <string name="address_list_delete_confirm_message">Esta acción no se puede deshacer.</string>
 
     <string name="profile_role_selection_title">¿Cómo vas a usar Salud en Casa?</string>
-    <string name="profile_role_selection_subtitle">Elige una opción para continuar. Define lo que ves en la aplicación y se responde una sola vez.</string>
+    <string name="profile_role_selection_subtitle">Elige con cuál empiezas. Define lo que ves en la aplicación y después puedes activar el otro.</string>
     <string name="profile_role_selection_confirm">Continuar</string>
     <string name="profile_role_patient">Paciente</string>
     <string name="profile_role_patient_description">Busco atención de salud en mi domicilio, para mí o para un familiar.</string>
@@ -127,7 +134,8 @@
 
     <string name="error_profile_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_profile_not_found">No encontramos tu perfil. Cierra sesión y vuelve a ingresar.</string>
-    <string name="error_profile_role_already_assigned">Ya elegiste tu rol. Vuelve a abrir la aplicación para continuar.</string>
+    <string name="error_profile_role_already_held">Ya tienes ese rol activado.</string>
+    <string name="error_profile_role_not_held">Todavía no tienes ese rol. Actívalo antes de cambiar a él.</string>
     <string name="error_profile_invalid_name">Escribe tu nombre completo, entre 2 y 80 letras y sin números.</string>
     <string name="error_profile_invalid_phone">Escribe un número de Bolivia de ocho dígitos, por ejemplo 71234567.</string>
     <string name="error_profile_invalid_birth_date">Elige una fecha de nacimiento anterior a hoy.</string>
