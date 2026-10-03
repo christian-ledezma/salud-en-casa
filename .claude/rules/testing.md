@@ -52,8 +52,26 @@ causa de la intermitencia; no se reintenta hasta que pase.
 | Transformadores | `app/src/test` | Máquina virtual de Java |
 | Modelos de vista | `app/src/test` | Máquina virtual de Java |
 | Interfaz | `app/src/androidTest` | Dispositivo o emulador |
+| Políticas de seguridad y disparadores | Experimento SQL contra la base | Proyecto remoto, dentro de una transacción con `rollback` |
 
 La estructura de paquetes de las pruebas replica la del código fuente.
+
+**Las pruebas de política no tienen archivo.** Una política de seguridad a nivel de
+fila y un disparador se ejecutan dentro de PostgreSQL, así que ninguna prueba de
+JUnit puede ejercerlos: no hay base de datos en la máquina virtual de Java y el
+proyecto no tiene entorno local con Docker (aplazado en HT-04). Se verifican con un
+experimento SQL contra el proyecto remoto, simulando al usuario autenticado con
+`set local role authenticated` y `set local request.jwt.claims`, **dentro de una
+transacción que termina en `rollback`** para no dejar residuo. Es el método con el
+que se verificaron los disparadores de dirección en HU-05 y con el que se encontró
+la causa del defecto de HU-06.
+
+Una prueba obligatoria de esta clase se da por cumplida cuando el experimento está
+ejecutado y su resultado anotado en `plan.md`, con la fecha. Mientras el
+experimento no se haya corrido, la historia no está terminada, igual que con
+cualquier otra prueba obligatoria ausente. La transversal
+`everyTableHasRowLevelSecurityEnabledAndAtLeastOnePolicy` pertenece a esta misma
+categoría.
 
 La capa de dominio no depende de Android, de modo que sus pruebas corren en la
 máquina virtual de Java: sin emulador, en segundos, y ejecutables en integración
@@ -83,18 +101,38 @@ límite exactos.
 ### Autenticación y perfiles
 
 - `createsProfileOnFirstSignIn`
-- `assignsRoleOnlyOnceAndRejectsSecondAssignment`
 - `adminRoleIsNeverSelfAssignable`
 - `sessionPersistsAcrossApplicationRestart`
+
+Roles múltiples, desde el Sprint 2.5:
+
+- **Obligatoria:** `activeRoleMustBeOneOfTheHeldRoles`
+- **Obligatoria:** `rejectsAddingARoleThePersonAlreadyHolds`
+- **Obligatoria:** `rejectsSwitchingToARoleThePersonDoesNotHold`
+- **Obligatoria:** `aPersonWithBothRolesEditingAsPatientWritesNoProfessionalData`
+- `switchFailureKeepsThePreviousActiveRole`
+- `theSwitchIsHiddenForSomeoneWithASingleRole`
+
+> **`assignsRoleOnlyOnceAndRejectsSecondAssignment` se retiró el 2026-10-01.**
+> Expresaba que el rol se elige una sola vez, y esa dejó de ser la regla cuando el
+> Sprint 2.5 hizo que una persona pueda tener paciente y profesional a la vez.
+> `rejectsAddingARoleThePersonAlreadyHolds` ocupa su lugar: la regla que queda no
+> es que no haya un segundo rol, sino que no haya dos veces el mismo. No se apagó
+> una prueba en rojo; se corrigió una prueba que expresaba una regla derogada, que
+> es el segundo de los dos caminos que esta misma regla admite. Ver
+> `docs/decisions.md`, 2026-10-01.
 
 ### Ubicación
 
 - **Obligatoria:** `nearbySearchReturnsOnlyProfessionalsWithinRadius`
 - **Obligatoria:** `nearbySearchOrdersResultsByAscendingDistance`
 - **Obligatoria:** `nearbySearchExcludesUnverifiedAndInactiveProfessionals`
+- **Obligatoria:** `nearbySearchUsesTheProfessionalBaseAndNotThePrimaryAddress`
+- **Obligatoria:** `nearbySearchExcludesTheCallerFromTheirOwnResults`
 - `nearbySearchUsesSpatialIndexAndNotSequentialScan`
 - `geocodingIsCachedAndNotRequestedTwiceForTheSameAddress`
 - `markingAddressAsPrimaryUnmarksThePreviousOne`
+- `markingAddressAsProfessionalBaseUnmarksThePreviousOne`
 
 ### Verificación
 
@@ -107,6 +145,8 @@ límite exactos.
 - **Obligatoria:** `counterOfferReferencesPreviousOfferAndPreservesTheWholeThread`
 - **Obligatoria:** `acceptingOfferCreatesServiceAndPendingPaymentInASingleTransaction`
 - **Obligatoria:** `failedAcceptanceLeavesNoPartialRecord`
+- **Obligatoria:** `aDualRoleUserNeverSeesTheirOwnRequestInTheProfessionalInbox`
+- **Obligatoria:** `aDualRoleUserCannotOfferOnTheirOwnRequest`
 - `issuedOfferCannotBeEdited`
 - `unverifiedProfessionalCannotIssueOffer`
 - `acceptedRequestRejectsNewOffers`
@@ -139,6 +179,8 @@ límite exactos.
 
 - **Obligatoria:** `ratingIsUniquePerServiceAndAuthor`
 - **Obligatoria:** `authorAndRecipientCanNeverBeTheSamePerson`
+- **Obligatoria:** `reputationAsAProfessionalExcludesRatingsReceivedAsAPatient`
+- **Obligatoria:** `ratingsReceivedAsAPatientNeverBecomePublic`
 - `ratingOutsideOneToFiveIsRejected`
 - `reputationIsRecalculatedOnEachNewRating`
 - `cancelledServiceCannotBeRated`

@@ -15,6 +15,7 @@ que lo introduce.
 | Paciente | `Patient` | Rol que solicita atención |
 | Profesional | `Professional` | Rol que presta atención |
 | Administrador | `Admin` | Rol de verificación y conciliación |
+| Roles de una persona | `ProfileRoles` | Los roles que tiene y cuál está activo. Una persona puede tener paciente y profesional a la vez |
 | Médico | `DOCTOR` | Valor de `professional_type` |
 | Enfermera | `NURSE` | Valor de `professional_type` |
 | Fisioterapeuta | `PHYSIOTHERAPIST` | Valor de `professional_type` |
@@ -51,6 +52,9 @@ que lo introduce.
 | Teléfono | `phone` |
 | Fotografía | `photoUrl` / `photo_url` |
 | Rol | `role` |
+| Rol activo | `activeRole` / `active_role` |
+| Roles que tiene | `heldRoles` |
+| Base profesional | `isProfessionalBase` / `is_professional_base` |
 | Estado de verificación | `verificationStatus` / `verification_status` |
 | Activo | `active` |
 | Fecha de nacimiento | `birthDate` / `birth_date` |
@@ -145,13 +149,19 @@ agregar. El término se conserva aquí por si esa tabla llega a existir.
 
 ## Tablas del esquema
 
-`profiles` · `patients` · `professionals` · `verification_documents` · `addresses`
-· `service_types` · `professional_services` · `availability_slots` ·
-`service_requests` · `request_offers` · `messages` · `services` · `payments` ·
-`reviews` · `device_tokens`
+`profiles` · `profile_roles` · `patients` · `professionals` ·
+`verification_documents` · `addresses` · `service_types` ·
+`professional_services` · `availability_slots` · `service_requests` ·
+`request_offers` · `messages` · `services` · `payments` · `reviews` ·
+`device_tokens`
 
-Vista de apoyo: `professional_directory`, la proyección pública del profesional
-sin datos de contacto.
+Dieciséis tablas. `profile_roles` se agregó en el Sprint 2.5, al dejar de ser
+único el rol de una persona.
+
+Vistas de apoyo: `professional_directory`, la proyección pública del profesional
+sin datos de contacto · `my_addresses`, las direcciones propias con el punto ya
+proyectado a latitud y longitud · `my_roles`, los roles propios y el rol activo
+en una sola fila.
 
 ## Sufijo de moneda
 

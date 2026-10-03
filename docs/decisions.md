@@ -697,7 +697,17 @@ condicionada a `shares_service_with()`, que existe desde la migracion que crea
 
 ---
 
-## 2026-09-11 · La reputacion vive en `profiles`, no en `professionals`
+## 2026-09-11 · La reputacion vive en `profiles`, no en `professionals` — SUPERADA
+
+> **Superada por la entrada del 2026-10-01 sobre la reputación por rol.** Esta
+> entrada describió con precisión el costo de la alternativa —«el paciente
+> necesitaría una columna paralela en `patients` y el disparador de recálculo
+> tendría que decidir a cuál escribir según el rol del destinatario»— y ese costo
+> es exactamente el que se paga ahora. Lo que cambió no es el razonamiento sino su
+> premisa: era correcto mientras una persona tuviera un solo rol. Con rol múltiple,
+> una sola columna mezcla la reputación como paciente con la reputación como
+> profesional, y `reviews_select_visible` haría pública la primera. Se conserva
+> porque documenta por qué la forma simple era la correcta en su momento.
 
 **Contexto.** El glosario nombra `averageRating` sin fijar en que tabla reside, y
 la lectura natural es ponerla en `professionals`, que es donde la muestra la
@@ -1270,7 +1280,15 @@ prueba de Compose sobre `AccountContent`. Queda anotado como deuda.
 
 ---
 
-## 2026-09-13 · La elección del rol se escribe con una función almacenada
+## 2026-09-13 · La elección del rol se escribe con una función almacenada — SUPERADA EN PARTE
+
+> **Superada en parte por la entrada del 2026-10-01 sobre el rol múltiple.** Sigue
+> vigente lo esencial: la escritura del rol es una transacción atómica en una
+> función `security invoker`, por el motivo que esta entrada explica. Lo que deja de
+> valer es «el rol se elige una vez»: `assign_my_role` pasa a ser `add_my_role`, el
+> disparador `profiles_guard_role` desaparece, y la regla triplicada que el párrafo
+> de consecuencia describe pasa a ser «un rol no se agrega dos veces» en lugar de
+> «el rol se elige una vez».
 
 **Contexto.** HU-02 tiene que escribir dos cosas: el rol en `profiles` y la fila
 de `patients` o de `professionals`. Desde el cliente son dos peticiones, y
@@ -1335,6 +1353,13 @@ incompleto existe, pero es invisible para todo el producto.
 
 ## 2026-09-13 · El rol que se elige es un tipo distinto del rol que se tiene
 
+> **Vigente, con la premisa de su contexto cambiada el 2026-10-01.** `profiles.role`
+> ya no existe: los roles de una persona viven en `profile_roles` y el activo en
+> `profiles.active_role`. La decisión se sostiene entera de todos modos, y el rol
+> múltiple la refuerza: `AssignableRole` es ahora lo que recibe `AddRoleUseCase`, y
+> es el único lugar donde habría que agregar `ADMIN` para que llegue a ofrecerse.
+> `adminRoleIsNeverSelfAssignable` sigue vigilando ese archivo sin un cambio.
+
 **Contexto.** `profiles.role` admite tres valores —`PATIENT`, `PROFESSIONAL` y
 `ADMIN`—, pero RF-01.5 dice que el administrador nunca se autoasigna, y el
 criterio de aceptación de HU-02 lo dice como interfaz: «el rol de administrador
@@ -1356,7 +1381,14 @@ y sus dos cadenas, sin tocar la pantalla.
 
 ---
 
-## 2026-09-13 · El arranque resuelve sesión y rol juntos, y el ingreso vuelve al arranque
+## 2026-09-13 · El arranque resuelve sesión y rol juntos, y el ingreso vuelve al arranque — SUPERADA EN PARTE
+
+> **Superada en parte por la entrada del 2026-10-01 sobre el rol múltiple.** Sigue
+> vigente todo el razonamiento: un solo lugar decide el destino, el ingreso vuelve
+> al arranque, y un rol que no se puede leer no es un rol que falta. Lo que cambia
+> es el dato que el arranque lee: en vez de un rol único lee el conjunto de roles y
+> el rol activo, y manda a elegir cuando el conjunto está vacío. Los cinco caminos
+> de `StartupViewModelTest` se conservan.
 
 **Contexto.** RF-01.4 exige que quien no tiene rol lo elija antes de acceder a
 cualquier otra funcionalidad. Hasta HU-01 el arranque solo miraba la sesión y
@@ -1507,7 +1539,14 @@ incluido hoy mismo, que es el borde que la columna rechaza.
 
 ---
 
-## 2026-09-14 · Guardar el perfil también es una sola transacción
+## 2026-09-14 · Guardar el perfil también es una sola transacción — SUPERADA EN PARTE
+
+> **Superada en parte por la entrada del 2026-10-01 sobre el rol múltiple.** Sigue
+> vigente que `save_my_profile` es una transacción única y que el servidor —no el
+> cliente— decide qué columnas se escriben, que es lo que hace que un argumento
+> enviado por error se ignore en vez de escribirse. Lo que cambia es el dato con el
+> que decide: en vez de `profiles.role` lee `profiles.active_role`, de modo que
+> alguien con los dos roles edita el rol en el que está.
 
 **Contexto.** `saveProfile` enviaba dos peticiones: una a `profiles` y otra a
 `patients`. Lo señaló el revisor automático en el pull request #3. Una conexión
@@ -1608,7 +1647,13 @@ geocodificación, ninguno tocado antes— y no sobre la comparación de 21 contr
 capacidad, porque se cerrará por tiempo y no por alcance. Hasta entonces el rango
 de veinte a veinticinco sigue siendo una estimación, no un valor medido.
 
-## 2026-09-14 · El perfil profesional entra en `save_my_profile`, y la firma anterior se elimina
+## 2026-09-14 · El perfil profesional entra en `save_my_profile`, y la firma anterior se elimina — SUPERADA EN PARTE
+
+> **Superada en parte por la entrada del 2026-10-01 sobre el rol múltiple.** La
+> firma de once argumentos y el motivo de no partirla en dos funciones siguen
+> vigentes. Lo que cambia es la rama: el `if v_role = 'PATIENT' ... elsif` pasa a
+> leer `active_role`. La advertencia sobre «function is not unique» sigue siendo la
+> razón por la que la firma se reemplaza en el sitio y no se agrega otra al lado.
 
 **Contexto.** HU-04 agrega seis columnas de `professionals` al formulario de «Mi
 perfil». Escribirlas con una segunda petición reproduce exactamente el defecto
@@ -2197,6 +2242,355 @@ este proyecto que vuelva a una lista después de crear o editar uno de sus
 elementos debe recordar este mismo problema: un modelo de vista de Compose
 Navigation no se entera solo de que la pantalla a la que pertenece volvió a
 primer plano.
+
+---
+
+## 2026-10-01 · El rol deja de ser único: `profile_roles` y `active_role`
+
+**Contexto.** Una reunión con la contraparte del negocio pidió que una misma
+persona sea paciente y profesional y alterne entre ambos, como un conductor de
+inDrive o Uber alterna entre conducir y viajar. El proyecto llevaba desde el
+Sprint 1 con lo contrario escrito en cinco lugares: la columna escalar
+`profiles.role`, el disparador `profiles_guard_role`, la función `assign_my_role`,
+las dos políticas de inserción de `patients` y `professionals`, y
+`save_my_profile`.
+
+**Decisión.** Los roles de una persona viven en `profile_roles(profile_id, role)`,
+de solo agregar. El rol en el que está vive en `profiles.active_role`.
+`profiles.role` se elimina.
+
+**Razonamiento.** Se evaluaron tres formas. Un arreglo `roles user_role[]` en
+`profiles` es la más rápida de escribir y la peor de consultar: no hay clave
+foránea que valide sus elementos, y la restricción «el rol activo es uno de los
+que tengo» pasaría a ser un disparador. Tres columnas booleanas —`is_patient`,
+`is_professional`— obligan a una migración cada vez que aparece un rol. La tabla de
+pertenencia da una clave primaria sobre la que apoyar la integridad del rol activo
+y una política de seguridad propia, que es donde este proyecto prefiere que vivan
+las garantías.
+
+`profiles.role` **se elimina en lugar de conservarse** como «rol principal»
+denormalizado. Dos fuentes de verdad para el mismo hecho divergen, y la copia que
+nadie lee se queda obsoleta sin que nada falle. Es el «campo suelto para salir del
+paso» que la entrada del 2026-09-08 prohíbe.
+
+**Qué resultó más barato de lo estimado.** La estimación inicial fue que habría
+que reescribir las políticas de las quince tablas. Al leer el esquema efectivo
+resultaron ser **dos**: `patients_insert_own` y `professionals_insert_own`, más el
+ayudante `is_admin()`. Todo lo demás resuelve por pertenencia —`patient_id =
+auth.uid()`, `professional_id = auth.uid()`, o la existencia de una fila en
+`professionals`—, de modo que `services`, `payments`, `messages`, `reviews` y
+`request_offers` sobrevivieron sin tocarse. El dato cambió la decisión de cuándo
+hacerlo: con ese costo, hacerlo ahora es más barato que convivir con el modelo
+viejo un sprint más.
+
+**Consecuencia.** `add_my_role` reemplaza a `assign_my_role` y deja el rol nuevo
+como activo. El disparador `profiles_guard_role` desaparece, porque la regla que
+hacía cumplir —un rol no se cambia— dejó de ser la regla; la que queda —un rol no
+se agrega dos veces— la hace cumplir la clave primaria de `profile_roles`. La
+autoasignación de administrador pasa a morir en el `with check` de la política de
+inserción, que es un lugar más fuerte que un disparador porque no admite excepción
+por `is_admin()`.
+
+---
+
+## 2026-10-01 · La seguridad se decide por posesión del rol, nunca por rol activo
+
+**Contexto.** Con dos roles por persona aparece la pregunta de si las políticas de
+seguridad deben mirar `active_role`. La lectura intuitiva dice que sí: si estoy en
+modo paciente, no debería poder escribir como profesional.
+
+**Decisión.** Ninguna política de seguridad lee `active_role`. Las políticas
+deciden por posesión del rol y por pertenencia de la fila. `active_role` es estado
+de presentación.
+
+**Razonamiento.** Una política que mirara el rol activo no impediría nada. Quien
+tiene ambos roles cambia de rol cuando quiere —es justamente la funcionalidad que
+se está construyendo—, así que la restricción se saltaría cambiando de rol y
+repitiendo la petición. Sería teatro de seguridad: coste de implementación y
+mantenimiento a cambio de una garantía que no existe. Lo que sí es una frontera
+real es la posesión, y esa no se puede eludir desde el cliente.
+
+**Por qué entonces vive en el servidor y no en `DataStore`.** Porque es
+continuidad, no seguridad: el rol activo debe sobrevivir a una reinstalación y ser
+el mismo en otro dispositivo. `DataStore` cubre sesión y preferencias de este
+dispositivo, y el rol en el que alguien trabaja no es una preferencia de
+dispositivo.
+
+**Consecuencia.** La separación queda explícita y conviene que siga así: cuando el
+Sprint 5 escriba la bandeja del profesional, el filtro por rol activo es un `where`
+de la consulta o una condición de la pantalla, nunca una política. Y la matriz de
+permisos de `docs/requirements.md` sección 7 se lee por rol activo para lo que la
+aplicación muestra, y por posesión para lo que la base de datos permite.
+
+---
+
+## 2026-10-01 · El rol activo lo garantiza una clave foránea compuesta
+
+**Contexto.** `profiles.active_role` tiene que ser uno de los roles que la persona
+tiene en `profile_roles`. Un `check` no sirve: no puede consultar otra tabla.
+
+**Decisión.** `profiles` declara
+`foreign key (id, active_role) references profile_roles(profile_id, role)`, que
+apunta a la clave primaria de esa tabla. La columna admite nulo hasta que se elige
+el primer rol.
+
+**Razonamiento.** Las alternativas eran un disparador `before update` que
+consultara `profile_roles`, o una validación en el caso de uso. El disparador es
+código que hay que mantener y probar para expresar algo que el motor ya sabe hacer;
+la validación en el caso de uso no es una garantía, porque la API REST permite el
+`PATCH` directo sin pasar por la aplicación.
+
+Que la columna admita nulo no abre un hueco: con `match simple`, que es el
+comportamiento por omisión, la restricción se satisface cuando alguna columna de la
+clave es nula, y eso es exactamente lo que se quiere mientras la persona no tenga
+ningún rol.
+
+Es el mismo criterio que INV-10 aplica a los pagos, donde el total iguala la suma
+de la comisión y el monto del profesional por una restricción del motor y no por
+una validación de la aplicación.
+
+**Consecuencia.** El cambio de rol no necesita función almacenada ni validación
+previa: una actualización directa de la columna es imposible de corromper. Y la
+prueba `activeRoleMustBeOneOfTheHeldRoles` vigila el lado del dominio, donde
+`ProfileRoles` modela la misma regla para que un estado imposible no sea
+representable en memoria.
+
+---
+
+## 2026-10-01 · El cambio de rol se escribe con una consulta del cliente
+
+**Contexto.** Las dos escrituras de rol anteriores del proyecto —elegir el rol y
+guardar el perfil— son funciones almacenadas, por atomicidad. Cambiar de rol
+parece el caso siguiente de la misma serie.
+
+**Decisión.** Cambiar de rol es una actualización directa de `profiles.active_role`
+a través de `profiles_update_own`. No hay función almacenada.
+
+**Razonamiento.** Es una sola columna de una sola tabla: no hay nada que pueda
+quedar a medias, así que la atomicidad que justificaba las otras dos funciones no
+aplica. Y la única regla que había que garantizar —que el rol sea uno de los que la
+persona tiene— ya la impone la clave foránea compuesta. Una función almacenada aquí
+sería ceremonia: `.claude/rules/supabase.md` reserva las funciones de servidor para
+tres casos y este no es ninguno. Es el mismo razonamiento de la entrada del
+2026-09-15 sobre guardar una dirección con una consulta del cliente.
+
+**La escritura usa `update { set(...) }` y no un objeto serializable.** El proyecto
+ya pagó este defecto en HU-06, el 2026-09-16: `install(Postgrest)` no recibe
+`encodeDefaults = true`, de modo que un campo cuyo valor coincide con su valor por
+omisión desaparece del cuerpo de la petición y el `PATCH` que viaja es `{}`. Un rol
+activo es un enumerado sin valor por omisión, así que hoy no caería en la trampa,
+pero el patrón se mantiene porque la razón para preferirlo no depende del tipo.
+
+**Consecuencia.** `SwitchActiveRoleUseCase` valida que el rol se tenga antes de
+escribir, igual que `AddRoleUseCase` valida que no se tenga. Esa validación evita
+la petición inútil; la garantía sigue siendo del motor.
+
+---
+
+## 2026-10-01 · La reputación se separa por rol
+
+**Contexto.** `average_rating` y `total_reviews` vivían en `profiles` desde el
+2026-09-11, con el argumento de que la reputación es un atributo de la persona.
+Con rol múltiple, el promedio del profesional arrastraría las calificaciones que
+recibió como paciente. Peor: `reviews_select_visible` hace pública toda reseña cuyo
+destinatario esté en `professional_directory`, sin mirar de qué lado del servicio
+estuvo, de modo que las reseñas recibidas como paciente se volverían públicas en
+cuanto esa persona fuera aprobada como profesional. RF-12.4 solo hace pública la
+reputación del profesional.
+
+**Decisión.** `average_rating` y `total_reviews` bajan a `patients` y a
+`professionals`. `recalculate_reputation()` deriva el lado desde `services` y
+escribe en la tabla correspondiente. `reviews_select_visible` exige que el
+destinatario haya sido el profesional de ese servicio.
+
+**Razonamiento.** La entrada de 2026-09-11 describió el costo de esta forma con
+precisión —«el paciente necesitaría una columna paralela en `patients` y el
+disparador de recálculo tendría que decidir a cuál escribir según el rol del
+destinatario»— y lo descartó por complejidad innecesaria. Lo era, con un rol por
+persona. Con dos, ese costo compra una corrección que antes no hacía falta y ahora
+sí: la alternativa es una fuga de datos que contradice un requisito escrito.
+
+El lado se deriva de `services` y no de `profile_roles` porque lo que define en qué
+rol se recibió una calificación es la atención concreta, no los roles que la
+persona tiene hoy. Alguien puede recibir una reseña como paciente y activar el rol
+profesional al mes siguiente; la reseña no cambia de lado por eso.
+
+**Consecuencia.** `professional_directory` y `search_nearby_professionals` leen la
+reputación de `professionals`. Los guardias de columnas gestionadas por el servidor
+se reparten: `profiles` conserva el de `active`, y `patients` gana el suyo, que
+antes no tenía porque no tenía columnas que proteger. RN-14 recoge la regla en
+`docs/requirements.md`.
+
+---
+
+## 2026-10-01 · El domicilio y la base profesional son direcciones distintas
+
+**Contexto.** `professional_covers()` y `search_nearby_professionals()` usan la
+única dirección `is_primary` de la persona como centro de su radio de cobertura.
+Para alguien con un solo rol eso es correcto. Para alguien con dos, el domicilio
+donde quiere ser atendido y la base desde la que cubre una zona colapsan en la
+misma fila, y no hay forma de expresar que son distintas.
+
+**Decisión.** `addresses` gana `is_professional_base`, con índice único parcial y
+disparador de desmarcado, espejo exacto de los de `is_primary`. Las dos funciones
+de cercanía pasan a usar la columna nueva.
+
+**Razonamiento.** La alternativa era conservar una sola dirección principal para
+ambos roles y anotar la limitación como trabajo futuro. Se descartó porque la
+cercanía es el eje del producto: RF-06.1 y RN-02 dependen de qué punto es el centro
+del radio, y dejar ese punto ambiguo compromete la historia de búsqueda del
+Sprint 4, que es la que el proyecto todavía no ha podido demostrar.
+
+La columna se agrega en lugar de reutilizar `is_primary` con otro significado según
+el rol, que habría sido más barato y mucho peor: el mismo dato significando dos
+cosas según quién lo lea es como se construye un esquema que nadie puede razonar.
+
+**El relleno preserva el comportamiento actual.** La migración marca como base la
+dirección principal de quien tiene el rol profesional. Sin eso, la columna nacería
+vacía y todo profesional aprobado desaparecería de las búsquedas en el instante de
+aplicarla, porque la unión que lo encuentra es interna.
+
+**Consecuencia.** El cuarto criterio de HU-06 cambia de enunciado —«sin dirección
+principal» pasa a «sin base profesional»— y lo sigue garantizando el mismo `join`
+interno, sin código nuevo. RN-02 se reescribe. La pantalla de direcciones ofrece la
+marca solo a quien tiene el rol profesional, de modo que un paciente no ve un
+control que no significa nada para él.
+
+---
+
+## 2026-10-01 · El cambio de modelo entra como Sprint 2.5 y suspende el Sprint 3
+
+**Contexto.** La reunión que cambió el modelo de rol ocurrió con el Sprint 3 ya
+iniciado y HU-06 en curso, a falta de su verificación en dispositivo. Había que
+decidir dónde entra el trabajo sin falsear la cronología de un documento que es
+evidencia académica.
+
+**Decisión.** Un sprint nuevo, numerado 2.5, que suspende el Sprint 3. Las
+historias usan los números siguientes libres —HU-34 a HU-36 y HT-16— sin renumerar
+nada.
+
+**Razonamiento.** Meter el refactor dentro del Sprint 3 habría mezclado dos
+objetivos de sprint distintos y dejado su retrospectiva sin poder decir nada útil
+sobre ninguno. Ponerlo después del Sprint 3 habría significado escribir HU-07 dos
+veces, porque la verificación ramifica por rol y con rol múltiple el conjunto de
+documentos pasa a ser la unión de los roles que la persona tenga.
+
+El número 2.5 expresa la dependencia y no la fecha: el trabajo pertenece al bloque
+de perfiles que cerró el Sprint 2, y toda historia del Sprint 3 en adelante lo
+presupone. SCRUM admite repriorizar el Product Backlog en cualquier momento; lo que
+no admite es cambiar el alcance del sprint en curso sin dejarlo explícito, y de ahí
+que el Sprint 3 quede suspendido en el documento en vez de simplemente continuar.
+
+**Los números de historia no se reasignan.** Insertar HU-06a o correr HU-07 a
+HU-33 un lugar habría roto todas las referencias cruzadas de este archivo, que ya
+está entregado. El número es un identificador, no un orden de ejecución, y el plan
+lo dice de forma explícita.
+
+**Consecuencia.** HU-06 no se traslada por tercera vez: se queda en el Sprint 3 y
+se cierra al reanudarlo. La velocidad del Sprint 2.5 se mide aparte, lo que da por
+fin la ocasión de cerrar un sprint por plazo que la retrospectiva del Sprint 2
+reclamaba, porque este sprint tiene una fecha de corte que no depende de agotar el
+alcance.
+
+---
+
+## 2026-10-02 · Una subconsulta dentro de una política obedece a las políticas de la tabla que consulta
+
+**Contexto.** Los experimentos SQL de HT-16 destaparon dos defectos del mismo
+origen, uno preexistente y otro introducido ese mismo día.
+
+`request_offers_insert_participants` validaba el hilo de una contraoferta con
+`exists (select 1 from public.request_offers parent ...)`. Una expresión de
+política que consulta su propia relación hace que PostgreSQL levante `42P17`,
+«infinite recursion detected in policy», de modo que la política estaba rota para
+**toda** inserción, no solo para la autonegociación. Llegó con la migración
+correctiva del 2026-09-12 y nadie lo notó porque emitir una oferta es alcance del
+Sprint 6 y nunca se había insertado ninguna.
+
+`reviews_select_visible`, reescrita ese día para que solo fueran públicas las
+reseñas recibidas como profesional, expresó la condición como
+`exists (select 1 from public.services s ...)`. Esa subconsulta corre bajo las
+políticas de `services`, y `services_select_participants` solo muestra un servicio
+a su paciente o a su profesional. Para un tercero —el público de una reseña
+pública— no devolvía nada, así que ninguna reseña era pública.
+
+**Decisión.** Cuando una política necesita mirar otra tabla, la consulta va en una
+función `security definer` que devuelve un booleano, o en una vista
+`security_invoker = false`. Nunca como subconsulta directa dentro de la política.
+Se crean `offer_continues_thread` y `was_the_professional_of` con ese patrón.
+
+**Razonamiento.** Las dos alternativas evaluadas fueron relajar las políticas de
+`services` y de `request_offers` para que el tercero pudiera leerlas, o mover la
+pregunta a una función definidora. La primera es inaceptable: abriría filas
+completas —montos, partes, identificadores— para contestar un booleano, y rompería
+INV-13 por una comodidad de implementación.
+
+Una función definidora es segura aquí porque devuelve exactamente un `boolean` y
+nada más: de qué lado de un servicio estuvo alguien, o si una oferta padre
+pertenece al mismo hilo. No entrega una fila, ni un monto, ni un identificador, y
+quien llama ya conoce los datos que pasa como argumentos. `professional_directory`
+funcionaba desde el principio por esta misma razón: es `security_invoker = false`,
+así que corre con los privilegios de su dueño.
+
+**Lo que delató el primer defecto, y conviene no olvidar.** El experimento probaba
+las dos inserciones, la ilegítima y la legítima, y las dos fallaron con el mismo
+`SQLSTATE`. Un rechazo de política y un error de recursión no son el mismo
+resultado, y solo uno estaba previsto. Un experimento que hubiera comprobado
+únicamente que la inserción ilegítima fallaba habría dado por buena una política
+inservible. Una prueba de seguridad tiene que demostrar que **discrimina**, no solo
+que deniega.
+
+**Consecuencia.** Toda política futura que necesite consultar otra tabla sigue este
+patrón. Las vigentes que ya lo hacen —`professional_services_select_public`,
+`availability_slots_select_public`, las de `messages`, las de `payments` y las de
+`services`— quedan por revisar con este criterio al llegar a su sprint; las dos
+primeras son seguras porque consultan `professional_directory`, que es la vista
+definidora. Las correcciones viven en
+`20261002135541_fix_offer_policy_recursion` y
+`20261002135908_fix_public_review_visibility`, que son migraciones nuevas porque
+las que contenían los defectos ya estaban aplicadas.
+
+---
+
+## 2026-10-02 · Una fila de acciones que crece envuelve, y el control segmentado lleva etiquetas cortas
+
+**Contexto.** La verificación en dispositivo del Sprint 2.5 encontró dos defectos
+de disposición que ninguna prueba del proyecto podía atrapar.
+
+Agregar «Usar como base profesional» como cuarta acción de la lista de direcciones
+hizo que «Editar» y «Eliminar» **dejaran de componerse**. No quedaron recortadas
+fuera de pantalla: desaparecieron del árbol de vistas, comprobado con
+`uiautomator dump`. El `Row` que las contenía no envuelve, y una dirección pasó a
+ser imposible de editar o eliminar, rompiendo dos criterios de HU-06 desde una
+historia distinta.
+
+Y el control segmentado del cambio de rol se rompía al 200 % de tamaño de fuente:
+«Profesional de salud» desbordaba su segmento y se salía de la píldora.
+
+**Decisión.** La fila de acciones pasa a `FlowRow`. El control segmentado recibe
+etiquetas cortas propias —«Paciente» y «Profesional»— mediante
+`UserRole.shortLabelRes()`, distintas de las que usa «Mi perfil».
+
+**Razonamiento.** Lo del control segmentado no era una sorpresa:
+`docs/design-system.md`, apartado 5, ya advierte que no admite etiquetas largas al
+ancho de un teléfono, y es exactamente la razón por la que HU-04 eligió un grupo de
+opciones para el tipo de profesional. Lo correcto era respetar esa guía dándole
+etiquetas que quepan, no reemplazar el componente. Son inequívocas bajo un
+encabezado que ya dice «Estás usando la aplicación como».
+
+Se descartó acortar `profile_role_professional`, que es la etiqueta de «Mi perfil»
+y ahí sí debe decir «Profesional de salud»: un control estrecho necesita una
+etiqueta corta, y un título no.
+
+`FlowRow` es API estable de Compose desde hace varias versiones, así que no
+introduce la dependencia de una API en desarrollo que `CLAUDE.md` prohíbe.
+
+**Consecuencia.** Toda fila de acciones cuyo número de elementos dependa de una
+condición —y la de direcciones ya depende de tres— envuelve. Y la lección general
+queda anotada: **el proyecto no tiene pruebas de interfaz**, de modo que un defecto
+de disposición solo aparece mirando el dispositivo. La deuda de `androidTest` se
+arrastra desde el Sprint 1 y ahora tiene dos ejemplos concretos de lo que deja
+pasar, que es un argumento mejor que el que tenía.
 
 ---
 

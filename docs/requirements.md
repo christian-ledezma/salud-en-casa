@@ -36,6 +36,12 @@ la atención y construye reputación verificable.
 | **Profesional** | Médico, enfermera, fisioterapeuta o estudiante del área de salud que presta atención domiciliaria de forma independiente |
 | **Administrador** | Responsable de verificar documentos y conciliar los pagos y comisiones de la plataforma |
 
+**Paciente y profesional son roles, no personas distintas.** Una misma persona
+puede tener ambos y alternar entre ellos (RF-01.8); el rol activo determina qué le
+muestra la aplicación. El administrador se otorga de forma manual y no participa de
+esa alternancia. El estudiante del área de salud no es un rol: es un tipo de
+profesional, junto con médico, enfermera y fisioterapeuta.
+
 ## 3. Requisitos funcionales
 
 ### RF-01 · Autenticación e identidad
@@ -45,10 +51,11 @@ la atención y construye reputación verificable.
 | RF-01.1 | El sistema permite el ingreso exclusivamente mediante cuenta de Google. |
 | RF-01.2 | El ingreso se realiza con el selector de cuentas nativo del sistema operativo, sin abrir un navegador y sin que el usuario escriba credenciales. |
 | RF-01.3 | Al ingresar por primera vez, el sistema crea automáticamente el perfil del usuario con los datos que entrega el proveedor. |
-| RF-01.4 | Un usuario sin rol asignado debe elegir entre paciente y profesional antes de acceder a cualquier otra funcionalidad. |
+| RF-01.4 | Un usuario sin ningún rol debe elegir si empieza como paciente o como profesional antes de acceder a cualquier otra funcionalidad. La elección inicial no es excluyente: el otro rol se activa después. |
 | RF-01.5 | El rol de administrador nunca se autoasigna. Se otorga de forma manual. |
 | RF-01.6 | El sistema mantiene la sesión entre ejecuciones y la renueva de forma automática. |
 | RF-01.7 | El usuario puede cerrar sesión y puede solicitar la eliminación de su cuenta y sus datos. |
+| RF-01.8 | Un usuario puede tener los roles de paciente y profesional a la vez, activar el segundo cuando lo decida, y alternar entre ellos. El rol activo determina qué le muestra la aplicación y persiste entre ejecuciones. |
 
 ### RF-02 · Gestión de perfiles
 
@@ -191,7 +198,7 @@ la atención y construye reputación verificable.
 | Código | Regla |
 |---|---|
 | RN-01 | Solo un profesional con verificación aprobada y perfil activo aparece en búsquedas y puede emitir ofertas. |
-| RN-02 | La búsqueda por cercanía considera únicamente la dirección principal del profesional y su radio de cobertura declarado. |
+| RN-02 | La búsqueda por cercanía considera únicamente la base profesional declarada por el profesional y su radio de cobertura. La base profesional es una dirección propia marcada como tal, distinta de la dirección principal, que es el domicilio donde la persona recibe atención. |
 | RN-03 | Un estudiante del área de salud puede prestar servicios y registrar lo realizado, pero no puede emitir un diagnóstico. |
 | RN-04 | Una solicitud aceptada no admite ofertas nuevas. |
 | RN-05 | Una oferta emitida no se edita. Modificar el monto significa emitir una contraoferta que referencia la anterior. |
@@ -202,15 +209,27 @@ la atención y construye reputación verificable.
 | RN-10 | Una calificación se emite una sola vez por servicio y por autor, y únicamente sobre un servicio completado. |
 | RN-11 | El administrador no accede al contenido de las conversaciones. |
 | RN-12 | La aplicación es un intermediario tecnológico. La responsabilidad clínica de la atención corresponde al profesional. |
+| RN-13 | Nadie participa de la misma atención como paciente y como profesional. Quien tiene ambos roles no ve sus propias solicitudes en su bandeja de profesional, no puede ofertar sobre ellas, y no aparece en sus propios resultados de búsqueda. |
+| RN-14 | La reputación se calcula por rol. Las calificaciones recibidas como paciente no afectan la reputación como profesional ni son visibles en su perfil público. |
 
 ## 6. Invariantes del dominio
 
 Los invariantes están enunciados en `CLAUDE.md`, sección «Invariantes del dominio».
-Se numeran allí como INV-01 a INV-14 y son de cumplimiento obligatorio en todo el código.
+Se numeran allí como INV-01 a INV-17 y son de cumplimiento obligatorio en todo el código.
+
+INV-15, INV-16 e INV-17 se agregaron en el Sprint 2.5, al dejar de ser único el rol
+de una persona. Recogen, respectivamente, el modelo de rol múltiple con rol activo,
+la prohibición de participar de la propia atención por ambos lados (RN-13), y la
+separación de la reputación por rol (RN-14).
 
 ## 7. Matriz de permisos por rol
 
 Un asterisco indica que la operación está restringida al ámbito del propio usuario.
+
+**Las columnas son roles, no personas.** Una persona con ambos roles tiene los
+permisos de la columna de su rol activo (RF-01.8). La excepción es RN-13: lo que esa
+persona no puede hacer en ningún rol es participar de su propia atención por los dos
+lados, y eso lo impide la base de datos, no la elección de rol.
 
 | Operación | Paciente | Profesional | Administrador |
 |---|---|---|---|
@@ -251,3 +270,5 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-06 | Pago dividido o múltiples medios por atención | El modelo de pagos admite la ampliación sin cambio de esquema. |
 | FA-07 | Cobertura en varias ciudades con reglas propias | El modelo ya almacena la ciudad en la dirección. |
 | FA-08 | Operación sin conexión y caché local | Ningún requisito la exige en esta fase. Se agregaría con una base de datos local y su historia propia. |
+| FA-09 | Renuncia a un rol ya activado | Ninguna parte interesada la pidió. `profile_roles` es de solo agregar, igual que `request_offers`. Quien ya no quiere ejercer como profesional apaga su disponibilidad inmediata (RF-02.5); dar de baja el rol exigiría decidir qué pasa con sus servicios y calificaciones históricos, que INV-05 prohíbe sobrescribir. Se incorporaría con una política de baja en `profile_roles` y su propia historia. |
+| FA-10 | Reputación y verificación por tipo de profesional | Hoy la verificación y la reputación son del rol profesional completo. Distinguir, por ejemplo, la reputación como fisioterapeuta de la reputación como enfermera exigiría asociarlas a `professional_services` y no al rol. |

@@ -112,7 +112,8 @@ están en `.claude/rules/i18n.md`.
 
 1. `profiles` es la identidad única de toda persona. Su `id` coincide con el
    identificador que emite el proveedor de autenticación. `patients` y
-   `professionals` comparten identidad con él; nunca duplican la persona.
+   `professionals` comparten identidad con él; nunca duplican la persona. Una
+   misma persona puede tener fila en ambas, porque puede tener ambos roles.
 2. Toda tabla tiene seguridad a nivel de fila habilitada y al menos una política,
    desde la migración que la crea. Ninguna tabla existe sin política.
 3. `service_requests.location` es una instantánea de dónde se pidió el servicio.
@@ -141,6 +142,20 @@ están en `.claude/rules/i18n.md`.
     la base de datos, no una condición en el código del cliente.
 14. La clave de servicio de Supabase jamás sale del entorno de servidor. El
     cliente móvil usa únicamente la clave anónima.
+15. Los roles de una persona viven en `profile_roles`, que es de solo agregar, y
+    el rol en el que está en `profiles.active_role`. El rol activo es siempre uno
+    de los roles que esa persona tiene: lo garantiza una clave foránea compuesta,
+    no una validación de la aplicación. Ninguna política de seguridad lee el rol
+    activo; la seguridad se decide por posesión del rol y por pertenencia de la
+    fila.
+16. Nadie participa de la misma atención como paciente y como profesional. Quien
+    tiene ambos roles no ve sus propias solicitudes en su bandeja de profesional,
+    no puede ofertar sobre ellas, y no aparece en sus propios resultados de
+    búsqueda.
+17. La reputación es por rol. `patients.average_rating` y
+    `professionals.average_rating` se calculan por separado, y el lado de cada
+    calificación se deriva del servicio que la originó, nunca de los roles que la
+    persona tiene hoy. Solo la reputación recibida como profesional es pública.
 
 ## Límites entre capas
 
