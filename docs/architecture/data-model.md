@@ -11,6 +11,7 @@ idioma de `CLAUDE.md`.
 
 ```mermaid
 erDiagram
+    profiles ||--o{ profile_roles : "tiene"
     profiles ||--o| patients : "comparte identidad"
     profiles ||--o| professionals : "comparte identidad"
     profiles ||--o{ verification_documents : "carga"
@@ -48,10 +49,14 @@ erDiagram
         text email
         text phone "oculto hasta aceptar una oferta"
         text photo_url
-        user_role role "nulo hasta elegir rol"
+        user_role active_role "nulo hasta elegir el primero; FK compuesta a profile_roles"
         boolean active
-        numeric average_rating "recalculado por disparador"
-        integer total_reviews
+    }
+
+    profile_roles {
+        uuid profile_id PK, FK
+        user_role role PK "PATIENT, PROFESSIONAL o ADMIN"
+        timestamptz created_at "solo agregar: nunca se da de baja"
     }
 
     patients {
@@ -201,15 +206,16 @@ erDiagram
     }
 ```
 
-## Las quince tablas
+## Las dieciséis tablas
 
 | Tabla | Qué guarda | Migración |
 |---|---|---|
-| `profiles` | La identidad única de toda persona y su reputación | `identity` |
-| `patients` | Los datos propios del rol paciente | `identity` |
-| `professionals` | Los datos propios del rol profesional y su verificación | `identity` |
+| `profiles` | La identidad única de toda persona y el rol en el que está | `identity`, `multi_role_identity` |
+| `profile_roles` | Qué roles tiene cada persona. Solo agregar | `multi_role_identity` |
+| `patients` | Los datos propios del rol paciente y su reputación como paciente | `identity`, `close_dual_role_gaps` |
+| `professionals` | Los datos propios del rol profesional, su verificación y su reputación como profesional | `identity`, `close_dual_role_gaps` |
 | `verification_documents` | Respaldos de identidad y título, con el resultado de su revisión | `identity` |
-| `addresses` | Domicilios georreferenciados de cada persona | `identity` |
+| `addresses` | Domicilios georreferenciados de cada persona, y la base desde la que un profesional cubre su zona | `identity`, `professional_base_address` |
 | `service_types` | Catálogo de tipos de atención de la plataforma | `catalog` |
 | `professional_services` | Qué tipos presta cada profesional y a qué precio | `catalog` |
 | `availability_slots` | Franjas horarias semanales declaradas | `catalog` |
@@ -228,7 +234,7 @@ un invariante dejó de cumplirse.
 
 | Invariante | Mecanismo |
 |---|---|
-| INV-01 · `profiles` es la identidad única | Clave primaria de `patients` y `professionals` referida a `profiles.id`, que a su vez referencia `auth.users` |
+| INV-01 · `profiles` es la identidad única | Clave primaria de `patients` y `professionals` referida a `profiles.id`, que a su vez referencia `auth.users`. Una persona puede tener fila en ambas, porque puede tener ambos roles |
 | INV-02 · Toda tabla con RLS y política | `enable row level security` y al menos una política en la migración que crea cada tabla |
 | INV-03 · `service_requests.location` es instantánea | Disparador `service_requests_guard_location` |
 | INV-04 · `services.final_amount_bob` congelado | Disparador `services_guard_frozen` |
@@ -240,8 +246,11 @@ un invariante dejó de cumplirse.
 | INV-10 · Total igual a comisión más monto del profesional | Restricción `total_equals_fee_plus_professional_amount` |
 | INV-11 · Calificación única, de 1 a 5, autor distinto del destinatario | Restricciones `unique (service_id, author_id)`, `rating between 1 and 5` y `author_is_not_recipient` |
 | INV-12 · El administrador no accede a `messages` | Ninguna política de `messages` invoca `is_admin()`, en esta ni en ninguna migración posterior |
-| INV-13 · Nadie lee filas ajenas | Políticas por `auth.uid()` en las quince tablas |
+| INV-13 · Nadie lee filas ajenas | Políticas por `auth.uid()` en las dieciséis tablas |
 | INV-14 · La clave de servicio no sale del servidor | Fuera del esquema: `local.properties` y secretos del repositorio |
+| INV-15 · El rol activo es uno de los que la persona tiene | Clave foránea compuesta `profiles_active_role_is_held`, de `(id, active_role)` a la clave primaria de `profile_roles`. Ninguna política lee el rol activo: la seguridad decide por posesión |
+| INV-16 · Nadie es paciente y profesional de la misma atención | `patient_id <> auth.uid()` en `service_requests_select_inbox` y en la rama profesional de `request_offers_insert_participants`; `pro.id <> auth.uid()` en `search_nearby_professionals`; restricción `parties_are_different` en `services` |
+| INV-17 · La reputación es por rol | `patients.average_rating` y `professionals.average_rating` por separado, calculadas por `recalculate_reputation()` derivando el lado desde `services`; `reviews_select_visible` solo hace pública la recibida como profesional |
 
 ## Tipos enumerados
 
@@ -258,22 +267,25 @@ constantes de Kotlin.
 | Objeto | Para qué |
 |---|---|
 | `professional_directory` | Proyección pública del profesional. La seguridad a nivel de fila no puede ocultar una sola columna, así que la ficha pública es una vista que simplemente no contiene el teléfono |
+| `my_roles` | Proyección de `profiles` y `profile_roles`: el rol activo y el arreglo de roles que la persona tiene, en una sola fila. `security_invoker`, así que las políticas propias siguen decidiendo (INV-13). Existe para que el cliente lea el estado de rol en una petición y no en dos; incrustar `profile_roles` desde `profiles` sería ambiguo ahora que dos claves foráneas unen el mismo par de tablas |
 | `my_addresses` | Proyección de `addresses` que devuelve el punto como `latitude` y `longitude`. PostgREST entrega una columna `geography` como su codificación hexadecimal, que el cliente tendría que decodificar para dibujar un marcador. Es `security_invoker`, al revés que `professional_directory`: muestra filas propias, así que `addresses_select_own` sigue decidiendo cuáles (INV-13) |
 | `search_nearby_professionals` | Búsqueda por cercanía. Devuelve distancia y ordena de forma ascendente. Es la única vía de la búsqueda geográfica |
-| `handle_new_user` | Crea el perfil al primer ingreso, con el rol sin asignar |
-| `save_my_profile` | Escribe `profiles` y, según el rol guardado, `patients` o `professionals`, en una sola transacción. Lee el rol del servidor en vez de recibirlo del cliente, de modo que un argumento que no corresponde al rol se ignora en vez de escribirse. No toca `available_now`: esa columna la escribe el interruptor de disponibilidad por su cuenta |
-| `assign_my_role` | Escribe el rol elegido y crea la fila de `patients` o de `professionals` en una sola transacción. `security invoker`: cada escritura ya la permite la política del propio usuario, de modo que la función aporta atomicidad y nada más |
-| `recalculate_reputation` | Recalcula `average_rating` y `total_reviews` en cada calificación |
+| `handle_new_user` | Crea el perfil al primer ingreso, sin ningún rol y con el rol activo nulo |
+| `save_my_profile` | Escribe `profiles` y, según el rol activo, `patients` o `professionals`, en una sola transacción. Lee `active_role` del servidor en vez de recibirlo del cliente, de modo que un argumento que no corresponde al rol se ignora en vez de escribirse. No toca `available_now`: esa columna la escribe el interruptor de disponibilidad por su cuenta |
+| `add_my_role` | Agrega un rol a `profile_roles`, crea la fila de `patients` o de `professionals`, y deja el rol nuevo como activo, en una sola transacción. `security invoker`: cada escritura ya la permite la política del propio usuario, de modo que la función aporta atomicidad y nada más. Reemplazó a `assign_my_role` en el Sprint 2.5 |
+| `recalculate_reputation` | Recalcula `average_rating` y `total_reviews` en cada calificación, por separado en `patients` y en `professionals`. El lado de cada calificación se deriva del servicio que la originó, nunca de los roles que la persona tiene hoy |
 | `first_address_is_primary` | Marca como principal la primera dirección de cada persona. La escribe la base y no el formulario, de modo que vale para toda fila que llegue a la tabla |
 | `unmark_previous_primary_address` | Desmarca la anterior cuando otra pasa a ser principal, en vez de fallar contra el índice único |
+| `unmark_previous_professional_base` | Lo mismo para la base profesional, que es la dirección desde la que se centra el radio de cobertura. No hay disparador equivalente a `first_address_is_primary`: declarar desde dónde se trabaja es una afirmación que solo el profesional puede hacer |
 | `is_admin`, `shares_service_with`, `professional_covers` | Auxiliares que usan las políticas |
+| `offer_continues_thread`, `was_the_professional_of` | Auxiliares `security definer` que contestan un booleano a una política. Existen porque una subconsulta dentro de una política obedece a las políticas de la tabla que consulta: la primera recursaba sobre `request_offers`, la segunda no veía `services` desde un tercero. Ver `docs/decisions.md`, 2026-10-02 |
 
 `search_nearby_professionals`, `handle_new_user`, `recalculate_reputation`,
 `is_admin` y `shares_service_with` son `security definer` porque deben leer filas
 que el usuario no puede leer por sí mismo. Todas declaran `set search_path = ''`
 y califican cada objeto con su esquema.
 
-`assign_my_role` y `save_my_profile` son la excepción: son `security invoker`,
+`add_my_role` y `save_my_profile` son la excepción: son `security invoker`,
 porque no necesitan saltarse ninguna política. Existe por la atomicidad. Dos escrituras separadas
 desde el cliente no pueden garantizarla, y si la segunda fallara la persona
 quedaría con un rol sin la fila que lo sostiene, sin que nada lo reintentara

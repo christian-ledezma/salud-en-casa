@@ -80,7 +80,7 @@ sequenceDiagram
                         alt primer ingreso
                             Auth->>DB: inserta en auth.users
                             DB->>DB: dispara handle_new_user()
-                            DB->>DB: inserta en profiles, role nulo
+                            DB->>DB: inserta en profiles, sin ningun rol
                         end
 
                         Auth-->>Repo: sesion con userId
@@ -136,8 +136,8 @@ dos lugares distintos es como se desincronizan.
 sequenceDiagram
     actor U as Persona
     participant SVM as StartupViewModel
-    participant GR as GetRoleUseCase
-    participant CR as ChooseRoleUseCase
+    participant GR as GetRolesUseCase
+    participant AR as AddRoleUseCase
     participant Repo as ProfileRepository
     participant DB as PostgreSQL
 
@@ -147,50 +147,57 @@ sequenceDiagram
         SVM-->>U: pantalla de bienvenida
     else con sesion
         SVM->>GR: invoke()
-        GR->>Repo: getRole()
-        Repo->>DB: select role from profiles where id = auth.uid()
+        GR->>Repo: getRoles()
+        Repo->>DB: select active_role, held_roles from my_roles
 
         alt la lectura falla
             DB-->>Repo: sin red o tiempo agotado
             Repo-->>SVM: ProfileError.NetworkUnavailable
             SVM-->>U: error con "Reintentar", sin adivinar el rol
-        else role no nulo
-            DB-->>Repo: PATIENT o PROFESSIONAL
-            Repo-->>SVM: RoleResult.Assigned
-            SVM-->>U: pantalla principal de su rol
-        else role nulo
-            DB-->>Repo: null
-            Repo-->>SVM: RoleResult.Unassigned
+        else tiene al menos un rol
+            DB-->>Repo: active_role y el conjunto de roles
+            Repo-->>SVM: RoleResult.Loaded
+            SVM-->>U: pantalla principal
+        else no tiene ningun rol
+            DB-->>Repo: conjunto vacio y active_role nulo
+            Repo-->>SVM: RoleResult.Loaded, con el conjunto vacio
             SVM-->>U: pantalla de eleccion de rol
-            U->>CR: elige paciente o profesional y confirma
-            CR->>Repo: getRole(), para no escribir dos veces
-            CR->>Repo: assignRole(rol)
-            Repo->>DB: rpc assign_my_role(rol)
+            U->>AR: elige con cual empieza y confirma
+            AR->>Repo: getRoles(), para no agregar un rol repetido
+            AR->>Repo: addRole(rol)
+            Repo->>DB: rpc add_my_role(rol)
 
-            DB->>DB: update profiles.role
+            DB->>DB: insert en profile_roles
             DB->>DB: insert en patients o en professionals
-            Note over DB: una sola transaccion: o las dos escrituras, o ninguna
+            DB->>DB: update profiles.active_role
+            Note over DB: una sola transaccion: o las tres escrituras, o ninguna
 
             DB-->>Repo: el rol registrado
-            Repo-->>CR: ChooseRoleResult.Success
-            CR-->>U: pantalla principal de su rol
+            Repo-->>AR: AddRoleResult.Success
+            AR-->>U: pantalla principal
         end
     end
 ```
 
-**Por qué la escritura es una función almacenada.** Escribir el rol y crear la
-fila del rol son dos operaciones, y desde el cliente serían dos peticiones. Si
-la segunda fallara, la persona quedaría con un rol sin la fila que lo sostiene
-y nada volvería a intentarlo: la aplicación la enviaría a la pantalla de un rol
-cuyo registro no existe. `assign_my_role` es el caso 1 de
+**Por qué la escritura es una función almacenada.** Agregar el rol, crear la fila
+del rol y dejarlo activo son tres operaciones, y desde el cliente serían tres
+peticiones. Si una fallara a mitad de camino, la persona quedaría con un rol sin
+la fila que lo sostiene, o con un rol que tiene pero no puede activar, y nada
+volvería a intentarlo. `add_my_role` es el caso 1 de
 `.claude/rules/supabase.md`, la transacción atómica que el cliente no puede
-garantizar. Registrado en `docs/decisions.md`, 2026-09-13.
+garantizar. Registrado en `docs/decisions.md`, 2026-09-13 y 2026-10-01.
 
 **Un rol que no se puede leer no es un rol que falta.** Si la lectura falla, el
 arranque se detiene en un error con «Reintentar» en vez de suponer que no hay
 rol. Suponerlo pondría a alguien que ya eligió frente a la pregunta otra vez, y
-la base de datos rechazaría su respuesta con `role_already_assigned`.
+la base de datos rechazaría su respuesta con `role_already_held`.
 `StartupViewModelTest` fija las dos mitades.
+
+**Cambiar de rol no aparece en este diagrama porque no pasa por el arranque.**
+Vive en «Mi cuenta» y es una actualización directa de `profiles.active_role` a
+través de `profiles_update_own`: una sola columna, sin nada que pueda quedar a
+medias, y con la clave foránea compuesta garantizando que el rol activo sea uno
+de los que la persona tiene. Registrado en `docs/decisions.md`, 2026-10-01.
 
 ## Los errores y dónde se traducen
 
