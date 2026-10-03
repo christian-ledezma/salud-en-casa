@@ -6,7 +6,7 @@ import bo.saludencasa.features.auth.domain.model.SessionState
 import bo.saludencasa.features.auth.domain.usecase.ObserveSessionUseCase
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.RoleResult
-import bo.saludencasa.features.profile.domain.usecase.GetRoleUseCase
+import bo.saludencasa.features.profile.domain.usecase.GetRolesUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +32,7 @@ sealed interface StartupDestination {
 
 class StartupViewModel(
     observeSession: ObserveSessionUseCase,
-    private val getRole: GetRoleUseCase,
+    private val getRoles: GetRolesUseCase,
 ) : ViewModel() {
     private val attempts = MutableStateFlow(0)
 
@@ -56,10 +56,19 @@ class StartupViewModel(
             is SessionState.SignedIn -> resolveRole()
         }
 
+    // Home carries no role: the switch lives in "Mi cuenta", which is the single
+    // home for every role until the per-role screens of Sprint 4 exist
+    // (docs/decisions.md, 2026-09-14). A role that cannot be read is still not a
+    // role that is missing, which is why the failure stops here with a retry
+    // instead of repeating the question to someone who already answered it.
     private suspend fun resolveRole(): StartupDestination =
-        when (val result = getRole()) {
-            is RoleResult.Assigned -> StartupDestination.Home
-            RoleResult.Unassigned -> StartupDestination.ChooseRole
-            is RoleResult.Failure -> StartupDestination.Error(result.error)
+        when (val result = getRoles()) {
+            is RoleResult.Loaded -> {
+                if (result.roles.hasNoRole) StartupDestination.ChooseRole else StartupDestination.Home
+            }
+
+            is RoleResult.Failure -> {
+                StartupDestination.Error(result.error)
+            }
         }
 }

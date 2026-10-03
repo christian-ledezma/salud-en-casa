@@ -5,13 +5,16 @@ import bo.saludencasa.core.vo.PhoneNumber
 import bo.saludencasa.features.profile.domain.vo.BirthDate
 import java.math.BigDecimal
 
+// patient and professional are both present for someone who holds both roles
+// (RF-01.8). activeRole is what the profile screen edits and shows; it is never
+// derived from which of the two sections happens to be loaded.
 data class UserProfile(
     val userId: String,
     val fullName: String,
     val email: Email?,
     val phone: PhoneNumber?,
     val photoUrl: String?,
-    val role: UserRole?,
+    val activeRole: UserRole?,
     val patient: PatientDetails?,
     val professional: ProfessionalDetails?,
 )

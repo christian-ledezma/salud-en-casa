@@ -1,25 +1,39 @@
 package bo.saludencasa.features.profile.domain.model
 
+// There is no Unassigned case: a person with no roles is Loaded with an empty
+// set. Carrying both would be two ways to say one thing, and a mapper could
+// then produce either for the same reply.
 sealed interface RoleResult {
-    data class Assigned(
-        val role: UserRole,
+    data class Loaded(
+        val roles: ProfileRoles,
     ) : RoleResult
-
-    data object Unassigned : RoleResult
 
     data class Failure(
         val error: ProfileError,
     ) : RoleResult
 }
 
-sealed interface ChooseRoleResult {
+// Success carries what the database recorded, not what the client asked for
+// (docs/decisions.md, 2026-09-13). add_my_role leaves the new role active, so
+// the role it returns is also the active one from here on.
+sealed interface AddRoleResult {
     data class Success(
         val role: UserRole,
-    ) : ChooseRoleResult
+    ) : AddRoleResult
 
     data class Failure(
         val error: ProfileError,
-    ) : ChooseRoleResult
+    ) : AddRoleResult
+}
+
+sealed interface SwitchRoleResult {
+    data class Success(
+        val activeRole: UserRole,
+    ) : SwitchRoleResult
+
+    data class Failure(
+        val error: ProfileError,
+    ) : SwitchRoleResult
 }
 
 sealed interface ProfileResult {

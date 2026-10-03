@@ -155,7 +155,7 @@ private fun EditableProfile(
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
 
-        content.header.role?.let { role ->
+        content.header.activeRole?.let { role ->
             Text(
                 text = stringResource(role.labelRes()),
                 style = MaterialTheme.typography.titleMedium,
@@ -178,7 +178,7 @@ private fun EditableProfile(
             errorText = fieldError.messageFor(ProfileError.InvalidPhone),
         )
 
-        if (content.header.role == UserRole.PATIENT) {
+        if (content.header.activeRole == UserRole.PATIENT) {
             BirthDateField(
                 birthDate = form.birthDate,
                 errorText = fieldError.messageFor(ProfileError.InvalidBirthDate),
@@ -332,14 +332,6 @@ private object PastDatesOnly : SelectableDates {
     override fun isSelectableYear(year: Int): Boolean = year <= LocalDate.now().year
 }
 
-@StringRes
-private fun UserRole.labelRes(): Int =
-    when (this) {
-        UserRole.PATIENT -> R.string.profile_role_patient
-        UserRole.PROFESSIONAL -> R.string.profile_role_professional
-        UserRole.ADMIN -> R.string.profile_role_admin
-    }
-
 private fun previewForm(
     professionalType: ProfessionalType? = null,
     baseRateBob: String = "",
@@ -366,7 +358,7 @@ private fun previewPatient(status: SaveStatus = SaveStatus.Idle): ProfileUiState
             ProfileHeader(
                 userId = "08ddb28f-0000-4000-8000-000000000000",
                 photoUrl = null,
-                role = UserRole.PATIENT,
+                activeRole = UserRole.PATIENT,
             ),
         form = previewForm(),
         status = status,
@@ -382,7 +374,7 @@ private fun previewProfessional(
             ProfileHeader(
                 userId = "fcab94c0-0000-4000-8000-000000000000",
                 photoUrl = null,
-                role = UserRole.PROFESSIONAL,
+                activeRole = UserRole.PROFESSIONAL,
             ),
         form =
             previewForm(

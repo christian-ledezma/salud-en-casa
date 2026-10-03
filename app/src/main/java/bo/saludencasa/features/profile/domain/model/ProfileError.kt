@@ -5,7 +5,9 @@ sealed interface ProfileError {
 
     data object ProfileNotFound : ProfileError
 
-    data object RoleAlreadyAssigned : ProfileError
+    data object RoleAlreadyHeld : ProfileError
+
+    data object RoleNotHeld : ProfileError
 
     data object InvalidName : ProfileError
 

@@ -2,11 +2,11 @@ package bo.saludencasa.features.profile.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import bo.saludencasa.features.profile.domain.model.AddRoleResult
 import bo.saludencasa.features.profile.domain.model.AssignableRole
-import bo.saludencasa.features.profile.domain.model.ChooseRoleResult
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.UserRole
-import bo.saludencasa.features.profile.domain.usecase.ChooseRoleUseCase
+import bo.saludencasa.features.profile.domain.usecase.AddRoleUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +32,7 @@ sealed interface RoleSelectionUiState {
 }
 
 class RoleSelectionViewModel(
-    private val chooseRole: ChooseRoleUseCase,
+    private val addRole: AddRoleUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<RoleSelectionUiState>(RoleSelectionUiState.Choosing(selected = null))
 
@@ -51,9 +51,9 @@ class RoleSelectionViewModel(
         state.value = RoleSelectionUiState.Saving(selected = selected)
         viewModelScope.launch {
             state.value =
-                when (val result = chooseRole(selected)) {
-                    is ChooseRoleResult.Success -> RoleSelectionUiState.Assigned(result.role)
-                    is ChooseRoleResult.Failure -> RoleSelectionUiState.Error(selected, result.error)
+                when (val result = addRole(selected)) {
+                    is AddRoleResult.Success -> RoleSelectionUiState.Assigned(result.role)
+                    is AddRoleResult.Failure -> RoleSelectionUiState.Error(selected, result.error)
                 }
         }
     }

@@ -12,7 +12,7 @@ data class ProfileDto(
     val email: String? = null,
     val phone: String? = null,
     @SerialName("photo_url") val photoUrl: String? = null,
-    val role: String? = null,
+    @SerialName("active_role") val activeRole: String? = null,
 )
 
 @Serializable

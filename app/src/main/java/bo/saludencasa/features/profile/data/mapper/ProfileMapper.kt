@@ -26,7 +26,7 @@ internal fun ProfileDto.toUserProfile(
         email = email?.let { Email.create(it).getOrNull() },
         phone = phone?.let { PhoneNumber.create(it).getOrNull() },
         photoUrl = photoUrl?.takeIf(String::isNotBlank),
-        role = role?.toUserRole(),
+        activeRole = activeRole?.toUserRole(),
         patient = patient?.toPatientDetails(),
         professional = professional?.toProfessionalDetails(),
     )

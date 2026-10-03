@@ -3,12 +3,13 @@ package bo.saludencasa.di
 import bo.saludencasa.features.profile.data.datasource.SupabaseProfileDataSource
 import bo.saludencasa.features.profile.data.repository.ProfileRepository
 import bo.saludencasa.features.profile.domain.repository.IProfileRepository
-import bo.saludencasa.features.profile.domain.usecase.ChooseRoleUseCase
+import bo.saludencasa.features.profile.domain.usecase.AddRoleUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetPublicProfileUseCase
-import bo.saludencasa.features.profile.domain.usecase.GetRoleUseCase
+import bo.saludencasa.features.profile.domain.usecase.GetRolesUseCase
 import bo.saludencasa.features.profile.domain.usecase.SaveProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.SetAvailabilityUseCase
+import bo.saludencasa.features.profile.domain.usecase.SwitchActiveRoleUseCase
 import bo.saludencasa.features.profile.presentation.ProfileViewModel
 import bo.saludencasa.features.profile.presentation.PublicProfileViewModel
 import bo.saludencasa.features.profile.presentation.RoleSelectionViewModel
@@ -21,8 +22,9 @@ val profileModule =
 
         single<IProfileRepository> { ProfileRepository(get()) }
 
-        factory { GetRoleUseCase(get()) }
-        factory { ChooseRoleUseCase(get()) }
+        factory { GetRolesUseCase(get()) }
+        factory { AddRoleUseCase(get()) }
+        factory { SwitchActiveRoleUseCase(get()) }
         factory { GetProfileUseCase(get()) }
         factory { SaveProfileUseCase(get()) }
         factory { SetAvailabilityUseCase(get()) }

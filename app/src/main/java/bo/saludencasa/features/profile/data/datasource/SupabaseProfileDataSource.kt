@@ -1,10 +1,10 @@
 package bo.saludencasa.features.profile.data.datasource
 
-import bo.saludencasa.features.profile.data.model.AssignRoleParams
+import bo.saludencasa.features.profile.data.model.AddRoleParams
 import bo.saludencasa.features.profile.data.model.PatientDto
 import bo.saludencasa.features.profile.data.model.ProfessionalDto
 import bo.saludencasa.features.profile.data.model.ProfileDto
-import bo.saludencasa.features.profile.data.model.ProfileRoleDto
+import bo.saludencasa.features.profile.data.model.ProfileRolesDto
 import bo.saludencasa.features.profile.data.model.PublicProfileDto
 import bo.saludencasa.features.profile.data.model.SaveProfileParams
 import io.github.jan.supabase.SupabaseClient
@@ -19,17 +19,36 @@ class SupabaseProfileDataSource(
 ) {
     fun currentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
-    suspend fun findRole(userId: String): ProfileRoleDto? =
+    suspend fun findRoles(userId: String): ProfileRolesDto? =
+        supabase
+            .from("my_roles")
+            .select(Columns.list("active_role", "held_roles")) {
+                filter { eq("id", userId) }
+            }.decodeSingleOrNull<ProfileRolesDto>()
+
+    suspend fun addRole(role: String): String =
+        supabase.postgrest
+            .rpc("add_my_role", AddRoleParams(role = role))
+            .decodeAs<String>()
+
+    // A direct update rather than a stored function: one column of one table has
+    // nothing that can be left half done, and the composite foreign key already
+    // refuses a role the person does not hold (docs/decisions.md, 2026-10-01).
+    //
+    // Written with set() and not with a serializable row. install(Postgrest)
+    // does not receive encodeDefaults = true, so a field whose value matches its
+    // default disappears from the body and the PATCH that travels is {} -- the
+    // defect of 2026-09-16, which cost a working feature and a day to find.
+    suspend fun setActiveRole(
+        userId: String,
+        role: String,
+    ) {
         supabase
             .from("profiles")
-            .select(Columns.list("role")) {
+            .update({ set("active_role", role) }) {
                 filter { eq("id", userId) }
-            }.decodeSingleOrNull<ProfileRoleDto>()
-
-    suspend fun assignRole(role: String): String =
-        supabase.postgrest
-            .rpc("assign_my_role", AssignRoleParams(role = role))
-            .decodeAs<String>()
+            }
+    }
 
     suspend fun findProfile(userId: String): ProfileDto? =
         supabase

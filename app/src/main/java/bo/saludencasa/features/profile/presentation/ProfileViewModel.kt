@@ -38,7 +38,7 @@ data class ProfileForm(
 data class ProfileHeader(
     val userId: String,
     val photoUrl: String?,
-    val role: UserRole?,
+    val activeRole: UserRole?,
 )
 
 // Immediate availability is not part of the form. RF-02.5 is a statement about
@@ -113,7 +113,7 @@ class ProfileViewModel(
 
         state.value = content.copy(status = SaveStatus.Saving)
         viewModelScope.launch {
-            val draft = content.form.toDraft(content.header.role)
+            val draft = content.form.toDraft(content.header.activeRole)
             state.value =
                 when (val result = saveProfile(draft)) {
                     is ProfileResult.Success -> result.profile.toContent(SaveStatus.Saved)
@@ -139,7 +139,7 @@ class ProfileViewModel(
 
 private fun UserProfile.toContent(status: SaveStatus): ProfileUiState.Content =
     ProfileUiState.Content(
-        header = ProfileHeader(userId = userId, photoUrl = photoUrl, role = role),
+        header = ProfileHeader(userId = userId, photoUrl = photoUrl, activeRole = activeRole),
         form =
             ProfileForm(
                 fullName = fullName,
@@ -155,15 +155,25 @@ private fun UserProfile.toContent(status: SaveStatus): ProfileUiState.Content =
                 coverageRadiusKm = professional?.coverageRadiusKm?.toEditableText().orEmpty(),
             ),
         status = status,
-        availability = professional?.let { AvailabilityState(availableNow = it.availableNow) },
+        // Gated on the active role and not merely on the professional row
+        // existing. Someone who holds both roles has that row while working as a
+        // patient, and RF-02.5 is a statement a patient has no way to make.
+        availability =
+            professional
+                ?.takeIf { activeRole == UserRole.PROFESSIONAL }
+                ?.let { AvailabilityState(availableNow = it.availableNow) },
     )
 
-private fun ProfileForm.toDraft(role: UserRole?): ProfileDraft =
+// Only the active role's section travels. For someone who holds both roles this
+// is what keeps an edit made as a patient from writing professional columns, and
+// save_my_profile dispatches on the same active role on the server, so the two
+// cannot disagree.
+private fun ProfileForm.toDraft(activeRole: UserRole?): ProfileDraft =
     ProfileDraft(
         fullName = fullName,
         phone = phone,
         patient =
-            if (role == UserRole.PATIENT) {
+            if (activeRole == UserRole.PATIENT) {
                 PatientDraft(
                     birthDate = birthDate,
                     emergencyContact = emergencyContact,
@@ -173,7 +183,7 @@ private fun ProfileForm.toDraft(role: UserRole?): ProfileDraft =
                 null
             },
         professional =
-            if (role == UserRole.PROFESSIONAL) {
+            if (activeRole == UserRole.PROFESSIONAL) {
                 ProfessionalDraft(
                     professionalType = professionalType,
                     specialty = specialty,
