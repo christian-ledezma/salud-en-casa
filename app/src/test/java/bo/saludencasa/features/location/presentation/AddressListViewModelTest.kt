@@ -10,12 +10,19 @@ import bo.saludencasa.features.location.domain.model.AddressError
 import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.model.DeleteAddressResult
 import bo.saludencasa.features.location.domain.model.SetPrimaryAddressResult
+import bo.saludencasa.features.location.domain.model.SetProfessionalBaseResult
 import bo.saludencasa.features.location.domain.usecase.DeleteAddressUseCase
 import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.location.domain.usecase.SetPrimaryAddressUseCase
+import bo.saludencasa.features.location.domain.usecase.SetProfessionalBaseAddressUseCase
+import bo.saludencasa.features.profile.FakeProfileRepository
+import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.profile.domain.usecase.GetRolesUseCase
+import bo.saludencasa.features.profile.loadedRoles
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -218,11 +225,108 @@ class AddressListViewModelTest {
                 assertEquals(listOf(casa), failed.addresses)
             }
         }
+
+    // A patient has no coverage area, so offering the base action would be a
+    // control that means nothing to them and whose effect nothing in their
+    // product reads.
+    @Test
+    fun `a patient is never offered the professional base action`() =
+        runTest {
+            val casa = address(id = "1", alias = "Casa", isPrimary = true)
+            val repository = FakeAddressRepository(listResult = AddressListResult.Success(listOf(casa)))
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                val content = awaitItem() as AddressListUiState.Content
+
+                assertFalse(content.canDeclareProfessionalBase)
+            }
+        }
+
+    @Test
+    fun `a professional can declare which address is their base`() =
+        runTest {
+            val casa = address(id = "1", alias = "Casa", isPrimary = true)
+            val repository = FakeAddressRepository(listResult = AddressListResult.Success(listOf(casa)))
+            val viewModel = viewModel(repository, professionalProfiles())
+
+            viewModel.uiState.test {
+                awaitItem()
+                val content = awaitItem() as AddressListUiState.Content
+                assertTrue(content.canDeclareProfessionalBase)
+
+                viewModel.onSetProfessionalBaseClick("1")
+                awaitItem()
+                awaitItem()
+                awaitItem()
+            }
+
+            assertEquals(listOf("1"), repository.setProfessionalBaseAttempts)
+        }
+
+    // The same hole RN-02 depends on, now on the column that decides where the
+    // coverage radius is centred: a badge that moves although the server refused
+    // would have the professional believe they are reachable from a place the
+    // search never looks at.
+    @Test
+    fun `a refused professional base reports the error and keeps the previous base`() =
+        runTest {
+            val casa = address(id = "1", alias = "Casa", isPrimary = true, isProfessionalBase = true)
+            val consultorio = address(id = "2", alias = "Consultorio", isPrimary = false)
+            val repository =
+                FakeAddressRepository(
+                    listResult = AddressListResult.Success(listOf(casa, consultorio)),
+                    setProfessionalBaseResult =
+                        SetProfessionalBaseResult.Failure(AddressError.NetworkUnavailable),
+                )
+            val viewModel = viewModel(repository, professionalProfiles())
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onSetProfessionalBaseClick("2")
+                awaitItem()
+
+                val failed = awaitItem() as AddressListUiState.Content
+                assertEquals(null, failed.pendingId)
+                assertEquals(AddressError.NetworkUnavailable, failed.notice)
+                assertEquals(listOf(casa, consultorio), failed.addresses)
+            }
+        }
+
+    @Test
+    fun `a patient asking for the professional base writes nothing`() =
+        runTest {
+            val casa = address(id = "1", alias = "Casa", isPrimary = true)
+            val repository = FakeAddressRepository(listResult = AddressListResult.Success(listOf(casa)))
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onSetProfessionalBaseClick("1")
+            }
+
+            assertEquals(emptyList<String>(), repository.setProfessionalBaseAttempts)
+        }
 }
 
-private fun viewModel(repository: FakeAddressRepository): AddressListViewModel =
+private fun viewModel(
+    repository: FakeAddressRepository,
+    profiles: FakeProfileRepository = FakeProfileRepository(roleResult = loadedRoles()),
+): AddressListViewModel =
     AddressListViewModel(
         getMyAddresses = GetMyAddressesUseCase(repository),
         setPrimaryAddress = SetPrimaryAddressUseCase(repository),
+        setProfessionalBaseAddress = SetProfessionalBaseAddressUseCase(repository),
         deleteAddress = DeleteAddressUseCase(repository),
+        getRoles = GetRolesUseCase(profiles),
+    )
+
+private fun professionalProfiles(): FakeProfileRepository =
+    FakeProfileRepository(
+        roleResult = loadedRoles(setOf(UserRole.PROFESSIONAL), UserRole.PROFESSIONAL),
     )

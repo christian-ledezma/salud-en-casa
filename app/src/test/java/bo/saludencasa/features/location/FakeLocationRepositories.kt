@@ -11,6 +11,7 @@ import bo.saludencasa.features.location.domain.model.Place
 import bo.saludencasa.features.location.domain.model.PositionResult
 import bo.saludencasa.features.location.domain.model.SaveAddressResult
 import bo.saludencasa.features.location.domain.model.SetPrimaryAddressResult
+import bo.saludencasa.features.location.domain.model.SetProfessionalBaseResult
 import bo.saludencasa.features.location.domain.repository.IAddressRepository
 import bo.saludencasa.features.location.domain.repository.IDeviceLocationRepository
 import bo.saludencasa.features.location.domain.repository.IGeocodingRepository
@@ -20,6 +21,7 @@ class FakeAddressRepository(
     var saveResult: SaveAddressResult? = null,
     var listResult: AddressListResult = AddressListResult.Success(emptyList()),
     var setPrimaryResult: SetPrimaryAddressResult = SetPrimaryAddressResult.Success,
+    var setProfessionalBaseResult: SetProfessionalBaseResult = SetProfessionalBaseResult.Success,
     var deleteResult: DeleteAddressResult = DeleteAddressResult.Success,
 ) : IAddressRepository {
     var reads: Int = 0
@@ -31,11 +33,17 @@ class FakeAddressRepository(
     var lastUpdate: AddressUpdate? = null
         private set
     val setPrimaryAttempts: MutableList<String> = mutableListOf()
+    val setProfessionalBaseAttempts: MutableList<String> = mutableListOf()
     val deleteAttempts: MutableList<String> = mutableListOf()
 
     override suspend fun getMyAddresses(): AddressListResult {
         listReads++
         return listResult
+    }
+
+    override suspend fun setProfessionalBaseAddress(id: String): SetProfessionalBaseResult {
+        setProfessionalBaseAttempts += id
+        return setProfessionalBaseResult
     }
 
     override suspend fun getAddress(id: String): MyAddressResult {
@@ -122,6 +130,7 @@ fun address(
     city: String = "La Paz",
     coordinate: Coordinate = coordinate(),
     isPrimary: Boolean = true,
+    isProfessionalBase: Boolean = false,
 ): Address =
     Address(
         id = id,
@@ -131,4 +140,5 @@ fun address(
         city = city,
         coordinate = coordinate,
         isPrimary = isPrimary,
+        isProfessionalBase = isProfessionalBase,
     )
