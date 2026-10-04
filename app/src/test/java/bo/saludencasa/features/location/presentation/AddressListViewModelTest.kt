@@ -226,6 +226,120 @@ class AddressListViewModelTest {
             }
         }
 
+    // The defect reproduced on 2026-10-03: deleting the primary address left
+    // the person with addresses and none primary, because the trigger that
+    // marks one only fires on insert. With more than one survivor the heir is
+    // the person's to pick, and nothing is written until they do.
+    @Test
+    fun `deleting the primary address with two survivors asks who inherits it`() =
+        runTest {
+            val repository =
+                FakeAddressRepository(
+                    listResult =
+                        AddressListResult.Success(
+                            listOf(
+                                address(id = "1", alias = "Casa", isPrimary = true),
+                                address(id = "2", alias = "Trabajo", isPrimary = false),
+                                address(id = "3", alias = "Consultorio", isPrimary = false),
+                            ),
+                        ),
+                )
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onDeleteClick("1")
+                awaitItem()
+
+                viewModel.onConfirmDelete()
+                awaitItem()
+
+                val choosing = awaitItem() as AddressListUiState.Content
+                assertEquals("1", choosing.choosingSuccessorFor)
+                assertEquals(null, choosing.pendingId)
+                assertEquals(null, choosing.notice)
+            }
+
+            assertTrue(repository.deleteAttempts.isEmpty())
+            assertTrue(repository.setPrimaryAttempts.isEmpty())
+        }
+
+    @Test
+    fun `choosing a successor hands over the mark and then deletes`() =
+        runTest {
+            val repository =
+                FakeAddressRepository(
+                    listResult =
+                        AddressListResult.Success(
+                            listOf(
+                                address(id = "1", alias = "Casa", isPrimary = true),
+                                address(id = "2", alias = "Trabajo", isPrimary = false),
+                                address(id = "3", alias = "Consultorio", isPrimary = false),
+                            ),
+                        ),
+                )
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onDeleteClick("1")
+                awaitItem()
+                viewModel.onConfirmDelete()
+                awaitItem()
+                awaitItem()
+
+                viewModel.onSuccessorChosen("3")
+                awaitItem()
+                assertEquals(AddressListUiState.Loading, awaitItem())
+                awaitItem()
+
+                assertEquals(listOf("3"), repository.setPrimaryAttempts)
+                assertEquals(listOf("1"), repository.deleteAttempts)
+            }
+        }
+
+    // Backing out of the choice is backing out of the deletion. Leaving the row
+    // marked as pending would freeze every action on the screen.
+    @Test
+    fun `dismissing the successor choice cancels the deletion and frees the screen`() =
+        runTest {
+            val repository =
+                FakeAddressRepository(
+                    listResult =
+                        AddressListResult.Success(
+                            listOf(
+                                address(id = "1", alias = "Casa", isPrimary = true),
+                                address(id = "2", alias = "Trabajo", isPrimary = false),
+                                address(id = "3", alias = "Consultorio", isPrimary = false),
+                            ),
+                        ),
+                )
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onDeleteClick("1")
+                awaitItem()
+                viewModel.onConfirmDelete()
+                awaitItem()
+                awaitItem()
+
+                viewModel.onDismissSuccessorChoice()
+                val back = awaitItem() as AddressListUiState.Content
+                assertEquals(null, back.choosingSuccessorFor)
+                assertEquals(null, back.pendingId)
+                assertEquals(3, back.addresses.size)
+            }
+
+            assertTrue(repository.deleteAttempts.isEmpty())
+        }
+
     // A patient has no coverage area, so offering the base action would be a
     // control that means nothing to them and whose effect nothing in their
     // product reads.
