@@ -115,6 +115,10 @@
     <string name="address_list_set_primary_action">Marcar como principal</string>
     <string name="address_list_delete_confirm_title">¿Eliminar esta dirección?</string>
     <string name="address_list_delete_confirm_message">Esta acción no se puede deshacer.</string>
+    <string name="address_list_successor_primary_title">Elige tu nueva dirección principal</string>
+    <string name="address_list_successor_base_title">Elige tu nueva base profesional</string>
+    <string name="address_list_successor_both_title">Elige la dirección que la reemplaza</string>
+    <string name="address_list_successor_message">«%1$s» es la que tienes marcada. Elige cuál ocupa su lugar y se elimina.</string>
 
     <string name="profile_role_selection_title">¿Cómo vas a usar Salud en Casa?</string>
     <string name="profile_role_selection_subtitle">Elige con cuál empiezas. Define lo que ves en la aplicación y después puedes activar el otro.</string>
@@ -143,6 +147,7 @@
     <string name="error_profile_invalid_coverage_radius">Escribe un radio entre 1 y 50 kilómetros.</string>
     <string name="error_profile_invalid_years_of_experience">Escribe los años de experiencia, entre 0 y 70.</string>
 
+    <string name="error_address_successor_required">Antes de eliminar esta dirección elige cuál ocupa su lugar.</string>
     <string name="error_address_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_address_invalid_alias">Ponle un nombre a esta dirección, de 1 a 60 caracteres.</string>
     <string name="error_address_invalid_text">Escribe la dirección, de 1 a 300 caracteres.</string>
