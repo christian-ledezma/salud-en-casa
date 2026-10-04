@@ -105,8 +105,8 @@ Una historia está terminada cuando **todo** lo siguiente se cumple:
 | 0 | Fundación técnica | 1 · Arquitectura | — | `[~]` |
 | 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[x]` |
 | 2 | Perfiles y ubicación | 2 · Perfiles | 21 | `[x]` |
-| 2.5 | Rol múltiple con rol activo | 2 · Perfiles | 23 | `[~]` |
-| 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[~]` suspendido |
+| 2.5 | Rol múltiple con rol activo | 2 · Perfiles | 23 | `[x]` |
+| 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[~]` en curso |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[ ]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[ ]` |
 | 6 | Negociación de tarifas | 3 · Coordinación | 26 | `[ ]` |
@@ -1865,7 +1865,8 @@ historia que nunca se hace. Hay dos caminos defendibles y la elección es del au
 
 # Sprint 2.5 — Rol múltiple con rol activo
 
-**Estado:** `[~]` en curso. Iniciado el 2026-10-01.
+**Estado:** `[x]` cerrado el 2026-10-04. Iniciado el 2026-10-01. Las cuatro
+historias terminadas y los dieciséis criterios verificados.
 
 **Objetivo del sprint.** Una misma persona tiene el rol de paciente y el de
 profesional, y cambia entre ellos con un control en «Mi cuenta».
@@ -1951,7 +1952,7 @@ dispositivo.**
 | `ktlintCheck` y `staticAnalysis` | Sin hallazgos |
 | Pruebas obligatorias de política | **Las cuatro verificadas** con experimento SQL. Ver abajo |
 | INV-02 sobre las dieciséis tablas | **Verificado:** cero tablas descubiertas |
-| Verificación en dispositivo | **Recorrida el 2026-10-02.** Doce de dieciséis criterios marcados; los cuatro restantes no son demostrables con las cuentas disponibles. Encontró dos defectos de interfaz, ya corregidos |
+| Verificación en dispositivo | **Recorrida el 2026-10-02, ampliada el 2026-10-03 y cerrada el 2026-10-04.** Los dieciséis criterios verificados. Encontró dos defectos de interfaz, ya corregidos |
 
 ### El proyecto estaba pausado, y la restauración lo resolvió
 
@@ -2116,23 +2117,35 @@ se arrastra desde el Sprint 1 y ya se señaló en la retrospectiva del Sprint 2.
 Este sprint agrega dos casos reales a esa deuda, que ahora tiene ejemplos
 concretos de lo que deja pasar.
 
-### Lo que queda
+### Lo que queda: nada
 
-Cuatro criterios sin marcar, ninguno por falta de código:
+Los dieciséis criterios están verificados. Conviene dejar anotado por qué cuatro
+de ellos llegaron a darse por imposibles, porque los cuatro motivos resultaron
+equivocados y de maneras distintas.
 
-1. **La elección de rol en el primer ingreso** (HU-34). Los cinco perfiles ya
-   tienen rol, así que esa pantalla es inalcanzable. Exige una cuenta de Google
-   nueva.
-2. **Agregar dos veces el mismo rol** (HU-34). La pantalla deja de ofrecer el rol
-   que ya se tiene, así que no hay forma de pedirlo desde la aplicación.
-3. **El cambio de rol que falla** (HU-35). Exige provocar una caída de red a mitad
-   de la petición.
-4. **La lista de direcciones vista por alguien que solo es paciente** (HU-36). La
-   cuenta usada tiene los dos roles.
+| Criterio | Por qué se dijo «no verificable» | Qué resultó |
+|---|---|---|
+| El cambio de rol que falla (HU-35) | «Exige provocar una caída de red a mitad de la petición» | `adb shell cmd connectivity airplane-mode enable` la provoca. El entorno siempre lo permitió; faltaba intentarlo |
+| La elección de rol en el primer ingreso (HU-34) | «Exige una cuenta de Google nueva» | El emulador ya tenía una segunda, `ledezma.aramayo.73@gmail.com`, que nunca había ingresado. No hacía falta crear nada; hacía falta mirar `dumpsys account` |
+| La lista de direcciones de un paciente puro (HU-36) | «La cuenta usada tiene los dos roles» | Cierto de esa cuenta, no del proyecto. La cuenta nueva, eligiendo «Paciente», lo demuestra |
+| Agregar dos veces el mismo rol (HU-34) | «No hay forma de pedirlo desde la aplicación» | Cierto, y por eso mismo no era un criterio de interfaz sino de motor. `supabase db query --linked` lo resuelve en dos comandos |
 
-Los cuatro están cubiertos por pruebas unitarias o por una restricción del motor.
-Quedan sin marcar porque la Definición de Terminado pide demostración en
-dispositivo, y lo honesto es decir que no se demostraron, no cambiar el criterio.
+La lección vale para los sprints que vienen: **«no verificable» es una afirmación
+sobre el entorno, y hay que comprobarla igual que cualquier otra.** Las cuatro se
+escribieron por inspección del código y de los datos, sin probar si el entorno
+daba el camino. Antes de anotar un criterio como no demostrable, el paso que falta
+es intentarlo una vez.
+
+El cuarto agrega un matiz propio: el camino existía en el CLI desde siempre
+—`supabase db query`— y se había dado por ausente al leer una salida de ayuda
+truncada. El procedimiento quedó anotado en `.claude/rules/testing.md` para que la
+próxima prueba de política no vuelva a buscarlo.
+
+**`ledezma.aramayo.73@gmail.com` pasa a ser la cuenta de un solo rol del
+proyecto.** Tiene el rol de paciente y una dirección en Cochabamba. Conviene no
+activarle el rol profesional: `profile_roles` es de solo agregar (FA-09), de modo
+que es la única cuenta con la que una historia futura podrá demostrar algo que un
+doble rol ya no puede.
 
 **Y una limitación heredada:** ningún profesional está aprobado, así que la base
 profesional se puede declarar y marcar, pero su efecto en la búsqueda no se puede
@@ -2152,28 +2165,43 @@ No lo causó este sprint y no se corrigió aquí. Importa más ahora, porque
 de las búsquedas en silencio. Queda anotado para HU-06, que es la historia dueña de
 la eliminación de direcciones y sigue abierta en el Sprint 3.
 
-### HU-34 · Tener más de un rol `[ ]` — 8 puntos
+### HU-34 · Tener más de un rol `[x]` — 8 puntos
 
 > Como **persona que usa la aplicación**, quiero **tener el rol de paciente y el de
 > profesional a la vez**, para **pedir atención y prestarla sin crear dos cuentas**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que ingreso por primera vez, cuando la sesión se establece, entonces se
-      me pide elegir con cuál de los dos roles empiezo. **No verificable con las
-      cuentas disponibles:** los cinco perfiles ya tienen rol, así que esa pantalla
-      es inalcanzable. Exige una cuenta de Google nueva.
+- [x] Dado que ingreso por primera vez, cuando la sesión se establece, entonces se
+      me pide elegir con cuál de los dos roles empiezo. **Verificado el 2026-10-03**
+      con `ledezma.aramayo.73@gmail.com`, una segunda cuenta de Google del
+      emulador que nunca había ingresado. Tras `pm clear` y el selector nativo,
+      apareció «¿Cómo vas a usar Salud en Casa?» con exactamente dos opciones.
 - [x] Dado que ya tengo un rol, cuando abro «Mi cuenta», entonces se me ofrece
       activar el otro. **Verificado el 2026-10-02.**
 - [x] Dado que activo el segundo rol, cuando la operación concluye, entonces se
       crea su registro específico y ese rol queda como mi rol activo.
       **Verificado el 2026-10-02**, y contrastado contra la base: la fila de
       `patients` existe y `active_role` quedó en `PATIENT`.
-- [ ] Dado que ya tengo un rol, cuando intento agregarlo otra vez, entonces la
-      operación se rechaza y nada se escribe. **No verificable en la aplicación:**
-      la pantalla deja de ofrecer el rol que ya se tiene, así que no hay forma de
-      pedirlo. Lo cubren `rejectsAddingARoleThePersonAlreadyHolds` y la clave
-      primaria de `profile_roles`.
+- [x] Dado que ya tengo un rol, cuando intento agregarlo otra vez, entonces la
+      operación se rechaza y nada se escribe. **No tiene gesto en la aplicación**
+      —la pantalla deja de ofrecer el rol que ya se tiene—, así que se verificó
+      el 2026-10-04 con un experimento SQL sobre `ledezma.aramayo.73@gmail.com`,
+      en dos mitades y dentro de transacciones con `rollback`:
+
+      | Mitad | Resultado |
+      |---|---|
+      | `select public.add_my_role('PATIENT')` | **`P0001: role_already_held`**, levantado en la línea 30 de la función. Es el error que `AddRoleUseCase` traduce a `ProfileError.RoleAlreadyHeld` |
+      | `insert into public.profile_roles ...`, saltándose la función | **`23505`**, violación de `profile_roles_pkey` |
+
+      «Y nada se escribe» se comprobó aparte: antes y después, `profile_roles`
+      devuelve una sola fila para esa persona, con el mismo `created_at`.
+
+      **Las dos mitades hacían falta.** La función rechaza antes de llegar a la
+      tabla, de modo que llamarla sola prueba el guardia y no la clave primaria.
+      Si solo hubiera corrido la primera, el rol sería único por cortesía del
+      código, y PostgREST expone la tabla a cualquiera con sesión. Lo cubren
+      además `rejectsAddingARoleThePersonAlreadyHolds` y la clave primaria.
 - [x] El rol de administrador nunca aparece como opción ni puede autoasignarse.
       **Verificado el 2026-10-02:** la pantalla ofrece exactamente dos opciones.
       No es una condición de la interfaz: `AssignableRole` no tiene constante para
@@ -2217,7 +2245,7 @@ obligatoria `adminRoleIsNeverSelfAssignable`. La decisión del 2026-09-13 que
 separó los dos tipos sigue siendo correcta: lo que cambia es la premisa de su
 contexto —que `profiles.role` era un valor único—, no su conclusión.
 
-### HT-16 · Cerrar los huecos que el rol múltiple destapa `[ ]` — 5 puntos
+### HT-16 · Cerrar los huecos que el rol múltiple destapa `[x]` — 5 puntos
 
 Historia técnica habilitadora. No entrega pantalla: cierra tres huecos que el rol
 único mantenía inalcanzables y que HU-34 vuelve alcanzables.
@@ -2278,7 +2306,7 @@ profesional arrastraría las calificaciones que recibió como paciente, y
 `reviews_select_visible` haría públicas unas reseñas que RF-12.4 solo hace públicas
 para el profesional.
 
-### HU-35 · Cambiar de rol con un switch `[ ]` — 5 puntos
+### HU-35 · Cambiar de rol con un switch `[x]` — 5 puntos
 
 > Como **persona con los dos roles**, quiero **cambiar de rol con un control**,
 > para **usar la aplicación como paciente o como profesional sin volver a
@@ -2296,11 +2324,20 @@ para el profesional.
 - [x] Dado que tengo un solo rol, cuando abro «Mi cuenta», entonces el control no
       aparece y en su lugar se ofrece activar el otro rol. **Verificado el
       2026-10-02, antes de activar el segundo rol**, porque después deja de ser
-      alcanzable.
-- [ ] Dado que el cambio falla, cuando vuelvo a la pantalla, entonces sigo en el
-      rol anterior y se me explica qué pasó. **No verificable sin provocar una
-      caída de red a mitad de la petición.** Lo cubre
-      `switchFailureKeepsThePreviousActiveRole`.
+      alcanzable. **Reconfirmado el 2026-10-03** con `ledezma.aramayo.73@gmail.com`:
+      «Mi cuenta» muestra «Activar mi perfil profesional» y ningún control
+      segmentado. Esta vez la comprobación es repetible, porque esa cuenta sigue
+      teniendo un solo rol.
+- [x] Dado que el cambio falla, cuando vuelvo a la pantalla, entonces sigo en el
+      rol anterior y se me explica qué pasó. **Verificado el 2026-10-03** en el
+      emulador `Pixel_9_Pro`, provocando la caída de red con
+      `adb shell cmd connectivity airplane-mode enable` y
+      `adb shell cmd wifi set-wifi-enabled disabled` antes de tocar el otro
+      segmento. El control quedó en «Profesional», apareció «No hay conexión.
+      Revisa tu red e inténtalo de nuevo.», y tras restaurar la red, cerrar la
+      aplicación con `am force-stop` y volver a abrirla, el rol activo que el
+      servidor devolvió seguía siendo el profesional: la escritura no llegó a
+      ocurrir. Lo cubre además `switchFailureKeepsThePreviousActiveRole`.
 - [x] Dado que cambié de rol, cuando cierro la aplicación por completo y la vuelvo
       a abrir, entonces sigo en el rol que dejé activo. **Verificado el 2026-10-02**
       con `am force-stop` y relanzamiento.
@@ -2328,7 +2365,7 @@ principal no escribía nada», `docs/decisions.md`, 2026-09-16.
 construyó en HT-06 y hasta hoy solo vivía en sus previsualizaciones. Esta historia
 es su primer consumidor real.
 
-### HU-36 · Separar mi domicilio de mi base profesional `[ ]` — 5 puntos
+### HU-36 · Separar mi domicilio de mi base profesional `[x]` — 5 puntos
 
 > Como **profesional que también es paciente**, quiero **declarar desde qué
 > dirección cubro mi zona**, para **que las búsquedas me encuentren donde trabajo y
@@ -2350,9 +2387,18 @@ es su primer consumidor real.
       nuevo:** la unión con `addresses` en `search_nearby_professionals` es interna,
       así que sin base no hay fila de resultado. Es el mismo mecanismo que HU-06
       verificó para la dirección principal.
-- [ ] Dado que solo tengo el rol de paciente, cuando abro mis direcciones, entonces
-      la marca de base profesional no aparece. **No verificable con la cuenta
-      usada,** que tiene los dos roles. Lo cubre
+- [x] Dado que solo tengo el rol de paciente, cuando abro mis direcciones, entonces
+      la marca de base profesional no aparece. **Verificado el 2026-10-03** con
+      `ledezma.aramayo.73@gmail.com`, que eligió «Paciente» en su primer ingreso.
+      Con dos direcciones registradas, la lista ofrece «Marcar como principal»,
+      «Editar» y «Eliminar», y en ningún momento «Usar como base profesional»:
+      cero ocurrencias en `uiautomator dump`. **La ausencia es por rol y no por
+      disposición**, y eso se comprobó de dos maneras, porque el defecto del
+      2026-10-02 fue exactamente una acción que desaparecía del árbol de vistas
+      sin quedar recortada. Primero, la segunda dirección compone tres acciones
+      sin perder ninguna, de modo que el `FlowRow` no se queda corto. Segundo, en
+      la misma compilación y el mismo emulador, la cuenta de doble rol sí la
+      ofrece. Lo cubre además
       `a patient is never offered the professional base action`.
 
 **Requisitos:** RF-03.4, RF-03.5, RF-06.1, RN-02.
@@ -2373,6 +2419,11 @@ dirección principal no aparece en búsquedas» pasa a ser «sin base profesiona
 sigue garantizando el mismo `join` interno de `search_nearby_professionals`, sin
 código nuevo, igual que cuando se verificó en el Sprint 3. RN-02 se reescribe en
 `docs/requirements.md` por el mismo motivo.
+
+## Verificación pendiente del autor: ninguna
+
+El último paso que quedaba —el experimento SQL de «agregar dos veces el mismo
+rol»— se corrió el 2026-10-04 y su resultado está en el criterio de HU-34.
 
 ## Qué cambia de lo ya cerrado
 
@@ -2413,14 +2464,135 @@ dependiendo de la aprobación del administrador, que llega con HU-09.
 
 ## Retrospectiva
 
-_Completar al cerrar el sprint._
+**El incremento se demostró entero, y esta vez el enunciado no prometía de más.**
+Una persona con una sola cuenta de Google pide atención como paciente, cambia de
+rol con el control de «Mi cuenta» y queda registrada como profesional con su base
+de cobertura propia. Todo eso se recorrió en el emulador. El enunciado se había
+escrito con cuidado de no repetir el error del Sprint 2 —no promete que las
+búsquedas la encuentren, porque eso depende de HU-09— y la precaución se pagó
+sola: se pudo dar el incremento por demostrado sin asteriscos.
+
+### Velocidad medida: 23 puntos, los 23 planificados
+
+HU-34 (8) + HT-16 (5) + HU-35 (5) + HU-36 (5) = 23. Las cuatro historias cumplen
+la Definición de Terminado y ninguna se trasladó.
+
+> El Sprint 2.5 se ejecutó del **01/10/2026** al **04/10/2026**.
+
+**Cuatro días, y la tercera medición seguida que no mide capacidad.** Igual que los
+dos anteriores, este sprint terminó cuando se agotó el alcance y no cuando se
+agotó el plazo. La retrospectiva del Sprint 2 ya había dejado la pregunta
+planteada y ofrecía dos caminos para el Sprint 3; la interrupción la dejó sin
+responder. **Sigue sin responderse, y ahora con un sprint más de evidencia de que
+el 21 no es una velocidad sino una cifra de planificación repetida.** El Sprint 3
+tiene 24 puntos y es la oportunidad que queda de cerrarlo por fecha de corte y
+obtener por fin el dato.
+
+**Un matiz que este sprint sí aporta:** 23 puntos no planificados entraron y
+salieron en cuatro días, con cinco migraciones aplicadas y treinta y cinco pruebas
+nuevas. Eso no es una velocidad —el trabajo era de una característica ya conocida
+y sin pantallas nuevas de peso—, pero sí descarta que la estimación esté
+sistemáticamente corta.
+
+### Qué funcionó
+
+- **Medir el costo antes de decidir, en lugar de estimarlo.** La reacción natural
+  al cambio de modelo fue «hay que reescribir las políticas de las quince tablas».
+  Leer el esquema efectivo mostró que solo **dos** políticas leían `profiles.role`
+  de forma directa, más `is_admin()`: todo lo demás resuelve por pertenencia. Esa
+  lectura, de minutos, es lo que convirtió un sprint que parecía inasumible en uno
+  de tres días. La decisión de interrumpir el Sprint 3 se tomó sobre el número
+  medido, no sobre el temido.
+- **El experimento que discrimina, no el que confirma.** El defecto de recursión
+  de `request_offers_insert_participants` se destapó porque el experimento
+  insertaba **dos** ofertas, la ilegítima y la legítima, y las dos fallaron con el
+  mismo `SQLSTATE`. Un experimento que solo hubiera comprobado que la ilegítima
+  falla habría dado por buena una política rota para toda inserción, que llevaba
+  quince días así. **Toda prueba de política debe incluir el caso que sí debe
+  pasar**, porque es el único que distingue «deniega bien» de «no funciona».
+- **Ordenar por reversibilidad**, por tercer sprint consecutivo. El criterio de
+  HU-35 que exige ver «Mi cuenta» sin control segmentado se verificó antes de
+  activar el segundo rol, porque `profile_roles` es de solo agregar y activarlo lo
+  vuelve inalcanzable para siempre.
+- **Contrastar cada paso contra la base y no contra la pantalla.** Es lo que hizo
+  comprobable que el relleno de las migraciones salió exacto, y lo que permitió
+  afirmar que la verificación no dejó residuo.
+
+### Qué no funcionó
+
+- **«No verificable» se escribió cuatro veces sin comprobar que lo fuera.** Los
+  cuatro criterios que el 2026-10-02 quedaron fuera por imposibles se cerraron
+  entre el 2026-10-03 y el 2026-10-04 sin escribir una línea de código: la caída
+  de red la provoca `adb`, la cuenta «nueva» ya estaba en el emulador desde antes,
+  el paciente puro salía de esa misma cuenta, y el rol repetido lo demuestra
+  `supabase db query --linked` en dos comandos. Los cuatro motivos se dedujeron
+  del código y de los datos, que era el sitio equivocado donde mirar: eran
+  afirmaciones sobre el **entorno**. La regla que queda: **antes de anotar un
+  criterio como no demostrable, intentarlo una vez.** Un `dumpsys account`, un
+  `cmd connectivity airplane-mode enable` y un `--help` leído entero habrían
+  ahorrado el párrafo completo.
+- **Una subconsulta dentro de una política obedece a las políticas de la tabla que
+  consulta**, y eso costó un defecto propio, introducido en este mismo sprint:
+  `reviews_select_visible` dejó de mostrar **ninguna** reseña a un tercero, que es
+  justo el público de una reseña pública. La corrección de una fuga cerró la
+  puerta entera. Está registrado en `docs/decisions.md` del 2026-10-02, con la
+  lista de políticas vigentes que consultan otra tabla y deben revisarse con este
+  criterio al llegar a su sprint.
+- **La deuda de `androidTest` cobró dos veces y casi una tercera.** Los dos
+  defectos de interfaz del 2026-10-02 —las acciones que desaparecían del `Row` y
+  el control segmentado desbordado al 200 %— no los podía atrapar ninguna prueba
+  de JUnit. Y al verificar el criterio del paciente puro hubo que demostrar **a
+  mano**, con una segunda dirección y con la cuenta de doble rol como contraste,
+  que la acción ausente faltaba por rol y no por disposición: exactamente la
+  pregunta que una prueba de interfaz respondería sola. La deuda se arrastra desde
+  el Sprint 1 y ya tiene tres ejemplos concretos de lo que deja pasar.
+- **Un sprint no planificado interrumpió a otro ya en curso**, y aunque la decisión
+  fue correcta y está justificada, el costo real es que HU-06 lleva tres sprints
+  abierta. El Sprint 3 se reanuda con ella y no se vuelve a mover.
+
+### Qué cambiar en el Sprint 3
+
+1. **Cerrar el Sprint 3 por fecha de corte**, no por alcance, y contar lo cerrado.
+   Es la tercera vez que se plantea y la primera en que no hay excusa: con 24
+   puntos planificados contra 21 de referencia, es la medición que el proyecto
+   lleva tres sprints sin obtener.
+2. **HU-06 primero y hasta cerrarla.** Está escrita, probada y le falta solo la
+   verificación en dispositivo, que ahora sí tiene emulador. Su cuarto criterio
+   cambió de «dirección principal» a «base profesional» por HU-36.
+3. **Resolver el hallazgo de las direcciones sin principal** dentro de HU-06, que
+   es su historia dueña. Eliminar la dirección principal deja a la persona sin
+   ninguna, porque `addresses_first_is_primary` solo actúa al insertar. Importa
+   más desde este sprint, porque `is_professional_base` tiene la misma forma:
+   eliminar tu base te saca de las búsquedas en silencio.
+4. **Revisar con el criterio del 2026-10-02 las políticas de HU-07 y HU-09 antes
+   de escribirlas.** Las de `verification_documents` van a necesitar mirar
+   `profiles` y `profile_roles`, que es justo la forma que produjo los dos
+   defectos de este sprint.
+5. **Usar `ledezma.aramayo.73@gmail.com` como la cuenta de un solo rol** y no
+   activarle el profesional. Es la única con la que se podrá demostrar lo que un
+   doble rol ya no distingue.
+6. **Verificar las pruebas de política con `supabase db query --linked`**, que es
+   lo que destrabó el último criterio de este sprint y el camino que
+   `.claude/rules/testing.md` ahora recoge. Los Sprints 3 a 9 agregan políticas en
+   casi todas sus historias, así que la diferencia se acumula.
 
 ---
 
 # Sprint 3 — Verificación de usuarios
 
-**Estado:** `[~]` **suspendido el 2026-10-01**, con HU-06 en `[~]` a falta de su
-verificación en dispositivo. Se reanuda al cerrar el Sprint 2.5.
+**Estado:** `[~]` en curso. Suspendido el 2026-10-01 con HU-06 en `[~]` a falta de
+su verificación en dispositivo, y **reanudado el 2026-10-04** al cerrar el
+Sprint 2.5. **HU-06 cerrada el 2026-10-04**, con tres sprints de retraso: su
+verificación se recorrió en el emulador el 2026-10-03, destapó un cuarto defecto
+de integridad, y la migración que lo corrige quedó aplicada y ejercitada al día
+siguiente. Quedan HU-07, HU-08 y HU-09, 21 puntos de los 24.
+
+> **La siguiente es HU-07.** Antes de escribir sus políticas conviene aplicarles
+> el criterio del 2026-10-02: las de `verification_documents` van a necesitar
+> mirar `profiles` y `profile_roles`, que es exactamente la forma que produjo los
+> dos defectos del Sprint 2.5. Una subconsulta directa dentro de la política
+> obedece a las políticas de la tabla que consulta; la salida es una función
+> `security definer` que devuelva un booleano.
 
 > **Por qué se suspende.** La reunión del 2026-10-01 con la contraparte del
 > negocio cambió el modelo de rol, y las tres historias que quedan en este sprint
@@ -2446,27 +2618,38 @@ administrador los aprueba o rechaza.
 > en búsquedas— es la misma condición de visibilidad que este sprint cierra por
 > el lado de la verificación.
 
-### HU-06 · Administrar mis direcciones `[~]` — 3 puntos
+### HU-06 · Administrar mis direcciones `[x]` — 3 puntos
 
 > Como **usuario**, quiero **tener varias direcciones y marcar una como
 > principal**, para **solicitar atención en distintos lugares**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que tengo varias direcciones, cuando abro la lista, entonces las veo
-      con su alias y su referencia. **Implementado y probado con JUnit; falta
-      la verificación en dispositivo, ver «Deuda reconocida».**
+- [x] Dado que tengo varias direcciones, cuando abro la lista, entonces las veo
+      con su alias y su referencia. **Verificado el 2026-10-03** con
+      `ledezma.aramayo.73@gmail.com`: «Casa» con «Porton verde frente al estadio»
+      y «Trabajo» con «Oficina 3, segundo piso», los dos alias y las dos
+      referencias a la vista.
 - [x] Dado que marco una como principal, cuando marco otra, entonces la anterior
       deja de serlo automáticamente. **El autor probó esto en su dispositivo,
       encontró que no funcionaba, se corrigió — ver «Defecto encontrado por el
       autor probando la historia» — y el autor confirmó que ahora sí cambia la
-      dirección principal.**
-- [ ] Dado que elimino una dirección, cuando confirmo, entonces desaparece de la
-      lista. **Implementado y probado con JUnit; falta la verificación en
-      dispositivo.**
-- [ ] Dado que soy profesional, cuando no tengo dirección principal, entonces no
-      aparezco en búsquedas. **Ya lo garantiza el esquema desde HT-04, sin
-      código nuevo: ver «Por qué el cuarto criterio no agrega código».**
+      dirección principal.** **Reconfirmado el 2026-10-03:** marcar «Trabajo»
+      dejó a «Casa» sin la insignia, y la lista se redibujó desde el servidor sin
+      recargar la pantalla a mano.
+- [x] Dado que elimino una dirección, cuando confirmo, entonces desaparece de la
+      lista. **Verificado el 2026-10-03**, con las dos salidas del diálogo: al
+      pulsar «Cancelar» la dirección sigue en la lista, y al confirmar
+      desaparece.
+- [ ] Dado que soy profesional, cuando no tengo **base profesional declarada**,
+      entonces no aparezco en búsquedas. **Reescrito por HU-36 el 2026-10-02:**
+      antes decía «dirección principal», y la búsqueda dejó de mirar esa columna.
+      El mecanismo que lo garantiza no cambia —sigue siendo la unión interna de
+      `search_nearby_professionals` con `addresses`, ahora sobre
+      `is_professional_base`—, de modo que sigue sin agregar código: ver «Por qué
+      el cuarto criterio no agrega código». **Verificado el 2026-10-02** con el
+      experimento SQL de HU-36, cuyo cuarto criterio enuncia exactamente esta
+      misma garantía sobre la misma unión interna.
 
 **Requisitos:** RF-03.4, RF-03.5, RN-02.
 
@@ -2491,7 +2674,10 @@ salda.
 | `presentation/` | `AddressListScreen`, `AddressListViewModel`; `AddressScreen` y `AddressViewModel` reciben un `addressId` opcional |
 | `navigation/` | `AddressListRoute` nueva; `AddressRoute` pasa de objeto a clase con `addressId: String? = null` |
 
-**Ninguna migración nueva.** Las cuatro políticas de `addresses`
+**Una migración nueva, agregada el 2026-10-03:**
+`20261003120000_preserve_marked_addresses_on_delete`, con los dos disparadores de
+eliminación y el relleno. Hasta esa fecha la historia no necesitaba ninguna: las
+cuatro políticas de `addresses`
 —`addresses_select_own`, `addresses_insert_own`, `addresses_update_own`,
 `addresses_delete_own`— y el disparador `addresses_unmark_previous_primary`
 existen desde HT-04 y ya cubren listar, marcar como principal y eliminar. Esta
@@ -2535,6 +2721,21 @@ confirmar sin problema que `addresses` seguía en cero filas tras el Sprint 2.
 | `dismissing the delete confirmation leaves the address on the list` | Un diálogo que cancela en la pantalla pero borra igual en el servidor |
 | `confirming the deletion removes the address once the server confirms it` | Una fila que desaparece de la lista antes de que el servidor confirme que la eliminó |
 | `a refused deletion reports the error and keeps the address on the list` | Una eliminación fallida que igual desaparece de la lista, dejando a la persona sin saber que la dirección sigue existiendo |
+
+**Trece pruebas más el 2026-10-03**, que llevan la suite de 223 a 236. Diez en
+`DeleteAddressUseCaseTest`, nueva, y tres en `AddressListViewModelTest`:
+
+| Prueba | El error real que atrapa |
+|---|---|
+| `deleting the primary address with a single survivor lets the database promote it` | Que el cliente repita la regla del disparador y las dos copias diverjan |
+| `deleting the primary address with two survivors asks who inherits before writing` | El defecto exacto del 2026-10-03: la persona se queda con direcciones y ninguna principal |
+| `the chosen successor takes the primary mark before the address is deleted` | Un traspaso que ocurre después de eliminar, dejando una ventana sin ninguna marcada |
+| `an address that is both primary and base hands over both marks` | Conservar la principal y perder la base, que es la que decide si apareces en búsquedas |
+| `a failed handover stops before deleting, so no mark is lost` | Eliminar igual cuando el traspaso no llegó a escribirse |
+| `a successor that is not one of my addresses is refused` | Un identificador ajeno colándose como heredero |
+| `deleting the professional base with two survivors asks who inherits it` | Que la regla valga solo para la principal y la base siga cayendo en silencio |
+| `a list that cannot be read reports the error instead of deleting blind` | Eliminar sin saber qué marcas llevaba la fila |
+| `dismissing the successor choice cancels the deletion and frees the screen` | Una fila que queda en estado pendiente para siempre y congela la pantalla |
 
 La suite de `AddressViewModelTest` se actualizó para el nuevo parámetro
 `addressId`, sin perder ninguna de sus catorce pruebas: por omisión es `null`
@@ -2623,84 +2824,156 @@ creado carga la lista completa por primera vez, ya con la dirección que se
 acaba de guardar. Vale tanto para agregar como para editar, porque las dos
 pasan por el mismo `onSaved`.
 
-**Deuda reconocida.** Ni la verificación manual en un dispositivo real ni el
-experimento contra la base remota que HU-04 y HU-05 usaron para probar
-invariantes de este tipo pudieron correrse en esta sesión: el entorno no tiene
-`adb` ni un emulador disponible, y las consultas de solo lectura contra el
-proyecto remoto quedaron bloqueadas por el clasificador de modo automático a
-mitad de una comprobación de la fila de un profesional (motivo: «Production
-Reads»). Por eso los cuatro criterios quedan sin marcar y la historia en
-`[~]`. El procedimiento para que el autor complete esa verificación está a
-continuación, en «Verificación pendiente del autor».
+**Deuda reconocida el 2026-09-16, saldada el 2026-10-03.** La sesión que escribió
+esta historia no pudo verificarla: el entorno no tenía `adb` ni emulador, y las
+consultas de solo lectura contra el proyecto remoto quedaron bloqueadas por el
+clasificador de modo automático a mitad de una comprobación (motivo: «Production
+Reads»). Por eso los cuatro criterios quedaron sin marcar y la historia en `[~]`.
+La verificación se recorrió el 2026-10-03 sobre el emulador `Pixel_9_Pro`, y está
+más abajo.
+
+**Cuarto defecto, reproducido el 2026-10-03: eliminar la dirección principal no
+promueve ninguna otra.** El hallazgo venía anotado desde el Sprint 2.5 como
+sospecha —las tres direcciones del autor estaban sin marcar como principal, sin
+causa conocida— y esta historia es su dueña, porque es la que elimina direcciones.
+
+*Reproducción*, con `ledezma.aramayo.73@gmail.com` en el emulador. Con dos
+direcciones, «Trabajo» principal y «Consultorio» no, se eliminó «Trabajo».
+«Consultorio» quedó como única dirección de la persona y **sin** la insignia
+«Principal»: la fila sigue ofreciendo «Marcar como principal». La persona queda
+con direcciones y sin ninguna principal, que es el estado exacto en el que
+estaban las del autor.
+
+*Causa.* `addresses_first_is_primary` se dispara **al insertar**, y solo marca la
+primera fila de cada persona. Ningún disparador actúa al eliminar, de modo que
+borrar la principal no promueve a nadie. No hay nada que reparar el estado
+después.
+
+*Por qué importa más desde el Sprint 2.5.* `is_professional_base` tiene
+exactamente la misma forma, con su propio disparador de desmarcado al actualizar y
+ninguno al eliminar. Las consecuencias no son iguales: quedarse sin dirección
+principal es visible —la lista no muestra la insignia—, mientras que quedarse sin
+base profesional **saca al profesional de los resultados de búsqueda en silencio**,
+porque la unión de `search_nearby_professionals` con `addresses` es interna. El
+profesional no recibe solicitudes y nada en la aplicación le dice por qué.
+
+*Corrección, decidida con el autor el 2026-10-03.* Las dos formas que se
+plantearon —promover siempre, u obligar siempre a elegir— se combinan según
+cuántas direcciones sobrevivan, que es lo que decide si hay algo que elegir:
+
+- **Queda exactamente una:** la hereda, y lo hace el motor. Preguntar algo cuya
+  respuesta es única es un paso de más.
+- **Quedan dos o más:** la persona elige cuál ocupa el lugar, antes de eliminar.
+
+`20261003120000_preserve_marked_addresses_on_delete` lo implementa con dos
+disparadores, `addresses_promote_last_address` (`after delete`) y
+`addresses_guard_marked_delete` (`before delete`, que levanta
+`address_needs_successor`). Del lado del cliente, `DeleteAddressUseCase` lee la
+lista y devuelve `SuccessorRequired` sin escribir nada cuando hay que elegir; la
+pantalla pregunta y, con la respuesta, traslada las marcas y recién entonces
+elimina.
+
+**Por qué no se promueve automáticamente la base profesional.** La dirección
+principal es dónde te atienden y cualquiera de las tuyas es candidata; la base
+profesional es desde dónde cubres tu zona, y elegirla por ti te pone en búsquedas
+centradas en una dirección que nunca declaraste para eso. Es un defecto peor que
+el que se corrige, porque llega hasta el paciente. Razonado en
+`docs/decisions.md`, 2026-10-03.
+
+**El relleno corrige las filas ya afectadas**, pero solo `is_primary`: marca la
+dirección más antigua de quien tenga direcciones y ninguna principal, que es la
+que `addresses_first_is_primary` habría marcado. Para la base no hay equivalente,
+por la misma razón de arriba.
+
+**Un caso que la corrección tuvo que contemplar.** `addresses.profile_id`
+referencia a `profiles` con `on delete cascade`, y la acción referencial corre
+después de que la fila padre desaparece. Sin cuidado, eliminar una cuenta con tres
+direcciones abortaría al llegar a la principal. Los dos disparadores comprueban
+que el perfil siga existiendo, y esa ausencia es lo que distingue una cascada de
+una eliminación normal. RF-01.7 pide esa eliminación de cuenta.
+
+*Migración aplicada y verificada el 2026-10-04*, con `supabase db push --linked`.
+La comprobación fue en cinco partes, las tres últimas dentro de transacciones con
+`rollback`:
+
+| Qué se comprobó | Resultado |
+|---|---|
+| La migración quedó registrada, con sus dos disparadores y sus dos funciones | `1, 2, 2` |
+| Nadie conserva direcciones sin una principal | **Cero personas.** Es el invariante que el defecto rompía |
+| El relleno sobre los datos reales | Las dos direcciones del autor tienen principal otra vez. **Ninguna base profesional se inventó:** la única marcada sigue siendo la que él ya había declarado |
+| `addresses_promote_last_address`, con un superviviente | La dirección que se insertó **sin** la marca quedó con `is_primary = true` tras eliminarse la principal |
+| `addresses_guard_marked_delete`, con dos supervivientes | **`P0001: address_needs_successor`**, línea 23 de la función |
+| El borrado en cascada de un perfil con tres direcciones | **Pasa sin error**, y deja cero perfiles y cero direcciones. Es el caso que la corrección tuvo que contemplar para no romper RF-01.7 |
+| Residuo | **Ninguno.** Al terminar, las cuatro direcciones reales están idénticas y el perfil de prueba sigue en su sitio |
+
+**Que las dos últimas discriminen es lo que vale.** Con un superviviente promueve,
+con dos exige elegir, y con el perfil en vías de desaparecer no hace ninguna de las
+dos. Un experimento que solo hubiera comprobado que el guardia levanta la excepción
+habría dado por buena una corrección que rompe la eliminación de cuentas.
+
+**Una cuenta que el plan no tenía anotada.** La consulta destapó una tercera,
+`christian.ledezma@ucb.edu.bo`, con una dirección «Trabajo» y sin base
+profesional. No altera nada de lo verificado —su dirección también quedó con
+principal— pero conviene tenerla registrada junto a las otras dos al preparar los
+datos de prueba del Sprint 3.
+
+**Un efecto del relleno que conviene saber.** La principal del autor quedó en
+«trabajo» y no en «casa», porque el relleno marca la más antigua, que es la que
+`addresses_first_is_primary` habría marcado. No tenía forma de saber cuál es el
+domicilio. Se corrige desde la aplicación con «Marcar como principal», y entonces
+«trabajo» conserva la base profesional: es justo la separación que HU-36 permite.
+
+**Verificación en dispositivo, recorrida el 2026-10-03.** Los cuatro criterios
+quedan marcados. Se usó `ledezma.aramayo.73@gmail.com` y no la cuenta del autor,
+para no mutar sus datos reales: la historia dice «Como usuario», sin exigir rol, y
+esa cuenta es de prueba.
+
+| Paso | Resultado |
+|---|---|
+| Estado vacío | «Todavía no registraste ninguna dirección» con «Agregar dirección». Es lo primero que ve alguien nuevo |
+| Registrar dos direcciones | Cada una vuelve sola a la lista al guardar y aparece de inmediato. La primera se marcó principal sola |
+| Editar «Trabajo» | El formulario abrió con sus datos cargados —la deuda de HU-05, que trabajaba siempre sobre la principal, queda saldada— y el cambio se vio al volver, sin salir y entrar |
+| **Criterio 1** | Alias y referencia visibles en las dos filas |
+| **Criterio 2** | Marcar «Trabajo» dejó a «Casa» sin la insignia, sin recargar a mano |
+| Cancelar una eliminación | La dirección sigue en la lista |
+| **Criterio 3** | Al confirmar, desaparece |
+| **Criterio 4** | Verificado el 2026-10-02 por el experimento SQL de HU-36, que enuncia la misma garantía sobre la misma unión interna |
+
+**Con la migración aplicada y los tres disparadores ejercitados, la historia está
+terminada.** Sus cuatro criterios están marcados, el defecto que la propia
+verificación destapó está corregido en el motor y no solo en el cliente, y el
+relleno dejó los datos reales en el estado que el invariante exige.
 
 **Verificación pendiente del autor.**
 
-1. **Compilar e instalar.** Con un dispositivo o emulador conectado:
-   `./gradlew installDebug`. Si no hay ninguno conectado, `adb devices` lo
-   confirma antes de intentarlo.
-2. **Ingresar y abrir la pantalla.** Desde «Mi cuenta», pulsar «Mis
-   direcciones» (antes decía «Mi dirección»; si el dispositivo no tenía
-   ninguna dirección registrada todavía, la pantalla debe mostrar «Todavía no
-   registraste ninguna dirección» con un botón «Agregar dirección» — es el
-   estado vacío, el primero que ve alguien nuevo).
-3. **Registrar tres direcciones.** Pulsar «Agregar dirección», completar el
-   formulario ya conocido de HU-05 con alias «Casa» y guardar; la pantalla debe
-   volver sola a «Mis direcciones» apenas se guarda, sin tocar el botón de
-   retroceso. Repetir con alias «Trabajo» y, después, con alias «Consultorio».
-   Cada vez que se guarda, la nueva dirección debe verse en la lista de
-   inmediato —es el defecto de la lista que no se refrescaba, ya corregido—.
-   Al terminar, la lista muestra las tres, con «Casa» marcada «Principal» —la
-   primera dirección se marca sola, como ya hacía HU-05— y las tres con su
-   alias y su referencia visibles (**criterio 1**).
-4. **Editar «Consultorio».** Pulsar «Editar» en su fila, cambiar la referencia
-   y guardar. Igual que al agregar, la pantalla debe volver a la lista con el
-   cambio ya visible, sin salir y volver a entrar para verlo.
-5. **Marcar «Trabajo» como principal.** Pulsar «Marcar como principal» en su
-   fila. Al terminar, «Trabajo» debe mostrar la insignia «Principal» y «Casa»
-   debe perderla, sin recargar la pantalla a mano (**criterio 2**, ya
-   confirmado por el autor el 2026-09-16).
-6. **Cancelar una eliminación.** Pulsar «Eliminar» en «Casa», y en el diálogo
-   pulsar «Cancelar». «Casa» debe seguir en la lista.
-7. **Confirmar la eliminación.** Pulsar «Eliminar» en «Casa» otra vez y esta
-   vez confirmar. «Casa» debe desaparecer de la lista (**criterio 3**).
-8. **Repetir con la cuenta profesional** los pasos 2 a 7, para confirmar que
-   el mismo flujo vale para ambos roles, tal como enuncia la historia
-   («Como usuario…»).
-9. **Criterio 4, por consulta directa.** HU-11 —la búsqueda por cercanía en la
-   aplicación— todavía no existe, así que este criterio no se puede
-   demostrar tocando la pantalla; se demuestra llamando a la función que HU-11
-   va a consumir. Abrir el editor SQL del proyecto en
-   `https://supabase.com/dashboard/project/lckgbklfmkjpuvmebuha/sql/new` y,
-   con la cuenta profesional ya aprobada por un administrador (todavía no hay
-   ninguno: ver la nota de HU-05 sobre cómo se aprobó y revirtió uno a mano
-   para probar HU-04), ejecutar:
+1. **Aplicar la migración.** `npx supabase db push --dry-run` primero, para ver
+   que la única pendiente es
+   `20261003120000_preserve_marked_addresses_on_delete`, y después
+   `npx supabase db push`. Pide la contraseña de la base; no está guardada en el
+   entorno y por eso el paso queda aquí. Antes conviene abrir
+   `https://supabase.com/dashboard/project/lckgbklfmkjpuvmebuha` y comprobar que
+   el proyecto no esté pausado.
+2. **Comprobar el relleno**, que es la parte que toca datos reales:
 
    ```sql
-   -- Quita la marca de principal a todas las direcciones del profesional de
-   -- prueba, sin borrar ninguna fila.
-   update public.addresses set is_primary = false
-   where profile_id = '<id del profesional de prueba>';
-
-   -- Debe devolver cero filas: sin dirección principal, la unión interna de
-   -- search_nearby_professionals con addresses no genera fila para él.
-   select * from public.search_nearby_professionals(-16.5000, -68.1500, 50);
-
-   -- Vuelve a marcar una como principal.
-   update public.addresses set is_primary = true
-   where profile_id = '<id del profesional de prueba>'
-     and id = '<id de esa dirección>';
-
-   -- Ahora sí debe aparecer.
-   select * from public.search_nearby_professionals(-16.5000, -68.1500, 50);
+   -- Debe devolver cero filas: nadie con direcciones y sin principal.
+   select p.id, count(*)
+   from public.profiles p
+   join public.addresses a on a.profile_id = p.id
+   group by p.id
+   having count(*) filter (where a.is_primary) = 0;
    ```
 
-   Si la primera consulta devuelve cero filas y la segunda devuelve la fila
-   del profesional, el criterio 4 está verificado y no exige ningún cambio de
-   código: ya lo garantiza `join public.addresses a on a.profile_id = pro.id
-   and a.is_primary`, la unión interna de la función, aplicada desde HT-04.
-
-10. **Marcar los cuatro criterios en `[x]`** una vez confirmados y cambiar el
-   estado de la historia a `[x]`.
+   Las direcciones del autor son las que esto corrige: estaban las dos sin marcar.
+3. **Probar los dos caminos en el dispositivo**, con
+   `ledezma.aramayo.73@gmail.com`, que quedó con una sola dirección:
+   - Con **dos** direcciones, eliminar la principal. La otra debe quedar marcada
+     «Principal» sola, sin preguntar nada.
+   - Con **tres**, eliminar la principal. Debe aparecer el diálogo que pide cuál
+     ocupa su lugar; al elegir una, esa queda «Principal» y la otra se elimina.
+     Al pulsar «Cancelar», nada cambia y la pantalla vuelve a responder.
+4. **Marcar la historia en `[x]`** una vez aplicada la migración y recorridos los
+   dos caminos.
 
 ### HU-07 · Cargar mis documentos de verificación `[ ]` — 8 puntos
 

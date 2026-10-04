@@ -2594,6 +2594,156 @@ pasar, que es un argumento mejor que el que tenía.
 
 ---
 
+## 2026-10-03 · Un criterio no se anota como «no verificable» sin haberlo intentado contra el entorno
+
+**Contexto.** La verificación en dispositivo del Sprint 2.5 cerró doce de dieciséis
+criterios el 2026-10-02 y declaró los otros cuatro no demostrables. Al día
+siguiente, tres de los cuatro se verificaron sin escribir una línea de código.
+
+- «El cambio de rol que falla» se había descartado porque exigía «provocar una
+  caída de red a mitad de la petición». La provoca
+  `adb shell cmd connectivity airplane-mode enable`, más
+  `cmd wifi set-wifi-enabled disabled` porque el wifi del emulador no cae con el
+  modo avión solo.
+- «La elección de rol en el primer ingreso» se había descartado porque exigía «una
+  cuenta de Google nueva». `adb shell dumpsys account` mostró que el emulador ya
+  tenía una segunda, que nunca había ingresado a la aplicación.
+- «La lista de direcciones de un paciente puro» se había descartado porque «la
+  cuenta usada tiene los dos roles». Era cierto de esa cuenta, no del proyecto: la
+  segunda, eligiendo «Paciente», lo demuestra.
+
+**Decisión.** Antes de anotar un criterio como no demostrable, se intenta una vez
+contra el entorno real y se registra qué comando o qué recurso faltó. «No
+verificable» pasa a ser una conclusión con evidencia, no una estimación.
+
+**Razonamiento.** Los tres motivos se dedujeron leyendo el código y los datos, que
+es donde sí estaba la respuesta a «¿la regla se cumple?» pero no a «¿puedo
+demostrarla?». La segunda pregunta es sobre el entorno —qué cuentas hay, qué
+permite `adb`, qué estado admite el emulador— y no se contesta desde el código.
+Deducirla ahí produce un falso negativo barato de cometer y caro de detectar: el
+criterio queda sin marcar, la historia sin cerrar, y el sprint arrastra una deuda
+que no existe.
+
+El costo de la comprobación es asimétrico y eso cierra el argumento: intentarlo
+cuesta un comando, y equivocarse cuesta evidencia que el tribunal va a echar en
+falta.
+
+**Consecuencia.** Los tres criterios quedaron marcados el 2026-10-03 con el
+procedimiento que los demostró. El cuarto —«agregar dos veces el mismo rol»— se
+cerró el 2026-10-04, y su historia confirma la regla una cuarta vez. Se había
+dado por no demostrable porque no tiene gesto en la aplicación, lo cual es cierto,
+pero la conclusión que se sacó —que por tanto no era demostrable— no lo era: solo
+significaba que no era un criterio de interfaz. El camino existía en el CLI desde
+siempre, `supabase db query`, y se había dado por ausente al leer una salida de
+`--help` truncada en la mitad de la lista de subcomandos.
+
+Las dos mitades del experimento confirmaron lo que se esperaba:
+`select public.add_my_role('PATIENT')` levanta `P0001: role_already_held` en la
+línea 30 de la función, y el `insert` directo contra la tabla levanta `23505`
+contra `profile_roles_pkey`. `profile_roles` quedó con una sola fila para esa
+persona, con el mismo `created_at` antes y después.
+
+**Y hacían falta las dos.** `add_my_role` rechaza antes de llegar a la tabla, de
+modo que llamarla sola prueba el guardia de la función y no la clave primaria, que
+es lo que sostiene el invariante cuando alguien entra por PostgREST sin pasar por
+la función. Es el mismo criterio que la entrada del 2026-10-02 fija para las
+pruebas de política: hay que demostrar que **discrimina**, no solo que deniega. El
+procedimiento concreto, con el comando y sus trampas de comillas, quedó en
+`.claude/rules/testing.md`.
+
+**Y una consecuencia para la deuda de `androidTest`.** Verificar que a un paciente
+puro no se le ofrece la base profesional obligó a demostrar a mano que la acción
+faltaba por rol y no por disposición —con una segunda dirección, que compone tres
+acciones sin perder ninguna, y con la cuenta de doble rol como contraste en la
+misma compilación—. Es la pregunta que una prueba de interfaz responde sola, y el
+tercer ejemplo concreto de lo que esa deuda deja pasar. Ver la entrada del
+2026-10-02 sobre la fila de acciones.
+
+---
+
+## 2026-10-03 · Eliminar una dirección marcada: el motor promueve si queda una, la persona elige si quedan varias
+
+**Contexto.** La verificación de HU-06 del 2026-10-03 reprodujo el defecto que el
+Sprint 2.5 había dejado anotado como sospecha. Con «Trabajo» como principal y
+«Consultorio» sin marcar, eliminar «Trabajo» dejó a «Consultorio» como única
+dirección y sin la marca. `addresses_first_is_primary` solo se dispara al
+insertar, de modo que nada promueve a nadie al eliminar, y la persona queda con
+direcciones y sin ninguna principal. Es el estado en el que estaban las filas del
+autor.
+
+`is_professional_base` tiene la misma forma y consecuencias peores. La unión de
+`search_nearby_professionals` con `addresses` es interna, así que perder la base
+saca al profesional de toda búsqueda **sin que nada se lo diga**: no recibe
+solicitudes y la aplicación no tiene dónde explicárselo.
+
+**Decisión.** Dos disparadores sobre `addresses`, en
+`20261003120000_preserve_marked_addresses_on_delete`:
+
+- `addresses_promote_last_address`, `after delete`: si la fila borrada llevaba
+  alguna marca y queda **exactamente una** dirección, esa la hereda. Las dos
+  marcas viajan juntas, porque quien se queda con una sola dirección no tiene
+  nada que elegir sobre ninguna.
+- `addresses_guard_marked_delete`, `before delete`: si la fila borrada lleva
+  alguna marca y quedan **dos o más**, levanta `address_needs_successor`. La
+  persona elige la heredera antes de eliminar.
+
+El cliente resuelve la elección antes de escribir: `DeleteAddressUseCase` lee la
+lista, y si hay que elegir devuelve `SuccessorRequired` sin tocar nada. La
+pantalla pregunta, y con la respuesta traslada las marcas a la elegida y recién
+entonces elimina.
+
+**Razonamiento.** La alternativa evaluada fue promover siempre, con un criterio
+automático —la más antigua, o la más cercana—. Se descartó por lo que significa
+cada marca. La dirección principal es dónde te atienden, y cualquiera de las
+tuyas es candidata; **la base profesional es desde dónde cubres tu zona**, y
+elegirla por ti te pone en resultados de búsqueda centrados en una dirección que
+nunca declaraste para eso. Promover en silencio una base equivocada es un defecto
+peor que el que se está corrigiendo, porque llega hasta el paciente.
+
+Con una sola superviviente no hay nada que elegir, así que ahí sí decide el motor:
+preguntar una cosa cuya respuesta es única es un paso de más.
+
+**Por qué el guardia está en el motor y no solo en la pantalla.** Quien pase por
+la pantalla nunca lo ve: el cliente traslada la marca primero, de modo que la fila
+que se elimina ya no la lleva. Dispara para todo lo demás, y PostgREST expone la
+tabla tenga o no la aplicación una pantalla para ella. Es el mismo criterio que
+INV-10 aplica a los pagos: la garantía es una restricción del motor, y lo que hay
+en el cliente es la experiencia, no la garantía.
+
+**El caso que casi rompe la eliminación de cuentas.** `addresses.profile_id`
+referencia a `profiles` con `on delete cascade`, y la acción referencial corre
+**después** de que la fila padre desaparece. Sin cuidado, eliminar una cuenta con
+tres direcciones abortaría al llegar a la principal, porque el guardia vería dos
+supervivientes y levantaría la excepción. Los dos disparadores comprueban que el
+perfil siga existiendo, y la ausencia es justo lo que distingue una cascada de
+alguien eliminando una dirección suya. RF-01.7 pide esa eliminación de cuenta.
+
+**Verificado el 2026-10-04**, tras aplicar la migración. Los dos disparadores
+discriminan: con un superviviente promueve —la dirección insertada sin la marca
+quedó con `is_primary = true`—, con dos levanta `address_needs_successor`, y con
+el perfil en vías de desaparecer no hace ninguna de las dos, de modo que eliminar
+una cuenta con tres direcciones sigue funcionando. El relleno dejó cero personas
+con direcciones y sin principal, y ninguna base profesional inventada. Las tres
+pruebas corrieron dentro de transacciones con `rollback` y no dejaron residuo.
+
+**Un efecto del relleno sobre datos reales.** La principal del autor quedó en la
+dirección que tenía marcada como base profesional, porque era la más antigua y el
+relleno marca esa. Es lo correcto según el criterio elegido —reproducir lo que
+`addresses_first_is_primary` habría hecho— y a la vez semánticamente incómodo:
+nadie quiere que su domicilio sea su oficina. Se corrige con un toque en la
+aplicación. Vale como recordatorio de que un relleno acierta con la regla y no
+necesariamente con la intención, y de que por eso conviene que sea reversible
+desde la interfaz.
+
+**El relleno corrige `is_primary` y deliberadamente no `is_professional_base`.**
+Se marca como principal la dirección más antigua de quien tenga direcciones y
+ninguna principal, que es la que `addresses_first_is_primary` habría marcado:
+reproduce lo que debió pasar en vez de inventar una elección. Para la base no hay
+equivalente, por la misma razón que arriba. Un profesional sin base simplemente no
+aparece, que es lo que el cuarto criterio de HU-36 ya enuncia.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

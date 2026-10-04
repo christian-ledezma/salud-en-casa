@@ -66,6 +66,33 @@ transacción que termina en `rollback`** para no dejar residuo. Es el método co
 que se verificaron los disparadores de dirección en HU-05 y con el que se encontró
 la causa del defecto de HU-06.
 
+**Cómo se corre, en concreto.** Con `supabase db query --linked`, que ejecuta SQL
+contra el proyecto remoto por la Management API y exige `npx supabase login` una
+sola vez:
+
+```
+npx supabase db query --linked 'begin; set local role authenticated; select set_config($$request.jwt.claims$$, $${"sub":"<id del perfil>","role":"authenticated"}$$, true); <la sentencia que se prueba>; rollback;'
+```
+
+Tres detalles que ahorran tiempo:
+
+- **Todo el SQL va entre comillas dobles `$$`**, nunca simples, para que no pelee
+  con las comillas del shell. `set_config(..., true)` equivale a `set local` y
+  acepta cualquier expresión, mientras que `set` quiere un literal.
+- **Una sentencia por comando.** Un error aborta la transacción, así que dos
+  pruebas en el mismo comando solo muestran la primera. Y el error suele **ser**
+  el resultado esperado.
+- **Un rechazo no deja residuo aunque falte el `rollback`**, porque una excepción
+  de PostgreSQL aborta la transacción entera. El `rollback` cubre el caso que no
+  se quiere ver: que la sentencia no falle.
+
+Cuando lo que se prueba es que algo se rechaza, el experimento **debe incluir
+también el caso que sí debe pasar**, o uno que ataque la misma regla por otro
+camino. Es la diferencia entre comprobar que deniega y comprobar que discrimina:
+así se encontró la recursión de `request_offers_insert_participants` el
+2026-10-02, y así se vio el 2026-10-04 que `add_my_role` rechaza un rol repetido
+antes de llegar a la tabla, de modo que llamarla sola no prueba la clave primaria.
+
 Una prueba obligatoria de esta clase se da por cumplida cuando el experimento está
 ejecutado y su resultado anotado en `plan.md`, con la fecha. Mientras el
 experimento no se haya corrido, la historia no está terminada, igual que con
@@ -133,6 +160,14 @@ Roles múltiples, desde el Sprint 2.5:
 - `geocodingIsCachedAndNotRequestedTwiceForTheSameAddress`
 - `markingAddressAsPrimaryUnmarksThePreviousOne`
 - `markingAddressAsProfessionalBaseUnmarksThePreviousOne`
+- **Obligatoria:** `deletingAMarkedAddressNeverLeavesThePersonWithoutOne` — quien
+  conserva direcciones conserva una principal. El disparador que la marca solo
+  actúa al insertar, de modo que eliminarla no promovía a nadie; se reprodujo en
+  dispositivo el 2026-10-03 y es el estado en el que estaban las filas del autor
+- `deletingAMarkedAddressWithSeveralSurvivorsAsksWhoInheritsIt` — con más de una
+  superviviente la heredera la elige la persona, no la aplicación. Vale sobre todo
+  para la base profesional: elegirla por ella la pone en búsquedas centradas en una
+  dirección que nunca declaró para eso
 
 ### Verificación
 
