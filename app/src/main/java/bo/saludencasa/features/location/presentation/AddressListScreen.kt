@@ -52,6 +52,8 @@ fun AddressListScreen(
         onDeleteClick = viewModel::onDeleteClick,
         onConfirmDeleteClick = viewModel::onConfirmDelete,
         onDismissDeleteClick = viewModel::onDismissDeleteConfirmation,
+        onSuccessorChosen = viewModel::onSuccessorChosen,
+        onDismissSuccessorChoice = viewModel::onDismissSuccessorChoice,
         onRetryClick = viewModel::load,
         onAddClick = onAddClick,
         onEditClick = onEditClick,
@@ -67,6 +69,8 @@ private fun AddressListContent(
     onDeleteClick: (String) -> Unit,
     onConfirmDeleteClick: () -> Unit,
     onDismissDeleteClick: () -> Unit,
+    onSuccessorChosen: (String) -> Unit,
+    onDismissSuccessorChoice: () -> Unit,
     onRetryClick: () -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (String) -> Unit,
@@ -118,6 +122,8 @@ private fun AddressListContent(
                 onDeleteClick = onDeleteClick,
                 onConfirmDeleteClick = onConfirmDeleteClick,
                 onDismissDeleteClick = onDismissDeleteClick,
+                onSuccessorChosen = onSuccessorChosen,
+                onDismissSuccessorChoice = onDismissSuccessorChoice,
                 onAddClick = onAddClick,
                 onEditClick = onEditClick,
                 modifier = modifier,
@@ -154,6 +160,8 @@ private fun AddressListItems(
     onDeleteClick: (String) -> Unit,
     onConfirmDeleteClick: () -> Unit,
     onDismissDeleteClick: () -> Unit,
+    onSuccessorChosen: (String) -> Unit,
+    onDismissSuccessorChoice: () -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -220,6 +228,55 @@ private fun AddressListItems(
             },
         )
     }
+
+    if (content.choosingSuccessorFor != null) {
+        val leaving = content.addresses.first { it.id == content.choosingSuccessorFor }
+        SuccessorChoiceDialog(
+            leaving = leaving,
+            candidates = content.addresses.filter { it.id != leaving.id },
+            onChosen = onSuccessorChosen,
+            onDismiss = onDismissSuccessorChoice,
+        )
+    }
+}
+
+// Deleting the primary address or the professional base with more than one
+// address left is the only deletion that asks a second question, because it is
+// the only one where the database cannot pick the heir on its own.
+@Composable
+private fun SuccessorChoiceDialog(
+    leaving: Address,
+    candidates: List<Address>,
+    onChosen: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val titleRes =
+        when {
+            leaving.isPrimary && leaving.isProfessionalBase -> R.string.address_list_successor_both_title
+            leaving.isPrimary -> R.string.address_list_successor_primary_title
+            else -> R.string.address_list_successor_base_title
+        }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(titleRes)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+                Text(text = stringResource(R.string.address_list_successor_message, leaving.alias))
+                candidates.forEach { candidate ->
+                    TextButton(onClick = { onChosen(candidate.id) }) {
+                        Text(text = candidate.alias)
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.common_cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -336,6 +393,7 @@ private fun previewAddress(
 private fun previewContent(
     pendingId: String? = null,
     confirmingDeleteId: String? = null,
+    choosingSuccessorFor: String? = null,
     notice: AddressError? = null,
     canDeclareProfessionalBase: Boolean = false,
 ): AddressListUiState.Content =
@@ -344,9 +402,11 @@ private fun previewContent(
             listOf(
                 previewAddress(id = "1", alias = "Casa", isPrimary = true),
                 previewAddress(id = "2", alias = "Consultorio de mi madre", isPrimary = false, reference = null),
+                previewAddress(id = "3", alias = "Trabajo", isPrimary = false),
             ),
         pendingId = pendingId,
         confirmingDeleteId = confirmingDeleteId,
+        choosingSuccessorFor = choosingSuccessorFor,
         notice = notice,
         canDeclareProfessionalBase = canDeclareProfessionalBase,
     )
@@ -355,7 +415,7 @@ private fun previewContent(
 @Composable
 private fun AddressListContentLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -363,7 +423,15 @@ private fun AddressListContentLightPreview() {
 @Composable
 private fun AddressListContentDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, heightDp = 700, name = "Eligiendo direccion sucesora")
+@Composable
+private fun AddressListContentChoosingSuccessorPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -371,7 +439,7 @@ private fun AddressListContentDarkPreview() {
 @Composable
 private fun AddressListContentConfirmingDeletePreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(confirmingDeleteId = "2"), {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(confirmingDeleteId = "2"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -379,7 +447,7 @@ private fun AddressListContentConfirmingDeletePreview() {
 @Composable
 private fun AddressListEmptyPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(AddressListUiState.Empty, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(AddressListUiState.Empty, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -387,7 +455,7 @@ private fun AddressListEmptyPreview() {
 @Composable
 private fun AddressListLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(AddressListUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(AddressListUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -397,6 +465,8 @@ private fun AddressListFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         AddressListContent(
             AddressListUiState.Failed(AddressError.NetworkUnavailable),
+            {},
+            {},
             {},
             {},
             {},

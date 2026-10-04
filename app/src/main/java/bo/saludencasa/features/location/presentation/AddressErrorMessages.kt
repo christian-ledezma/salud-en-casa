@@ -18,6 +18,7 @@ internal fun AddressError.messageRes(): Int =
         AddressError.GeocoderUnavailable -> R.string.error_address_geocoder_unavailable
         AddressError.LocationPermissionDenied -> R.string.error_address_permission_denied
         AddressError.LocationUnavailable -> R.string.error_address_location_unavailable
+        AddressError.SuccessorRequired -> R.string.error_address_successor_required
         AddressError.NetworkUnavailable -> R.string.error_network_unavailable
         AddressError.Unexpected -> R.string.error_unexpected
     }

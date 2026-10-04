@@ -36,6 +36,10 @@ sealed interface AddressListUiState {
         // that needs to say so.
         val pendingId: String?,
         val confirmingDeleteId: String?,
+        // Set while the person picks which address inherits the primary mark
+        // or the professional base from the one they are deleting. It is a
+        // second step of the same deletion, not a second dialog about it.
+        val choosingSuccessorFor: String?,
         val notice: AddressError?,
         // A patient has no coverage area, so the base is not something they can
         // declare. It depends on holding the professional role and not on it
@@ -78,6 +82,7 @@ class AddressListViewModel(
                                 addresses = result.addresses,
                                 pendingId = null,
                                 confirmingDeleteId = null,
+                                choosingSuccessorFor = null,
                                 notice = null,
                                 canDeclareProfessionalBase = isProfessional,
                             )
@@ -154,10 +159,38 @@ class AddressListViewModel(
         if (content.pendingId != null) return
 
         state.value = content.copy(pendingId = id, confirmingDeleteId = null, notice = null)
+        delete(id, successorId = null)
+    }
+
+    fun onSuccessorChosen(successorId: String) {
+        val content = currentContent() ?: return
+        val id = content.choosingSuccessorFor ?: return
+
+        state.value = content.copy(pendingId = id, choosingSuccessorFor = null, notice = null)
+        delete(id, successorId)
+    }
+
+    fun onDismissSuccessorChoice() {
+        val content = currentContent() ?: return
+        state.value = content.copy(pendingId = null, choosingSuccessorFor = null)
+    }
+
+    private fun delete(
+        id: String,
+        successorId: String?,
+    ) {
         viewModelScope.launch {
-            when (val result = deleteAddress(id)) {
+            when (val result = deleteAddress(id, successorId)) {
                 DeleteAddressResult.Success -> {
                     load()
+                }
+
+                // Nothing was written and nothing failed: the address carries a
+                // mark that more than one survivor could inherit, so the person
+                // decides which one does.
+                DeleteAddressResult.SuccessorRequired -> {
+                    val current = currentContent() ?: return@launch
+                    state.value = current.copy(pendingId = null, choosingSuccessorFor = id)
                 }
 
                 is DeleteAddressResult.Failure -> {

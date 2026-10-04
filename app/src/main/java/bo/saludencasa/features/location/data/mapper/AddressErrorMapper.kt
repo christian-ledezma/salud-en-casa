@@ -5,8 +5,13 @@ import io.github.jan.supabase.exceptions.HttpRequestException
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import java.io.IOException
 
-internal fun Throwable.toAddressError(): AddressError =
-    when (this) {
+internal fun Throwable.toAddressError(): AddressError {
+    // addresses_guard_marked_delete raises this. PostgREST carries a plpgsql
+    // raise through as its message, so matching the text is the only hold there
+    // is on it; the name is unique to that trigger.
+    if (message?.contains(ADDRESS_NEEDS_SUCCESSOR) == true) return AddressError.SuccessorRequired
+
+    return when (this) {
         // The platform geocoder reports "no network" as a plain IOException,
         // and it is the failure a person on a bus hits most often.
         is HttpRequestTimeoutException, is HttpRequestException, is IOException -> AddressError.NetworkUnavailable
@@ -15,3 +20,6 @@ internal fun Throwable.toAddressError(): AddressError =
 
         else -> AddressError.Unexpected
     }
+}
+
+private const val ADDRESS_NEEDS_SUCCESSOR = "address_needs_successor"
