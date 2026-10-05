@@ -229,8 +229,8 @@ private fun AddressListItems(
         )
     }
 
-    if (content.choosingSuccessorFor != null) {
-        val leaving = content.addresses.first { it.id == content.choosingSuccessorFor }
+    val leaving = content.addresses.firstOrNull { it.id == content.choosingSuccessorFor }
+    if (leaving != null) {
         SuccessorChoiceDialog(
             leaving = leaving,
             candidates = content.addresses.filter { it.id != leaving.id },
@@ -240,9 +240,7 @@ private fun AddressListItems(
     }
 }
 
-// Deleting the primary address or the professional base with more than one
-// address left is the only deletion that asks a second question, because it is
-// the only one where the database cannot pick the heir on its own.
+// docs/decisions.md, 2026-10-03: successor choice on marked-address delete.
 @Composable
 private fun SuccessorChoiceDialog(
     leaving: Address,
@@ -260,12 +258,27 @@ private fun SuccessorChoiceDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = stringResource(titleRes)) },
+        // AlertDialog bounds this slot and clips the overflow instead of scrolling it.
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
-                Text(text = stringResource(R.string.address_list_successor_message, leaving.alias))
-                candidates.forEach { candidate ->
-                    TextButton(onClick = { onChosen(candidate.id) }) {
-                        Text(text = candidate.alias)
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+                item(key = "message") {
+                    Text(text = stringResource(R.string.address_list_successor_message, leaving.alias))
+                }
+                items(candidates, key = { it.id }) { candidate ->
+                    TextButton(
+                        onClick = { onChosen(candidate.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = candidate.alias,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = candidate.addressText,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
@@ -431,6 +444,22 @@ private fun AddressListContentDarkPreview() {
 @Composable
 private fun AddressListContentChoosingSuccessorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
+        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, heightDp = 700, fontScale = 2f, name = "Eligiendo sucesora al 200 %")
+@Composable
+private fun AddressListContentChoosingSuccessorLargeFontPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, heightDp = 700, name = "Eligiendo sucesora, oscuro")
+@Composable
+private fun AddressListContentChoosingSuccessorDarkPreview() {
+    SaludEnCasaTheme(darkTheme = true) {
         AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }

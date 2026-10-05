@@ -36,9 +36,6 @@ sealed interface AddressListUiState {
         // that needs to say so.
         val pendingId: String?,
         val confirmingDeleteId: String?,
-        // Set while the person picks which address inherits the primary mark
-        // or the professional base from the one they are deleting. It is a
-        // second step of the same deletion, not a second dialog about it.
         val choosingSuccessorFor: String?,
         val notice: AddressError?,
         // A patient has no coverage area, so the base is not something they can
@@ -145,6 +142,8 @@ class AddressListViewModel(
 
     fun onDeleteClick(id: String) {
         val content = currentContent() ?: return
+        if (content.pendingId != null) return
+
         state.value = content.copy(confirmingDeleteId = id)
     }
 
@@ -185,12 +184,24 @@ class AddressListViewModel(
                     load()
                 }
 
-                // Nothing was written and nothing failed: the address carries a
-                // mark that more than one survivor could inherit, so the person
-                // decides which one does.
                 DeleteAddressResult.SuccessorRequired -> {
+                    val refreshed = getMyAddresses()
                     val current = currentContent() ?: return@launch
-                    state.value = current.copy(pendingId = null, choosingSuccessorFor = id)
+                    val addresses =
+                        (refreshed as? AddressListResult.Success)?.addresses ?: current.addresses
+                    // Somebody else may have deleted it in the meantime, and
+                    // asking who inherits from an address that is gone has no
+                    // answer.
+                    if (addresses.none { it.id == id }) {
+                        load()
+                        return@launch
+                    }
+                    state.value =
+                        current.copy(
+                            pendingId = null,
+                            choosingSuccessorFor = id,
+                            addresses = addresses,
+                        )
                 }
 
                 is DeleteAddressResult.Failure -> {

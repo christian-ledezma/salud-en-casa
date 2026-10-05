@@ -55,8 +55,6 @@ sealed interface SetProfessionalBaseResult {
 sealed interface DeleteAddressResult {
     data object Success : DeleteAddressResult
 
-    // Not a failure: nothing went wrong and nothing was attempted. The screen
-    // answers it by asking which address inherits the marks, and calls again.
     data object SuccessorRequired : DeleteAddressResult
 
     data class Failure(
