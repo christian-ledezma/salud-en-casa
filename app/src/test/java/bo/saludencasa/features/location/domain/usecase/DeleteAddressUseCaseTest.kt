@@ -6,6 +6,7 @@ import bo.saludencasa.features.location.domain.model.AddressError
 import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.model.DeleteAddressResult
 import bo.saludencasa.features.location.domain.model.SetPrimaryAddressResult
+import bo.saludencasa.features.location.domain.model.SetProfessionalBaseResult
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -49,8 +50,6 @@ class DeleteAddressUseCaseTest {
 
             assertEquals(DeleteAddressResult.Success, result)
             assertEquals(listOf("1"), repository.deleteAttempts)
-            // promote_last_address does it, so repeating the rule here would be
-            // the second copy that drifts.
             assertTrue(repository.setPrimaryAttempts.isEmpty())
         }
 
@@ -88,8 +87,7 @@ class DeleteAddressUseCaseTest {
             val result = useCase("1", successorId = "3")
 
             assertEquals(DeleteAddressResult.Success, result)
-            assertEquals(listOf("3"), repository.setPrimaryAttempts)
-            assertEquals(listOf("1"), repository.deleteAttempts)
+            assertEquals(listOf("setPrimary:3", "delete:1"), repository.writes)
         }
 
     @Test
@@ -106,9 +104,10 @@ class DeleteAddressUseCaseTest {
 
             useCase("1", successorId = "2")
 
-            assertEquals(listOf("2"), repository.setPrimaryAttempts)
-            assertEquals(listOf("2"), repository.setProfessionalBaseAttempts)
-            assertEquals(listOf("1"), repository.deleteAttempts)
+            assertEquals(
+                listOf("setPrimary:2", "setProfessionalBase:2", "delete:1"),
+                repository.writes,
+            )
         }
 
     @Test
@@ -127,7 +126,7 @@ class DeleteAddressUseCaseTest {
             val result = useCase("1", successorId = "2")
 
             assertEquals(DeleteAddressResult.Failure(AddressError.NetworkUnavailable), result)
-            assertTrue(repository.deleteAttempts.isEmpty())
+            assertEquals(listOf("setPrimary:2"), repository.writes)
         }
 
     @Test
@@ -147,6 +146,60 @@ class DeleteAddressUseCaseTest {
             assertEquals(DeleteAddressResult.SuccessorRequired, result)
             assertTrue(repository.setPrimaryAttempts.isEmpty())
             assertTrue(repository.deleteAttempts.isEmpty())
+        }
+
+    @Test
+    fun `a base-only address hands over the base and leaves the primary alone`() =
+        runTest {
+            repository.listResult =
+                AddressListResult.Success(
+                    listOf(
+                        address(id = "1", alias = "Casa", isPrimary = true),
+                        address(id = "2", alias = "Consultorio", isPrimary = false, isProfessionalBase = true),
+                        address(id = "3", alias = "Trabajo", isPrimary = false),
+                    ),
+                )
+
+            useCase("2", successorId = "3")
+
+            assertEquals(listOf("setProfessionalBase:3", "delete:2"), repository.writes)
+        }
+
+    @Test
+    fun `a failed base handover stops before deleting, even after the primary moved`() =
+        runTest {
+            repository.listResult =
+                AddressListResult.Success(
+                    listOf(
+                        address(id = "1", alias = "Casa", isPrimary = true, isProfessionalBase = true),
+                        address(id = "2", alias = "Trabajo", isPrimary = false),
+                        address(id = "3", alias = "Consultorio", isPrimary = false),
+                    ),
+                )
+            repository.setProfessionalBaseResult =
+                SetProfessionalBaseResult.Failure(AddressError.NetworkUnavailable)
+
+            val result = useCase("1", successorId = "2")
+
+            assertEquals(DeleteAddressResult.Failure(AddressError.NetworkUnavailable), result)
+            assertEquals(listOf("setPrimary:2", "setProfessionalBase:2"), repository.writes)
+        }
+
+    @Test
+    fun `an engine refusal becomes a successor request and not an error`() =
+        runTest {
+            repository.listResult =
+                AddressListResult.Success(
+                    listOf(
+                        address(id = "1", alias = "Casa", isPrimary = true),
+                        address(id = "2", alias = "Trabajo", isPrimary = false),
+                    ),
+                )
+            repository.deleteResult = DeleteAddressResult.Failure(AddressError.SuccessorRequired)
+
+            val result = useCase("1")
+
+            assertEquals(DeleteAddressResult.SuccessorRequired, result)
         }
 
     @Test

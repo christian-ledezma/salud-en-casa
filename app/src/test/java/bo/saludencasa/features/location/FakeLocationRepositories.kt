@@ -36,6 +36,8 @@ class FakeAddressRepository(
     val setProfessionalBaseAttempts: MutableList<String> = mutableListOf()
     val deleteAttempts: MutableList<String> = mutableListOf()
 
+    val writes: MutableList<String> = mutableListOf()
+
     override suspend fun getMyAddresses(): AddressListResult {
         listReads++
         return listResult
@@ -43,6 +45,7 @@ class FakeAddressRepository(
 
     override suspend fun setProfessionalBaseAddress(id: String): SetProfessionalBaseResult {
         setProfessionalBaseAttempts += id
+        writes += "setProfessionalBase:$id"
         return setProfessionalBaseResult
     }
 
@@ -67,11 +70,13 @@ class FakeAddressRepository(
 
     override suspend fun setPrimaryAddress(id: String): SetPrimaryAddressResult {
         setPrimaryAttempts.add(id)
+        writes += "setPrimary:$id"
         return setPrimaryResult
     }
 
     override suspend fun deleteAddress(id: String): DeleteAddressResult {
         deleteAttempts.add(id)
+        writes += "delete:$id"
         return deleteResult
     }
 }

@@ -302,6 +302,85 @@ class AddressListViewModelTest {
             }
         }
 
+    @Test
+    fun `the successor dialog offers the candidates the server has now`() =
+        runTest {
+            val stale =
+                listOf(
+                    address(id = "1", alias = "Casa", isPrimary = true),
+                    address(id = "2", alias = "Trabajo", isPrimary = false),
+                    address(id = "3", alias = "Consultorio", isPrimary = false),
+                )
+            val repository = FakeAddressRepository(listResult = AddressListResult.Success(stale))
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onDeleteClick("1")
+                awaitItem()
+
+                // Somebody renamed an address and added one from another device
+                // between the list being drawn and the delete being confirmed.
+                repository.listResult =
+                    AddressListResult.Success(
+                        stale.dropLast(1) +
+                            address(id = "4", alias = "Casa de mi madre", isPrimary = false),
+                    )
+
+                viewModel.onConfirmDelete()
+                awaitItem()
+
+                val choosing = awaitItem() as AddressListUiState.Content
+                assertEquals("1", choosing.choosingSuccessorFor)
+                assertEquals(listOf("1", "2", "4"), choosing.addresses.map { it.id })
+            }
+        }
+
+    // Asking who inherits from an address that is already gone has no answer,
+    // and the screen looks it up by id to draw the dialog.
+    @Test
+    fun `an address deleted elsewhere drops the choice instead of opening the dialog`() =
+        runTest {
+            val repository =
+                FakeAddressRepository(
+                    listResult =
+                        AddressListResult.Success(
+                            listOf(
+                                address(id = "1", alias = "Casa", isPrimary = true),
+                                address(id = "2", alias = "Trabajo", isPrimary = false),
+                                address(id = "3", alias = "Consultorio", isPrimary = false),
+                            ),
+                        ),
+                )
+            val viewModel = viewModel(repository)
+
+            viewModel.uiState.test {
+                awaitItem()
+                awaitItem()
+
+                viewModel.onDeleteClick("1")
+                awaitItem()
+
+                repository.listResult =
+                    AddressListResult.Success(
+                        listOf(
+                            address(id = "2", alias = "Trabajo", isPrimary = true),
+                            address(id = "3", alias = "Consultorio", isPrimary = false),
+                        ),
+                    )
+
+                viewModel.onConfirmDelete()
+                awaitItem()
+
+                assertEquals(AddressListUiState.Loading, awaitItem())
+                val reloaded = awaitItem() as AddressListUiState.Content
+                assertEquals(null, reloaded.choosingSuccessorFor)
+                assertEquals(listOf("2", "3"), reloaded.addresses.map { it.id })
+            }
+        }
+
     // Backing out of the choice is backing out of the deletion. Leaving the row
     // marked as pending would freeze every action on the screen.
     @Test
