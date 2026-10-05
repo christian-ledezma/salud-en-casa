@@ -2587,6 +2587,16 @@ verificación se recorrió en el emulador el 2026-10-03, destapó un cuarto defe
 de integridad, y la migración que lo corrige quedó aplicada y ejercitada al día
 siguiente. Quedan HU-07, HU-08 y HU-09, 21 puntos de los 24.
 
+> **Una deuda que este sprint arrastra y conviene no perder de vista.**
+>
+> Es anterior a HU-06 y ya tiene tres ejemplos: **`app/src/androidTest` está
+> vacío** aunque sus dependencias llevan declaradas desde el Sprint 0. Los dos
+> defectos de disposición del Sprint 2.5 y el recorte del diálogo de HU-06 son los
+> tres de la misma clase, y una prueba de interfaz al 200 % los habría atrapado sin
+> emulador, sin cuenta de Google y sin depender de que la máquina sostenga una
+> máquina virtual. Merece una historia técnica propia antes de que el Sprint 4
+> agregue pantallas.
+
 > **La siguiente es HU-07.** Antes de escribir sus políticas conviene aplicarles
 > el criterio del 2026-10-02: las de `verification_documents` van a necesitar
 > mirar `profiles` y `profile_roles`, que es exactamente la forma que produjo los
@@ -2641,7 +2651,7 @@ administrador los aprueba o rechaza.
       lista. **Verificado el 2026-10-03**, con las dos salidas del diálogo: al
       pulsar «Cancelar» la dirección sigue en la lista, y al confirmar
       desaparece.
-- [ ] Dado que soy profesional, cuando no tengo **base profesional declarada**,
+- [x] Dado que soy profesional, cuando no tengo **base profesional declarada**,
       entonces no aparezco en búsquedas. **Reescrito por HU-36 el 2026-10-02:**
       antes decía «dirección principal», y la búsqueda dejó de mirar esa columna.
       El mecanismo que lo garantiza no cambia —sigue siendo la unión interna de
@@ -2939,41 +2949,119 @@ esa cuenta es de prueba.
 | **Criterio 3** | Al confirmar, desaparece |
 | **Criterio 4** | Verificado el 2026-10-02 por el experimento SQL de HU-36, que enuncia la misma garantía sobre la misma unión interna |
 
-**Con la migración aplicada y los tres disparadores ejercitados, la historia está
-terminada.** Sus cuatro criterios están marcados, el defecto que la propia
-verificación destapó está corregido en el motor y no solo en el cliente, y el
-relleno dejó los datos reales en el estado que el invariante exige.
+**La historia se cierra el 2026-10-04 por decisión del autor, con una deuda
+declarada.** Los cuatro criterios de aceptación están verificados y la migración
+aplicada. Lo que **no** se cumplió son los puntos 9, 10 y 11 de la Definición de
+Terminado sobre una pantalla nueva: el diálogo que pide cuál dirección hereda las
+marcas no se demostró en un dispositivo, ni en esquema oscuro, ni con el tamaño de
+fuente al 200 %.
 
-**Verificación pendiente del autor.**
+**Por qué no se demostró.** El emulador `Pixel_9_Pro` falló cuatro veces seguidas
+el 2026-10-04: dos caídas con SIGSEGV, un cuelgue del hilo principal de QEMU que
+nunca llegó a conectarse por `adb`, y una cuarta caída al reintentar con
+renderizado por software y arranque en frío. Cada caída se llevó la cuenta de
+Google del emulador, porque su instantánea guardada es del 2 de octubre y se
+restaura en cada arranque. El escenario llegó a quedar montado —tres direcciones
+de `salud.en.casa.73@gmail.com`, «Casa» principal más «Trabajo» y
+«Consultorio»— y el emulador se cayó en el toque siguiente, que era el que abre el
+diálogo. **Esas tres direcciones siguen en la base**, así que retomarlo es un
+toque, no un montaje.
 
-1. **Aplicar la migración.** `npx supabase db push --dry-run` primero, para ver
-   que la única pendiente es
-   `20261003120000_preserve_marked_addresses_on_delete`, y después
-   `npx supabase db push`. Pide la contraseña de la base; no está guardada en el
-   entorno y por eso el paso queda aquí. Antes conviene abrir
-   `https://supabase.com/dashboard/project/lckgbklfmkjpuvmebuha` y comprobar que
-   el proyecto no esté pausado.
-2. **Comprobar el relleno**, que es la parte que toca datos reales:
+**Qué respalda al diálogo mientras tanto, y qué no.** Lo cubren las pruebas
+unitarias del caso de uso y del modelo de vista, tres revisiones en paralelo que
+encontraron y corrigieron el recorte al 200 %, y previsualizaciones nuevas al
+200 % y en oscuro. Lo que ninguna de esas cosas sustituye es ver la pantalla
+compuesta en un dispositivo: el Sprint 2.5 encontró dos defectos de disposición
+que solo aparecieron ahí. **Queda como deuda explícita, no como criterio
+relajado.**
 
-   ```sql
-   -- Debe devolver cero filas: nadie con direcciones y sin principal.
-   select p.id, count(*)
-   from public.profiles p
-   join public.addresses a on a.profile_id = p.id
-   group by p.id
-   having count(*) filter (where a.is_primary) = 0;
-   ```
+**El autor cerró el punto el 2026-10-04 sin exigir esa demostración**, y la
+historia queda terminada con esto escrito. La decisión es defendible por lo que sí
+respalda al diálogo —las pruebas, las revisiones y las previsualizaciones de
+arriba— y porque el defecto que una demostración habría buscado, el recorte al
+200 %, ya se encontró y se corrigió por revisión antes de llegar al dispositivo.
+Lo que no cubre ninguna de esas cosas es ver la pantalla compuesta, y por eso
+queda dicho aquí en vez de darse por hecho.
 
-   Las direcciones del autor son las que esto corrige: estaban las dos sin marcar.
-3. **Probar los dos caminos en el dispositivo**, con
-   `ledezma.aramayo.73@gmail.com`, que quedó con una sola dirección:
-   - Con **dos** direcciones, eliminar la principal. La otra debe quedar marcada
-     «Principal» sola, sin preguntar nada.
-   - Con **tres**, eliminar la principal. Debe aparecer el diálogo que pide cuál
-     ocupa su lugar; al elegir una, esa queda «Principal» y la otra se elimina.
-     Al pulsar «Cancelar», nada cambia y la pantalla vuelve a responder.
-4. **Marcar la historia en `[x]`** una vez aplicada la migración y recorridos los
-   dos caminos.
+**Revisión del diálogo, 2026-10-04.** Antes de llevarlo al dispositivo se revisó
+con el agente revisor del complemento `feature-dev` y se contrastó el
+comportamiento de `AlertDialog` contra su documentación. Tres hallazgos reales:
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| **El diálogo recortaba sus candidatas.** `AlertDialog` acota la altura de su ranura de texto y corta lo que no entra, sin indicar que hay más. Con el tamaño de fuente al 200 % la segunda candidata en adelante quedaba inalcanzable, y `findAllAddresses` devuelve hasta cincuenta filas | Pasa a `LazyColumn` con `key` estable, que además es lo que `.claude/rules/compose.md` exige para toda lista. Se agregan previsualizaciones al 200 % y en oscuro |
+| **Dos pruebas no podían probar lo que decían.** Afirmar sobre `setPrimaryAttempts` y `deleteAttempts` por separado no distingue el orden, y el orden **es** la regla: un traspaso posterior al borrado deja una ventana sin nada marcado | `FakeAddressRepository` registra un único historial ordenado de escrituras, y las aserciones son sobre esa lista. Se agregan tres casos: base sin principal, fallo del traspaso de base, y rechazo del motor |
+| **Comentarios que repetían el razonamiento**, contra la regla de `CLAUDE.md` | Recortados a una línea que cita la entrada de `docs/decisions.md`, o eliminados |
+
+Una sospecha propia resultó infundada y conviene dejarla anotada para no volver a
+perseguirla: los `TextButton` **sí** cumplen los 48 dp, porque Material 3 les
+aplica `minimumInteractiveComponentSize` y el tema no lo desactiva.
+
+**Y un defecto de concurrencia, que es el mismo que el proyecto ya corrigió una
+vez.** El guardia de eliminación no estaba serializado contra
+`first_address_is_primary`. Con una sola dirección marcada, eliminarla y crear
+otra a la vez dejaba a la persona con la nueva y sin ninguna principal: el
+guardia contaba cero supervivientes mientras la inserción todavía veía la vieja.
+Es exactamente lo que `20260915132619_serialize_first_address` corrigió por el
+lado de la inserción, y vuelve por el del borrado. Corregido en
+`20261004090000_serialize_marked_address_delete`, con el mismo bloqueo sobre la
+fila del perfil. **Aplicada el 2026-10-04.**
+
+**Esa corrección no se puede verificar con el método habitual**, y conviene
+decirlo: las pruebas de disparador del proyecto corren dentro de una transacción
+que termina en `rollback`, y una carrera entre dos transacciones no se reproduce
+dentro de una sola. Se sostiene por lectura del código y por revisión.
+
+**Segunda ronda de revisión, sobre las correcciones mismas.** Se revisó con tres
+agentes en paralelo —convenciones, defectos y el SQL— y encontraron cuatro cosas
+que el primer pase no tenía, dos de ellas **introducidas por las correcciones del
+primer pase**:
+
+| Hallazgo | Qué se hizo |
+|---|---|
+| El refresco de candidatas leía el estado **antes** de suspender y lo reescribía después, pisando lo que hubiera cambiado | Se lee después, y `onDeleteClick` ya no acepta un segundo borrado con uno en curso |
+| Si otro dispositivo eliminaba esa dirección durante el refresco, la pantalla la buscaba con `first` y se caía al componer | El modelo de vista recarga en vez de abrir el diálogo, y la pantalla usa `firstOrNull` |
+| Una prueba prometía un orden en su nombre que sus aserciones no comprobaban | Afirma sobre el historial ordenado |
+| Los comentarios de la migración estaban **en español**, contra la regla de idioma | Traducidos. La regla no exceptúa comentarios, y el precedente en español de `serialize_first_address` no la deroga |
+
+Y un ajuste que no era un defecto pero sí una mejora medible: el bloqueo pasa de
+`for update` a `for no key update`, que serializa igual y deja de detener las
+inserciones con clave foránea contra `profiles` de esa persona.
+
+Dos observaciones preexistentes quedan anotadas sin corregir, porque no las
+introduce este cambio y ninguna es alcanzable desde la aplicación: un interbloqueo
+posible entre un borrado y un marcado simultáneos sobre la misma persona, y que un
+borrado masivo por PostgREST dependa del orden en que se procesen las filas.
+
+**Lo que falta para cerrarla: el diálogo de sucesora, en el dispositivo.** Los dos
+caminos, con `ledezma.aramayo.73@gmail.com`:
+
+- Con **dos** direcciones, eliminar la principal. La otra debe quedar «Principal»
+  sola, sin preguntar nada: ahí decide `addresses_promote_last_address`.
+- Con **tres**, eliminar la principal. Debe aparecer el diálogo que pide cuál
+  ocupa su lugar; al elegir una, esa queda «Principal» y la otra desaparece. Al
+  pulsar «Cancelar», nada cambia y la pantalla vuelve a responder.
+
+Y sobre el diálogo mismo, lo que la Definición de Terminado pide y los
+disparadores no cubren: esquema claro y oscuro, y tamaño de fuente al 200 % sin
+recortar.
+
+**No recorrido el 2026-10-04**, por las cuatro caídas del emulador descritas
+arriba, y cerrado así por decisión del autor.
+
+**Y un hallazgo de método que conviene no repetir.** Un volcado de `uiautomator`
+falló en silencio y `adb pull` trajo un archivo de una sesión anterior que seguía
+en `/sdcard` con el mismo nombre, de modo que durante unos minutos se leyeron
+direcciones de otra cuenta creyendo que eran las nuevas. Se detectó porque las
+referencias no coincidían con lo escrito. **Toda verificación por `adb` debe usar
+nombres de archivo únicos y comprobar que el volcado tuvo éxito antes de leerlo**,
+o puede estar reportando datos viejos sin que nada falle a la vista.
+
+**La deuda de `androidTest` suma su tercer ejemplo.** `app/src/androidTest` está
+vacío aunque sus dependencias llevan declaradas desde el Sprint 0, y el recorte
+del diálogo es justo lo que una prueba de interfaz al 200 % habría atrapado sin
+emulador ni cuenta. Los dos defectos de disposición del Sprint 2.5 eran de la
+misma clase. Merece su propia historia técnica; no se abre dentro de HU-06.
 
 ### HU-07 · Cargar mis documentos de verificación `[ ]` — 8 puntos
 

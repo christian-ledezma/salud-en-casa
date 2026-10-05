@@ -2744,6 +2744,70 @@ aparece, que es lo que el cuarto criterio de HU-36 ya enuncia.
 
 ---
 
+## 2026-10-04 · El borrado de una dirección marcada se serializa con el bloqueo que ya existía
+
+**Contexto.** La revisión de HU-06 encontró que `addresses_guard_marked_delete` y
+`promote_last_address` no estaban serializados contra
+`first_address_is_primary`. Con una sola dirección marcada, eliminarla y crear
+otra a la vez deja a la persona con la nueva y sin ninguna principal: el guardia
+cuenta cero supervivientes, la inserción concurrente todavía ve la vieja y no
+marca la nueva, y el borrado confirma después.
+
+**Decisión.** Los dos disparadores de borrado toman el mismo bloqueo sobre la
+fila de `profiles` que `first_address_is_primary` toma desde el 2026-09-15, en
+`20261004090000_serialize_marked_address_delete`.
+
+**Razonamiento.** No es un defecto nuevo: es el del 2026-09-15 visto desde el
+otro lado. Aquella corrección serializó dos inserciones entre sí, y la lectura
+que la justificó —no se puede bloquear una fila que todavía no existe, así que el
+punto de encuentro es la fila del perfil— vale igual para una inserción contra un
+borrado. Elegir otro mecanismo aquí habría dejado dos formas distintas de
+proteger el mismo invariante.
+
+Con el bloqueo, quien llegue segundo ve el resultado del primero y decide bien:
+si el borrado gana, la inserción ya no ve ninguna dirección y marca la nueva; si
+gana la inserción, el guardia ve una superviviente y la promueve.
+
+**El bloqueo es `for no key update`, no `for update`.** Los dos sirven para
+serializar, porque ambos entran en conflicto consigo mismos y entre sí, que es lo
+único que esta corrección necesita. La diferencia está en lo que **no** bloquean:
+`for update` choca con el `for key share` que toma toda inserción con clave
+foránea contra `profiles` —mensajes, reseñas, `profile_roles`, documentos de
+verificación, dispositivos—, de modo que eliminar una dirección detendría
+inserciones que no tienen nada que ver hasta confirmar. `for no key update` las
+deja pasar.
+
+`first_address_is_primary` sigue con `for update` desde el 2026-09-15 y las dos
+formas se serializan igual entre sí, así que la corrección no exige tocarla.
+Queda anotado que, si alguna vez se la reescribe por otro motivo, el modo que le
+corresponde es el mismo.
+
+**Y resuelve un segundo detalle sin tratarlo aparte.** `select id into
+v_survivor` no es estricto, de modo que una inserción colada entre el guardia y
+el disparador posterior lo habría hecho elegir una fila arbitraria. Es la misma
+carrera, así que la cierra el mismo bloqueo.
+
+**El bloqueo reemplaza a la comprobación de existencia del perfil**, que distingue
+una cascada desde `profiles` de la eliminación de una dirección suelta. `perform`
+deja `found`, así que una sola sentencia bloquea cuando el perfil está y delata la
+cascada cuando no. Esa distinción sigue siendo necesaria: sin ella, eliminar una
+cuenta con tres direcciones aborta al llegar a la principal y RF-01.7 deja de
+funcionar.
+
+**Esta corrección no se puede verificar con el método habitual.** Las pruebas de
+disparador del proyecto corren dentro de una transacción que termina en
+`rollback`, y una carrera entre dos transacciones no se reproduce dentro de una
+sola. Se sostiene por lectura del código y por la revisión, no por experimento, y
+conviene decirlo en vez de dejar suponer que se probó como las demás.
+
+**Lo que esto dice del método.** El defecto no lo encontró ninguna prueba ni
+ningún experimento: lo encontró leer el código nuevo junto al que ya existía. Una
+corrección que reproduce un invariante ya protegido en otro camino tiene que
+mirar primero cómo se protegió allí, porque el mecanismo existente suele ser la
+respuesta y porque dos mecanismos distintos para el mismo invariante divergen.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
