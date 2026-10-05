@@ -44,7 +44,7 @@ posible trabajo futuro y se sigue con lo que el alcance pide.
 - **Preferencias y sesión local:** DataStore
 - **Compilar:** `./gradlew assembleDebug`
 - **Pruebas unitarias:** `./gradlew test`
-- **Pruebas instrumentadas:** `./gradlew connectedAndroidTest`
+- **Pruebas instrumentadas:** `./gradlew connectedAndroidTest` — solo para historias críticas; ver «Cuándo hace falta un dispositivo» en `plan.md`
 - **Análisis estático:** `./gradlew ktlintCheck`
 - **Verificación completa:** `./gradlew build`
 - **Migraciones:** `supabase migration new <nombre>` · `supabase db push` · `supabase db reset`

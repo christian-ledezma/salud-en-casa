@@ -81,20 +81,92 @@ Una historia está terminada cuando **todo** lo siguiente se cumple:
 7. **Ningún texto visible escrito en el código.** Todas las claves usadas existen
    en `values-es/` y en `values/`.
 8. **Ningún color, medida ni tipografía escrita en una pantalla.** Todo desde el tema.
-9. La pantalla se ve correcta en esquema claro y oscuro, y con el tamaño de fuente
-   del sistema al 200 %.
+9. La pantalla tiene previsualización en esquema claro, en oscuro y con el tamaño
+   de fuente al 200 %, y se ve correcta en las tres.
 10. Los cuatro estados de la pantalla están resueltos: cargando, vacío, con
     contenido y error.
-11. La funcionalidad se demostró manualmente en un dispositivo real.
+11. **Si la historia es crítica**, su recorrido se demostró en el emulador; **si es
+    de criticidad alta**, en un dispositivo físico. El resto no exige ninguno de
+    los dos. Ver «Cuándo hace falta un dispositivo».
 12. Las decisiones no evidentes están registradas en `docs/decisions.md`.
 
 > **Sobre el punto 4.** Una prueba en rojo no se apaga. O el código está mal y se
 > corrige, o la prueba expresaba mal la regla y se corrige la prueba explicando por
 > qué. Una prueba intermitente es un defecto, no una molestia.
 
+> **Sobre el punto 9.** Las tres previsualizaciones sustituyen a la inspección
+> manual que el punto 11 pedía antes para toda historia. Son el control que
+> compensa haber dejado de recorrer cada pantalla a mano, así que no son opcionales
+> ni siquiera en una pantalla sencilla: es donde se atrapan los recortes de texto y
+> las filas que dejan de componerse.
+
 > **Sobre el control de versiones.** El agente **nunca ejecuta comandos de git**.
 > Al terminar una historia informa qué archivos creó o modificó, y el autor decide
 > qué versiona.
+
+---
+
+## Cuándo hace falta un dispositivo
+
+Recorrer una pantalla a mano es caro y frágil: depende de que la máquina sostenga
+un emulador, de que haya una cuenta de Google viva en él y de que nada se caiga a
+medias. Hasta el 2026-10-04 la Definición de Terminado lo exigía para **toda**
+historia, y en la práctica se convirtió en el paso que más veces bloqueó un cierre
+sin aportar hallazgos proporcionales. Desde esa fecha se gradúa en tres niveles.
+Registrado en `docs/decisions.md`, 2026-10-04.
+
+### Criticidad alta — dispositivo físico
+
+Solo lo que un emulador **no puede representar con fidelidad**:
+
+- Cámara real y compresión de la imagen capturada (HU-07).
+- Ubicación por GPS en exteriores y su precisión (HU-05, HU-11).
+- Entrega efectiva de notificaciones push (HU-20).
+- La validación con usuarios reales del Sprint 10, que por definición ocurre ahí.
+
+Nada más entra aquí. Si la duda es «¿se ve bien?», no es criticidad alta.
+
+### Criticidad crítica — emulador
+
+Una historia es crítica cuando cumple **las dos** condiciones:
+
+1. Su fallo rompe el flujo central del negocio, o pierde o corrompe datos.
+2. Su corrección depende de cómo se **compone** la pantalla, no solo de la lógica,
+   de modo que una prueba unitaria no puede atraparla.
+
+Con el alcance actual, eso son:
+
+| Historia | Por qué |
+|---|---|
+| HU-01, HU-02 | Primer ingreso y elección de rol: si fallan, nadie entra |
+| HU-05, HU-06 | Mapa, permisos y geocodificador; y la eliminación de direcciones, que borra datos |
+| HU-11 | Búsqueda por cercanía, que es la pantalla que sostiene el producto |
+| HU-17, HU-18, HU-19 | Negociación y aceptación: hay dinero y un contrato de por medio |
+| HU-25, HU-26 | Confirmación de pagos (INV-09) |
+| HU-29, HU-30 | Calificación, que es irreversible |
+
+**HU-06 es la única que cierra con este requisito incumplido.** Está en la tabla
+porque elimina direcciones, y se cerró el 2026-10-04 —el mismo día que se escribió
+esta regla— sin recorrido en emulador, después de que el emulador fallara cuatro
+veces. La historia lo dice en su propio apartado. Se deja así y no se retoca la
+tabla para que encaje: ajustar el criterio hasta que lo ya hecho cumpla es
+exactamente lo que vacía una Definición de Terminado.
+
+### Todo lo demás
+
+No exige emulador ni dispositivo. Lo cubren las pruebas unitarias, los
+experimentos SQL de política y disparador, y las tres previsualizaciones del punto
+9 de la Definición de Terminado.
+
+### Lo que esto acepta a cambio
+
+**Los defectos de disposición se van a encontrar más tarde, o no se van a
+encontrar.** El Sprint 2.5 halló dos recorriendo pantallas a mano, y HU-06 un
+tercero, de modo que la clase de defecto es real y frecuente en este proyecto. Lo
+que compensa es el punto 9, que pasa de recomendación a obligación en las tres
+configuraciones, y lo que lo compensaría de verdad es la suite de
+`app/src/androidTest`, que sigue vacía. Mientras siga vacía, este cambio aumenta
+el riesgo de forma consciente: está aceptado, no ignorado.
 
 ---
 

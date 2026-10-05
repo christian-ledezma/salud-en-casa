@@ -51,10 +51,18 @@ causa de la intermitencia; no se reintenta hasta que pase.
 | Casos de uso | `app/src/test` | Máquina virtual de Java |
 | Transformadores | `app/src/test` | Máquina virtual de Java |
 | Modelos de vista | `app/src/test` | Máquina virtual de Java |
-| Interfaz | `app/src/androidTest` | Dispositivo o emulador |
+| Interfaz | `app/src/androidTest` | Emulador |
+| Forma de una pantalla | Previsualizaciones `@Preview` | Claro, oscuro y fuente al 200 % |
 | Políticas de seguridad y disparadores | Experimento SQL contra la base | Proyecto remoto, dentro de una transacción con `rollback` |
 
 La estructura de paquetes de las pruebas replica la del código fuente.
+
+**Recorrer la pantalla a mano dejó de ser obligatorio para toda historia el
+2026-10-04.** Solo lo exigen las historias críticas, en emulador, y las de
+criticidad alta, en dispositivo físico; `plan.md` las enumera en «Cuándo hace falta
+un dispositivo». Para el resto, la forma de la pantalla se verifica con las tres
+previsualizaciones, que por eso pasaron de recomendación a obligación. Ver
+`docs/decisions.md`, 2026-10-04.
 
 **Las pruebas de política no tienen archivo.** Una política de seguridad a nivel de
 fila y un disparador se ejecutan dentro de PostgreSQL, así que ninguna prueba de
@@ -232,6 +240,11 @@ Roles múltiples, desde el Sprint 2.5:
 
 - `screenRendersAllFourStates` — cargando, vacío, con contenido y error
 - `contentDescriptionsArePresentOnMeaningfulIcons`
+- **Obligatoria, como previsualización y no como prueba:** toda pantalla tiene
+  `@Preview` en claro, en oscuro y con `fontScale = 2f`. Es el único control que
+  queda contra los recortes de texto y las filas que dejan de componerse, ahora
+  que no se recorre cada pantalla a mano. Los tres defectos de esa clase que lleva
+  el proyecto —dos en el Sprint 2.5 y uno en HU-06— aparecieron justo ahí
 
 ## Pruebas transversales obligatorias
 

@@ -2808,6 +2808,59 @@ respuesta y porque dos mecanismos distintos para el mismo invariante divergen.
 
 ---
 
+## 2026-10-04 · Recorrer la pantalla a mano deja de exigirse en toda historia
+
+**Contexto.** El punto 11 de la Definición de Terminado pedía demostrar
+manualmente cada historia en un dispositivo real. En la práctica fue el paso que
+más veces bloqueó un cierre, y no por el producto: el emulador falló cuatro veces
+seguidas el 2026-10-04 —dos SIGSEGV, un cuelgue del hilo principal de QEMU y una
+cuarta caída al reintentar con renderizado por software—, y cada caída se llevó la
+cuenta de Google que hacía falta para ingresar, porque la instantánea guardada del
+AVD es anterior. HU-06 llegó a tener el escenario montado y se cayó en el toque
+siguiente.
+
+**Decisión.** El recorrido manual se gradúa en tres niveles, enumerados en
+`plan.md`, «Cuándo hace falta un dispositivo»:
+
+- **Dispositivo físico**, solo para lo que un emulador no representa con
+  fidelidad: cámara real, GPS en exteriores, entrega de notificaciones push, y la
+  validación con usuarios del Sprint 10.
+- **Emulador**, solo para historias críticas: las que rompen el flujo central o
+  pierden datos si fallan **y** cuya corrección depende de cómo se compone la
+  pantalla.
+- **Ninguno** para el resto, que queda cubierto por pruebas unitarias,
+  experimentos SQL y previsualizaciones.
+
+A cambio, el punto 9 de la Definición de Terminado pasa de pedir que la pantalla
+«se vea correcta» a exigir **previsualización en claro, en oscuro y con la fuente
+al 200 %**, en toda pantalla y sin excepción.
+
+**Razonamiento.** La pregunta que decide es qué atrapa un recorrido manual que no
+atrape otra cosa. La respuesta es estrecha: defectos de **composición** —texto
+recortado, filas que desaparecen del árbol de vistas— e integraciones de
+plataforma que no se pueden simular. Las reglas de negocio las cubren las pruebas
+unitarias; las políticas y los disparadores, los experimentos SQL. Exigir el
+recorrido para todo pagaba el costo completo por una franja estrecha de hallazgos.
+
+Las previsualizaciones cubren la mayor parte de esa franja a coste casi nulo, y
+hay evidencia de que es la franja correcta: los tres defectos de disposición que
+lleva el proyecto —los dos del Sprint 2.5 y el recorte del diálogo de HU-06—
+aparecen los tres en esas tres configuraciones.
+
+**Lo que esto acepta a cambio, dicho sin adornos.** Los defectos de disposición se
+van a encontrar más tarde o no se van a encontrar. Dos de los tres citados se
+hallaron recorriendo a mano, no por previsualización, así que la cobertura no es
+equivalente. El riesgo queda aceptado de forma consciente, y lo que lo cerraría de
+verdad es la suite de `app/src/androidTest`, declarada desde el Sprint 0 y todavía
+vacía. Mientras siga vacía, este cambio sube el riesgo.
+
+**Qué lo haría revisable.** Si aparece un defecto de disposición en una historia
+que esta regla eximió de recorrido, la regla está mal calibrada y la historia
+correspondiente sube de nivel. Conviene anotarlo en la retrospectiva del sprint en
+que ocurra en vez de tratarlo como un defecto más.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

@@ -88,6 +88,13 @@ Lo esencial que no se negocia:
 - La interfaz responde al ajuste de tamaño de fuente del sistema sin recortar
   texto. Verificar al 200 %. Parte de los usuarios son adultos mayores.
 
+**Las tres se verifican con previsualizaciones, y son obligatorias en toda
+pantalla:** esquema claro, esquema oscuro y `fontScale = 2f`. Desde el 2026-10-04
+no se recorre cada pantalla a mano —solo las críticas, ver «Cuándo hace falta un
+dispositivo» en `plan.md`—, así que estas tres son el control que queda contra el
+texto recortado y la fila que deja de componerse. Es donde aparecieron los tres
+defectos de esa clase que lleva el proyecto.
+
 Dos restricciones de contraste verificadas que deben respetarse:
 
 - **El ámbar `#FFA600` nunca lleva texto ni icono pequeño sobre fondo claro**
