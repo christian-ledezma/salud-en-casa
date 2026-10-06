@@ -164,6 +164,15 @@ private fun EditableProfile(
             )
         }
 
+        if (content.header.isVerified) {
+            Text(
+                text = stringResource(R.string.profile_verified_badge),
+                style = MaterialTheme.typography.labelMedium,
+                color = SaludEnCasaTheme.statusColors.positive,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
+
         FormField(
             label = stringResource(R.string.profile_full_name_label),
             value = form.fullName,
@@ -359,6 +368,7 @@ private fun previewPatient(status: SaveStatus = SaveStatus.Idle): ProfileUiState
                 userId = "08ddb28f-0000-4000-8000-000000000000",
                 photoUrl = null,
                 activeRole = UserRole.PATIENT,
+                isVerified = false,
             ),
         form = previewForm(),
         status = status,
@@ -375,6 +385,7 @@ private fun previewProfessional(
                 userId = "fcab94c0-0000-4000-8000-000000000000",
                 photoUrl = null,
                 activeRole = UserRole.PROFESSIONAL,
+                isVerified = true,
             ),
         form =
             previewForm(

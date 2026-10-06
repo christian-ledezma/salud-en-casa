@@ -37,6 +37,7 @@ data class ProfessionalDetails(
     val baseRateBob: BigDecimal?,
     val coverageRadiusKm: BigDecimal,
     val availableNow: Boolean,
+    val isVerified: Boolean,
 )
 
 // The projection of professional_directory: what any signed in user reads

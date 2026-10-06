@@ -145,6 +145,7 @@ fun professionalDetails(
     baseRateBob: BigDecimal? = BigDecimal("120.00"),
     coverageRadiusKm: BigDecimal = BigDecimal("8.00"),
     availableNow: Boolean = false,
+    isVerified: Boolean = false,
 ): ProfessionalDetails =
     ProfessionalDetails(
         professionalType = professionalType,
@@ -154,6 +155,7 @@ fun professionalDetails(
         baseRateBob = baseRateBob,
         coverageRadiusKm = coverageRadiusKm,
         availableNow = availableNow,
+        isVerified = isVerified,
     )
 
 fun professionalProfile(professional: ProfessionalDetails = professionalDetails()): UserProfile =

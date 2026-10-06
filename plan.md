@@ -2657,8 +2657,8 @@ su verificación en dispositivo, y **reanudado el 2026-10-04** al cerrar el
 Sprint 2.5. **HU-06 cerrada el 2026-10-04**, con tres sprints de retraso: su
 verificación se recorrió en el emulador el 2026-10-03, destapó un cuarto defecto
 de integridad, y la migración que lo corrige quedó aplicada y ejercitada al día
-siguiente. **HU-07 cerrada el 2026-10-05.** Quedan HU-08 y HU-09, 13 puntos
-de los 24.
+siguiente. **HU-07 cerrada el 2026-10-05.** **HU-08 cerrada el 2026-10-05.** Queda
+HU-09, 10 puntos de los 24.
 
 > **Una deuda que este sprint arrastra y conviene no perder de vista.**
 >
@@ -3276,23 +3276,97 @@ destapó el revisor automático de seguridad:
   suma su cuarto ejemplo: una prueba de interfaz a `fontScale = 2f` lo habría
   atrapado sin dispositivo.
 
-### HU-08 · Conocer el estado de mi verificación `[ ]` — 3 puntos
+### HU-08 · Conocer el estado de mi verificación `[x]` — 3 puntos
 
 > Como **usuario**, quiero **ver si mis documentos fueron aprobados o rechazados**,
 > para **saber si puedo operar y qué debo corregir**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que subí mis documentos, cuando abro la verificación, entonces veo el
-      estado de cada uno.
-- [ ] Dado que un documento fue rechazado, cuando lo consulto, entonces veo el
-      motivo y puedo volver a subirlo.
-- [ ] Dado que mi verificación fue aprobada, cuando la contraparte ve mi perfil,
-      entonces aparece el distintivo de verificado.
-- [ ] Dado que soy profesional sin verificación aprobada, cuando un paciente busca,
-      entonces no aparezco en los resultados.
+- [x] Dado que subí mis documentos, cuando abro la verificación, entonces veo el
+      estado de cada uno. **Ya lo daba HU-07;** lo cubre
+      `VerificationDocumentMapperTest` (el estado llega íntegro) y las
+      previsualizaciones de la pantalla.
+- [x] Dado que un documento fue rechazado, cuando lo consulto, entonces veo el
+      motivo y puedo volver a subirlo. **Verificado** por
+      `VerificationDocumentMapperTest.rejectedDocumentExposesReasonToItsOwner` y
+      por `VerificationDocumentRowTest`, que fija que el reenvío limpia los
+      campos de revisión. La reapertura se comprobó en el proyecto remoto con
+      tres experimentos (abajo).
+- [x] Dado que mi verificación fue aprobada, cuando la contraparte ve mi perfil,
+      entonces aparece el distintivo de verificado. **Alcance acordado el
+      2026-10-05:** el distintivo aparece en el perfil propio, y la vista de
+      contraparte pasa a HU-11. Verificado por
+      `ProfileMapperTest.professionalIsVerifiedOnlyWhenTheStoredStatusIsApproved`.
+- [x] Dado que soy profesional sin verificación aprobada, cuando un paciente busca,
+      entonces no aparezco en los resultados. **Verificado el 2026-10-05 con
+      experimento SQL** contra el proyecto remoto, dentro de transacciones con
+      `rollback`: un profesional `PENDING` tiene **0** filas visibles en
+      `professional_directory` para otra cuenta, y el mismo perfil `APPROVED`
+      tiene **1**. El control discrimina.
 
 **Requisitos:** RF-04.5, RF-04.6, RN-01, INV-07.
+
+**Qué cambió al cerrarla.**
+
+- **Migración `20261005130000_resubmit_documents_and_pending_professional.sql`**,
+  aplicada con `db push --linked` tras `--dry-run`. Dos cambios:
+  - Un profesional solo se inserta como `PENDING`. **Hueco encontrado en la
+    revisión y confirmado en el remoto antes de cerrarlo:** la política de
+    inserción no comprobaba el estado, y una cuenta con rol profesional podía
+    insertarse `APPROVED` sin revisión. Así entraba a búsquedas sin pasar por el
+    administrador, lo que rompe INV-07.
+  - El dueño puede reabrir un documento `REJECTED` a `PENDING`, con los campos
+    de revisión en nulo. El disparador deja pasar esa única transición.
+- **Experimentos SQL sobre el proyecto remoto** (cuenta de prueba
+  `ledezma.aramayo.73`, todos dentro de `rollback`, sin residuo verificado al
+  terminar):
+
+  | Qué se comprobó | Resultado |
+  |---|---|
+  | Reabrir un `REJECTED` con los campos de revisión limpios | **Pasa**, queda `PENDING` sin motivo |
+  | Aprobarse desde `REJECTED` | **Rechazado por el disparador**, `document_review_is_written_by_an_administrator` |
+  | Reabrir dejando el motivo | **Rechazado por la política**, `42501` |
+  | Insertar profesional `PENDING` | **Pasa** |
+  | Insertar profesional `APPROVED` (antes de la migración **pasaba**) | **Rechazado**, `42501` |
+  | Visibilidad en el directorio: `PENDING` / `APPROVED` | **0 / 1** |
+
+- **Cliente.** La fila de subida envía `status = PENDING` y los campos de revisión
+  en nulo, para que el upsert reabra la fila. La pantalla oculta «Reemplazar» solo
+  para `APPROVED`, y para `REJECTED` muestra «Volver a subir».
+- **Perfil propio.** `ProfessionalDetails.isVerified` se deriva de
+  `verification_status = 'APPROVED'`, y el encabezado lo muestra solo cuando la
+  persona actúa como profesional.
+
+**Deuda declarada.**
+
+- **Vista de contraparte del distintivo**: pasa a HU-11, por decisión del autor.
+- **Exposición del estado a la contraparte.** `professionals_select_counterpart`
+  expone la fila completa de `professionals`, incluido `PENDING` o `REJECTED`, a
+  quien tenga un servicio compartido. Contradice la intención de RF-04.6 para la
+  vista de contraparte. Se corrige cuando HU-11 defina qué ve la contraparte.
+  Registrado en `docs/decisions.md`, 2026-10-05.
+- **Verificación en dispositivo: no se hizo.** Por decisión del autor, HU-08 se
+  cierra sin dispositivo. Cubren la historia las pruebas, los experimentos y las
+  previsualizaciones en claro, oscuro y al 200 %.
+
+**Verificaciones del cierre, 2026-10-05.** `./gradlew ktlintCheck
+testDebugUnitTest staticAnalysis assembleDebug` concluye sin error. Las 49
+suites de prueba pasan, y las tres nuevas (`VerificationDocumentRowTest`,
+`VerificationDocumentMapperTest` y el caso de `ProfileMapperTest`) se
+ejecutaron.
+
+**Archivos creados o modificados el 2026-10-05.**
+
+| Capa | Archivos |
+|---|---|
+| Migración | `supabase/migrations/20261005130000_resubmit_documents_and_pending_professional.sql` (nueva) |
+| Datos | `features/verification/data/model/VerificationDocumentDto.kt` · `features/verification/data/repository/VerificationRepository.kt` · `features/profile/data/model/ProfileDto.kt` · `features/profile/data/mapper/ProfileMapper.kt` |
+| Dominio | `features/profile/domain/model/UserProfile.kt` |
+| Presentación | `features/verification/presentation/VerificationScreen.kt` · `features/profile/presentation/ProfileViewModel.kt` · `features/profile/presentation/ProfileScreen.kt` |
+| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (`verification_action_resubmit`, `profile_verified_badge`) |
+| Pruebas | `test/features/verification/data/model/VerificationDocumentRowTest.kt` (nueva) · `test/features/verification/data/mapper/VerificationDocumentMapperTest.kt` (nueva) · `test/features/profile/data/mapper/ProfileMapperTest.kt` · `test/features/profile/FakeProfileRepository.kt` |
+| Documentos | `docs/decisions.md` (cuatro entradas del 2026-10-05) · `plan.md` (esta sección) |
 
 ### HU-09 · Revisar documentos pendientes `[ ]` — 10 puntos
 

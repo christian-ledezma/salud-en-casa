@@ -41,6 +41,7 @@
     <string name="auth_account_keep_session">Seguir con la sesión abierta</string>
 
     <string name="profile_title">Mi perfil</string>
+    <string name="profile_verified_badge">Verificado</string>
     <string name="profile_full_name_label">Nombre completo</string>
     <string name="profile_phone_label">Teléfono</string>
     <string name="profile_birth_date_label">Fecha de nacimiento</string>
@@ -188,6 +189,7 @@
 
     <string name="verification_action_pick">Cargar documento</string>
     <string name="verification_action_replace">Reemplazar</string>
+    <string name="verification_action_resubmit">Volver a subir</string>
     <string name="verification_action_retry_upload">Reintentar envío</string>
 
     <string name="verification_source_dialog_description">Elige cómo quieres aportar la imagen.</string>

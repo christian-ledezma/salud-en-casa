@@ -170,6 +170,15 @@ class ProfileMapperTest {
         assertNull(params.baseRateBob)
         assertNull(params.coverageRadiusKm)
     }
+
+    // A pending professional must not see the verified badge, and the badge
+    // follows the stored status rather than the presence of the row.
+    @Test
+    fun professionalIsVerifiedOnlyWhenTheStoredStatusIsApproved() {
+        assertEquals(true, professionalDto(verificationStatus = "APPROVED").toProfessionalDetails().isVerified)
+        assertEquals(false, professionalDto(verificationStatus = "PENDING").toProfessionalDetails().isVerified)
+        assertEquals(false, professionalDto(verificationStatus = "REJECTED").toProfessionalDetails().isVerified)
+    }
 }
 
 private fun professionalUpdate(): ProfileUpdate =
@@ -207,6 +216,7 @@ private fun professionalDto(
     professionalType: String? = "NURSE",
     specialty: String? = "Enfermería geriátrica",
     baseRateBob: BigDecimal? = BigDecimal("120.00"),
+    verificationStatus: String = "PENDING",
 ): ProfessionalDto =
     ProfessionalDto(
         professionalType = professionalType,
@@ -216,4 +226,5 @@ private fun professionalDto(
         baseRateBob = baseRateBob,
         coverageRadiusKm = BigDecimal("8.00"),
         availableNow = false,
+        verificationStatus = verificationStatus,
     )

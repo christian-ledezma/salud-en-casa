@@ -35,6 +35,7 @@ data class ProfessionalDto(
     @Serializable(with = BigDecimalSerializer::class)
     val coverageRadiusKm: BigDecimal,
     @SerialName("available_now") val availableNow: Boolean = false,
+    @SerialName("verification_status") val verificationStatus: String,
 )
 
 // professional_directory, the public projection. It carries no phone and no

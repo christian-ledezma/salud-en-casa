@@ -47,6 +47,7 @@ internal fun ProfessionalDto.toProfessionalDetails(): ProfessionalDetails =
         baseRateBob = baseRateBob,
         coverageRadiusKm = coverageRadiusKm,
         availableNow = availableNow,
+        isVerified = verificationStatus == "APPROVED",
     )
 
 internal fun PublicProfileDto.toPublicProfile(): PublicProfile =

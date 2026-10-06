@@ -3020,6 +3020,111 @@ historia; el resto del catálogo ya cubría la cámara y la galería a través d
 
 ---
 
+## 2026-10-05 · HU-08: un profesional entra como PENDING, sin excepción
+
+**Contexto.** La política `professionals_insert_own` comprobaba el rol y la
+identidad, pero no el estado. El disparador `guard_verification_status` solo
+actúa sobre `UPDATE`. Con la lectura de las migraciones, una cuenta con rol
+PROFESSIONAL podía insertar su fila ya en `APPROVED`, con tipo y tarifa, y
+entrar en búsquedas sin revisión. El hallazgo llegó de una revisión de
+esquema, no de una prueba, y se comprobó contra el proyecto remoto dentro de
+una transacción con `rollback`: la inserción `APPROVED` pasó, y no quedó
+residuo.
+
+**Decisión.** La migración `20261005130000` exige `verification_status =
+'PENDING'` en la política de inserción. El caso positivo (`PENDING`) pasa y el
+negativo (`APPROVED`) se rechaza con `42501`.
+
+**Razonamiento.** Un disparador que solo mira `UPDATE` deja sin defensa la
+creación de la fila, que es justo el primer paso de la persona. INV-07 pide que
+solo un administrador convierta a un profesional en `APPROVED`; eso queda
+garantizado por la política de inserción y por el disparador de actualización
+juntos, no por la aplicación.
+
+**Consecuencia.** HU-09 debe proveer el único camino a `APPROVED`, y ese camino
+no puede ser una escritura directa del dueño. Hoy no existe política de
+actualización de administrador sobre `professionals`; HU-09 la agrega o usa una
+función `security definer` con `set search_path = ''`.
+
+---
+
+## 2026-10-05 · HU-08: un rechazado se reabre con la política y el disparador, sin función
+
+**Contexto.** El criterio 2 pide volver a subir un documento rechazado. Hasta
+ahora la fila era inmutable para el dueño: `update_own` exigía `PENDING`, la
+restricción `unique (profile_id, document_type)` impedía una fila nueva, y el
+disparador `guard_document_review` rechazaba cualquier cambio de `status` que
+no hiciera el administrador.
+
+**Decisión.** Se resolvió en la misma migración `20261005130000`, con dos
+piezas:
+
+- `update_own` acepta filas `PENDING` o `REJECTED`, y su cláusula `with check`
+  exige que la fila resultante sea `PENDING` con `reviewed_by`, `reviewed_at` y
+  `rejection_reason` en nulo. El dueño no puede escribir una decisión propia.
+- `guard_document_review` deja pasar una única transición de no administrador:
+  `REJECTED` a `PENDING`.
+
+El cliente envía en su upsert `status = PENDING` y los campos de revisión en
+nulo, de modo que la misma escritura reabre la fila y sube el objeto de
+Storage.
+
+**Razonamiento.** Se evaluó una función `security definer` que reabriera la
+fila. Descartada: el disparador omite solo a los administradores, así que la
+función seguiría chocando con el mismo guardia, y habría que relajar ese
+guardia de todos modos. Con el cambio en la política, la excepción queda
+acotada a la transición exacta y el dueño sigue sin poder decidir nada.
+
+Las tres denegaciones se verificaron contra el proyecto remoto: reabrir con el
+motivo conservado se rechaza por la política (`42501`), aprobarse desde
+`REJECTED` se rechaza por el disparador, y reabrir sin borrar el motivo está
+cubierto por el mismo `with check`.
+
+**Consecuencia.** Almacenamiento no cambia: sus políticas comprueban que la
+fila esté en `PENDING`, y tras la reapertura lo está. La unicidad sobre
+`(profile_id, document_type)` se conserva, y el upsert la usa como antes.
+
+---
+
+## 2026-10-05 · HU-08: el distintivo aparece en el perfil propio, nunca en la vista de contraparte
+
+**Contexto.** RF-04.6 pide el distintivo visible para la contraparte. La vista
+de contraparte no existe todavía: llega con la búsqueda (HU-11). La autorización
+del autor para esta historia fue solo el perfil propio.
+
+**Decisión.** `ProfessionalDetails` expone `isVerified`, derivado de
+`professionals.verification_status = 'APPROVED'`. El encabezado del perfil lo
+muestra solo cuando la persona actúa como profesional. El distintivo no pasa
+por la vista pública ni por ningún campo nuevo de base de datos.
+
+**Razonamiento.** El dato ya existe en la fila del profesional y el dueño puede
+leerlo con `professionals_select_own`. Una vista nueva o una columna en
+`professional_directory` no aportaban nada para el perfil propio y habrían
+abierto una superficie que HU-11 debe revisar de cualquier modo.
+
+**Deuda registrada, no corregida.** `professionals_select_counterpart` expone la
+fila completa de `professionals` a quien tenga un servicio compartido, incluido
+el estado `PENDING` o `REJECTED`. Eso contradice la intención de RF-04.6 para
+la vista de contraparte. Se corrige cuando HU-11 defina qué ve la contraparte;
+no se toca antes porque ninguna pantalla lo muestra hoy.
+
+---
+
+## 2026-10-05 · HU-08: verificación en dispositivo fuera de alcance
+
+**Contexto.** HU-08 no es crítica ni de criticidad alta según la tabla de
+«Cuándo hace falta un dispositivo» en `plan.md`.
+
+**Decisión.** La historia se cierra con pruebas unitarias, con los experimentos
+SQL de política sobre el proyecto remoto y con las previsualizaciones en claro,
+oscuro y al 200 %, como exige la Definición de Terminado.
+
+**Razonamiento.** La conducta nueva vive en las políticas, que se verificaron
+en la base, y en la capa de datos, que se prueba en JVM. Ninguna depende de
+cómo se compone la pantalla.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

@@ -39,6 +39,7 @@ data class ProfileHeader(
     val userId: String,
     val photoUrl: String?,
     val activeRole: UserRole?,
+    val isVerified: Boolean,
 )
 
 // Immediate availability is not part of the form. RF-02.5 is a statement about
@@ -139,7 +140,13 @@ class ProfileViewModel(
 
 private fun UserProfile.toContent(status: SaveStatus): ProfileUiState.Content =
     ProfileUiState.Content(
-        header = ProfileHeader(userId = userId, photoUrl = photoUrl, activeRole = activeRole),
+        header =
+            ProfileHeader(
+                userId = userId,
+                photoUrl = photoUrl,
+                activeRole = activeRole,
+                isVerified = activeRole == UserRole.PROFESSIONAL && professional?.isVerified == true,
+            ),
         form =
             ProfileForm(
                 fullName = fullName,

@@ -412,23 +412,13 @@ private fun DocumentRow(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
                     verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
                 ) {
-                    // Review freezes the file in Storage (storage.objects
-                    // policies require PENDING) and the row in the table too.
-                    // REJECTED stays frozen in HU-07; HU-08 is where the
-                    // re-upload path opens.
-                    val isFrozen = document != null && document.status != ReviewStatus.PENDING
+                    // An approved document is frozen in Storage and in the table.
+                    // A rejected one reopens on the next write (docs/decisions.md,
+                    // 2026-10-05, HU-08).
+                    val isFrozen = document?.status == ReviewStatus.APPROVED
                     if (!isFrozen) {
                         TextButton(onClick = onPickClick) {
-                            Text(
-                                text =
-                                    stringResource(
-                                        if (document == null) {
-                                            R.string.verification_action_pick
-                                        } else {
-                                            R.string.verification_action_replace
-                                        },
-                                    ),
-                            )
+                            Text(text = stringResource(pickActionRes(document)))
                         }
                         if (hasStagedBytes) {
                             TextButton(onClick = onRetryClick) {
@@ -441,6 +431,13 @@ private fun DocumentRow(
         }
     }
 }
+
+private fun pickActionRes(document: VerificationDocument?): Int =
+    when (document?.status) {
+        null -> R.string.verification_action_pick
+        ReviewStatus.REJECTED -> R.string.verification_action_resubmit
+        ReviewStatus.PENDING, ReviewStatus.APPROVED -> R.string.verification_action_replace
+    }
 
 @Composable
 private fun StatusBadge(status: ReviewStatus) {

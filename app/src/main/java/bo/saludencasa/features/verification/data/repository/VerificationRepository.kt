@@ -6,6 +6,7 @@ import bo.saludencasa.features.verification.data.mapper.toVerificationError
 import bo.saludencasa.features.verification.data.model.VerificationDocumentRow
 import bo.saludencasa.features.verification.domain.model.DocumentType
 import bo.saludencasa.features.verification.domain.model.MyDocumentsResult
+import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import bo.saludencasa.features.verification.domain.model.UploadDocumentResult
 import bo.saludencasa.features.verification.domain.model.VerificationError
 import bo.saludencasa.features.verification.domain.repository.IVerificationRepository
@@ -42,7 +43,8 @@ class VerificationRepository(
             // the object) would then refuse any later retry on that file. The
             // row is written as an upsert on (profile_id, document_type), so
             // a repeated attempt is a no-op; the object upload is also
-            // upsert = true.
+            // upsert = true. The same write reopens a REJECTED row: it sends
+            // PENDING and clears the review fields (docs/decisions.md, 2026-10-05).
             val path = "$userId/${type.name}.jpg"
             dataSource.upsertDocumentRow(
                 VerificationDocumentRow(
@@ -50,6 +52,10 @@ class VerificationRepository(
                     documentType = type.name,
                     storagePath = path,
                     caption = caption?.value,
+                    status = ReviewStatus.PENDING.name,
+                    reviewedBy = null,
+                    reviewedAt = null,
+                    rejectionReason = null,
                 ),
             )
             dataSource.uploadToBucket(path, image.bytes)
