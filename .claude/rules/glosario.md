@@ -34,6 +34,9 @@ que lo introduce.
 | Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
 | Dirección | `Address` | Domicilio georreferenciado |
 | Documento de verificación | `VerificationDocument` | Respaldo de identidad o título |
+| Documento adicional | `DocumentType.OTHER` | Adjunto opcional por persona, con leyenda obligatoria |
+| Checklist de verificación | `VerificationChecklist` | Documentos requeridos según rol más el adjunto opcional |
+| Leyenda del documento | `caption` / `DocumentCaption` | Línea de texto que acompaña al `OTHER` |
 | Pago | `Payment` | Registro económico de una atención |
 | Comisión de la plataforma | `platformFee` | Porción que retiene la plataforma |
 | Calificación | `Review` | Puntaje y comentario cruzados |
@@ -107,6 +110,7 @@ que lo introduce.
 | Cancelado por | `cancelledBy` / `cancelled_by` |
 | Cancelado en | `cancelledAt` / `cancelled_at` |
 | Autor | `authorId` / `author_id` |
+| Leyenda | `caption` / `caption` |
 | Destinatario | `recipientId` / `recipient_id` |
 | Puntaje | `rating` |
 | Comentario | `comment` |
@@ -127,7 +131,7 @@ Los valores se escriben en `SCREAMING_SNAKE_CASE`, tanto en Kotlin como en Postg
 | `user_role` | `PATIENT`, `PROFESSIONAL`, `ADMIN` |
 | `review_status` | `PENDING`, `APPROVED`, `REJECTED` |
 | `professional_type` | `DOCTOR`, `NURSE`, `PHYSIOTHERAPIST`, `STUDENT` |
-| `document_type` | `ID_FRONT`, `ID_BACK`, `SELFIE`, `DEGREE`, `LICENSE`, `STUDENT_CARD` |
+| `document_type` | `ID_FRONT`, `ID_BACK`, `SELFIE`, `DEGREE`, `LICENSE`, `STUDENT_CARD`, `OTHER` |
 | `request_modality` | `IMMEDIATE`, `SCHEDULED` |
 | `request_status` | `PUBLISHED`, `NEGOTIATING`, `ACCEPTED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `EXPIRED` |
 | `offer_issuer` | `PROFESSIONAL`, `PATIENT` |
