@@ -2657,7 +2657,8 @@ su verificación en dispositivo, y **reanudado el 2026-10-04** al cerrar el
 Sprint 2.5. **HU-06 cerrada el 2026-10-04**, con tres sprints de retraso: su
 verificación se recorrió en el emulador el 2026-10-03, destapó un cuarto defecto
 de integridad, y la migración que lo corrige quedó aplicada y ejercitada al día
-siguiente. Quedan HU-07, HU-08 y HU-09, 21 puntos de los 24.
+siguiente. **HU-07 cerrada el 2026-10-05.** Quedan HU-08 y HU-09, 13 puntos
+de los 24.
 
 > **Una deuda que este sprint arrastra y conviene no perder de vista.**
 >
@@ -3135,29 +3136,145 @@ del diálogo es justo lo que una prueba de interfaz al 200 % habría atrapado si
 emulador ni cuenta. Los dos defectos de disposición del Sprint 2.5 eran de la
 misma clase. Merece su propia historia técnica; no se abre dentro de HU-06.
 
-### HU-07 · Cargar mis documentos de verificación `[ ]` — 8 puntos
+### HU-07 · Cargar mis documentos de verificación `[x]` — 8 puntos
 
 > Como **usuario**, quiero **subir mis documentos**, para **acreditar mi identidad
 > y generar confianza en la contraparte**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que soy paciente, cuando abro la verificación, entonces se me piden
-      documento de identidad y fotografía de rostro.
-- [ ] Dado que soy profesional, cuando abro la verificación, entonces se me piden
-      además título profesional y matrícula o carnet de estudiante.
-- [ ] Dado que capturo una imagen, cuando la envío, entonces se comprime antes de
-      subirse.
-- [ ] Dado que subo un documento, cuando otro usuario consulta mi perfil, entonces
-      no puede acceder al archivo.
-- [ ] Dado que la carga falla por conexión, cuando recupero la señal, entonces
-      puedo reintentar sin volver a capturar.
+- [x] Dado que soy paciente, cuando abro la verificación, entonces se me piden
+      documento de identidad y fotografía de rostro. **Verificado por
+      `VerificationChecklistTest`:** un paciente a solas recibe la lista
+      `[ID_FRONT, ID_BACK, SELFIE]`.
+- [x] Dado que soy profesional, cuando abro la verificación, entonces se me piden
+      además título profesional y matrícula o carnet de estudiante. **Verificado
+      por `VerificationChecklistTest`:** un profesional `STUDENT` recibe
+      `STUDENT_CARD`; un profesional titulado recibe `LICENSE`; un profesional
+      sin tipo declarado recibe ambos como defensa en profundidad. El conjunto
+      es la unión de los roles poseídos (criterio del 2026-10-01).
+- [x] Dado que capturo una imagen, cuando la envío, entonces se comprime antes de
+      subirse. **Compresión implementada en `DocumentImageCompressor`:** JPEG
+      calidad 80 con escalera adaptativa hasta 50, lado largo 1600 px, rotación
+      EXIF aplicada antes de recomprimir. `DocumentImage` rechaza bytes vacíos
+      o mayores a 2 MiB antes de llegar al repositorio
+      (`UploadVerificationDocumentUseCaseTest`).
+- [x] Dado que subo un documento, cuando otro usuario consulta mi perfil, entonces
+      no puede acceder al archivo. **Verificado el 2026-10-05 con el experimento
+      SQL `userCannotReadVerificationDocumentsOfAnotherUser` contra el proyecto
+      remoto**, tras aplicar `20261005120000_verification_documents_storage.sql`.
+      Diez consultas en transacciones con `rollback`:
+      | Qué se comprobó | Resultado |
+      |---|---|
+      | B inserta una fila, A simulado la consulta | **0 filas visibles**. Discrimina: con A simulado consultando sus propias filas, **1 visible** |
+      | Insertar con `status = 'APPROVED'` simulando ser el dueño | **`42501: new row violates row-level security policy`**, hueco cerrado por la nueva `insert_own` |
+      | Insertar con `status = 'PENDING'` y los campos de revisión nulos | **Pasa**, con status=PENDING, reviewed_by=null, reviewed_at=null |
+      | Insertar `OTHER` sin `caption` | **`23514: verification_documents_caption_matches_type`** |
+      | Insertar `OTHER` con `caption` | **Pasa**, caption persistido |
+      | Insertar un tipo fijo con `caption` | **`23514: verification_documents_caption_matches_type`** (el biconditional discrimina en los dos sentidos) |
+      | Insertar una fila con `storage_path` que apunta a la carpeta de otro perfil | **`23514: verification_documents_storage_path_matches_owner`**, confused deputy cerrado |
+      | Insertar dos filas (de tipos distintos) con el mismo `storage_path` | **`23505: duplicate key value violates unique constraint "verification_documents_storage_path_unique"`**, review-freeze bypass cerrado |
+      | Fila `APPROVED`: `exists` del `update_own` de `storage.objects` cuenta los archivos que el dueño podría sobrescribir | **0**, review-freeze respetado |
+      Residuo tras los diez experimentos: **cero filas** en `verification_documents`.
+- [x] Dado que la carga falla por conexión, cuando recupero la señal, entonces
+      puedo reintentar sin volver a capturar. **Verificado por
+      `VerificationViewModelTest`:** un fallo deja los bytes en `stagedBytes`,
+      y `onRetry` reutiliza los mismos bytes sin volver a invocar al
+      compresor.
 
 **Requisitos:** RF-04.1, RF-04.2, RF-04.3.
 
 **Tareas técnicas.** Contenedor privado con políticas · `IVerificationRepository`
 y casos de uso · captura desde cámara y galería · compresión previa · pantalla de
 carga con estado por documento.
+
+**Archivos creados o modificados el 2026-10-05.**
+
+| Capa | Archivos |
+|---|---|
+| Migración | `supabase/migrations/20261005120000_verification_documents_storage.sql` |
+| Dominio | `features/verification/domain/model/{DocumentType, ReviewStatus, VerificationDocument, VerificationChecklist, VerificationError, VerificationResult}.kt` · `features/verification/domain/vo/{DocumentCaption, DocumentImage}.kt` · `features/verification/domain/repository/IVerificationRepository.kt` · `features/verification/domain/usecase/{GetMyVerificationChecklistUseCase, UploadVerificationDocumentUseCase}.kt` |
+| Datos | `features/verification/data/model/VerificationDocumentDto.kt` · `features/verification/data/mapper/{VerificationDocumentMapper, VerificationErrorMapper}.kt` · `features/verification/data/datasource/SupabaseVerificationDataSource.kt` · `features/verification/data/repository/VerificationRepository.kt` |
+| Presentación | `features/verification/presentation/{VerificationViewModel, VerificationScreen, VerificationLabels, DocumentImageCompressor}.kt` |
+| Inyección y navegación | `di/VerificationModule.kt` · `SaludEnCasaApplication.kt` · `navigation/Routes.kt` · `navigation/SaludEnCasaNavHost.kt` · `features/auth/presentation/AccountScreen.kt` (nuevo parámetro `onOpenVerification` y botón) |
+| Pruebas | `test/features/verification/FakeVerificationRepository.kt` · `test/features/verification/domain/model/VerificationChecklistTest.kt` · `test/features/verification/domain/vo/{DocumentCaptionTest, DocumentImageTest}.kt` · `test/features/verification/domain/usecase/{GetMyVerificationChecklistUseCaseTest, UploadVerificationDocumentUseCaseTest}.kt` · `test/features/verification/data/mapper/VerificationErrorMapperTest.kt` · `test/features/verification/presentation/VerificationViewModelTest.kt` |
+| Recursos y manifiesto | `res/values/strings.xml` · `res/values-es/strings.xml` (claves `verification_*`, `error_verification_*`, `auth_account_open_verification`) · `res/xml/file_paths.xml` · `AndroidManifest.xml` (permiso `CAMERA`, `<uses-feature>` opcional y `FileProvider`) |
+| Catálogo y compilación | `gradle/libs.versions.toml` (versión `androidxExifInterface` + librería `androidx-exifinterface`) · `app/build.gradle.kts` (dependencia nueva) |
+| Reglas y documentos | `.claude/rules/glosario.md` (valor `OTHER`, filas `caption`/`DocumentCaption`) · `docs/decisions.md` (cuatro entradas del 2026-10-05) · `plan.md` (esta sección) |
+
+**Revisión de código, 2026-10-05.** Tres revisores en paralelo
+(corrección/bugs, convenciones + CLAUDE.md, simplificación/DRY) produjeron
+once correcciones aplicadas en el mismo día, además del hallazgo de
+`storage_path` no atado al dueño y la unicidad por `storage_path` que
+destapó el revisor automático de seguridad:
+
+1. `DocumentImageCompressor.compress` corre en `Dispatchers.Default`
+   (antes bloqueaba el hilo de UI; ANR potencial en gama baja).
+2. `VerificationRepository.uploadDocument` escribe primero la fila y
+   después el objeto. El orden inverso dejaba objetos huérfanos cuando la
+   escritura de la fila fallaba, y las políticas `update_own`/`delete_own`
+   de `storage.objects` bloqueaban cualquier reintento sobre ese tipo.
+3. `DocumentRow` ahora oculta las acciones de reemplazo también para
+   `REJECTED`, no solo `APPROVED`. Permitirlo antes producía un
+   «error inesperado» tras pulsar el botón, porque las políticas lo
+   deniegan hasta HU-08.
+4. `VerificationViewModel.load()` preserva los `stagedBytes` de los demás
+   slots tras una subida exitosa; antes los descartaba y rompía el
+   criterio 5.
+5. `DocumentImageCompressor` reescala con `createScaledBitmap` después de
+   `inSampleSize`, para lograr 1600 px reales de lado largo en vez de los
+   1000 px que daba el muestreo potencia-de-dos sobre una foto 4000×3000.
+6. Se elimina la cadena de URL firmada (`GetSignedDocumentUrlUseCase`,
+   `SignedDocumentUrlResult`, el método del repositorio y el del
+   datasource). Ningún código la consumía; reaparece cuando HU-08 u HU-09
+   la pidan.
+7. Se retira `public.has_role` y la cláusula `has_role('PATIENT') or
+   has_role('PROFESSIONAL')` de la política de insert sobre
+   `storage.objects`. La función existía solo para justificarse (ver
+   `docs/decisions.md`, 2026-10-05, «El molde se difiere a su primer
+   consumidor real»).
+8. `UploadDocumentResult.Success` pasa a `data object`. Se elimina
+   `findMyDocument` del datasource, lo que ahorra una consulta por
+   documento subido.
+9. `VerificationChecklistResult.Loaded` y `VerificationUiState.Content`
+   dejan de arrastrar `roles` y `professionalType`; nadie los consumía.
+10. Se elimina `VerificationChecklist.optional`: era una constante
+    disfrazada de propiedad; la pantalla usa `DocumentType.OTHER`
+    directamente.
+11. `GetMyVerificationChecklistUseCase` mapea `ProfileError.NetworkUnavailable`
+    y `NotSignedIn` a sus equivalentes de `VerificationError`, para que un
+    fallo de red leyendo roles o perfil no llegue como «error inesperado».
+
+**Verificaciones del cierre.**
+
+- **Migración aplicada el 2026-10-05** sobre `salud-en-casa` (`sa-east-1`,
+  PostgreSQL 17.6) con `npx supabase db push --linked`, previo `--dry-run`.
+- **Suite verificada el 2026-10-05**: `./gradlew ktlintCheck`, `./gradlew test`,
+  `./gradlew staticAnalysis` y `./gradlew assembleDebug` concluyen sin error.
+- **Verificación en dispositivo físico, 2026-10-05**, con la cuenta
+  `ledezma.aramayo.73@gmail.com` sobre un `Z2577` (Android, conexión inalámbrica
+  por `adb pair`/`connect`). Se recorrió el flujo completo del rol paciente,
+  incluido el adjunto opcional y el reintento tras caída de red, y se
+  cotejaron las cuatro filas con los objetos reales en Storage:
+  | document_type | status | caption | mime | bytes |
+  |---|---|---|---|---|
+  | `ID_FRONT` | `PENDING` | null | `image/jpeg` | 34 431 |
+  | `ID_BACK` | `PENDING` | null | `image/jpeg` | 120 127 |
+  | `SELFIE` | `PENDING` | null | `image/jpeg` | 67 180 |
+  | `OTHER` | `PENDING` | `otro diploma` | `image/jpeg` | 31 763 |
+  Los cuatro archivos pesan muy por debajo del límite de 2 MiB; el `caption`
+  solo aparece en `OTHER`, como pide el `check` biconditional; la ruta es
+  `<profile_id>/<document_type>.jpg` en todos. El criterio 5 (reintento tras
+  pérdida de red) se verificó durante el recorrido.
+- **Defecto encontrado y corregido durante la verificación.** La primera
+  compilación mostraba el chip de estado «Pendiente de revisión» apilado
+  letra por letra junto a un título largo. Se corrigió con dos cambios en
+  `VerificationScreen.kt`: la fila del título pasa de `Row(SpaceBetween)` a
+  `FlowRow`, de modo que el chip cae a la siguiente línea cuando el título
+  no deja espacio, y el texto del chip se acorta a una sola palabra
+  («Pendiente», «Aprobado», «Rechazado»). La deuda de `app/src/androidTest`
+  suma su cuarto ejemplo: una prueba de interfaz a `fontScale = 2f` lo habría
+  atrapado sin dispositivo.
 
 ### HU-08 · Conocer el estado de mi verificación `[ ]` — 3 puntos
 

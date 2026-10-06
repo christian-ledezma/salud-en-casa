@@ -2861,6 +2861,165 @@ que ocurra en vez de tratarlo como un defecto más.
 
 ---
 
+## 2026-10-05 · HU-07 agrega `OTHER` al enum `document_type` y una columna `caption`
+
+**Contexto.** HU-07 debe pedir los documentos fijos por rol (identidad, selfie,
+título, matrícula o carnet de estudiante), y además dar a toda persona la opción
+de adjuntar algo más que crea pertinente para su verificación. El esquema
+original solo tenía seis valores en `document_type` y ninguna forma de que el
+administrador supiera para qué sirve ese adjunto cuando llega.
+
+**Decisión.** Se agrega el valor `OTHER` al enum `document_type` y una columna
+`caption text` a `verification_documents`, con un `check` biconditional que
+exige `caption` cuando el tipo es `OTHER` y lo prohíbe en los seis tipos fijos.
+La restricción `unique (profile_id, document_type)` se conserva, así que cada
+persona puede llevar **un** adjunto opcional. La leyenda tiene longitud de 1 a
+120 caracteres (restricción de la base más objeto de valor `DocumentCaption` del
+dominio).
+
+El enum se amplía por el patrón de renombrar y recrear que usó la migración
+`20260912110000` sobre `device_platform`: `alter type ... add value` no se puede
+usar en la misma transacción que las restricciones que dependen del valor nuevo,
+y la migración se aplica dentro de una.
+
+**Razonamiento.** Agregar `OTHER` sin leyenda convertiría el adjunto en una
+foto suelta que el administrador de HU-09 no puede juzgar. Agregarlo como tabla
+separada duplicaría el ciclo de revisión por el `review_status` y las políticas
+de `storage.objects`, y el adjunto es exactamente la misma pieza —una imagen
+privada revisable— que los seis fijos: la tabla ya hecha lo acomoda, el enum
+cambia a siete valores, y la columna `caption` solo se activa en el séptimo.
+
+Un solo adjunto por persona se eligió frente a varios porque la deuda del
+alcance manda. Si en el futuro resulta estrecho, pasar a un índice único parcial
+que excluya `OTHER` es una migración ulterior, no un rediseño.
+
+**Consecuencia.** `.claude/rules/glosario.md` incorpora `OTHER` como valor del
+enum y `caption` como columna. El dominio tiene `DocumentCaption` como objeto
+de valor y dos variantes nuevas en `VerificationError`: `CaptionRequired` y
+`CaptionNotAllowed`, para que la aplicación rechace la combinación errónea
+antes de que viaje al servidor. La pantalla muestra el adjunto `OTHER` como una
+sección aparte, con un campo de una línea para la leyenda.
+
+---
+
+## 2026-10-05 · HU-07 cierra el hueco de `verification_documents_insert_own`
+
+**Contexto.** La política `verification_documents_insert_own` de HT-04 solo
+exigía `profile_id = auth.uid()`. Nada impedía al dueño insertar su propia fila
+con `status = 'APPROVED'`, `reviewed_by = su propio id` y `reviewed_at = now()`:
+el disparador `guard_document_review` era `before update` y no veía la fila
+nueva. Un usuario podía por tanto autoconcederse una verificación aprobada
+antes de que un administrador la revisara, lo que vulnera RF-04.4 y vacía la
+razón de ser de HU-09.
+
+**Decisión.** La migración de HU-07 reemplaza la política por una que exige
+`status = 'PENDING'`, `reviewed_by is null`, `reviewed_at is null` y
+`rejection_reason is null` en el `with check` del `insert`. El dueño sigue
+pudiendo insertar su fila, pero solo con los valores que una revisión no ha
+asignado todavía.
+
+**Razonamiento.** El trigger `guard_document_review` cubría el `update`, no el
+`insert`. Agregar un `before insert` paralelo era otra opción, pero la política
+dice **quién** puede escribir **qué**, que es exactamente lo que estaba mal, y
+no un rodeo. La corrección queda donde el agujero vivía.
+
+**Consecuencia.** El experimento SQL de HU-07 ejercita el discriminador: un
+insert con `status = 'APPROVED'` debe fallar; uno con `status = 'PENDING'` y
+los demás campos nulos debe pasar. Las dos variantes son necesarias: una
+política que solo deniega sin confirmar que acepta el caso correcto no prueba
+que discrimina.
+
+---
+
+## 2026-10-05 · El molde `security definer` booleano se difiere a su primer consumidor real
+
+**Contexto.** El criterio del 2026-10-02 dice que a partir de ahora toda
+política que cruce a `profile_roles` tiene que llamar a una función
+`security definer stable` que devuelva booleano, en lugar de insertar un
+`exists (select 1 from public.profile_roles ...)` como subconsulta directa.
+La primera versión de la migración de HU-07 incorporaba `public.has_role` y
+la invocaba desde la política de insert de `storage.objects` del bucket
+`verification-documents`, con la condición `has_role('PATIENT') or
+has_role('PROFESSIONAL')`.
+
+**Decisión.** Esa versión se retiró en la revisión de la misma fecha. La
+política de insert queda como las demás: `bucket_id = 'verification-documents'
+and (storage.foldername(name))[1] = auth.uid()::text`. La función `has_role`
+no se incluye en la migración.
+
+**Razonamiento.** Ninguna política de HU-07 necesita cruzar a `profile_roles`
+en el motor. El contenedor es por carpeta propia, y la fila es por posesión
+de `profile_id`. La restricción adicional «solo pueden subir PATIENT o
+PROFESSIONAL» no responde a ningún requisito; una cuenta ADMIN que sube
+archivos a su propia carpeta no daña nada, porque su fila sigue necesitando
+pasar las políticas de `verification_documents` y HU-09 nunca revisa esos
+archivos. Agregar la función y luego inventar una condición para usarla era
+abstracción especulativa justo del tipo que `CLAUDE.md` prohíbe. La regla del
+2026-10-02 sigue en pie: la primera política que de verdad necesite cruzar a
+`profile_roles` crea `has_role` en la misma migración, con el molde que ya
+usa `is_admin()`.
+
+**Consecuencia.** La migración `20261005120000_verification_documents_storage.sql`
+no crea la función. Las dos políticas antiguas (`patients_insert_own`,
+`professionals_insert_own`) tampoco se tocan: funcionan y no están rotas. La
+primera historia que lo necesite —probablemente HU-09— es la que agrega
+`has_role` y los dos ejemplos de `fix_offer_policy_recursion` y
+`fix_public_review_visibility` son su molde directo.
+
+---
+
+## 2026-10-05 · HU-07: ruta de Storage, orden de escritura y compresión en el cliente
+
+**Contexto.** HU-07 es la primera historia que necesita Supabase Storage. El
+contenedor es privado (RF-04.3 y `.claude/rules/supabase.md`); un archivo
+nunca viaja por URL pública. HU-07 no muestra miniatura ni abre el archivo
+para el dueño, de modo que la decisión sobre la vigencia de la URL firmada
+se posterga a la primera historia que la consuma (HU-08 u HU-09).
+
+**Decisión.**
+
+- **Ruta del objeto:** `<profile_id>/<document_type>.jpg`. La política de
+  `storage.objects` del bucket `verification-documents` enforce la posesión
+  por carpeta con `(storage.foldername(name))[1] = auth.uid()::text`. La
+  restricción `verification_documents_storage_path_matches_owner` lo repite
+  en el motor para la fila, y
+  `verification_documents_storage_path_unique` impide que dos filas apunten
+  al mismo archivo.
+- **Orden al subir:** `VerificationRepository.uploadDocument` escribe
+  primero la fila (upsert por `(profile_id, document_type)`) y después el
+  objeto (upsert por `name`). El orden inverso dejaba objetos huérfanos: si
+  la fila fallaba, las políticas `update_own`/`delete_own` de
+  `storage.objects` —que exigen una fila `PENDING` que apunte al archivo—
+  bloqueaban cualquier reintento sobre ese tipo. Con fila-primero una red
+  intermitente deja la fila en `PENDING` sin archivo; el siguiente intento
+  pasa limpio porque los dos upserts son idempotentes.
+- **Compresión en el cliente:** JPEG, lado largo 1600 px (reescalado con
+  `createScaledBitmap` después de un `inSampleSize` para no quedarse en
+  potencias de 2), calidad 80 con escalera adaptativa 80 → 70 → 60 → 50
+  hasta caber en 2 MiB; rotación aplicada desde la etiqueta EXIF antes de
+  recomprimir. Si al bajar a 50 no cabe, `DocumentImageCompressor` devuelve
+  `TooLarge` y la pantalla pide una foto menor. Todo corre en
+  `Dispatchers.Default` para que el hilo de UI no se bloquee en una foto de
+  12 MP.
+
+**Razonamiento.** Un documento de identidad con 1600 px en el lado largo
+conserva cada dígito legible al 100 %, y la escalera de calidad baja la
+compresión en vez de la resolución. Rotar antes de reencoder evita el
+defecto clásico de una foto de carnet guardada «de lado». Fila-primero es la
+inversión que hizo falta tras ver que `storage.objects.update_own` depende
+de una fila `PENDING` existente: con objeto-primero, un fallo intermedio
+dejaba al usuario sin posibilidad de reintentar.
+
+**Consecuencia.** `DocumentImageCompressor` vive en
+`features/verification/presentation/` como colaborador de plataforma
+—mismo molde que `GoogleCredentialClient`—, de modo que el modelo de vista
+nunca ve un `Uri` ni un `Bitmap`. Se agrega al catálogo
+`androidx.exifinterface:exifinterface:1.4.1`, única dependencia nueva de la
+historia; el resto del catálogo ya cubría la cámara y la galería a través de
+`androidx.activity`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
