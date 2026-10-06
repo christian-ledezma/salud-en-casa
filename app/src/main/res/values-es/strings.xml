@@ -31,6 +31,7 @@
     <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
     <string name="auth_account_open_profile">Mi perfil</string>
     <string name="auth_account_open_address">Mis direcciones</string>
+    <string name="auth_account_open_verification">Mi verificación</string>
     <string name="auth_account_role_short_patient">Paciente</string>
     <string name="auth_account_role_short_professional">Profesional</string>
     <string name="auth_account_role_switch_label">Estás usando la aplicación como</string>
@@ -158,6 +159,52 @@
     <string name="error_address_permission_denied">Sin el permiso de ubicación el mapa no se centra solo. Busca la dirección o márcala en el mapa.</string>
     <string name="error_address_location_unavailable">No pudimos obtener tu ubicación. Revisa que la ubicación del teléfono esté encendida, o marca el punto en el mapa.</string>
     <string name="error_address_place_not_found">No encontramos esa dirección. Escríbela de otra forma o márcala en el mapa.</string>
+
+    <string name="verification_title">Mi verificación</string>
+    <string name="verification_subtitle">Carga cada documento con una foto nítida. El administrador revisa cada uno y te avisa el resultado.</string>
+
+    <string name="verification_document_id_front_title">Documento de identidad, anverso</string>
+    <string name="verification_document_id_front_description">Toma la foto del lado frontal de tu carnet, con los datos legibles.</string>
+    <string name="verification_document_id_back_title">Documento de identidad, reverso</string>
+    <string name="verification_document_id_back_description">Toma la foto del reverso de tu carnet, con la firma y el código visibles.</string>
+    <string name="verification_document_selfie_title">Fotografía de rostro</string>
+    <string name="verification_document_selfie_description">Haz una selfie con buena luz, mirando a la cámara.</string>
+    <string name="verification_document_degree_title">Título profesional</string>
+    <string name="verification_document_degree_description">Foto del título o diploma emitido por tu institución.</string>
+    <string name="verification_document_license_title">Matrícula profesional</string>
+    <string name="verification_document_license_description">Foto de tu matrícula vigente, con el número de registro visible.</string>
+    <string name="verification_document_student_card_title">Carnet de estudiante</string>
+    <string name="verification_document_student_card_description">Foto del carnet de la institución donde cursas tus estudios en salud.</string>
+    <string name="verification_document_other_title">Documento adicional</string>
+    <string name="verification_document_other_description">Opcional. Súbelo si crees que ayuda a verificar tu identidad o tu nivel de estudio.</string>
+
+    <string name="verification_status_pending">Pendiente</string>
+    <string name="verification_status_approved">Aprobado</string>
+    <string name="verification_status_rejected">Rechazado</string>
+
+    <string name="verification_other_section_title">Agregar otro documento</string>
+    <string name="verification_other_section_description">Escribe en una línea qué contiene el archivo para que el administrador lo revise.</string>
+    <string name="verification_other_caption_label">¿Qué contiene este archivo?</string>
+
+    <string name="verification_action_pick">Cargar documento</string>
+    <string name="verification_action_replace">Reemplazar</string>
+    <string name="verification_action_retry_upload">Reintentar envío</string>
+
+    <string name="verification_source_dialog_description">Elige cómo quieres aportar la imagen.</string>
+    <string name="verification_source_camera">Tomar foto</string>
+    <string name="verification_source_gallery">Elegir de la galería</string>
+
+    <string name="verification_stored_caption_prefix">Nota: %1$s</string>
+    <string name="verification_rejection_reason_prefix">Motivo del rechazo: %1$s</string>
+
+    <string name="error_verification_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
+    <string name="error_verification_empty_image">La imagen llegó vacía. Vuelve a tomarla.</string>
+    <string name="error_verification_image_too_large">La imagen pesa demasiado. Tómala de nuevo con menos resolución.</string>
+    <string name="error_verification_unreadable_image">No pudimos leer la imagen que elegiste. Intenta con otra.</string>
+    <string name="error_verification_caption_required">Escribe en una línea qué contiene el archivo adicional.</string>
+    <string name="error_verification_caption_not_allowed">Este documento no lleva nota: la nota solo acompaña al documento adicional.</string>
+    <string name="error_verification_invalid_caption">La nota puede tener hasta 120 caracteres.</string>
+    <string name="error_verification_document_frozen">Este documento ya pasó por revisión y no se puede reemplazar.</string>
 
     <string name="cd_loading">Cargando</string>
     <string name="cd_profile_photo">Tu fotografía de perfil</string>

@@ -1,0 +1,54 @@
+package bo.saludencasa.features.verification.presentation
+
+import androidx.annotation.StringRes
+import bo.saludencasa.R
+import bo.saludencasa.features.verification.domain.model.DocumentType
+import bo.saludencasa.features.verification.domain.model.ReviewStatus
+import bo.saludencasa.features.verification.domain.model.VerificationError
+
+@StringRes
+internal fun DocumentType.titleRes(): Int =
+    when (this) {
+        DocumentType.ID_FRONT -> R.string.verification_document_id_front_title
+        DocumentType.ID_BACK -> R.string.verification_document_id_back_title
+        DocumentType.SELFIE -> R.string.verification_document_selfie_title
+        DocumentType.DEGREE -> R.string.verification_document_degree_title
+        DocumentType.LICENSE -> R.string.verification_document_license_title
+        DocumentType.STUDENT_CARD -> R.string.verification_document_student_card_title
+        DocumentType.OTHER -> R.string.verification_document_other_title
+    }
+
+@StringRes
+internal fun DocumentType.descriptionRes(): Int =
+    when (this) {
+        DocumentType.ID_FRONT -> R.string.verification_document_id_front_description
+        DocumentType.ID_BACK -> R.string.verification_document_id_back_description
+        DocumentType.SELFIE -> R.string.verification_document_selfie_description
+        DocumentType.DEGREE -> R.string.verification_document_degree_description
+        DocumentType.LICENSE -> R.string.verification_document_license_description
+        DocumentType.STUDENT_CARD -> R.string.verification_document_student_card_description
+        DocumentType.OTHER -> R.string.verification_document_other_description
+    }
+
+@StringRes
+internal fun ReviewStatus.badgeRes(): Int =
+    when (this) {
+        ReviewStatus.PENDING -> R.string.verification_status_pending
+        ReviewStatus.APPROVED -> R.string.verification_status_approved
+        ReviewStatus.REJECTED -> R.string.verification_status_rejected
+    }
+
+@StringRes
+internal fun VerificationError.messageRes(): Int =
+    when (this) {
+        VerificationError.NotSignedIn -> R.string.error_verification_not_signed_in
+        VerificationError.EmptyImage -> R.string.error_verification_empty_image
+        VerificationError.ImageTooLarge -> R.string.error_verification_image_too_large
+        VerificationError.UnreadableImage -> R.string.error_verification_unreadable_image
+        VerificationError.CaptionRequired -> R.string.error_verification_caption_required
+        VerificationError.CaptionNotAllowed -> R.string.error_verification_caption_not_allowed
+        VerificationError.InvalidCaption -> R.string.error_verification_invalid_caption
+        VerificationError.DocumentFrozenByReview -> R.string.error_verification_document_frozen
+        VerificationError.NetworkUnavailable -> R.string.error_network_unavailable
+        VerificationError.Unexpected -> R.string.error_unexpected
+    }

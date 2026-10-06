@@ -29,3 +29,6 @@ data object AddressListRoute
 data class AddressRoute(
     val addressId: String? = null,
 )
+
+@Serializable
+data object VerificationRoute

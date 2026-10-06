@@ -15,6 +15,7 @@ import bo.saludencasa.features.location.presentation.AddressScreen
 import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
+import bo.saludencasa.features.verification.presentation.VerificationScreen
 
 @Composable
 fun SaludEnCasaNavHost(
@@ -49,6 +50,7 @@ fun SaludEnCasaNavHost(
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
                 onOpenProfile = { navController.navigate(ProfileRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
+                onOpenVerification = { navController.navigate(VerificationRoute) },
             )
         }
 
@@ -85,6 +87,10 @@ fun SaludEnCasaNavHost(
 
         composable<PublicProfileRoute> { entry ->
             PublicProfileScreen(professionalId = entry.toRoute<PublicProfileRoute>().professionalId)
+        }
+
+        composable<VerificationRoute> {
+            VerificationScreen(onBack = { navController.popBackStack() })
         }
     }
 }

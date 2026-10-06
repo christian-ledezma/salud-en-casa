@@ -7,6 +7,12 @@
          address can be searched by hand when either one is denied. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- HU-07: taking a verification document picture with the system camera.
+         Gallery picks use PickVisualMedia and need no permission. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
 
     <application
         android:name=".SaludEnCasaApplication"
@@ -33,6 +39,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- HU-07: lets the system camera write to the app's cache under a
+             content URI, with authorities = applicationId + ".fileprovider".
+             DocumentImageCompressor reads the file back by content URI. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

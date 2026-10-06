@@ -45,6 +45,7 @@ fun AccountScreen(
     onSignedOut: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenAddress: () -> Unit,
+    onOpenVerification: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AccountViewModel = koinViewModel(),
 ) {
@@ -60,6 +61,7 @@ fun AccountScreen(
         onDismissError = viewModel::dismissError,
         onOpenProfile = onOpenProfile,
         onOpenAddress = onOpenAddress,
+        onOpenVerification = onOpenVerification,
         onSwitchTo = viewModel::switchTo,
         onActivate = viewModel::activate,
         modifier = modifier,
@@ -73,6 +75,7 @@ private fun AccountContent(
     onDismissError: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenAddress: () -> Unit,
+    onOpenVerification: () -> Unit,
     onSwitchTo: (UserRole) -> Unit,
     onActivate: (AssignableRole) -> Unit,
     modifier: Modifier = Modifier,
@@ -131,6 +134,12 @@ private fun AccountContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(text = stringResource(R.string.auth_account_open_address))
+                }
+                OutlinedButton(
+                    onClick = onOpenVerification,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(text = stringResource(R.string.auth_account_open_verification))
                 }
                 OutlinedButton(
                     onClick = onSignOutClick,
@@ -237,7 +246,7 @@ private val onlyPatient = setOf(UserRole.PATIENT)
 private fun AccountBothRolesLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -246,7 +255,7 @@ private fun AccountBothRolesLightPreview() {
 private fun AccountBothRolesDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PROFESSIONAL))
-        AccountContent(state, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -255,7 +264,7 @@ private fun AccountBothRolesDarkPreview() {
 private fun AccountSingleRoleLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -264,7 +273,7 @@ private fun AccountSingleRoleLightPreview() {
 private fun AccountSingleRoleDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -273,7 +282,7 @@ private fun AccountSingleRoleDarkPreview() {
 private fun AccountRoleSwitchErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val roles = previewRoles(bothRoles, UserRole.PATIENT, ProfileError.NetworkUnavailable)
-        AccountContent(AccountUiState.Content(previewSession(), roles), {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Content(previewSession(), roles), {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -281,7 +290,7 @@ private fun AccountRoleSwitchErrorPreview() {
 @Composable
 private fun AccountLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Loading, {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Loading, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -289,6 +298,6 @@ private fun AccountLoadingPreview() {
 @Composable
 private fun AccountErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {}, {}, {}, {})
     }
 }

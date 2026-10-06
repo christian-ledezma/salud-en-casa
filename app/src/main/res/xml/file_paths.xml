@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider paths. HU-07 writes a camera capture to cache/verification/
+     and shares it with the camera through this provider. The directory is in
+     the app's cache so the system can reclaim it; the durable copy lives in
+     the Storage bucket. -->
+<paths>
+    <cache-path
+        name="verification"
+        path="verification/" />
+</paths>

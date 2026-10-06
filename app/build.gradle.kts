@@ -92,6 +92,7 @@ dependencies {
     implementation(libs.firebase.crashlytics)
 
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.bundles.auth)
     implementation(libs.bundles.maps)
 
