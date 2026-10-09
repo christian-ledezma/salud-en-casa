@@ -4050,23 +4050,174 @@ proyecto cierra por plazo y no por alcance, y por eso es la primera medición de
 que mide capacidad. **Primer día del sprint: 2026-10-09. Fecha de corte: 2026-10-15**,
 siete días corridos contando los dos extremos.
 
-### HU-10 · Declarar los servicios que presto `[ ]` — 5 puntos
+### HU-10 · Declarar los servicios que presto `[x]` — 5 puntos
 
 > Como **profesional**, quiero **indicar qué tipos de atención presto y a qué
 > precio**, para **aparecer en las búsquedas correctas**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que abro mis servicios, cuando consulto el catálogo, entonces veo los
-      tipos de atención disponibles.
-- [ ] Dado que selecciono un tipo, cuando fijo su precio de referencia, entonces
-      queda asociado a mi perfil.
-- [ ] Dado que intento agregar dos veces el mismo tipo, cuando guardo, entonces se
-      rechaza.
-- [ ] Dado que no declaro ningún servicio, cuando un paciente filtra por tipo,
-      entonces no aparezco.
+- [x] Dado que abro mis servicios, cuando consulto el catálogo, entonces veo los
+      tipos de atención disponibles. **Verificado.** La pantalla lista el catálogo
+      completo en su segunda sección, con nombre, descripción, precio de referencia y
+      duración estimada de cada tipo. `CatalogMapperTest` fija que el emparejamiento de
+      las dos lecturas conserva el precio propio y no el de referencia;
+      `MyServicesScreenLargeFontTest.theCatalogEntryLeftToDeclareKeepsItsActionOnScreen`
+      fija que la tarjeta del catálogo y su acción se alcanzan a 320 dp y 200 % de fuente.
+      La política `service_types_select_all` ya filtra por `active`, de modo que un tipo
+      desactivado no llega: no hay condición equivalente en el cliente.
+- [x] Dado que selecciono un tipo, cuando fijo su precio de referencia, entonces
+      queda asociado a mi perfil. **Verificado** por
+      `MyServicesViewModelTest.confirmingAPriceDeclaresTheTypeAndReadsTheListAgain`
+      —el tipo y el precio confirmados llegan al repositorio y la lista se relee— y por
+      `theDialogOpensWithTheCatalogReferenceAlreadyFilled`, que fija que el campo abre con
+      el precio de referencia del catálogo. **Y contra el proyecto remoto** (experimento
+      1b): dos tipos distintos se insertan con `active = true`.
+- [x] Dado que intento agregar dos veces el mismo tipo, cuando guardo, entonces se
+      rechaza. **Verificado el 2026-10-09 con experimento SQL** contra el proyecto
+      remoto, dentro de transacciones con `rollback`: el segundo insert del mismo tipo
+      falla con `23505` sobre
+      `professional_services_professional_id_service_type_id_key`, y **el control
+      discrimina**, porque dos tipos distintos en la misma transacción pasan. En el
+      cliente lo cubren
+      `DeclareServiceUseCaseTest.refusesATypeThatIsAlreadyDeclaredAndWritesNothing`
+      —y su par `declaresATypeTheProfessionalDoesNotOfferYet`, para que el rechazo no sea
+      un «deniega todo»—, `DeclaredServicesTest` sobre los tipos por declarar, y
+      `CatalogErrorMapperTest`, que traduce la violación del índice y **no** confunde con
+      ella la restricción del precio de la misma tabla.
+- [x] Dado que no declaro ningún servicio, cuando un paciente filtra por tipo,
+      entonces no aparezco. **Verificado el 2026-10-09 con experimento SQL** contra el
+      proyecto remoto. Es el criterio más importante de la historia porque es el que
+      conecta con HU-11, y el control discrimina en las dos direcciones (experimentos 3a
+      y 3b).
 
 **Requisitos:** RF-02.3, RF-05.1, RF-05.2.
+
+> **Sobre RF-05.2.** «El paciente selecciona el tipo de servicio que requiere al crear una
+> solicitud» no se cumple aquí: su consumidor es HU-13, en el Sprint 5. Lo que HU-10 deja
+> listo es el catálogo leíble por cualquier usuario autenticado y el caso de uso que lo
+> entrega. Se anota para que el criterio no se dé por cubierto al revisar el requisito.
+
+**Qué cambió al cerrarla.**
+
+- **El esquema no cambió, y eso se comprobó antes de escribir código.**
+  `service_types` y `professional_services` existen desde el Sprint 0 con sus tres
+  políticas y con el índice único que sostiene el tercer criterio. La única migración de
+  la historia es de dato: `20261009130000_accent_service_type_catalog.sql`, que acentúa
+  el nombre y la descripción de los doce tipos sembrados. HU-10 es la primera historia
+  que los muestra a un usuario. Aplicada con `db push` tras `--dry-run`, con una sola
+  migración pendiente.
+- **Característica nueva, `features/catalog/`**, dueña de las dos tablas. El catálogo es
+  dato de plataforma, no dato del perfil de nadie, y HU-11, HU-12 y HU-13 lo necesitan.
+  Razonamiento en `docs/decisions.md`, 2026-10-09.
+- **La historia incluye corregir el precio y quitar un servicio**, que los criterios no
+  piden. Decidido con el autor al empezar: con solo declarar y el rechazo del duplicado,
+  un precio mal escrito queda publicado en las búsquedas y no hay puerta para
+  arreglarlo. Quitar es un `delete`, no un `active = false`: el índice único es sobre el
+  par profesional–tipo y no sobre las filas activas, así que una fila apagada impediría
+  volver a declarar ese tipo. Registrado en `docs/decisions.md`, 2026-10-09.
+- **Puerta de entrada.** «Mis servicios», desde la sección profesional de «Mi perfil»,
+  que ya está condicionada al rol activo `PROFESSIONAL`. Declarar un servicio es una
+  afirmación que un paciente no puede hacer, igual que la disponibilidad inmediata.
+- **Experimentos SQL sobre el proyecto remoto**, 2026-10-09, todos dentro de
+  transacciones con `rollback`. Sin residuo: `professional_services` sigue con **0**
+  filas al terminar, comprobado.
+
+  | # | Qué se comprobó | Resultado |
+  |---|---|---|
+  | 1a | Declarar dos veces el mismo tipo | **Rechazado**, `23505` sobre `professional_services_professional_id_service_type_id_key` |
+  | 1b | Declarar dos tipos distintos | **Pasa**, 2 filas con `active = true`. El control discrimina |
+  | 2 | Declarar en nombre de otro profesional | **Rechazado por la política**, `42501` |
+  | 2b | Declarar desde una cuenta sin rol profesional | **Rechazado por la clave foránea**, `23503` contra `professionals` |
+  | 3a | Filtrar la búsqueda por tipo sin nada declarado | **0 resultados**, contra **1** sin filtro. El profesional existe y el filtro lo excluye |
+  | 3b | Declarar el tipo y repetir el filtro | **1 resultado** para el tipo declarado y **0** para otro tipo. El filtro discrimina |
+  | 4a | Corregir el precio propio | **Pasa**, la fila queda en 195,50 |
+  | 4b | Quitar lo propio | **Pasa**, 0 filas |
+  | 4c | Otro usuario intenta cambiar y borrar la fila ajena | **No la toca**: la ve (proyección pública, RF-02.6) y sigue en 180,00 y existiendo |
+
+  **El experimento 4 hubo que reescribirlo.** La primera versión encadenaba el insert, el
+  update y el delete como CTE hermanas de una sola sentencia, y daba 0 filas afectadas:
+  las CTE que escriben comparten la instantánea y no ven lo que insertó su hermana. No era
+  un rechazo de la política. Queda anotado porque el síntoma —0 filas— es idéntico al de
+  una política que deniega, y confundirlos habría dado por verificado lo contrario de lo
+  que pasaba.
+
+- **El ayudante de disposición gana una variante.**
+  `assertFitsTheScreenWithoutScrolling`, en `app/src/test/java/bo/saludencasa/ui/LargeFont.kt`,
+  para un control cuyo contenedor no desplaza, como los botones de un `AlertDialog`; y la
+  medición del borde de la pantalla toma la primera raíz, porque un diálogo abierto es una
+  segunda ventana y `onRoot()` encontraba dos nodos. Razonamiento en `docs/decisions.md`,
+  2026-10-09.
+
+**Lo que las pruebas de esta historia sí atrapan, verificado por mutación el 2026-10-09.**
+
+| Mutación | Resultado |
+|---|---|
+| La lista deja de desplazarse (`userScrollEnabled = false`) | **Fallan 4 de 6** pruebas de disposición |
+| La acción «Quitar» deja de componerse | **Falla** `bothActionsOfADeclaredServiceStayOnScreen` |
+| El diálogo del precio pierde su desplazamiento | **Falla**, pero por la razón equivocada (ver abajo) |
+| **Las dos acciones de la tarjeta en un `Row` en vez de un `FlowRow`** | **PASA. No lo atrapa** |
+
+**La última fila es el punto ciego del 2026-10-08, en vivo.** Se intentó esa mutación
+esperando que fallara y pasó: la etiqueta se recorta **dentro de su propio botón**, Compose
+la mide al ancho que el contenedor le da, y ni los límites ni la semántica delatan nada. El
+`FlowRow` se queda porque es la disposición correcta, pero **ninguna prueba lo sostiene**, y
+el comentario del código lo dice con esas palabras en vez de afirmar lo contrario. Esta es
+la tercera vez que esa forma de defecto aparece en el proyecto y sigue dependiendo de mirar
+las previsualizaciones.
+
+**Y se quitó un `verticalScroll` que se había agregado al contenido de los dos diálogos.**
+Sin él, a 320 dp y 200 % de fuente **no se recorta nada**: se comprobó midiendo con la
+variante que no desplaza. Dejarlo habría sido programación defensiva sin prueba que la
+sostenga, y además le quitaba a la prueba su única señal, porque con el desplazamiento
+puesto la pantalla ya no puede recortar. Sin él, `assertIsDisplayed` sobre el motivo del
+rechazo es lo que avisaría si el contenido del diálogo creciera.
+
+**Deuda declarada.**
+
+- **`active` queda como columna sin escritor.** Es el interruptor de «ahora mismo no presto
+  esto» que ningún requisito pide. Si se pide, el índice único hay que revisarlo primero.
+  Registrado en `docs/decisions.md`, 2026-10-09.
+- **Un tipo que el administrador desactive hace desaparecer de la pantalla el servicio
+  declarado sobre él**, en lugar de dibujar una tarjeta sin nombre. Es observable y no hay
+  aviso. Cubrirlo exige decidir qué pasa con un tipo retirado del catálogo, que es trabajo
+  de la pantalla de administración del catálogo y no existe hoy. Lo fija
+  `CatalogMapperTest.aDeclaredServiceWhoseTypeLeftTheCatalogIsDropped`.
+- **El catálogo no es traducible.** Viaja en español desde la base, y la regla de
+  internacionalización no lo alcanza porque es dato, no recurso de cadenas. El día que
+  exista `values-en/`, los nombres de los tipos seguirán en español.
+- **El cambio 5 de la retrospectiva del Sprint 3 se volvió a violar**, por orden de
+  trabajo: los comentarios que citan `docs/decisions.md`, 2026-10-09 se escribieron antes
+  que las entradas que citan. El estado final es correcto —las siete entradas existen y
+  cada cita apunta a la suya—, pero el orden fue el que la retrospectiva pidió cambiar.
+  Queda anotado aquí para que la retrospectiva del Sprint 4 lo recoja con el dato y no de
+  memoria.
+- **`supabase db reset` y `db diff --linked` no se corrieron:** Docker no estaba levantado.
+  La migración es de dato y no toca el esquema, así que `db diff --schema public` no tenía
+  nada que encontrar, pero la reconstrucción desde cero **sí** la ejerce —la semilla escribe
+  los nombres sin acento y esta migración los corrige después— y conviene comprobarla al
+  cerrar el sprint.
+
+
+**Verificaciones del cierre, 2026-10-09.** `./gradlew ktlintCheck staticAnalysis
+assembleDebug` concluye sin error y **sin ninguna advertencia nueva del compilador**.
+`./gradlew testDebugUnitTest`: **70 suites, 394 pruebas, 0 fallos, 0 omitidas** —eran 63 y
+363 antes de la historia, de modo que HU-10 agrega 7 suites y 31 pruebas.
+
+**Archivos creados o modificados el 2026-10-09.**
+
+| Capa | Archivos |
+|---|---|
+| Migración | `supabase/migrations/20261009130000_accent_service_type_catalog.sql` (nueva) |
+| Dominio | `features/catalog/domain/model/ServiceType.kt` · `ProfessionalService.kt` · `DeclaredServices.kt` · `CatalogError.kt` · `CatalogResult.kt` (nuevos) · `domain/repository/ICatalogRepository.kt` (nuevo) · `domain/usecase/GetMyDeclaredServicesUseCase.kt` · `DeclareServiceUseCase.kt` · `UpdateServicePriceUseCase.kt` · `RemoveServiceUseCase.kt` (nuevos) |
+| Datos | `features/catalog/data/model/CatalogDto.kt` · `data/datasource/SupabaseCatalogDataSource.kt` · `data/mapper/CatalogMapper.kt` · `data/mapper/CatalogErrorMapper.kt` · `data/repository/CatalogRepository.kt` (nuevos) |
+| Presentación | `features/catalog/presentation/MyServicesScreen.kt` · `MyServicesViewModel.kt` · `CatalogErrorMessages.kt` (nuevos) |
+| Inyección | `di/CatalogModule.kt` (nuevo) · `SaludEnCasaApplication.kt` |
+| Navegación | `navigation/Routes.kt` (`MyServicesRoute`) · `navigation/SaludEnCasaNavHost.kt` |
+| Perfil | `features/profile/presentation/ProfessionalProfileSection.kt` · `ProfileScreen.kt` (la lambda `onOpenMyServices` y las previsualizaciones) |
+| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (21 claves `catalog_`, `error_catalog_`, `profile_open_my_services` y el plural `catalog_estimated_duration`) |
+| Pruebas | `test/features/catalog/FakeCatalogRepository.kt` · `domain/model/DeclaredServicesTest.kt` · `domain/usecase/DeclareServiceUseCaseTest.kt` · `UpdateServicePriceUseCaseTest.kt` · `data/mapper/CatalogMapperTest.kt` · `CatalogErrorMapperTest.kt` · `presentation/MyServicesViewModelTest.kt` · `MyServicesScreenLargeFontTest.kt` (nuevos, 7 suites) · `test/ui/LargeFont.kt` (la variante que no desplaza) |
+| Documentos | `.claude/rules/glosario.md` (`DeclaredServices`, `undeclaredTypes`) · `docs/decisions.md` (siete entradas del 2026-10-09) · `plan.md` (esta sección) |
 
 ### HU-11 · Buscar profesionales cerca de mi domicilio `[ ]` — 13 puntos
 
@@ -4092,6 +4243,19 @@ siete días corridos contando los dos extremos.
 **Tareas técnicas.** Consumo de la función de cercanía desde la capa de datos
 · `IProfessionalSearchRepository` y caso de uso · mapa con marcadores agrupados ·
 vista de lista alterna · prueba que verifique el uso del índice espacial.
+
+**Dato para quien la tome, dejado por HU-10 el 2026-10-09.**
+`search_nearby_professionals` **ya filtra por tipo de servicio y por disponibilidad
+inmediata**: el tercer y el cuarto criterio son parámetros de esa función, no lógica nueva,
+y los dos están verificados contra el remoto en los experimentos 3a y 3b de HU-10. El
+catálogo se pide por `GetMyDeclaredServicesUseCase` o por el caso de uso que HU-11 agregue
+en `features/catalog/`, nunca por su repositorio ni por su capa `data`.
+
+**Y un dato de datos de prueba:** en el proyecto remoto hay **0 filas** en
+`professional_services`. Los experimentos de HU-10 corrieron dentro de `rollback`, así que
+no dejaron ninguna. Para demostrar el filtro por tipo hay que declarar servicios desde la
+aplicación con la cuenta del único profesional `APPROVED`; mientras no se haga, el filtro
+por tipo devuelve 0 resultados y **eso es correcto**, no un defecto de HU-11.
 
 ### HU-12 · Consultar la ficha de un profesional `[ ]` — 5 puntos
 

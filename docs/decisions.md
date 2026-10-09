@@ -3829,6 +3829,197 @@ tiempo. Cubre que la pantalla ofrezca el botón, **no que exista un camino hasta
 pantalla**: la prueba nunca se va de la pantalla y el administrador sí. Una prueba de
 pantalla no es una prueba de recorrido, y este hueco es el ejemplo.
 
+## 2026-10-09 · HU-10: el catálogo y los servicios declarados viven en `features/catalog/`
+
+**Contexto.** HU-10 pide que el profesional declare qué tipos de atención presta y a qué
+precio. Las dos tablas que eso necesita —`service_types`, el catálogo de la plataforma, y
+`professional_services`, la unión profesional–tipo— existen desde el Sprint 0 con sus
+políticas, de modo que la historia no agrega esquema. Lo que había que decidir es de qué
+característica son.
+
+**Decisión.** Un paquete nuevo, `features/catalog/`, dueño de las dos tablas. RF-02.3 es un
+requisito de perfil, pero el catálogo es dato de plataforma que el administrador mantiene
+(RF-05.1), no dato del perfil de nadie.
+
+**Razonamiento.** HU-11 filtra la búsqueda por tipo de servicio, HU-12 muestra los
+servicios en la ficha pública y HU-13 pide el tipo al crear una solicitud. Las tres
+necesitan leer el catálogo. Si viviera en `features/profile/`, las tres tendrían que
+pedírselo a una característica que no es su dueña, y el nombre del Sprint 4 —«Catálogo y
+búsqueda por cercanía»— dejaría de corresponder a ninguna parte del código. La regla de
+capas lo permite: una característica puede consumir el caso de uso o la interfaz de
+repositorio de otra, lo que no puede es importar su capa `data`.
+
+**Consecuencia.** `GetMyDeclaredServicesUseCase` es la puerta de HU-10; HU-11 y HU-13
+entrarán por un caso de uso propio del mismo paquete cuando lo necesiten, no por el
+repositorio. La pantalla «Mis servicios» se alcanza desde la sección profesional de «Mi
+perfil», que ya está condicionada al rol activo `PROFESSIONAL`: declarar un servicio es
+una afirmación que un paciente no puede hacer, igual que la disponibilidad inmediata.
+
+---
+
+## 2026-10-09 · HU-10: el catálogo y lo declarado llegan en dos lecturas, no en un embed
+
+**Contexto.** La pantalla necesita dos cosas a la vez: los servicios que el profesional ya
+declaró, con el nombre de cada tipo, y los tipos que le quedan por declarar. PostgREST
+permite traerlo en una sola petición incrustando `service_types` dentro de
+`professional_services`.
+
+**Decisión.** Dos lecturas, `service_types` completo y `professional_services` propio, que
+el repositorio empareja. Sin embed.
+
+**Razonamiento.** La pantalla necesita el catálogo entero de todos modos, porque la segunda
+sección es justamente lo que falta por declarar: un embed traería el nombre de los tipos ya
+declarados y seguiría faltando una segunda petición por los otros. Son doce filas de dato
+de referencia. Se suma lo que ya pesó el 2026-10-06 al elegir dos vistas en lugar de un
+embed: la forma de la respuesta de un embed depende de la política de la tabla incrustada,
+y una fila que la política esconde desaparece sin avisar.
+
+**Consecuencia.** Y aquí ese riesgo aparece igual, porque `service_types_select_all` filtra
+por `active`: un tipo que el administrador desactive deja de tener fila contra la que
+emparejar, y el servicio declarado sobre él **desaparece de la pantalla** en lugar de
+dibujarse como una tarjeta sin nombre ni duración. La fila sigue en la base y la búsqueda
+sigue sin devolverlo, porque `search_nearby_professionals` también exige `ps.active` y la
+unión con el catálogo. Queda anotado porque es observable: el profesional vería un servicio
+menos sin que nada se lo explique. Cubrir eso exige decidir qué pasa con un tipo retirado
+del catálogo, que es trabajo de la pantalla de administración del catálogo y no existe hoy.
+
+---
+
+## 2026-10-09 · HU-10: quitar un servicio declarado es un `delete`, no `active = false`
+
+**Contexto.** Los criterios de HU-10 piden declarar un servicio y que el tipo repetido se
+rechace. No piden corregir el precio ni retirar un tipo. Con solo esas dos operaciones, un
+precio mal escrito queda publicado para siempre: el criterio del rechazo cierra la única
+puerta que quedaría para arreglarlo. `professional_services` tiene además una columna
+`active` que invita a un retiro blando.
+
+**Decisión.** La historia incluye las tres operaciones —declarar, corregir el precio y
+quitar—, y quitar es un `delete` de la fila. `active` se queda en su valor por omisión y
+nadie la escribe.
+
+**Razonamiento.** Las tres caben sin tocar el esquema: `professional_services_write_own` es
+`for all`. El retiro blando no sirve aquí, porque el índice único es sobre
+`(professional_id, service_type_id)` y no sobre las filas activas: una fila apagada
+bloquearía volver a declarar ese mismo tipo, de modo que «quitar» haría imposible
+«declarar» otra vez. Nada apunta a una fila de `professional_services` —
+`service_requests.service_type_id` referencia el catálogo, no la declaración—, así que el
+borrado no deja huérfanos ni toca histórico: INV-05 protege `services` y `payments`, que
+son otra cosa.
+
+**Consecuencia.** `active` queda como columna sin escritor. Es el interruptor de «ahora
+mismo no presto esto» que ningún requisito pide; el profesional que quiere dejar de
+aparecer apaga su disponibilidad inmediata (RF-02.5) o quita el servicio. Si algún día se
+pide la pausa por tipo, se agrega con su requisito y su historia, y entonces el índice
+único hay que revisarlo primero.
+
+---
+
+## 2026-10-09 · HU-10: el tipo repetido se rechaza en tres capas, y cada una por su razón
+
+**Contexto.** El tercer criterio de HU-10 es un rechazo: agregar dos veces el mismo tipo no
+se permite.
+
+**Decisión.** Lo garantiza el índice único del motor. Encima, el caso de uso lo rechaza
+antes de escribir, la pantalla no ofrece un tipo ya declarado, y el transformador de
+errores traduce la violación del índice a `CatalogError.ServiceAlreadyDeclared`.
+
+**Razonamiento.** El índice es la única garantía real y es lo que se verificó contra el
+proyecto remoto. Las otras tres no son copias de la regla, son tres cosas distintas: la
+pantalla no invita a un acto que va a fracasar, el caso de uso evita el viaje y devuelve un
+tipo de error accionable en vez de un nombre de restricción, y el transformador cubre lo
+único que queda después de todo eso: la carrera entre la lectura del caso de uso y su
+escritura, o un segundo dispositivo.
+
+**Consecuencia.** El transformador se agarra del nombre literal
+`professional_services_professional_id_service_type_id_key`, porque PostgREST entrega el
+detalle de la violación en el cuerpo de la respuesta y `supabase-kt` lo arrastra como
+mensaje de la excepción. Es el mismo asidero que ya se usa para los `raise` de plpgsql, con
+la misma fragilidad: si el nombre cambia, el rechazo se degrada a «error inesperado». Lo
+sostiene `CatalogErrorMapperTest`, que además comprueba que la restricción del precio de la
+misma tabla **no** se confunde con el duplicado.
+
+---
+
+## 2026-10-09 · HU-10: el estado vacío es un bloque de la pantalla, no una variante del estado
+
+**Contexto.** El punto 10 de la Definición de Terminado exige resolver los cuatro estados,
+y `.claude/rules/compose.md` los muestra como cuatro variantes de una jerarquía sellada,
+que es lo que hacen `AddressListUiState` y `QueueListState`.
+
+**Decisión.** `MyServicesUiState` tiene tres variantes —`Loading`, `Failed` y `Content`— y
+el estado vacío se dibuja dentro de `Content`.
+
+**Razonamiento.** Un profesional sin nada declarado sigue necesitando el catálogo en
+pantalla: es su única salida de ese estado. Una variante `Empty` tendría que cargar el
+catálogo, el editor abierto, el indicador de escritura en curso y el aviso de error, es
+decir todo lo que `Content` ya lleva menos la lista. Dos variantes idénticas salvo una lista
+vacía es la duplicación que la regla no pide; lo que la regla pide es que el estado esté
+resuelto, y lo está, con su propia previsualización y su propia prueba de interfaz.
+
+**Consecuencia.** La prueba
+`withNothingDeclaredTheEmptyBlockAndTheCatalogAreBothReachable` es la que fija esto: si
+alguien convierte el bloque en una pantalla aparte y se lleva el catálogo, falla.
+
+---
+
+## 2026-10-09 · El ayudante de disposición gana una variante que no desplaza, y un diálogo abre otra raíz
+
+**Contexto.** `assertFitsTheScreen` desplaza antes de medir, porque toda pantalla del
+proyecto es desplazable y exigir que un control esté a la vista sin desplazar marcaría como
+defecto una disposición correcta (2026-10-08). El contenido de un `AlertDialog` no desplaza:
+`performScrollTo` falla ahí con «no parent layout with a Scroll SemanticsAction», que no
+dice nada de la disposición. Y un diálogo abierto es una segunda ventana, de modo que
+`onRoot()` encuentra dos nodos y se niega a elegir.
+
+**Decisión.** `LargeFont.kt` gana `assertFitsTheScreenWithoutScrolling`, para un control
+cuyo contenedor no desplaza, y la medición del borde de la pantalla toma la primera de las
+raíces.
+
+**Razonamiento.** Hacer tolerante a `assertFitsTheScreen` habría sido más corto y habría
+apagado justamente la mutación que HT-18 verificó: quitarle el desplazamiento a una pantalla
+tiene que seguir fallando. Dos funciones explícitas dicen cuál de las dos cosas se está
+afirmando. La primera raíz es la pantalla; la ventana del diálogo abarca el mismo ancho, y
+el ancho es el eje del que hablan las dos aserciones.
+
+**Consecuencia, y es la parte incómoda.** Al escribir estas pruebas se intentó la mutación
+«los dos botones de la tarjeta en un `Row` en vez de un `FlowRow`» esperando que fallara,
+y **pasó**. Es el punto ciego del 2026-10-08 en vivo: la etiqueta se recorta dentro de su
+propio botón, Compose la mide al ancho que el contenedor le da, y ni los límites ni la
+semántica delatan nada. El `FlowRow` se queda porque es la disposición correcta, pero
+**ninguna prueba lo sostiene** y el comentario del código lo dice con esas palabras. Lo que
+sí se verificó por mutación: quitarle el desplazamiento a la lista hace fallar cuatro de las
+seis pruebas, y que una acción deje de componerse hace fallar la suya.
+
+Se intentó además un `verticalScroll` en el contenido de los dos diálogos, por el
+antecedente de HU-06. Se quitó: sin él, a 320 dp y 200 % de fuente **no se recorta nada**, y
+dejarlo habría sido programación defensiva sin prueba que la sostenga. Además lo empeoraba:
+con el desplazamiento puesto, la pantalla deja de poder recortar y la prueba pierde la única
+señal que tiene. Sin él, `assertIsDisplayed` sobre el motivo del rechazo es lo que avisaría
+si el contenido del diálogo creciera.
+
+---
+
+## 2026-10-09 · Los nombres del catálogo de servicios se acentúan con una migración nueva
+
+**Contexto.** Los doce tipos de atención se sembraron el 2026-09-11 sin acentos
+(«Consulta medica general», «Aplicacion de inyectables»). HU-10 es la primera historia que
+los muestra a un usuario: aparecen en la pantalla del profesional y, desde HU-11 y HU-12,
+en los resultados de búsqueda y en la ficha pública.
+
+**Decisión.** Una migración nueva que actualiza nombre y descripción de los doce. La
+semilla original no se toca.
+
+**Razonamiento.** Una migración aplicada no se edita, así que el arreglo es una migración
+nueva. El `update` se busca por el nombre antiguo, de modo que no encuentra nada una vez
+aplicado y una base reconstruida desde cero llega al mismo estado: la semilla escribe los
+nombres sin acento y esta migración los corrige después, siempre en ese orden.
+
+**Consecuencia.** El catálogo es dato, no recurso de cadenas, y viaja en español desde la
+base. La regla de internacionalización no lo alcanza y **no hay vía para traducirlo**: el
+día que exista `values-en/`, los nombres de los tipos seguirán en español. Traducirlos
+exigiría una tabla de traducciones del catálogo, que ningún requisito pide. Queda anotado
+aquí y no se agrega.
+
 ---
 
 ## Plantilla para entradas nuevas
