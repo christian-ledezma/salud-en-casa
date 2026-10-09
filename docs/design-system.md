@@ -257,6 +257,15 @@ El mapa se instancia **sin identificador de estilo en la nube**, porque eso
 reclasifica cada carga a una categoría facturable, y adopta el esquema de color del
 sistema para que el esquema oscuro no quede con un mapa claro encima.
 
+### Visor de documento
+
+Muestra la imagen de un documento de verificación dentro de una caja de proporción
+4:3, con `ContentScale.Fit` para que no se recorte ningún dato del documento, sobre
+`surfaceVariant`. Tiene estado de carga, de error con reintento y de documento sin
+cargar. La proporción vive como constante de la pantalla porque no es una medida de
+la escala de 4 dp. La imagen nunca se guarda en disco (`docs/decisions.md`,
+2026-10-06).
+
 ### Campo de formulario
 
 Etiqueta encima del campo, en `labelMedium` y `onSurfaceVariant`. Campo delineado

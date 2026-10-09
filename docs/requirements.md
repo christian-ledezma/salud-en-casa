@@ -35,6 +35,7 @@ la atención y construye reputación verificable.
 | **Paciente** | Persona que solicita atención domiciliaria para sí o para un familiar |
 | **Profesional** | Médico, enfermera, fisioterapeuta o estudiante del área de salud que presta atención domiciliaria de forma independiente |
 | **Administrador** | Responsable de verificar documentos y conciliar los pagos y comisiones de la plataforma |
+| **Super administrador** | Concede el rol de administrador. No revisa documentos ni lee conversaciones. *(Pendiente: HT-17.)* |
 
 **Paciente y profesional son roles, no personas distintas.** Una misma persona
 puede tener ambos y alternar entre ellos (RF-01.8); el rol activo determina qué le
@@ -56,6 +57,8 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | RF-01.6 | El sistema mantiene la sesión entre ejecuciones y la renueva de forma automática. |
 | RF-01.7 | El usuario puede cerrar sesión y puede solicitar la eliminación de su cuenta y sus datos. |
 | RF-01.8 | Un usuario puede tener los roles de paciente y profesional a la vez, activar el segundo cuando lo decida, y alternar entre ellos. El rol activo determina qué le muestra la aplicación y persiste entre ejecuciones. |
+| RF-01.9 | El rol de administrador es exclusivo: quien lo tiene no tiene ningún otro rol, y quien tiene otro rol no puede recibirlo. |
+| RF-01.10 | Solo el super administrador concede el rol de administrador, mediante una invitación por correo que se consume al primer ingreso de esa cuenta. El super administrador no revisa documentos ni accede a conversaciones. *(Pendiente: HT-17. Hasta entonces el rol se otorga de forma manual, como dice RF-01.5.)* |
 
 ### RF-02 · Gestión de perfiles
 
@@ -272,3 +275,6 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-08 | Operación sin conexión y caché local | Ningún requisito la exige en esta fase. Se agregaría con una base de datos local y su historia propia. |
 | FA-09 | Renuncia a un rol ya activado | Ninguna parte interesada la pidió. `profile_roles` es de solo agregar, igual que `request_offers`. Quien ya no quiere ejercer como profesional apaga su disponibilidad inmediata (RF-02.5); dar de baja el rol exigiría decidir qué pasa con sus servicios y calificaciones históricos, que INV-05 prohíbe sobrescribir. Se incorporaría con una política de baja en `profile_roles` y su propia historia. |
 | FA-10 | Reputación y verificación por tipo de profesional | Hoy la verificación y la reputación son del rol profesional completo. Distinguir, por ejemplo, la reputación como fisioterapeuta de la reputación como enfermera exigiría asociarlas a `professional_services` y no al rol. |
+| FA-11 | Notificar al usuario el veredicto de un documento | Hoy lo ve al abrir su pantalla de verificación, que es lo que piden los criterios de HU-09. Se haría con `device_tokens` y una función de servidor que notifique. |
+| FA-12 | Rechazar la postulación profesional completa | Hoy se rechaza documento por documento y `professionals.verification_status` solo llega a `APPROVED` por la función de promoción. Un estado `REJECTED` del perfil exigiría decidir qué ve esa persona y cómo vuelve a postular. |
+| FA-13 | Historial de veredictos de un documento reabierto | Al reabrirse, la fila se sobrescribe y el veredicto anterior no se conserva. Conservarlo exigiría una tabla de solo agregar vinculada al documento. |

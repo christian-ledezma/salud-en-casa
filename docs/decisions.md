@@ -3125,6 +3125,461 @@ cómo se compone la pantalla.
 
 ---
 
+## 2026-10-06 · HU-09: el panel de revisión vive en la aplicación, no en una web
+
+**Contexto.** La tarea técnica de HU-09 en `plan.md` decía «panel administrativo
+web mínimo», y `CLAUDE.md` declara que el producto es exclusivamente Android. Las
+dos frases no pueden ser verdad a la vez.
+
+**Decisión.** El administrador revisa desde pantallas de Compose dentro de la
+aplicación, en `features/verification`. No hay panel web. La entrada es un botón
+de «Mi cuenta» visible solo para quien tiene el rol `ADMIN`.
+
+**Razonamiento.** Las pantallas reutilizan el tema, las cadenas, Koin y la
+navegación que ya existen, y no suman stack, alojamiento ni costo (RNF-10). Una
+web habría contradicho el alcance declarado y habría exigido su propio manejo de
+la clave anónima y su propia forma de probarse. Tampoco se creó un
+`features/admin`: habría tenido que importar la capa `data` de `verification`,
+que `ArchitectureRulesTest` prohíbe, o duplicar lo que esa capa sabe del bucket y
+de la tabla.
+
+**Consecuencia.** La tarea técnica de `plan.md` se corrigió. Un administrador no
+tiene perfil, direcciones ni documentos propios, de modo que «Mi cuenta» le
+muestra solo la cola de revisión y cerrar sesión.
+
+---
+
+## 2026-10-06 · HU-09: una sola puerta hacia APPROVED, y la custodia el motor
+
+**Contexto.** La decisión del 2026-10-05 dejó anotado que HU-09 debía proveer el
+único camino a `verification_status = 'APPROVED'`, y que ese camino no podía ser
+una escritura directa. `professionals` no tiene política de actualización para el
+administrador.
+
+**Decisión.** La función `approve_professional_verification(uuid)`, `security
+definer` con `search_path` fijo, es la única puerta. Comprueba que quien llama
+sea administrador, que la persona tenga el rol profesional y un perfil completo,
+y que **todo** documento requerido esté aprobado. No se agregó la política
+`professionals_update_admin` y no se le agregará. Otra función,
+`required_document_types(uuid)`, calcula qué documentos debe tener aprobados una
+persona, y no se concede a `authenticated`.
+
+**Razonamiento.** Con una política de actualización, el administrador podría
+aprobar a un profesional con cero documentos y INV-07 quedaría sujeto a una
+comprobación del cliente. La función fija la regla de completitud donde no se
+puede saltar. `required_document_types` queda sin permiso de ejecución porque
+revelaría, para cualquier identificador, si esa persona es profesional y de qué
+tipo.
+
+**El conjunto requerido existe dos veces, a propósito.** Vive en
+`VerificationChecklist` (Kotlin), que **predice** y decide si se ofrece el botón,
+y en `required_document_types` (SQL), que **decide**. Si divergen, el motor nunca
+aprueba a alguien de más: rechaza con un error tipado. Lo que sostiene la
+paridad es `RequiredDocumentsParityTest`, que lee la migración desde disco y
+falla si un lado cambia sin el otro. Se escribió con arreglos literales para que
+esa prueba pueda leerlos.
+
+**Descartado.** Promoción automática al aprobarse el último documento: obligaba a
+relajar `guard_verification_status` para escrituras anidadas y quitaba al
+administrador el acto explícito que pide el criterio («cuando confirmo»). Pasar
+la lista requerida como parámetro: el cliente mandaría un arreglo vacío y la
+comprobación quedaría vacía. Una tabla `required_documents`: tabla, política y
+una consulta más para siete valores de un enumerado.
+
+**La revisión de código ajustó la función** en `20261006130000`. Toma
+`for update` sobre la fila de `professionals` **antes** de leer el tipo y los
+documentos: sin el bloqueo, un administrador podía rechazar el título después de
+que otro hiciera la comprobación y antes de que escribiera, y la escritura dejaba
+`APPROVED` sobre un documento ya rechazado. Con el bloqueo, el disparador de
+degradación espera, y al reanudarse vuelve a evaluar el estado y degrada. Es un
+argumento sobre el orden de los bloqueos: **no se ejercitó** con dos conexiones,
+porque un experimento SQL de una sola conexión no puede intercalarlas. Devuelve
+`void`, porque el `APPROVED` constante que devolvía nadie lo leía, y se retiró la
+comprobación del rol, que la existencia de la fila de `professionals` ya implica
+(`professionals_insert_own` exige el rol). `required_document_types` pasó a
+`security invoker`, pues solo la llaman funciones que ya corren como propietario.
+
+**Consecuencia.** Quedó verificado contra el remoto que la función rechaza a quien
+no es administrador, incluido el propio profesional, y que rechaza mientras falte
+un documento requerido y acepta cuando se aprueba el último.
+
+---
+
+## 2026-10-06 · HU-09: el motor firma el veredicto y degrada al profesional
+
+**Contexto.** El administrador ya podía escribir veredictos: `verification_documents`
+tenía las políticas `select_admin` y `update_admin`, y el guardia de revisión
+excluye al administrador. Pero la política `update_admin` solo pedía `is_admin()`,
+así que el cliente decidía quién firmaba y cuándo, y aprobar un documento antes
+rechazado violaba `rejection_reason_matches_status` si olvidaba limpiar el motivo.
+
+**Decisión.** Tres piezas en la migración `20261006120000`:
+
+- Un disparador `before update`, solo cuando escribe un administrador, sella
+  `reviewed_by` y `reviewed_at` y limpia el motivo al aprobar. El cliente envía
+  únicamente `status` y, al rechazar, `rejection_reason`. **La primera versión
+  disparaba solo ante un cambio de `status`**, de modo que un administrador aún
+  podía reescribir `reviewed_by` y `reviewed_at` sobre una fila cuyo estado no
+  cambiaba, y el comentario afirmaba lo contrario. La migración `20261006130000`
+  lo amplía: sin veredicto nuevo, esos dos campos conservan su valor.
+- Un disparador `after update of status` baja a `PENDING` al profesional que
+  estaba `APPROVED` cuando un documento **requerido** deja de estarlo. El adjunto
+  opcional `OTHER` no baja a nadie.
+- Una restricción de 1 a 300 caracteres sobre `rejection_reason`, espejo del
+  objeto de valor `RejectionReason`. Hasta ahora una cadena vacía pasaba.
+
+**Razonamiento.** Sin el segundo disparador, rechazar un título después de la
+promoción deja a la persona en las búsquedas, que es exactamente lo que INV-07
+prohíbe, y el agujero es alcanzable desde la pantalla que esta historia agrega.
+Sellar en el motor evita además un `reviewed_at` con el reloj del teléfono.
+
+**Consecuencia.** La política `update_admin` no se endureció: permite escribir
+cualquier columna, y lo que acota el daño real son `storage_path_matches_owner` y
+`storage_path_unique` de HU-07. No hay requisito que pida más, así que se deja
+anotado como limitación aceptada. Al reabrir un documento, el dueño sobrescribe la
+fila, de modo que el historial de veredictos anteriores no se conserva (FA-13).
+
+---
+
+## 2026-10-06 · HU-09: el rol ADMIN es exclusivo, y por eso no hay cláusula contra la autorrevisión
+
+**Contexto.** Al revisar el esquema apareció un hueco: una cuenta con `ADMIN` y
+`PROFESSIONAL` podía aprobar sus propios documentos y promoverse. La primera
+propuesta fue cerrarlo con `profile_id <> auth.uid()` en la política, en la
+función y en las vistas.
+
+**Decisión.** El autor decidió que el rol de administrador sea exclusivo: quien lo
+tiene no tiene ningún otro rol. El disparador `guard_admin_role_exclusivity`, antes
+de insertar en `profile_roles`, rechaza con `admin_role_is_exclusive` tanto agregar
+otro rol a un administrador como agregar `ADMIN` a quien ya tiene otro. No es
+retroactivo.
+
+**Razonamiento.** Con la exclusividad, un administrador no tiene documentos que
+revisar y la autorrevisión es imposible por construcción. Agregar además la
+cláusula contra la autorrevisión sería defensa para un caso que no puede ocurrir,
+que es lo que `CLAUDE.md` prohíbe, y duplicaría la regla en tres sitios.
+`ProfileRoles.addable` queda vacío para un administrador, de modo que la pantalla
+no le ofrece «activar paciente» una acción que la base rechazaría.
+
+**Consecuencia.** La cuenta administradora de pruebas se preparó fuera de la
+aplicación, con la clave de servicio, en una sola transacción con guardas que
+abortan si el estado no es el esperado.
+
+**Hueco encontrado en la revisión de código y cerrado el mismo día.**
+`profile_roles_insert_admin` permitía a un administrador insertar roles a otras
+personas, incluido `ADMIN` a una cuenta recién creada sin ningún rol, donde la
+exclusividad no lo impide. Una cuenta de administrador robada fabricaba así otro
+administrador persistente. Ningún código del cliente usaba la política, de modo
+que la migración `20261006130000` la elimina y conceder `ADMIN` vuelve a ser una
+operación manual con la clave de servicio, como dice RF-01.5, hasta que HT-17 dé
+ese poder únicamente al super administrador.
+
+---
+
+## 2026-10-06 · HU-09: dos vistas con `security_invoker` en lugar de un embed
+
+**Contexto.** La cola y el encabezado del revisado juntan `verification_documents`,
+`profiles`, `profile_roles` y `professionals`. Un embed de PostgREST habría
+evitado crear vistas.
+
+**Decisión.** `document_review_queue` y `document_review_profiles`, ambas con
+`security_invoker = true`.
+
+**Razonamiento.** `profiles` es ambiguo desde `verification_documents`: hay dos
+claves foráneas hacia ella, `profile_id` y `reviewed_by`, la misma trampa que HU-03
+ya pagó con `my_roles`. Con `security_invoker`, quien decide qué filas salen son
+las políticas de administrador que ya existen, de modo que INV-13 sigue
+resolviéndose en las políticas y no en la vista. Con `security_invoker = false` las
+vistas habrían expuesto los documentos de todo el mundo.
+
+**La revisión de código quitó dos columnas que ningún código leía**
+(`storage_path` de la cola y `photo_url` del revisado): una vista no expone más de
+lo que consume. Se recrearon en `20261006130000`.
+
+**Consecuencia.** Para quien no es administrador devuelven únicamente filas
+propias. Verificado contra el remoto: el administrador ve los cinco documentos
+pendientes de otra persona, un tercero ve cero, y el dueño ve los suyos.
+
+---
+
+## 2026-10-06 · HU-09: la URL firmada del documento vale cinco minutos
+
+**Contexto.** HU-07 eliminó `GetSignedDocumentUrlUseCase` anotando que reaparecería
+cuando una historia posterior la pidiera, y dejó sin decidir la vigencia.
+
+**Decisión.** Cinco minutos. Se pide al abrir el detalle y de nuevo con cada
+reintento de la imagen; nunca se guarda en estado persistente.
+
+**Razonamiento.** Alcanza para mirar un documento y es demasiado corta para que un
+enlace copiado sirva a quien lo reciba. `compose.md` exige URL firmada para toda
+imagen del almacenamiento privado, y `supabase.md` prohíbe la pública.
+
+**Consecuencia.** Si la imagen no carga, la pantalla ofrece reintentar, que pide
+una URL nueva. La política `verification_documents_storage_select_admin` ya
+existía; se verificó que el administrador lee los objetos reales del bucket y que
+un tercero no lee ninguno.
+
+---
+
+## 2026-10-06 · HU-09: cambiar el tipo profesional retira la verificación
+
+**Contexto.** La revisión de código encontró, por dos caminos independientes, que un
+profesional ya `APPROVED` podía cambiar su `professional_type` desde su propia
+pantalla de perfil y conservar el estado. `required_document_types` depende del
+tipo, pero la degradación automática solo reaccionaba a un cambio de `status` de un
+documento. Un estudiante aprobado con su carnet pasaba a médico sin matrícula, o una
+enfermera aprobada con la matrícula de su profesión pasaba a médico con ella, y
+seguía en `professional_directory` y en la búsqueda por cercanía. Se **reprodujo**
+contra el remoto antes de corregir: tras el cambio el estado seguía `APPROVED` y el
+directorio devolvía 1 fila.
+
+**Decisión.** `guard_verification_status` degrada a `PENDING` cuando el tipo cambia
+estando `APPROVED`. Se descartó rechazar el cambio de tipo: el profesional que se
+equivocó de tipo debe poder corregirlo, y que vuelva a revisión es la consecuencia
+natural.
+
+**Razonamiento.** La degradación vive en el mismo guardia que ya custodia
+`verification_status`, no en un disparador aparte: los disparadores corren por orden
+alfabético y uno anterior al guardia sería rechazado por él.
+
+**Consecuencia.** Tras la corrección el mismo experimento devuelve `PENDING` y 0 filas
+en el directorio. Su control: editar el perfil sin cambiar el tipo conserva
+`APPROVED`. El profesional sigue sin poder escribir su propio `APPROVED`.
+
+---
+
+## 2026-10-06 · HU-09: tras cada escritura el expediente se relee
+
+**Contexto.** El estado del profesional lo deciden disparadores de la base: la
+promoción lo sube y el rechazo de un documento requerido lo baja.
+
+**Decisión.** Tras cada veredicto o promoción, la pantalla relee el expediente en vez
+de corregir su estado local. Una escritura que tuvo éxito cierra los diálogos aunque
+la relectura falle; el error se muestra fuera de ellos.
+
+**Razonamiento.** Una segunda copia de esa regla en la pantalla es como las dos
+terminarían divergiendo. Cerrar el diálogo aunque falle la relectura evita que el
+administrador crea que su rechazo no se guardó y lo repita: el segundo intento no
+cambia el estado, así que el sello conserva la marca del primero.
+
+**Consecuencia.** El estado se toma después de la suspensión de la relectura, no antes:
+una URL firmada que llegó mientras tanto se perdería al copiar un estado anterior.
+
+---
+
+## 2026-10-06 · HU-09: la cola pagina por desplazamiento, y una fila ilegible falla la página
+
+**Contexto.** RNF-08 exige toda lista paginada. La cola se ordena por `created_at` y
+`id`, y se pide de 20 en 20.
+
+**Decisión.**
+
+- Una fila con un tipo de documento o una fecha que esta versión no entiende hace
+  fallar la página; no se descarta. Descartarla haría que una página llena parezca
+  corta, y una página corta es la única señal de que la cola terminó.
+- Al agregar una página se eliminan las filas ya listadas. Un documento reabierto
+  conserva su fecha de creación y retrocede en la cola, así que el desplazamiento
+  puede devolver una fila que ya está, y dos filas con la misma clave bloquean un
+  `LazyColumn`.
+- Un `refresh` cancela la página siguiente que esté en camino. Al volver del detalle
+  se dispara un `refresh` y casi a la vez el pie pide la página siguiente; si esa
+  respuesta llegaba después, se pegaba sobre la primera página nueva y las filas
+  intermedias desaparecían de la lista.
+
+**Razonamiento.** La paginación por cursor sobre `(created_at, id)` evitaría el
+desplazamiento, pero con un solo administrador y una cola corta no justifica la
+consulta más compleja. Queda como trabajo futuro si la cola crece.
+
+**Consecuencia.** La prueba de la carrera se comprobó por mutación: sin la
+cancelación falla, y con ella pasa.
+
+---
+
+## 2026-10-06 · HU-09: las imágenes de los documentos no se guardan en el disco del teléfono
+
+**Contexto.** Coil guarda en disco por omisión lo que descarga. La URL firmada vale
+cinco minutos, pero esa vigencia protege el enlace, no la copia local: las fotos de
+carnet, rostro y título de todos los revisados se acumularían en el caché de la
+aplicación y sobrevivirían a la URL.
+
+**Decisión.** La imagen del documento se pide con `diskCachePolicy` desactivado. Queda
+el caché de memoria, que no sobrevive al proceso.
+
+**Razonamiento.** El modelo de amenaza incluye el teléfono del administrador perdido o
+robado, y son documentos de identidad. Costo: cada apertura vuelve a descargar.
+
+**Consecuencia.** Es la primera imagen del proyecto que viene de un bucket privado, y
+queda como la regla para cualquier otra: una imagen sensible no se cachea en disco.
+
+---
+
+## 2026-10-06 · HT-17 planificada: super administrador por invitación, con la identidad fuera del repositorio
+
+**Contexto.** El autor quiere un `SUPER_ADMIN` sembrado, único con potestad de
+promover administradores, y que ni un administrador ni un super administrador
+tengan otro rol. RF-01.5 dice hoy que el rol «se otorga de forma manual».
+
+**Decisión.** Es una historia técnica propia, **posterior a HU-09**, con requisitos
+nuevos RF-01.9 y RF-01.10. HU-09 sigue con la concesión manual, que es lo que
+RF-01.5 pide hoy. El flujo acordado es una **invitación por correo**: el super
+administrador invita una dirección y, al primer ingreso, `handle_new_user` (que ya
+es `security definer` y ya tiene el correo) consume la invitación e inserta el rol,
+de modo que la cuenta nunca pasa por la pantalla de elección de rol.
+
+**Razonamiento.** Promover una cuenta ya existente choca con dos reglas que ya
+rigen: RF-01.4 empuja a toda cuenta nueva a elegir paciente o profesional antes de
+cualquier otra cosa, y `profile_roles` es de solo agregar (FA-09). Quien ingrese y
+toque «paciente» queda inelegible para siempre sin la clave de servicio, y un
+protocolo del tipo «ingresa pero no toques nada» falla con el tiempo. `SUPER_ADMIN`
+se agrega como cuarto valor de `user_role` renombrando y recreando el tipo, como ya
+se hizo con `document_type`. No hereda nada del administrador: no lee documentos.
+
+**La identidad no se versiona.** Qué cuenta es super administradora se instala una
+sola vez con la clave de servicio, tecleando el valor en la terminal. El esquema
+viaja en la migración y la identidad no: es la línea que ya traza
+`20260911120700_seed_data.sql` («reference data, not test data»). Se descartó
+leer el correo con `current_setting`, porque `supabase db reset` produciría un
+proyecto sin super administrador sin que nada falle.
+
+**Consecuencia.** HT-17 retira `profile_roles_insert_admin`. No hay revocación:
+conceder `ADMIN` es irreversible sin la clave de servicio, y hay que decirlo antes.
+
+---
+
+## 2026-10-06 · HU-09: sin dispositivo, y lo que queda sin comprobar
+
+**Contexto.** HU-09 no figura en «Cuándo hace falta un dispositivo» ni cumple las
+dos condiciones de criticidad.
+
+**Decisión.** Se cierra con pruebas, con experimentos SQL contra el remoto y con las
+previsualizaciones en claro, oscuro y al 200 %.
+
+**Qué no se comprobó, dicho sin rodeos.** Que la imagen de un documento se dibuje
+de verdad en pantalla a partir de la URL firmada es la primera imagen del proyecto
+que viene de un bucket privado. Lo cubren la política de Storage verificada en el
+remoto y los estados de la pantalla, pero no el dibujo real con Coil. Tampoco se
+corrió `supabase db reset`: no hay entorno local con Docker (HT-04 aplazado) y
+ejecutarlo contra el remoto borraría los datos de prueba.
+
+---
+
+## 2026-10-08 · Los sprints cierran por fecha de corte de 7 días corridos, desde el Sprint 4
+
+**Contexto.** Cuatro retrospectivas seguidas (Sprints 1, 2, 2.5 y 3) terminaron con la
+misma frase: el sprint cerró porque se agotó el alcance y no el plazo, así que los
+puntos entregados miden lo planificado y no la capacidad. En cada una se propuso cerrar
+la siguiente por fecha de corte, y en ninguna se escribió la fecha. El Sprint 3 entregó
+21 de sus 24 puntos en dos días de trabajo efectivo, tras 21 en cuatro, 21 en dos y 23 en cuatro:
+una serie que no permite proyectar nada.
+
+**Decisión.** Desde el Sprint 4, cada sprint tiene una fecha de corte de **7 días
+corridos desde su primer día**, contados ese día inclusive. Al llegar la fecha el sprint
+se cierra: lo que no esté terminado según la Definición de Terminado se traslada y lo
+terminado se cuenta. La fecha se escribe en `plan.md` el primer día del sprint.
+
+**Razonamiento.** Con alcance fijo y plazo variable, el tiempo se adapta al trabajo y el
+número que sale mide el plan. Con plazo fijo y alcance variable, el número que sale es
+la cantidad de trabajo terminado por unidad de tiempo, que es la velocidad. El plazo se
+fija en siete días porque es corto para obligar a que el alcance ceda y largo para que
+una historia de 13 puntos, como HU-11, quepa entera. Lo decidió el autor.
+
+**Consecuencia.** La retrospectiva del Sprint 4 es la primera que puede decir algo sobre
+capacidad. Una historia que no cierre a tiempo se traslada tal cual, sin recortar su
+Definición de Terminado para que quepa: recortarla es el atajo que esta regla existe
+para impedir.
+
+---
+
+## 2026-10-08 · Las pruebas de interfaz corren en la JVM, y lo que no alcanzan a ver
+
+**Contexto.** `app/src/androidTest` estaba vacío desde el Sprint 0 con sus dependencias
+declaradas, y el proyecto acumulaba cinco defectos de disposición —dos en el Sprint 2.5,
+el diálogo de HU-06, el chip de HU-07— que una prueba de interfaz al 200 % de fuente
+habría atrapado. La retrospectiva del Sprint 3 dejó la elección abierta: escribir la
+primera prueba, o aceptar por escrito seguir sin ella.
+
+**Decisión.** Se escriben, y **no en `androidTest` sino en `app/src/test`**, con
+Robolectric 4.17 y `graphicsMode=NATIVE`. Siete pruebas sobre cuatro pantallas, que al
+200 % de fuente y en un teléfono de 320 dp afirman que cada control se alcanza, se
+muestra y no se sale de los bordes.
+
+**Razonamiento.** La integración continua corre `staticAnalysis`, `test` y
+`assembleDebug`, todas en la JVM, y no levanta ningún emulador. Una prueba en
+`androidTest` no se ejecutaría nunca de forma automática, y el emulador es justo el
+paso que el 2026-10-04 se dejó de exigir por haber bloqueado cierres sin aportar
+hallazgos proporcionales. Una prueba que no corre no es un control. En `app/src/test`
+corre en cada `./gradlew test`, en segundos, y en la CI. 320 dp es el ancho más angosto
+que Android todavía envía y el único en el que el defecto de HU-07 se reproduce.
+
+**`graphicsMode=NATIVE` no es un detalle.** Con el modo por omisión, Robolectric no
+mide texto: el chip de estado medía 3 dp de ancho y cualquier aserción de disposición
+era ruido. Se descubrió al ver esa cifra en el mensaje de fallo. Con gráficos nativos
+las medidas son reales.
+
+**Qué atrapan, comprobado por mutación el 2026-10-08.** Poner los dos botones de
+veredicto en un `Row` en vez de un `FlowRow` deja «Rechazar documento» fuera de la
+pantalla y la prueba falla. Quitar el desplazamiento vertical del detalle vuelve
+inalcanzable el pie y fallan dos.
+
+**Qué NO atrapan, y es la parte que importa.** El texto recortado **dentro** de su
+propio contenedor. Compose mide ese `Text` al ancho que el contenedor le da, de modo
+que ni los límites recortados ni los sin recortar ni la semántica delatan el recorte:
+se comprobó con un `Text` de veinte caracteres forzado a 60 dp, y las dos medidas
+devolvieron 60 dp. Esa es exactamente la forma de dos de los cinco defectos históricos
+—el rótulo del control segmentado y el chip—, así que **la revisión de las
+previsualizaciones sigue siendo obligatoria y no queda reemplazada**. Dos pruebas que
+escribí para cubrir esa forma pasaban con y sin el defecto, y se descartaron en vez de
+dejarlas: una prueba que no puede fallar es la que `testing.md` manda no escribir.
+
+**Descartado.** Pruebas de captura de pantalla con Roborazzi, que sí verían el recorte
+porque comparan píxeles: exigen imágenes de referencia versionadas que alguien tiene que
+aprobar a ojo y regenerar en cada cambio intencional de interfaz, o sea el mismo trabajo
+manual de mirar la previsualización más binarios en el repositorio. Queda nombrada como
+la única vía automática que cerraría ese hueco, si el autor decide pagar ese costo.
+El complemento de capturas del Android Gradle Plugin queda fuera por ser experimental.
+
+**Consecuencia.** La función de contenido de cada pantalla pasa de `private` a
+`internal`, que es lo que `compose.md` ya suponía al decir que es «la que se previsualiza
+y se prueba». `androidTest` sigue vacío a propósito y `connectedAndroidTest` no ejecuta
+nada; la tabla de `testing.md` y el `README.md` lo dicen. Toda pantalla nueva lleva su
+prueba al 200 %.
+
+---
+
+## 2026-10-08 · El entorno local de Supabase existe, y cierra lo que HT-04 aplazó
+
+**Contexto.** `CLAUDE.md` exige que `supabase db reset` reconstruya la base completa sin
+errores al cerrar cada sprint que toque el esquema. Nunca se había corrido: HT-04 aplazó
+el entorno local y la alternativa, correrlo contra el remoto, habría borrado los datos de
+prueba que sostienen la evidencia de HU-07. El Sprint 3 cerró con veintiséis migraciones
+que nadie había aplicado desde cero.
+
+**Decisión.** Se levanta el entorno local con Docker. En `supabase/config.toml` se
+desactiva `[analytics]`, porque los contenedores de analítica y de `vector` nunca
+alcanzaban un estado sano en esta máquina y hacían fallar `supabase start`, mientras que
+el esquema, las políticas y los disparadores —lo único que un reset existe para
+reconstruir— no los necesitan.
+
+**Resultado, 2026-10-08.** `supabase db reset` recrea la base y aplica las **26
+migraciones** sin un solo error. El catálogo del esquema reconstruido desde cero y el del
+proyecto remoto coinciden exactamente: 16 tablas, 0 sin seguridad a nivel de fila, 67
+políticas, 12 funciones `security definer` con `search_path` fijo, 0 políticas de
+administrador sobre `messages`, 12 tipos de servicio. Y `supabase db diff --linked
+--schema public` responde **«No schema changes found»**: el remoto no tiene deriva
+respecto de lo que producen las migraciones.
+
+**Razonamiento.** La reproducibilidad es un atributo de calidad exigible en la defensa, y
+hasta hoy era una afirmación sin respaldo. El diff estructural es más fuerte que el
+recuento: cubre tipos de columna y restricciones, no solo las garantías que se cuentan.
+
+**Consecuencia.** `db reset` sin `--linked` actúa solo sobre lo local, y
+`db reset --linked` no se corre nunca: borraría el proyecto remoto. El entorno queda
+documentado en `README.md`, que ahora pide Docker como requisito opcional, y la
+verificación entra en la tabla de `testing.md`. Los sprints 4 a 9 pueden ejercitar sus
+políticas en local antes de tocar el remoto.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

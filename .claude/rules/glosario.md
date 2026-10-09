@@ -45,6 +45,13 @@ que lo introduce.
 | Reputación | `averageRating` | Promedio de calificaciones recibidas |
 | Total de calificaciones | `totalReviews` | Cuántas calificaciones sostienen el promedio |
 | Distancia en metros | `distanceM` | Resultado de la búsqueda por cercanía |
+| Cola de revisión | `PendingDocumentReview` | Documento `PENDING` que espera el veredicto del administrador |
+| Expediente de revisión | `DocumentReviewDossier` | La persona revisada, sus documentos y su lista de requeridos |
+| Veredicto | `verdict` | Aprobación o rechazo de un documento por el administrador |
+| Revisado | `DocumentReviewSubject` | La persona cuyos documentos revisa el administrador |
+| Verificar al profesional | `approveProfessional` | Acto del administrador que lleva a `APPROVED` al profesional |
+| Motivo de rechazo | `RejectionReason` | Objeto de valor del texto que el usuario lee al ser rechazado un documento |
+| Documentos requeridos | `required_document_types` | Función del motor que dice qué debe tener aprobado una persona |
 
 ## Atributos frecuentes
 
@@ -165,7 +172,8 @@ Dieciséis tablas. `profile_roles` se agregó en el Sprint 2.5, al dejar de ser
 Vistas de apoyo: `professional_directory`, la proyección pública del profesional
 sin datos de contacto · `my_addresses`, las direcciones propias con el punto ya
 proyectado a latitud y longitud · `my_roles`, los roles propios y el rol activo
-en una sola fila.
+en una sola fila · `document_review_queue` y `document_review_profiles`, las dos
+lecturas del administrador en la revisión de documentos.
 
 ## Sufijo de moneda
 

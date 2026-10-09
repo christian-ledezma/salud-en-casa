@@ -178,7 +178,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[x]` |
 | 2 | Perfiles y ubicación | 2 · Perfiles | 21 | `[x]` |
 | 2.5 | Rol múltiple con rol activo | 2 · Perfiles | 23 | `[x]` |
-| 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[~]` en curso |
+| 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[x]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[ ]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[ ]` |
 | 6 | Negociación de tarifas | 3 · Coordinación | 26 | `[ ]` |
@@ -453,11 +453,11 @@ sus políticas de seguridad**.
       quinientos profesionales cargados
 - [x] Las ocho migraciones se aplican sobre el proyecto remoto con
       `npx supabase db push`, previo `--dry-run`
-- [ ] ~~`supabase db reset` reconstruye la base completa sin errores~~ —
-      **aplazado.** El entorno local con Docker queda fuera de alcance en esta
-      etapa. Es el criterio que demuestra que el esquema se reconstruye desde
-      cero, así que se recupera cuando exista entorno local o proyecto de
-      producción. Registrado en `docs/decisions.md`
+- [x] `supabase db reset` reconstruye la base completa sin errores. **Estuvo
+      aplazado desde el Sprint 0 y se cumplió el 2026-10-08**, con el entorno local
+      de HT-18: las 26 migraciones se aplican desde cero sin error, el catálogo del
+      esquema reconstruido coincide con el del remoto y `db diff --linked` no
+      encuentra deriva. Registrado en `docs/decisions.md`, 2026-10-08
 - [x] El rol administrador no accede a `messages`: ninguna de sus seis políticas
       invoca `is_admin()`, ni la invocará ninguna migración posterior
 - [x] `docs/architecture/data-model.md` contiene el diagrama entidad-relación en
@@ -2652,23 +2652,23 @@ sistemáticamente corta.
 
 # Sprint 3 — Verificación de usuarios
 
-**Estado:** `[~]` en curso. Suspendido el 2026-10-01 con HU-06 en `[~]` a falta de
+**Estado:** `[x]` cerrado el 2026-10-06. Las cuatro historias terminadas: HU-06,
+HU-07, HU-08 y HU-09. Suspendido el 2026-10-01 con HU-06 en `[~]` a falta de
 su verificación en dispositivo, y **reanudado el 2026-10-04** al cerrar el
 Sprint 2.5. **HU-06 cerrada el 2026-10-04**, con tres sprints de retraso: su
 verificación se recorrió en el emulador el 2026-10-03, destapó un cuarto defecto
 de integridad, y la migración que lo corrige quedó aplicada y ejercitada al día
-siguiente. **HU-07 cerrada el 2026-10-05.** **HU-08 cerrada el 2026-10-05.** Queda
-HU-09, 10 puntos de los 24.
+siguiente. **HU-07 cerrada el 2026-10-05.** **HU-08 cerrada el 2026-10-05.**
+**HU-09 cerrada el 2026-10-06.** Los 24 puntos están entregados.
 
-> **Una deuda que este sprint arrastra y conviene no perder de vista.**
+> **La deuda que este sprint arrastraba quedó cerrada el 2026-10-08**, con HT-18.
 >
-> Es anterior a HU-06 y ya tiene tres ejemplos: **`app/src/androidTest` está
-> vacío** aunque sus dependencias llevan declaradas desde el Sprint 0. Los dos
-> defectos de disposición del Sprint 2.5 y el recorte del diálogo de HU-06 son los
-> tres de la misma clase, y una prueba de interfaz al 200 % los habría atrapado sin
-> emulador, sin cuenta de Google y sin depender de que la máquina sostenga una
-> máquina virtual. Merece una historia técnica propia antes de que el Sprint 4
-> agregue pantallas.
+> Era anterior a HU-06 y llegó a tener cinco ejemplos: **`app/src/androidTest` estaba
+> vacío** aunque sus dependencias llevaban declaradas desde el Sprint 0. Las pruebas
+> de interfaz existen ahora, pero **en la JVM y no en `androidTest`**, porque la
+> integración continua no levanta ningún emulador. Cubren dos de las tres formas que
+> tomaron esos defectos; la tercera, el texto recortado dentro de su contenedor, sigue
+> dependiendo de mirar las previsualizaciones. Ver HT-18 y `docs/decisions.md`, 2026-10-08.
 
 > **La siguiente es HU-07.** Antes de escribir sus políticas conviene aplicarles
 > el criterio del 2026-10-02: las de `verification_documents` van a necesitar
@@ -3368,38 +3368,478 @@ ejecutaron.
 | Pruebas | `test/features/verification/data/model/VerificationDocumentRowTest.kt` (nueva) · `test/features/verification/data/mapper/VerificationDocumentMapperTest.kt` (nueva) · `test/features/profile/data/mapper/ProfileMapperTest.kt` · `test/features/profile/FakeProfileRepository.kt` |
 | Documentos | `docs/decisions.md` (cuatro entradas del 2026-10-05) · `plan.md` (esta sección) |
 
-### HU-09 · Revisar documentos pendientes `[ ]` — 10 puntos
+### HU-09 · Revisar documentos pendientes `[x]` — 10 puntos
 
 > Como **administrador**, quiero **revisar los documentos cargados y aprobarlos o
 > rechazarlos**, para **garantizar que solo participen personas acreditadas**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que hay documentos pendientes, cuando abro el panel, entonces los veo
-      ordenados por antigüedad.
-- [ ] Dado que abro un documento, cuando lo visualizo, entonces veo la imagen y los
-      datos del usuario.
-- [ ] Dado que apruebo todos los documentos de un usuario, cuando confirmo,
-      entonces su perfil pasa a verificado.
-- [ ] Dado que rechazo un documento, cuando indico el motivo, entonces el usuario
-      lo ve en su aplicación.
-- [ ] Dado que soy administrador, cuando intento leer una conversación, entonces
-      el acceso se deniega.
+- [x] Dado que hay documentos pendientes, cuando abro el panel, entonces los veo
+      ordenados por antigüedad. **Verificado el 2026-10-06 con experimento SQL**
+      contra el proyecto remoto: la consulta de la cola, por `created_at, id`
+      ascendente, devuelve primero el documento más antiguo de cinco insertados
+      con minutos distintos. El administrador ve los cinco y un tercero ve **cero**.
+      La paginación la cubren `GetPendingDocumentReviewsUseCaseTest` (página corta
+      contra página llena, el borde exacto) y `DocumentReviewQueueViewModelTest`.
+- [x] Dado que abro un documento, cuando lo visualizo, entonces veo la imagen y los
+      datos del usuario. **Los datos** salen de `document_review_profiles` (nombre,
+      correo, roles, tipo y estado de verificación) y los cubre
+      `DocumentReviewViewModelTest`. **La imagen** depende de que la política de
+      Storage deje al administrador leer el objeto, y eso se verificó contra los
+      **cuatro archivos reales de HU-07**: el administrador lee 4, un tercero lee 0.
+      **No se comprobó el dibujo real de la imagen con Coil** (ver «Deuda declarada»).
+- [x] Dado que apruebo todos los documentos de un usuario, cuando confirmo,
+      entonces su perfil pasa a verificado. **Verificado con experimento SQL:**
+      `approve_professional_verification` se rechaza con
+      `required_documents_not_approved` mientras falte uno, también con la licencia
+      como único pendiente, y pasa al aprobarse el último; el estado almacenado
+      queda `APPROVED`. Un paciente no tiene estado de perfil (decisión del autor).
+      `DocumentReviewDossierTest` fija cuándo se ofrece el botón.
+- [x] Dado que rechazo un documento, cuando indico el motivo, entonces el usuario lo
+      ve en su aplicación. **Verificado con experimento SQL:** el rechazo sin motivo
+      y con motivo vacío o de 301 caracteres lo rechaza el motor; con motivo real
+      pasa y **el dueño lo lee**. La pantalla del dueño ya lo mostraba desde HU-08.
+- [x] Dado que soy administrador, cuando intento leer una conversación, entonces el
+      acceso se deniega. **Prueba obligatoria `adminCannotReadMessages`, verificada
+      el 2026-10-06** con una conversación real (oferta aceptada y `services`
+      incluidos, porque desde el 2026-09-12 la política exige un servicio): el
+      paciente y el profesional ven **1**, un tercero y el administrador ven **0**, y
+      el administrador tampoco puede escribir ni marcar como leído. El primer
+      intento de este experimento daba 0 a todos, porque la conversación de prueba
+      no era legible ni para su paciente: **un 0 sin el 1 no distingue «deniega» de
+      «no hay filas»**, y se corrigió antes de darlo por válido.
+      `SchemaRulesTest.noMigrationGrantsTheAdministratorAccessToMessages` vigila en
+      la JVM que ninguna migración agregue una política de administrador sobre `messages`.
 
 **Requisitos:** RF-04.4, RN-11, INV-12.
 
-**Tareas técnicas.** Panel administrativo web mínimo · políticas de acceso del
-administrador, con exclusión explícita de `messages` · prueba automatizada que
-verifique esa exclusión.
+**Tareas técnicas.** Pantallas de revisión para el administrador **dentro de la
+aplicación** · función que custodia la promoción a `APPROVED` · exclusión explícita
+de `messages` · prueba automatizada que verifique esa exclusión.
+
+> **Cambio de alcance registrado.** Esta tarea decía «panel administrativo web
+> mínimo». Contradecía «el producto es exclusivamente Android», y se resolvió a favor
+> de la aplicación. Ver `docs/decisions.md`, 2026-10-06.
+
+**Decisiones del autor que gobiernan la historia, tomadas el 2026-10-06.**
+
+1. El panel vive en la aplicación Android; no hay nada web.
+2. El profesional llega a `APPROVED` por un acto explícito del administrador, y lo
+   custodia el motor.
+3. Un paciente no tiene estado de verificación de perfil.
+4. **El rol de administrador es exclusivo**: quien lo tiene no tiene otro rol. Por eso
+   no se agregó ninguna cláusula contra la autorrevisión.
+5. El super administrador que concede `ADMIN` es una historia aparte, HT-17.
+
+**Qué cambió al cerrarla.**
+
+- **Migración `20261006120000_admin_document_review.sql`**, aplicada con `db push
+  --linked` tras `--dry-run`: exclusividad del rol `ADMIN`; `required_document_types`;
+  `approve_professional_verification`; sello de la revisión por el motor; degradación
+  del profesional cuando un documento requerido deja de estar aprobado; límite de 300
+  caracteres del motivo; dos vistas de lectura con `security_invoker`.
+- **Migración `20261006130000_harden_document_review.sql`**, que corrige lo que halló
+  la revisión de código (abajo), con **un hueco crítico** entre ellos.
+- **Cliente.** Todo dentro de `features/verification`: cola paginada, detalle con
+  imagen por URL firmada de cinco minutos, veredicto por documento y confirmación de la
+  verificación del profesional. Entrada desde «Mi cuenta», solo para el rol `ADMIN`.
+
+**Experimentos SQL contra el proyecto remoto, 2026-10-06.** Todos dentro de
+transacciones con `rollback`; residuo comprobado al terminar: los 4 documentos de
+HU-07 intactos, y cero mensajes, solicitudes, ofertas y servicios. **Cada rechazo lleva
+su control al lado.**
+
+| Qué se comprobó | Resultado |
+|---|---|
+| El administrador ve la cola ajena, un tercero ve 0, el dueño ve la suya | **5 / 0 / 5** |
+| Orden por antigüedad | Primero el más antiguo |
+| Promover siendo un usuario cualquiera, o el propio profesional | **`not_authorized`** |
+| Promover con todo pendiente / con un requerido pendiente | **`required_documents_not_approved`** |
+| Promover con todo aprobado | **Pasa**, estado `APPROVED` |
+| Un administrador escribe `verification_status` directo | **0 filas** (no hay política) |
+| Promover una cuenta administradora | **`profile_is_not_a_professional`** |
+| El motor sella quién y cuándo | `reviewed_by` y `reviewed_at` quedan firmados por el administrador que escribe, sin que el cliente los mande |
+| Rechazo sin motivo / vacío / 301 caracteres | **`23514`** las tres veces |
+| Rechazar un documento **requerido** de un `APPROVED` | Baja a **`PENDING`** |
+| Control: rechazar el adjunto opcional `OTHER` | Se queda en `APPROVED` |
+| Aprobar de nuevo un documento rechazado | El motivo queda **nulo** |
+| Un no administrador escribe un veredicto ajeno | **0 filas** |
+| Agregar `PATIENT` a un administrador / `ADMIN` a un paciente | **`admin_role_is_exclusive`** las dos |
+| Control: agregar `PROFESSIONAL` a un paciente | **Pasa** |
+| Administrador y mensajes (arriba) | **1 / 1 / 0 / 0 / 0** |
+| Storage: administrador lee los objetos de HU-07 / un tercero | **4 / 0** |
+| **Después de la revisión:** cambiar el tipo siendo `APPROVED` | Estado **`PENDING`** y **0** filas en el directorio (antes: `APPROVED` y 1) |
+| Control: editar el perfil sin cambiar el tipo | Conserva `APPROVED` |
+| El administrador reescribe `reviewed_by` sin veredicto | La fila acepta la sentencia y **conserva** el revisor y la fecha |
+| Un administrador inserta un rol a otra persona | **`42501`** |
+| Control: una persona se agrega un rol a sí misma | **Pasa** |
+| Las vistas ya no exponen `storage_path` ni `photo_url` | **`42703`** las dos |
+| `required_document_types` desde un usuario autenticado | **`42501`** |
+
+Transversales: `everyTableHasRowLevelSecurityEnabledAndAtLeastOnePolicy`, **16 tablas,
+0 sin cubrir**; **12 funciones `security definer`, 0 sin `search_path` fijo**;
+**0 políticas de administrador sobre `messages`**.
+
+**Revisión de código, 2026-10-06.** Tres revisores en paralelo (corrección y SQL;
+convenciones y `CLAUDE.md`; seguridad y simplicidad). Dos de ellos hallaron, por caminos
+independientes, **el mismo hueco crítico**, que se reprodujo en el remoto antes de
+corregirlo:
+
+1. **Un profesional `APPROVED` cambiaba su tipo desde su perfil y conservaba el estado.**
+   Un estudiante aprobado pasaba a médico sin matrícula y seguía en el directorio
+   público. Rompía INV-07. Lo corrige `guard_verification_status`, que ahora degrada.
+2. **`approve_professional_verification` no bloqueaba la fila.** Un rechazo concurrente
+   podía quedar pisado por un `APPROVED`. Ahora toma `for update` antes de leer.
+3. **El sello de la revisión solo se disparaba ante un cambio de estado**, y el comentario
+   afirmaba lo contrario. Ahora cubre toda actualización de un administrador.
+4. **`profile_roles_insert_admin`** dejaba a una cuenta de administrador robada fabricar
+   otro administrador. Se eliminó; nada del cliente la usaba.
+5. **Las imágenes de los documentos quedaban en el caché de disco** del teléfono del
+   administrador. Se desactivó.
+6. `settle` dejaba el diálogo de rechazo abierto si fallaba la relectura tras una
+   escritura exitosa, e invitaba a repetirla; y pisaba una imagen que llegó mientras tanto.
+7. **La cola ocultaba filas** si un `refresh` y la página siguiente se cruzaban.
+8. La pantalla decidía qué documentos son revisables (`reviewableTypes` pasó al dominio),
+   el separador de roles estaba escrito a mano (ahora `ListFormatter`), «promover» y
+   «aprobar al profesional» eran dos nombres de lo mismo, y varios comentarios
+   incumplían la regla de `CLAUDE.md`.
+9. Simplificación: dos columnas de las vistas que nadie leía, una comprobación de rol
+   redundante y un valor de retorno constante.
+
+Las correcciones 6 y 7 se comprobaron **por mutación**: sin el arreglo, sus pruebas
+fallan.
+
+**No se aplicó**, con su razón: los comentarios largos de las migraciones (la migración
+`20261005130000` tiene el mismo estilo y es el precedente); las previsualizaciones
+oscuras de los estados vacío, fallo y cargando (el precedente de `VerificationScreen`
+las deja solo en claro; sí están en claro, oscuro y al 200 % las de contenido).
+
+**Deuda declarada.**
+
+- **El dibujo real de la imagen firmada con Coil no se comprobó.** Es la primera imagen
+  del proyecto que viene de un bucket privado. Lo cubren la política de Storage verificada
+  contra los objetos reales y los estados de la pantalla (cargando, error con reintento,
+  sin cargar), pero no el dibujo. No lo exige la Definición de Terminado para esta historia.
+- **La carrera de `for update` se razonó, no se ejercitó**: un experimento de una sola
+  conexión no puede intercalar dos transacciones.
+- **`supabase db reset`: resuelto el 2026-10-08**, con el entorno local de HT-18. Las 26
+  migraciones reconstruyen la base desde cero sin error y `db diff --linked` no encuentra
+  deriva contra el remoto.
+- **Las previsualizaciones: resuelto el 2026-10-08.** Al cerrar la historia solo
+  compilaban y nadie las había abierto, y el punto 9 de la Definición de Terminado pide
+  que la pantalla «se vea correcta» en claro, oscuro y al 200 %. **El autor las revisó
+  en Android Studio el 2026-10-08 y se vieron correctas** («de momento», dijo, y se
+  anota tal cual: es una revisión de una persona sobre la versión de ese día). El punto
+  9 queda cumplido.
+- La paginación es por desplazamiento; por cursor sobre `(created_at, id)` si la cola crece.
+- El detalle no tiene estado «vacío»: una persona con documentos pendientes siempre tiene
+  contenido. Los otros tres estados sí están resueltos.
+- Lo diferido, con su requisito: notificar el veredicto (FA-11), rechazar la postulación
+  completa (FA-12), historial de veredictos de un documento reabierto (FA-13).
+
+**Paso manual del autor: ninguno pendiente para cerrar HU-09.** La cuenta administradora
+de pruebas ya está preparada y verificada (solo tiene el rol `ADMIN`). Si algún día hace
+falta otra, este es el procedimiento, con los comandos ya ejecutados el 2026-10-06:
+
+1. Que la persona ingrese una vez con Google, **sin elegir ningún rol**. Si ya eligió uno,
+   el motor rechaza `ADMIN` con `admin_role_is_exclusive`: hay que limpiarla primero.
+2. Averiguar su identificador:
+   `npx supabase db query --linked "select id, email from public.profiles order by created_at;"`
+3. Concederlo, en una sola transacción:
+   `npx supabase db query --linked "insert into public.profile_roles (profile_id, role) values ('<uuid>', 'ADMIN'); update public.profiles set active_role = 'ADMIN' where id = '<uuid>';"`
+4. Debe ocurrir: al ingresar con esa cuenta, «Mi cuenta» muestra solo **Revisar documentos**
+   y **Cerrar sesión**.
+5. Si falla: `admin_role_is_exclusive` indica que la cuenta ya tiene otro rol; no se arregla
+   con la aplicación, porque `profile_roles` es de solo agregar (FA-09).
+
+> **Advertencia sobre los datos de prueba.** La cola real contiene hoy los 4 documentos
+> `PENDING` de la verificación en dispositivo de HU-07. **Aprobarlos o rechazarlos desde la
+> aplicación los convierte en otra cosa** y esa evidencia ya no coincide con lo anotado en
+> HU-07. Para recorrer el panel conviene subir documentos con otra cuenta.
+
+**Verificaciones del cierre, 2026-10-06.** `./gradlew ktlintCheck staticAnalysis
+assembleDebug` concluyen sin error. **59 suites, 331 pruebas, 0 fallos, 0 omitidas**, las
+nuevas incluidas. Las dos migraciones están aplicadas en `salud-en-casa`.
+**Previsualizaciones revisadas por el autor en Android Studio el 2026-10-08: correctas.**
+
+**Revisión de `plan.md` al inicio y al final: realizadas las dos.**
+
+**Archivos creados o modificados el 2026-10-06.**
+
+| Capa | Archivos |
+|---|---|
+| Migraciones | `supabase/migrations/20261006120000_admin_document_review.sql` · `supabase/migrations/20261006130000_harden_document_review.sql` (nuevas) |
+| Dominio | `features/verification/domain/model/{PendingDocumentReview, DocumentReviewSubject, DocumentReviewDossier, DocumentReviewResult}.kt` · `domain/vo/RejectionReason.kt` · `domain/repository/IDocumentReviewRepository.kt` · `domain/usecase/{GetPendingDocumentReviews, GetDocumentReviewDossier, ApproveDocument, RejectDocument, ApproveProfessionalVerification, GetSignedDocumentUrl}UseCase.kt` (nuevos) · `domain/model/{VerificationChecklist, VerificationError}.kt` · `domain/usecase/GetMyVerificationChecklistUseCase.kt` (modificados) |
+| Datos | `data/model/DocumentReviewDto.kt` · `data/mapper/DocumentReviewMapper.kt` · `data/repository/DocumentReviewRepository.kt` (nuevos) · `data/datasource/SupabaseVerificationDataSource.kt` · `data/mapper/VerificationErrorMapper.kt` · `data/repository/VerificationRepository.kt` (modificados) |
+| Presentación | `presentation/{DocumentReviewQueueViewModel, DocumentReviewQueueScreen, DocumentReviewViewModel, DocumentReviewScreen}.kt` (nuevos) · `presentation/{VerificationLabels, VerificationScreen}.kt` (modificados: etiquetas de los cuatro errores nuevos y dos ayudantes pasan a `internal`) |
+| Inyección, navegación y cuenta | `di/VerificationModule.kt` · `navigation/{Routes, SaludEnCasaNavHost}.kt` · `features/auth/presentation/AccountScreen.kt` · `features/profile/domain/model/ProfileRoles.kt` (`isAdmin`, `addable` vacío para un administrador) |
+| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (claves `review_*`, `error_verification_*` nuevas, `cd_document_image`, `auth_account_open_document_review`) |
+| Pruebas nuevas | `test/.../verification/FakeDocumentReviewRepository.kt` · `domain/vo/RejectionReasonTest.kt` · `domain/model/{DocumentReviewDossierTest, RequiredDocumentsParityTest}.kt` · `domain/usecase/{RejectDocumentUseCaseTest, GetPendingDocumentReviewsUseCaseTest, GetDocumentReviewDossierUseCaseTest}.kt` · `data/mapper/DocumentReviewMapperTest.kt` · `presentation/{DocumentReviewQueueViewModelTest, DocumentReviewViewModelTest}.kt` · `test/.../schema/SchemaRulesTest.kt` |
+| Pruebas modificadas | `ProjectSources.kt` (`migrationFiles()`) · `VerificationChecklistTest.kt` · `VerificationErrorMapperTest.kt` · `ProfileRolesTest.kt` |
+| Reglas y documentos | `.claude/rules/glosario.md` · `docs/decisions.md` (doce entradas del 2026-10-06) · `docs/requirements.md` (RF-01.9, RF-01.10, FA-11 a FA-13 y la fila de super administrador) · `docs/design-system.md` (visor de documento) · `plan.md` (esta sección y HT-17) |
 
 ## Incremento del sprint
 
 Un profesional carga su título, el administrador lo aprueba, y el profesional
 pasa a ser visible en las búsquedas. **El circuito de confianza queda cerrado.**
 
+> **Qué se demostró de ese enunciado y qué no, dicho antes de que lo cuestionen.**
+> Se demostró **contra la base**, con experimentos SQL en el remoto: el administrador
+> aprueba los documentos, promueve, y el profesional aparece en `professional_directory`;
+> si se le rechaza un documento requerido o cambia su tipo, desaparece. **No se
+> demostró en pantalla de punta a punta**: la pantalla de búsqueda llega con HU-11
+> (Sprint 4), y la revisión del administrador no se recorrió en un dispositivo. La
+> misma cautela que el Sprint 2.5 aprendió a escribir en su enunciado.
+
 ## Retrospectiva
 
-_Completar al cerrar el sprint._
+**El circuito de confianza quedó cerrado en la base, no todavía en pantalla.** Un
+administrador revisa documentos, aprueba o rechaza con motivo, y promueve al
+profesional; el motor decide quién es visible y quién deja de serlo. Eso se demostró
+con experimentos contra el proyecto remoto. Lo que falta para decir «el profesional
+aparece en las búsquedas» es la pantalla de búsqueda, que es HU-11.
+
+### Velocidad medida: 24 puntos, los 24 planificados
+
+HU-06 (3) + HU-07 (8) + HU-08 (3) + HU-09 (10) = 24. Las cuatro cumplen la Definición
+de Terminado y ninguna se trasladó. Seis migraciones aplicadas y 331 pruebas en 59
+suites al cierre, todas en verde.
+
+> El Sprint 3 se ejecutó del **01/10/2026** al **06/10/2026**.
+
+**Seis días de calendario, y la cuarta medición seguida que no mide capacidad.** El
+sprint terminó porque se agotó el alcance y no el plazo, otra vez. Hay un matiz que
+conviene escribir y que el tramo de fechas esconde: **ese tramo se solapa con el del
+Sprint 2.5** (01/10 al 04/10), porque el Sprint 3 estuvo suspendido en medio. El trabajo
+efectivo del Sprint 3 son la verificación de HU-06 del 03/10 y su cierre del 04/10, y
+luego HU-07, HU-08 y HU-09 entre el 05/10 y el 06/10. **Veintiún puntos en dos días**,
+después de 21 puntos en cuatro días (Sprint 1), 21 en dos (Sprint 2) y 23 en cuatro
+(Sprint 2.5). Los puntos de este proyecto miden alcance planificado; no hay en ellos una
+velocidad que proyectar, y la retrospectiva del Sprint 2.5 ya lo había sospechado.
+
+**Lo que el número sí dice:** la estimación no está sistemáticamente corta, porque
+trabajo estimado en 10 puntos (HU-09) entró entero, con dos migraciones, doce entradas
+de decisión y una revisión de código que movió el diseño, y aun así cupo. **Lo que no
+dice** es cuánto cabe en una semana sin tope de alcance, que es lo que se quería saber.
+
+### Qué se cumplió de lo propuesto para este sprint
+
+De los seis cambios que la retrospectiva del Sprint 2.5 pedía:
+
+1. **Cerrar por fecha de corte: no se hizo.** Se cerró por alcance, igual que los tres
+   anteriores. Es la cuarta vez que se plantea y la cuarta que no ocurre.
+2. **HU-06 primero y hasta cerrarla: sí**, el 2026-10-04.
+3. **Direcciones sin principal dentro de HU-06: sí**, con dos migraciones.
+4. **Revisar con el criterio del 2026-10-02 las políticas de HU-07 y HU-09: sí**, y rindió:
+   ninguna política de `verification_documents` hizo una subconsulta directa a
+   `profiles`; la función auxiliar `has_role` se retiró por no tener consumidor, y las
+   lecturas del administrador pasaron por vistas `security_invoker`. **Ninguna recursión
+   de políticas en el sprint.**
+5. **Cuenta de un solo rol: sí**, `ledezma.aramayo.73` sostuvo la verificación de HU-07.
+6. **Pruebas de política con `supabase db query --linked`: sí**, en las cuatro historias.
+
+### Qué funcionó
+
+- **La revisión de código encontró el defecto más grave de cada historia, y ningún
+  criterio de aceptación lo habría encontrado.** HU-07: una ruta de archivo que apuntaba
+  a la carpeta de otro perfil, con el administrador como «diputado confundido», y la
+  unicidad por ruta. HU-08: un profesional podía insertarse ya `APPROVED`. HU-09: un
+  profesional aprobado cambiaba su tipo y seguía verificado y público. **Los tres son la
+  misma clase de hueco:** el criterio describe el camino que se espera, y el defecto
+  vive en *otro escritor* de la misma columna. `professionals.verification_status` tiene
+  hoy cuatro caminos de escritura —el alta como `PENDING`, el guardia de actualización,
+  la función de promoción y la degradación por disparadores—, y los dos huecos que tuvo
+  (el alta ya `APPROVED` y el cambio de tipo) aparecieron por revisión, no por criterio.
+- **Reproducir antes de corregir, y reproducir después.** El hueco del tipo se corrió
+  contra el remoto antes de la migración (`APPROVED` y 1 fila en el directorio) y se
+  repitió después (`PENDING` y 0 filas). Con el control al lado: editar el perfil sin
+  cambiar el tipo conserva `APPROVED`.
+- **El 0 sin el 1 no prueba nada, y esta vez se atrapó antes de afirmarlo.** El primer
+  experimento de `adminCannotReadMessages` daba 0 a todos, el participante incluido,
+  porque desde el 2026-09-12 la política exige un servicio y la conversación de prueba
+  no lo tenía. La segunda versión inserta la oferta aceptada y el servicio, y recién ahí
+  distingue.
+- **Comprobar las pruebas por mutación.** Mi primera prueba de la carrera de la cola
+  pasaba con o sin el arreglo: el fake devolvía siempre las mismas filas y el
+  `distinctBy` la salvaba. Se rehízo con una respuesta que se suspende, y se verificó
+  quitando la cancelación: falla. Una prueba que no puede fallar es la que
+  `testing.md` pide no escribir.
+- **Preguntar la decisión que cambia el diseño, y solo esa.** La exclusividad del rol
+  `ADMIN`, que decidió el autor, hizo imposible la autorrevisión por construcción y
+  evitó tapar el mismo caso en la política, la función y las vistas. Separar HT-17
+  mantuvo HU-09 en sus 10 puntos.
+- **El esquema del Sprint 0 pagó.** Las políticas `select_admin` y `update_admin` de
+  `verification_documents`, y la lectura del administrador sobre el bucket, existían
+  desde HT-04: el veredicto por documento fue un `PATCH` sin migración, y la historia se
+  redujo a lo que de verdad faltaba.
+
+### Qué no funcionó
+
+- **Las previsualizaciones, el control que sustituyó al recorrido a mano, no se habían
+  mirado al cerrar la historia.** HU-09 agrega siete previsualizaciones por pantalla y
+  solo compilaban. **El autor las revisó el 2026-10-08 y se vieron correctas**, de modo
+  que esta vez el control no encontró nada porque no había nada; pero el cierre del
+  2026-10-06 declaró cumplido un punto que nadie había comprobado, y eso no cambia. El
+  proyecto cambió el recorrido de cada pantalla por esas tres vistas «porque ahí se
+  atrapan los recortes», y el único defecto de esa clase de este sprint (el chip de
+  HU-07 apilado letra por letra) lo encontró un dispositivo, no una previsualización. **La deuda de `app/src/androidTest` sigue vacía**: el chip de HU-07
+  fue su cuarto ejemplo, y HU-09 agrega dos pantallas sin ella. Se aceptó de forma
+  consciente el 2026-10-04 y hoy no hay nada en su lugar.
+- **Los comentarios incumplieron la regla de `CLAUDE.md` en el primer borrador.** El
+  revisor de convenciones encontró comentarios que repetían el razonamiento junto a su
+  cita, otros que explicaban una decisión sin citarla y otros que describían qué hace el
+  código. La regla pide que la decisión exista en `decisions.md` **antes** de escribir el
+  comentario; se hizo al revés, y hubo que registrar entradas después para poder citarlas.
+- **Un nombre para dos cosas.** «Promover» y «aprobar al profesional» convivieron en la
+  pantalla, el modelo de vista y las claves de cadena mientras el caso de uso, el
+  repositorio y la función de la base decían lo segundo. Lo señaló el revisor; se unificó.
+- **Una afirmación de mi propio comentario era falsa.** El disparador del sello decía que
+  la revisión «no se puede falsificar», pero disparaba solo ante un cambio de estado.
+  Lo encontró el revisor de seguridad. Un comentario que afirma una garantía hay que
+  probarlo como se prueba la garantía.
+- **`supabase db reset` no se corrió dentro del sprint**, aunque `CLAUDE.md` lo pide al
+  cerrar todo sprint que toque el esquema. Se corrió **el 2026-10-08, después del cierre**,
+  al levantar el entorno local de HT-18: las 26 migraciones se reconstruyen sin error y el
+  remoto no tiene deriva. Que la verificación llegara dos días tarde es el defecto; el
+  resultado salió limpio, pero eso no se sabía al cerrar.
+- **Un riesgo de concurrencia razonado y no ejercitado**: el bloqueo `for update` de la
+  promoción. Un experimento de una sola conexión no puede intercalar dos transacciones.
+
+### Qué cambiar en el Sprint 4
+
+1. **Cerrar por fecha de corte, con la fecha ya escrita. Decidido el 2026-10-08:** corte a
+   los **7 días corridos** desde el primer día del Sprint 4; lo que no esté cerrado se
+   traslada y se cuenta. Era la cuarta vez que se planteaba sin cumplirse porque nunca se
+   fijó la fecha. Ya está escrita en el Sprint 4 y en `docs/decisions.md`.
+2. **Decidir qué hacer con `androidTest` antes de agregar pantallas. Resuelto el
+   2026-10-08 con HT-18:** se eligió escribir la prueba, y vive en la JVM. El Sprint 4
+   agrega la búsqueda sobre un mapa, que es la pantalla que sostiene el producto, y
+   ahora llega con un control automático contra los controles que se salen de la
+   pantalla. **Lo que no cubre** —el texto recortado dentro de su contenedor— obliga a
+   seguir abriendo las previsualizaciones, y el mapa es justo donde más importa.
+3. **Antes de cerrar una historia, enumerar todos los escritores de las columnas que su
+   invariante protege.** Es lo que habría atrapado los tres huecos de este sprint sin
+   revisión. Para INV-07 la lista está arriba; para INV-09 (pago `BOTH_CONFIRMED`) y
+   INV-11 (calificación única) conviene hacerla al empezar el Sprint 8 y el 9.
+4. **HU-11 debe definir qué ve la contraparte de la verificación.** Hereda dos deudas:
+   `professionals_select_counterpart` expone la fila completa de `professionals`, incluido
+   el estado `PENDING` o `REJECTED` (registrado el 2026-10-05), y el distintivo de
+   «verificado» para la contraparte no existe todavía (RF-04.6).
+5. **Escribir primero la entrada de `decisions.md` y después el comentario que la cita.**
+   Es la regla de `CLAUDE.md`; este sprint la violó por orden de trabajo.
+6. **Programar HT-17 y la limpieza de `salud.en.casa.73`.** Sin super administrador, cada
+   nuevo administrador exige la clave de servicio. No bloquea el Sprint 4, que necesita un
+   profesional `APPROVED` y ya puede obtenerlo con la cuenta administradora.
+7. **Decidir qué hacer con `supabase db reset`. Resuelto el 2026-10-08:** se levantó el
+   entorno local con Docker. Las 26 migraciones se reconstruyen desde cero sin error, el
+   catálogo del esquema local coincide con el remoto, y `db diff --linked` no encuentra
+   deriva. Desde el Sprint 4 las políticas se pueden ejercitar en local antes de tocar el
+   remoto.
+
+### Acción pendiente del autor: ninguna
+
+La única que quedaba, abrir las previsualizaciones de HU-09 en Android Studio y mirarlas,
+la hizo el autor el 2026-10-08: se vieron correctas. Con eso el punto 9 de la Definición de
+Terminado de HU-09 se cumple de verdad y no solo en el papel.
+
+## Historia técnica planificada, fuera del Sprint 3
+
+### HT-17 · Super administrador que concede el rol de administrador `[ ]`
+
+> Como **autor del sistema**, quiero **un super administrador que sea el único que
+> concede el rol de administrador**, para **que un administrador no pueda fabricar otro
+> ni haya que tocar la base con la clave de servicio cada vez**.
+
+**Estimación.** Por hacer en el Sprint Planning del sprint en que entre; no se estima
+aquí porque no es parte de los 24 puntos del Sprint 3.
+
+**Requisitos nuevos:** RF-01.10 (RF-01.9 ya rige desde HU-09).
+
+**Decisiones ya tomadas el 2026-10-06** (razonamiento en `docs/decisions.md`):
+
+- **`SUPER_ADMIN` es un cuarto valor de `user_role`**, agregado renombrando y recreando el
+  tipo, como se hizo con `document_type`. No hereda nada del administrador: no lee
+  documentos ni conversaciones. Es exclusivo, igual que `ADMIN`.
+- **Flujo por invitación de correo, no por promoción directa.** El super administrador
+  invita una dirección; `handle_new_user`, que ya es `security definer` y ya conoce el
+  correo, consume la invitación al primer ingreso e inserta el rol. Así la cuenta nunca
+  pasa por la pantalla de elección de rol, que es la trampa: `profile_roles` es de solo
+  agregar y quien elija «paciente» queda inelegible para siempre.
+- **La identidad no se versiona.** La migración crea el mecanismo y ningún dato personal.
+  Quién es super administrador se instala una vez con la clave de servicio, tecleando el
+  valor en la terminal, con un procedimiento documentado con marcadores.
+- **No hay revocación**: conceder `ADMIN` es irreversible sin la clave de servicio (FA-09).
+
+**Hecho ya en HU-09 y que esta historia no repite:** la exclusividad del rol `ADMIN` y la
+eliminación de `profile_roles_insert_admin`.
+
+**Tareas técnicas previstas.** Valor `SUPER_ADMIN` · tabla de invitaciones de solo agregar,
+con seguridad por fila solo para el super administrador · extensión de `handle_new_user` ·
+pantalla de invitación para ese rol · experimentos de política con su control · prueba de
+que el super administrador no lee documentos ni mensajes.
+
+**Dato para quien la tome:** la cuenta reservada para este rol tiene hoy 3 direcciones de
+prueba y rol de paciente, así que hay que limpiarla en la misma sesión en que se le
+concede el rol. Una cuenta con perfil y sin rol queda atrapada en la pantalla de elección
+de rol hasta que se le concede otro.
+
+### HT-18 · Primera prueba de interfaz y entorno local reproducible `[x]` — 2026-10-08
+
+> Como **autor del sistema**, quiero **una prueba automática que verifique la disposición
+> al 200 % de fuente y un entorno local que reconstruya la base desde cero**, para **dejar
+> de depender de que alguien se acuerde de mirar, y de afirmar sin respaldo que las
+> migraciones son reproducibles**.
+
+Cierra las dos deudas que la retrospectiva del Sprint 3 dejó abiertas, los cambios 2 y 7.
+Razonamiento completo en `docs/decisions.md`, 2026-10-08, dos entradas.
+
+**Requisitos:** RNF-07 (la interfaz responde al ajuste de tamaño de fuente), y la
+exigencia de `CLAUDE.md` de que `supabase db reset` reconstruya la base al cerrar un
+sprint que toque el esquema. Recupera además el criterio aplazado de HT-04.
+
+**Lo hecho, con su evidencia.**
+
+| Qué | Resultado |
+|---|---|
+| Robolectric 4.17, estable, con `ui-test-junit4` en `app/src/test` | Una prueba de Compose corre en la JVM, sin emulador |
+| `graphicsMode=NATIVE` en `app/src/test/resources/robolectric.properties` | Sin él cada `Text` medía 3 dp y ninguna aserción valía; con él las medidas son reales |
+| Siete pruebas en cuatro pantallas, a 320 dp y `fontScale = 2f` | Cada control se alcanza, se muestra y no se sale de los bordes |
+| **Mutación:** los botones de veredicto en un `Row` en vez de un `FlowRow` | **Falla**: «Rechazar documento» queda fuera de la pantalla |
+| **Mutación:** se quita el desplazamiento vertical del detalle | **Fallan dos**: el pie se vuelve inalcanzable |
+| `supabase start` con `[analytics]` desactivado | El entorno local arranca sano; antes los contenedores de analítica y `vector` lo hacían fallar |
+| `supabase db reset` | **26 migraciones aplicadas desde cero, sin error** |
+| Catálogo local reconstruido contra el remoto | **Idénticos**: 16 tablas, 0 sin RLS, 67 políticas, 12 funciones `definer` con `search_path` fijo, 0 políticas de administrador sobre `messages`, 12 tipos de servicio |
+| `supabase db diff --linked --schema public` | **«No schema changes found»**: el remoto no tiene deriva |
+
+**Dos pruebas escritas y descartadas.** Cubrían la forma del defecto de HU-07 —el chip
+apilado letra por letra— y **pasaban con y sin el defecto**, también en el ancho donde se
+reprodujo. Se eliminaron en vez de dejarlas: una prueba que no puede fallar es la que
+`testing.md` manda no escribir. Lo que esa forma necesita está abajo.
+
+**Deuda declarada, y es importante.** **El texto recortado dentro de su propio contenedor
+no lo atrapa ninguna de estas pruebas.** Compose mide ese `Text` al ancho que el
+contenedor le da: se forzó un texto de veinte caracteres a 60 dp y tanto los límites
+recortados como los sin recortar devolvieron 60 dp. Dos de los cinco defectos históricos
+—el rótulo del control segmentado del Sprint 2.5 y el chip de HU-07— son de esa forma, de
+modo que **mirar las previsualizaciones sigue siendo obligatorio**. La única vía
+automática sería comparar capturas de pantalla (Roborazzi), al precio de imágenes de
+referencia versionadas que alguien aprueba a ojo y regenera en cada cambio intencional de
+interfaz: queda nombrada, no adoptada, para que el autor decida.
+
+**`androidTest` sigue vacío, a propósito.** La integración continua corre solo tareas de
+JVM, así que una prueba ahí no se ejecutaría nunca. `connectedAndroidTest` no ejecuta nada
+hoy; `README.md` y `.claude/rules/testing.md` lo dicen.
+
+**Archivos.** `gradle/libs.versions.toml` y `app/build.gradle.kts` (Robolectric y
+`isIncludeAndroidResources`) · `app/src/test/resources/robolectric.properties` (nuevo) ·
+`app/src/test/java/bo/saludencasa/ui/LargeFont.kt` (nuevo, el ayudante) · tres archivos de
+prueba nuevos · las cuatro funciones de contenido pasan a `internal` ·
+`supabase/config.toml` · `README.md` · `.claude/rules/testing.md` · `docs/decisions.md` ·
+`plan.md`.
+
+**Verificaciones del cierre, 2026-10-08.** `./gradlew ktlintCheck staticAnalysis
+assembleDebug` sin error. **62 suites, 338 pruebas, 0 fallos, 0 omitidas.**
 
 ---
 
@@ -3411,6 +3851,13 @@ su domicilio, filtrados por el tipo de atención que necesita.
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
 **Puntos:** 23.
+
+**Fecha de corte: 7 días corridos desde el primer día del sprint** (decidido el
+2026-10-08). El sprint se cierra ese día aunque queden historias abiertas: lo que no esté
+cerrado se traslada, y lo cerrado se cuenta. Es la primera vez que un sprint de este
+proyecto cierra por plazo y no por alcance, y por eso es la primera medición de velocidad
+que mide capacidad. **Primer día del sprint:** _anotar al empezar_, y con él la fecha de
+corte (primer día + 6 días, ambos incluidos).
 
 ### HU-10 · Declarar los servicios que presto `[ ]` — 5 puntos
 
