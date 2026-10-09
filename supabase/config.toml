@@ -63,10 +63,9 @@ enabled = true
 schema_paths = []
 
 [db.seed]
-# Catalog seed data lives in a migration (20260911120700_seed_data.sql), not
-# here: this project pushes to the remote project directly and never runs a
-# local db reset. ./seed.sql does not exist; leaving this enabled would fail
-# the moment that changes.
+# Catalog seed data lives in a migration (20260911120700_seed_data.sql), not here.
+# ./seed.sql does not exist, so this stays disabled; a local db reset rebuilds the
+# schema and the catalog from the migrations alone.
 enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
@@ -387,8 +386,12 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Disabled for the local stack: the analytics and vector containers never reach a
+# healthy state on this machine and they stop `supabase start` from finishing,
+# while the schema, the policies and the triggers -- which is what a local reset
+# exists to rebuild -- need neither. See docs/decisions.md, 2026-10-08.
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
