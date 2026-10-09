@@ -32,6 +32,7 @@ internal fun ProfessionalProfileSection(
     onFormChange: (ProfileForm) -> Unit,
     onAvailabilityChange: (Boolean) -> Unit,
     onOpenPublicProfile: () -> Unit,
+    onOpenMyServices: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val typeLabels = ProfessionalType.entries.associateWith { stringResource(it.labelRes()) }
@@ -86,6 +87,10 @@ internal fun ProfessionalProfileSection(
         )
 
         AvailabilitySwitch(availability = availability, onAvailabilityChange = onAvailabilityChange)
+
+        OutlinedButton(onClick = onOpenMyServices, modifier = Modifier.fillMaxWidth()) {
+            Text(text = stringResource(R.string.profile_open_my_services))
+        }
 
         OutlinedButton(onClick = onOpenPublicProfile, modifier = Modifier.fillMaxWidth()) {
             Text(text = stringResource(R.string.profile_open_public_profile))

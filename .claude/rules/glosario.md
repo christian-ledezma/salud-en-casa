@@ -30,7 +30,9 @@ que lo introduce.
 | Contraoferta | Oferta con `parentOfferId` | No es un tipo aparte |
 | Atención / Servicio | `Service` | Atención acordada y prestada |
 | Tipo de servicio | `ServiceType` | Catálogo de tipos de atención |
-| Servicio ofrecido | `ProfessionalService` | Unión profesional–tipo de servicio |
+| Servicio ofrecido | `ProfessionalService` | Unión profesional–tipo de servicio, con el precio que el profesional declaró |
+| Servicios declarados | `DeclaredServices` | Lo que el profesional presta hoy junto con el catálogo que le queda por declarar |
+| Tipos por declarar | `undeclaredTypes` | Los tipos del catálogo que el profesional todavía no ofrece. No se le ofrecen dos veces |
 | Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
 | Dirección | `Address` | Domicilio georreferenciado |
 | Documento de verificación | `VerificationDocument` | Respaldo de identidad o título |

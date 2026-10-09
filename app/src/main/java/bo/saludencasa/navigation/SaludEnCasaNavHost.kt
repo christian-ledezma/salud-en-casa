@@ -10,6 +10,7 @@ import androidx.navigation.toRoute
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
+import bo.saludencasa.features.catalog.presentation.MyServicesScreen
 import bo.saludencasa.features.location.presentation.AddressListScreen
 import bo.saludencasa.features.location.presentation.AddressScreen
 import bo.saludencasa.features.profile.presentation.ProfileScreen
@@ -60,7 +61,12 @@ fun SaludEnCasaNavHost(
         composable<ProfileRoute> {
             ProfileScreen(
                 onOpenPublicProfile = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
+                onOpenMyServices = { navController.navigate(MyServicesRoute) },
             )
+        }
+
+        composable<MyServicesRoute> {
+            MyServicesScreen(onBack = { navController.popBackStack() })
         }
 
         composable<AddressListRoute> {
