@@ -3,6 +3,8 @@ package bo.saludencasa.features.verification.presentation
 import androidx.annotation.StringRes
 import bo.saludencasa.R
 import bo.saludencasa.features.verification.domain.model.DocumentType
+import bo.saludencasa.features.verification.domain.model.ReviewQueueOrder
+import bo.saludencasa.features.verification.domain.model.ReviewRoleFilter
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import bo.saludencasa.features.verification.domain.model.VerificationError
 
@@ -36,6 +38,21 @@ internal fun ReviewStatus.badgeRes(): Int =
         ReviewStatus.PENDING -> R.string.verification_status_pending
         ReviewStatus.APPROVED -> R.string.verification_status_approved
         ReviewStatus.REJECTED -> R.string.verification_status_rejected
+    }
+
+@StringRes
+internal fun ReviewRoleFilter.labelRes(): Int =
+    when (this) {
+        ReviewRoleFilter.ALL -> R.string.review_queue_filter_role_all
+        ReviewRoleFilter.PATIENT -> R.string.review_queue_filter_role_patient
+        ReviewRoleFilter.PROFESSIONAL -> R.string.review_queue_filter_role_professional
+    }
+
+@StringRes
+internal fun ReviewQueueOrder.labelRes(): Int =
+    when (this) {
+        ReviewQueueOrder.OLDEST_FIRST -> R.string.review_queue_order_oldest
+        ReviewQueueOrder.NEWEST_FIRST -> R.string.review_queue_order_newest
     }
 
 @StringRes

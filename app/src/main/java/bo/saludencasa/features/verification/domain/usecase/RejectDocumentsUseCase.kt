@@ -6,18 +6,18 @@ import bo.saludencasa.features.verification.domain.model.VerificationError
 import bo.saludencasa.features.verification.domain.repository.IDocumentReviewRepository
 import bo.saludencasa.features.verification.domain.vo.RejectionReason
 
-class RejectDocumentUseCase(
+class RejectDocumentsUseCase(
     private val repository: IDocumentReviewRepository,
 ) {
     suspend operator fun invoke(
         profileId: String,
-        type: DocumentType,
+        types: Set<DocumentType>,
         rawReason: String,
     ): ReviewActionResult {
         val reason =
             RejectionReason.create(rawReason).getOrElse {
                 return ReviewActionResult.Failure(VerificationError.InvalidRejectionReason)
             }
-        return repository.rejectDocument(profileId, type, reason)
+        return repository.rejectDocuments(profileId, types, reason)
     }
 }

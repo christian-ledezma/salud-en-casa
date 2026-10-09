@@ -4,11 +4,11 @@ import bo.saludencasa.features.verification.domain.model.DocumentType
 import bo.saludencasa.features.verification.domain.model.ReviewActionResult
 import bo.saludencasa.features.verification.domain.repository.IDocumentReviewRepository
 
-class ApproveDocumentUseCase(
+class ApproveDocumentsUseCase(
     private val repository: IDocumentReviewRepository,
 ) {
     suspend operator fun invoke(
         profileId: String,
-        type: DocumentType,
-    ): ReviewActionResult = repository.approveDocument(profileId, type)
+        types: Set<DocumentType>,
+    ): ReviewActionResult = repository.approveDocuments(profileId, types)
 }

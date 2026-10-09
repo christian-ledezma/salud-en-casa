@@ -217,10 +217,23 @@
     <string name="auth_account_open_document_review">Revisar documentos</string>
 
     <string name="review_queue_title">Documentos por revisar</string>
-    <string name="review_queue_subtitle">Del más antiguo al más reciente.</string>
+    <string name="review_queue_subtitle">Un usuario por tarjeta, con sus documentos pendientes.</string>
     <string name="review_queue_empty">No hay documentos pendientes de revisión.</string>
-    <string name="review_queue_item_submitted">Enviado el %1$s</string>
-    <string name="review_queue_load_more_retry">Cargar más documentos</string>
+    <string name="review_queue_no_matches">Ningún usuario coincide con la búsqueda.</string>
+    <string name="review_queue_clear_filters">Quitar la búsqueda y el filtro</string>
+    <string name="review_queue_search_label">Buscar por nombre o correo</string>
+    <string name="review_queue_filter_role_label">Rol</string>
+    <string name="review_queue_filter_role_all">Todos</string>
+    <string name="review_queue_filter_role_patient">Pacientes</string>
+    <string name="review_queue_filter_role_professional">Profesionales</string>
+    <string name="review_queue_order_label">Orden</string>
+    <string name="review_queue_order_oldest">Más antiguos primero</string>
+    <string name="review_queue_order_newest">Más recientes primero</string>
+    <string name="review_queue_load_more_retry">Cargar más usuarios</string>
+    <plurals name="review_queue_pending_count">
+        <item quantity="one">%d documento pendiente</item>
+        <item quantity="other">%d documentos pendientes</item>
+    </plurals>
 
     <string name="review_detail_title">Revisión de documentos</string>
     <string name="review_subject_email">Correo: %1$s</string>
@@ -231,10 +244,19 @@
     <string name="review_document_missing">Sin cargar</string>
     <string name="review_image_error">No se pudo cargar la imagen del documento.</string>
 
-    <string name="review_action_approve">Aprobar documento</string>
-    <string name="review_action_reject">Rechazar documento</string>
-    <string name="review_reject_dialog_title">Rechazar documento</string>
-    <string name="review_reject_dialog_supporting">El usuario verá este motivo en su aplicación y podrá volver a subir el documento.</string>
+    <string name="review_select_all">Seleccionar todos</string>
+    <string name="review_selection_hint">Marca los documentos que vas a aprobar o rechazar.</string>
+    <plurals name="review_selection_count">
+        <item quantity="one">%1$d documento seleccionado de %2$d</item>
+        <item quantity="other">%1$d documentos seleccionados de %2$d</item>
+    </plurals>
+    <string name="review_action_approve_selected">Aprobar seleccionados</string>
+    <string name="review_action_reject_selected">Rechazar seleccionados</string>
+    <string name="review_reject_dialog_title">Rechazar documentos</string>
+    <plurals name="review_reject_dialog_supporting">
+        <item quantity="one">El usuario verá este motivo en el documento rechazado y podrá volver a subirlo.</item>
+        <item quantity="other">El usuario verá el mismo motivo en los %d documentos rechazados y podrá volver a subirlos.</item>
+    </plurals>
     <string name="review_reject_reason_label">Motivo del rechazo</string>
     <string name="review_reject_confirm">Rechazar</string>
 
@@ -249,4 +271,8 @@
     <string name="error_verification_invalid_rejection_reason">Escribe el motivo del rechazo, de hasta 300 caracteres.</string>
 
     <string name="cd_document_image">Imagen del documento</string>
+    <string name="cd_back_button">Volver</string>
+    <string name="cd_expand_document_image">Ver el documento en pantalla completa</string>
+    <string name="cd_close_full_image">Cerrar la imagen</string>
+    <string name="cd_select_document">Seleccionar %1$s</string>
 </resources>

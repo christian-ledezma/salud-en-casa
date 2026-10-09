@@ -4,28 +4,30 @@ import bo.saludencasa.features.verification.domain.model.DocumentReviewSubjectRe
 import bo.saludencasa.features.verification.domain.model.DocumentType
 import bo.saludencasa.features.verification.domain.model.DocumentUrlResult
 import bo.saludencasa.features.verification.domain.model.MyDocumentsResult
-import bo.saludencasa.features.verification.domain.model.PendingReviewsResult
+import bo.saludencasa.features.verification.domain.model.PendingReviewQuery
+import bo.saludencasa.features.verification.domain.model.PendingReviewSubjectsResult
 import bo.saludencasa.features.verification.domain.model.ReviewActionResult
 import bo.saludencasa.features.verification.domain.vo.RejectionReason
 
 interface IDocumentReviewRepository {
-    suspend fun findPendingReviews(
+    suspend fun findPendingSubjects(
+        query: PendingReviewQuery,
         offset: Int,
         limit: Int,
-    ): PendingReviewsResult
+    ): PendingReviewSubjectsResult
 
     suspend fun getSubject(profileId: String): DocumentReviewSubjectResult
 
     suspend fun getDocumentsOf(profileId: String): MyDocumentsResult
 
-    suspend fun approveDocument(
+    suspend fun approveDocuments(
         profileId: String,
-        type: DocumentType,
+        types: Set<DocumentType>,
     ): ReviewActionResult
 
-    suspend fun rejectDocument(
+    suspend fun rejectDocuments(
         profileId: String,
-        type: DocumentType,
+        types: Set<DocumentType>,
         reason: RejectionReason,
     ): ReviewActionResult
 

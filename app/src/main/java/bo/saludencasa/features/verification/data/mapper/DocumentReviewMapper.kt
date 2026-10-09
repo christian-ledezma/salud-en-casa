@@ -3,25 +3,22 @@ package bo.saludencasa.features.verification.data.mapper
 import bo.saludencasa.features.profile.domain.model.ProfessionalType
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.verification.data.model.DocumentReviewSubjectDto
-import bo.saludencasa.features.verification.data.model.PendingDocumentReviewDto
+import bo.saludencasa.features.verification.data.model.PendingReviewSubjectDto
 import bo.saludencasa.features.verification.domain.model.DocumentReviewSubject
-import bo.saludencasa.features.verification.domain.model.DocumentType
-import bo.saludencasa.features.verification.domain.model.PendingDocumentReview
+import bo.saludencasa.features.verification.domain.model.PendingReviewSubject
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import java.time.OffsetDateTime
 
-// docs/decisions.md, 2026-10-06, queue pagination.
-internal fun PendingDocumentReviewDto.toPendingReview(): PendingDocumentReview? {
-    val type = DocumentType.entries.firstOrNull { it.name == documentType } ?: return null
+// docs/decisions.md, 2026-10-08, the queue lists people.
+internal fun PendingReviewSubjectDto.toPendingSubject(): PendingReviewSubject? {
     // PostgREST sends the offset as +00:00, which Instant.parse does not take.
-    val created = runCatching { OffsetDateTime.parse(createdAt).toInstant() }.getOrNull() ?: return null
-    return PendingDocumentReview(
+    val oldest = runCatching { OffsetDateTime.parse(oldestPendingAt).toInstant() }.getOrNull() ?: return null
+    return PendingReviewSubject(
         profileId = profileId,
-        type = type,
-        caption = caption,
-        createdAt = created,
         fullName = fullName,
         email = email,
+        pendingCount = pendingCount,
+        oldestPendingAt = oldest,
     )
 }
 

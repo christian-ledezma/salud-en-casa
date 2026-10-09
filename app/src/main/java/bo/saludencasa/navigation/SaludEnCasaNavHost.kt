@@ -99,17 +99,13 @@ fun SaludEnCasaNavHost(
         composable<DocumentReviewQueueRoute> {
             DocumentReviewQueueScreen(
                 onBack = { navController.popBackStack() },
-                onOpenReview = { profileId, documentType ->
-                    navController.navigate(DocumentReviewRoute(profileId, documentType))
-                },
+                onOpenReview = { profileId -> navController.navigate(DocumentReviewRoute(profileId)) },
             )
         }
 
         composable<DocumentReviewRoute> { entry ->
-            val route = entry.toRoute<DocumentReviewRoute>()
             DocumentReviewScreen(
-                profileId = route.profileId,
-                documentType = route.documentType,
+                profileId = entry.toRoute<DocumentReviewRoute>().profileId,
                 onBack = { navController.popBackStack() },
             )
         }

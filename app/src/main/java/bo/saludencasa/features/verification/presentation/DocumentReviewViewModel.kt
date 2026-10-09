@@ -8,11 +8,11 @@ import bo.saludencasa.features.verification.domain.model.DocumentType
 import bo.saludencasa.features.verification.domain.model.DocumentUrlResult
 import bo.saludencasa.features.verification.domain.model.ReviewActionResult
 import bo.saludencasa.features.verification.domain.model.VerificationError
-import bo.saludencasa.features.verification.domain.usecase.ApproveDocumentUseCase
+import bo.saludencasa.features.verification.domain.usecase.ApproveDocumentsUseCase
 import bo.saludencasa.features.verification.domain.usecase.ApproveProfessionalVerificationUseCase
 import bo.saludencasa.features.verification.domain.usecase.GetDocumentReviewDossierUseCase
 import bo.saludencasa.features.verification.domain.usecase.GetSignedDocumentUrlUseCase
-import bo.saludencasa.features.verification.domain.usecase.RejectDocumentUseCase
+import bo.saludencasa.features.verification.domain.usecase.RejectDocumentsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,21 +42,25 @@ sealed interface DocumentReviewUiState {
     data class Content(
         val dossier: DocumentReviewDossier,
         val selectedType: DocumentType,
+        val checkedTypes: Set<DocumentType>,
         val image: DocumentImageState,
         val busy: Boolean,
+        val expandedImage: Boolean,
         val rejectionDraft: String?,
         val confirmingProfessionalApproval: Boolean,
         val notice: VerificationError?,
-    ) : DocumentReviewUiState
+    ) : DocumentReviewUiState {
+        val allChecked: Boolean
+            get() = dossier.selectableTypes.isNotEmpty() && checkedTypes.size == dossier.selectableTypes.size
+    }
 }
 
 class DocumentReviewViewModel(
     private val profileId: String,
-    private val initialType: DocumentType,
     private val getDossier: GetDocumentReviewDossierUseCase,
     private val getSignedUrl: GetSignedDocumentUrlUseCase,
-    private val approveDocument: ApproveDocumentUseCase,
-    private val rejectDocument: RejectDocumentUseCase,
+    private val approveDocuments: ApproveDocumentsUseCase,
+    private val rejectDocuments: RejectDocumentsUseCase,
     private val approveProfessional: ApproveProfessionalVerificationUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<DocumentReviewUiState>(DocumentReviewUiState.Loading)
@@ -72,17 +76,22 @@ class DocumentReviewViewModel(
         viewModelScope.launch {
             when (val result = getDossier(profileId)) {
                 is DocumentReviewDossierResult.Loaded -> {
+                    // The queue card names a person, not a document, so which
+                    // one opens is decided here.
+                    val first = result.dossier.firstTypeToShow
                     state.value =
                         DocumentReviewUiState.Content(
                             dossier = result.dossier,
-                            selectedType = initialType,
+                            selectedType = first,
+                            checkedTypes = emptySet(),
                             image = DocumentImageState.Loading,
                             busy = false,
+                            expandedImage = false,
                             rejectionDraft = null,
                             confirmingProfessionalApproval = false,
                             notice = null,
                         )
-                    loadImage(initialType)
+                    loadImage(first)
                 }
 
                 is DocumentReviewDossierResult.Failure -> {
@@ -98,22 +107,44 @@ class DocumentReviewViewModel(
         loadImage(type)
     }
 
+    fun onToggleChecked(type: DocumentType) {
+        val content = idleContent() ?: return
+        val checked = if (type in content.checkedTypes) content.checkedTypes - type else content.checkedTypes + type
+        state.value = content.copy(checkedTypes = checked, notice = null)
+    }
+
+    fun onToggleAllChecked() {
+        val content = idleContent() ?: return
+        val checked = if (content.allChecked) emptySet() else content.dossier.selectableTypes.toSet()
+        state.value = content.copy(checkedTypes = checked, notice = null)
+    }
+
+    fun onExpandImage() {
+        val content = idleContent() ?: return
+        state.value = content.copy(expandedImage = true)
+    }
+
+    fun onCollapseImage() {
+        val content = state.value as? DocumentReviewUiState.Content ?: return
+        state.value = content.copy(expandedImage = false)
+    }
+
     fun onRetryImage() {
         val content = idleContent() ?: return
         state.value = content.copy(image = DocumentImageState.Loading)
         loadImage(content.selectedType)
     }
 
-    fun onApprove() {
-        val content = idleContent() ?: return
+    fun onApproveSelected() {
+        val content = idleContent()?.takeIf { it.checkedTypes.isNotEmpty() } ?: return
         state.value = content.copy(busy = true, notice = null)
         viewModelScope.launch {
-            settle(approveDocument(profileId, content.selectedType))
+            settle(approveDocuments(profileId, content.checkedTypes))
         }
     }
 
     fun onRejectClick() {
-        val content = idleContent() ?: return
+        val content = idleContent()?.takeIf { it.checkedTypes.isNotEmpty() } ?: return
         state.value = content.copy(rejectionDraft = "", notice = null)
     }
 
@@ -132,9 +163,11 @@ class DocumentReviewViewModel(
     fun onRejectConfirm() {
         val content = idleContent() ?: return
         val reason = content.rejectionDraft ?: return
+        if (content.checkedTypes.isEmpty()) return
         state.value = content.copy(busy = true, notice = null)
         viewModelScope.launch {
-            settle(rejectDocument(profileId, content.selectedType, reason))
+            // docs/decisions.md, 2026-10-08, one reason for the whole selection.
+            settle(rejectDocuments(profileId, content.checkedTypes, reason))
         }
     }
 
@@ -165,9 +198,16 @@ class DocumentReviewViewModel(
                 // Taken after the suspension: an image reply that landed meanwhile
                 // would be overwritten by a copy of the state from before it.
                 val content = state.value as? DocumentReviewUiState.Content ?: return
-                // The write succeeded either way, so both dialogs close and a
-                // failed reread is reported outside them.
-                val settled = content.copy(busy = false, rejectionDraft = null, confirmingProfessionalApproval = false)
+                // The write succeeded either way, so both dialogs close, the
+                // marks on documents already decided go away, and a failed
+                // reread is reported outside the dialogs.
+                val settled =
+                    content.copy(
+                        busy = false,
+                        checkedTypes = emptySet(),
+                        rejectionDraft = null,
+                        confirmingProfessionalApproval = false,
+                    )
                 state.value =
                     when (reread) {
                         is DocumentReviewDossierResult.Loaded -> settled.copy(dossier = reread.dossier, notice = null)

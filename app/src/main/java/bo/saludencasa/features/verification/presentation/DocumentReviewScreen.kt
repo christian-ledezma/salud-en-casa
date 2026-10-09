@@ -2,10 +2,12 @@ package bo.saludencasa.features.verification.presentation
 
 import android.icu.text.ListFormatter
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -27,10 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,6 +49,7 @@ import bo.saludencasa.features.verification.domain.model.VerificationDocument
 import bo.saludencasa.features.verification.domain.model.VerificationError
 import bo.saludencasa.ui.components.FormField
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.ScreenHeader
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import coil3.compose.SubcomposeAsyncImage
@@ -60,11 +63,9 @@ private const val DOCUMENT_ASPECT_RATIO = 4f / 3f
 @Composable
 fun DocumentReviewScreen(
     profileId: String,
-    documentType: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: DocumentReviewViewModel =
-        koinViewModel { parametersOf(profileId, DocumentType.valueOf(documentType)) },
+    viewModel: DocumentReviewViewModel = koinViewModel { parametersOf(profileId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -75,8 +76,12 @@ fun DocumentReviewScreen(
         actions =
             ReviewActions(
                 onSelect = viewModel::onSelect,
+                onExpandImage = viewModel::onExpandImage,
+                onCollapseImage = viewModel::onCollapseImage,
+                onToggleChecked = viewModel::onToggleChecked,
+                onToggleAllChecked = viewModel::onToggleAllChecked,
                 onRetryImage = viewModel::onRetryImage,
-                onApprove = viewModel::onApprove,
+                onApproveSelected = viewModel::onApproveSelected,
                 onRejectClick = viewModel::onRejectClick,
                 onRejectReasonChanged = viewModel::onRejectReasonChanged,
                 onRejectDismiss = viewModel::onRejectDismiss,
@@ -91,8 +96,12 @@ fun DocumentReviewScreen(
 
 internal data class ReviewActions(
     val onSelect: (DocumentType) -> Unit = {},
+    val onExpandImage: () -> Unit = {},
+    val onCollapseImage: () -> Unit = {},
+    val onToggleChecked: (DocumentType) -> Unit = {},
+    val onToggleAllChecked: () -> Unit = {},
     val onRetryImage: () -> Unit = {},
-    val onApprove: () -> Unit = {},
+    val onApproveSelected: () -> Unit = {},
     val onRejectClick: () -> Unit = {},
     val onRejectReasonChanged: (String) -> Unit = {},
     val onRejectDismiss: () -> Unit = {},
@@ -136,9 +145,16 @@ internal fun DocumentReviewContent(
         }
 
         is DocumentReviewUiState.Content -> {
-            ReviewBody(content = uiState, actions = actions, modifier = modifier)
+            ReviewBody(content = uiState, onBack = onBack, actions = actions, modifier = modifier)
             RejectDialog(content = uiState, actions = actions)
             ApproveProfessionalDialog(content = uiState, actions = actions)
+            val image = uiState.image
+            if (uiState.expandedImage && image is DocumentImageState.Ready) {
+                FullScreenDocumentImage(
+                    model = documentImageRequest(image.url),
+                    onDismiss = actions.onCollapseImage,
+                )
+            }
         }
     }
 }
@@ -146,6 +162,7 @@ internal fun DocumentReviewContent(
 @Composable
 private fun ReviewBody(
     content: DocumentReviewUiState.Content,
+    onBack: () -> Unit,
     actions: ReviewActions,
     modifier: Modifier = Modifier,
 ) {
@@ -160,11 +177,7 @@ private fun ReviewBody(
                 .padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
         verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
     ) {
-        Text(
-            text = stringResource(R.string.review_detail_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        ScreenHeader(title = stringResource(R.string.review_detail_title), onBack = onBack)
 
         SubjectCard(subject = content.dossier.subject)
 
@@ -173,16 +186,26 @@ private fun ReviewBody(
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground,
         )
+
+        SelectionActions(content = content, actions = actions)
+
         content.dossier.reviewableTypes.forEach { type ->
             DocumentChoiceRow(
                 type = type,
                 document = checklist.documentFor(type),
                 isSelected = type == content.selectedType,
+                isChecked = type in content.checkedTypes,
+                enabled = !content.busy,
                 onClick = { actions.onSelect(type) },
+                onCheckedChange = { actions.onToggleChecked(type) },
             )
         }
 
-        DocumentImage(image = content.image, onRetry = actions.onRetryImage)
+        DocumentImage(
+            image = content.image,
+            onRetry = actions.onRetryImage,
+            onExpand = actions.onExpandImage,
+        )
 
         selected?.let { document ->
             document.caption?.let { caption ->
@@ -198,7 +221,6 @@ private fun ReviewBody(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            VerdictButtons(document = document, busy = content.busy, actions = actions)
         }
 
         if (content.dossier.canApproveProfessional) {
@@ -215,6 +237,59 @@ private fun ReviewBody(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
             )
+        }
+    }
+}
+
+// Above the list, as the verdict on a whole pile usually is the same one, and a
+// selection that scrolled out of reach would be decided blind.
+@Composable
+private fun SelectionActions(
+    content: DocumentReviewUiState.Content,
+    actions: ReviewActions,
+) {
+    val selectable = content.dossier.selectableTypes.size
+    val checked = content.checkedTypes.size
+    val canDecide = checked > 0 && !content.busy
+
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = content.allChecked,
+                onCheckedChange = { actions.onToggleAllChecked() },
+                enabled = selectable > 0 && !content.busy,
+            )
+            Text(
+                text = stringResource(R.string.review_select_all),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Text(
+            text =
+                if (checked == 0) {
+                    stringResource(R.string.review_selection_hint)
+                } else {
+                    pluralStringResource(R.plurals.review_selection_count, checked, checked, selectable)
+                },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        PrimaryButton(
+            text = stringResource(R.string.review_action_approve_selected),
+            onClick = actions.onApproveSelected,
+            enabled = canDecide,
+        )
+        OutlinedButton(
+            onClick = actions.onRejectClick,
+            enabled = canDecide,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(text = stringResource(R.string.review_action_reject_selected))
         }
     }
 }
@@ -274,13 +349,19 @@ private fun DocumentChoiceRow(
     type: DocumentType,
     document: VerificationDocument?,
     isSelected: Boolean,
+    isChecked: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
+    onCheckedChange: () -> Unit,
 ) {
+    val title = stringResource(type.titleRes())
+    val checkboxDescription = stringResource(R.string.cd_select_document, title)
+
     Surface(
         selected = isSelected,
         onClick = onClick,
-        enabled = document != null,
-        modifier = Modifier.fillMaxWidth().semantics { role = Role.RadioButton },
+        enabled = document != null && enabled,
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color =
             if (isSelected) {
@@ -295,24 +376,36 @@ private fun DocumentChoiceRow(
                 MaterialTheme.colorScheme.onSurfaceVariant
             },
     ) {
-        // FlowRow, as in DocumentRow, so a long title and the badge wrap.
-        FlowRow(
+        Row(
             modifier = Modifier.padding(Spacing.cardPadding),
             horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-            verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(type.titleRes()),
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f, fill = false),
+            Checkbox(
+                checked = isChecked,
+                onCheckedChange = { onCheckedChange() },
+                enabled = document != null && enabled,
+                modifier = Modifier.semantics { contentDescription = checkboxDescription },
             )
-            if (document != null) {
-                StatusBadge(status = document.status)
-            } else {
+            // FlowRow, as in DocumentRow, so a long title and the badge wrap.
+            FlowRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+            ) {
                 Text(
-                    text = stringResource(R.string.review_document_missing),
-                    style = MaterialTheme.typography.labelMedium,
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                if (document != null) {
+                    StatusBadge(status = document.status)
+                } else {
+                    Text(
+                        text = stringResource(R.string.review_document_missing),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
             }
         }
     }
@@ -322,8 +415,10 @@ private fun DocumentChoiceRow(
 private fun DocumentImage(
     image: DocumentImageState,
     onRetry: () -> Unit,
+    onExpand: () -> Unit,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
+    val expandLabel = stringResource(R.string.cd_expand_document_image)
 
     Box(
         modifier =
@@ -331,7 +426,16 @@ private fun DocumentImage(
                 .fillMaxWidth()
                 .aspectRatio(DOCUMENT_ASPECT_RATIO)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                // Only an image that loaded can be opened, so the ripple never
+                // promises a viewer over a placeholder.
+                .then(
+                    if (image is DocumentImageState.Ready) {
+                        Modifier.clickable(onClickLabel = expandLabel, onClick = onExpand)
+                    } else {
+                        Modifier
+                    },
+                ),
         contentAlignment = Alignment.Center,
     ) {
         when (image) {
@@ -352,18 +456,8 @@ private fun DocumentImage(
             }
 
             is DocumentImageState.Ready -> {
-                val context = LocalContext.current
-                // docs/decisions.md, 2026-10-06, review images are never cached on disk.
-                val request =
-                    remember(image.url) {
-                        ImageRequest
-                            .Builder(context)
-                            .data(image.url)
-                            .diskCachePolicy(CachePolicy.DISABLED)
-                            .build()
-                    }
                 SubcomposeAsyncImage(
-                    model = request,
+                    model = documentImageRequest(image.url),
                     contentDescription = stringResource(R.string.cd_document_image),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize(),
@@ -378,6 +472,21 @@ private fun DocumentImage(
                 )
             }
         }
+    }
+}
+
+// The same request object in the preview and in the full screen viewer, so the
+// bitmap comes from Coil's memory cache instead of being downloaded twice.
+// docs/decisions.md, 2026-10-06, review images are never cached on disk.
+@Composable
+private fun documentImageRequest(url: String): ImageRequest {
+    val context = LocalContext.current
+    return remember(url) {
+        ImageRequest
+            .Builder(context)
+            .data(url)
+            .diskCachePolicy(CachePolicy.DISABLED)
+            .build()
     }
 }
 
@@ -400,37 +509,12 @@ private fun ImageError(onRetry: () -> Unit) {
 }
 
 @Composable
-private fun VerdictButtons(
-    document: VerificationDocument,
-    busy: Boolean,
-    actions: ReviewActions,
-) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
-    ) {
-        if (document.status != ReviewStatus.APPROVED) {
-            PrimaryButton(
-                text = stringResource(R.string.review_action_approve),
-                onClick = actions.onApprove,
-                enabled = !busy,
-            )
-        }
-        if (document.status != ReviewStatus.REJECTED) {
-            OutlinedButton(onClick = actions.onRejectClick, enabled = !busy) {
-                Text(text = stringResource(R.string.review_action_reject))
-            }
-        }
-    }
-}
-
-@Composable
 private fun RejectDialog(
     content: DocumentReviewUiState.Content,
     actions: ReviewActions,
 ) {
     val reason = content.rejectionDraft ?: return
+    val count = content.checkedTypes.size
 
     AlertDialog(
         onDismissRequest = actions.onRejectDismiss,
@@ -443,7 +527,7 @@ private fun RejectDialog(
                 verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
             ) {
                 Text(
-                    text = stringResource(R.string.review_reject_dialog_supporting),
+                    text = pluralStringResource(R.plurals.review_reject_dialog_supporting, count, count),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 FormField(
@@ -539,7 +623,9 @@ private fun previewDossier(
 private fun previewContent(
     dossier: DocumentReviewDossier,
     selectedType: DocumentType = DocumentType.DEGREE,
+    checkedTypes: Set<DocumentType> = emptySet(),
     image: DocumentImageState = DocumentImageState.Loading,
+    expandedImage: Boolean = false,
     rejectionDraft: String? = null,
     confirmingProfessionalApproval: Boolean = false,
     notice: VerificationError? = null,
@@ -547,8 +633,10 @@ private fun previewContent(
     DocumentReviewUiState.Content(
         dossier = dossier,
         selectedType = selectedType,
+        checkedTypes = checkedTypes,
         image = image,
         busy = false,
+        expandedImage = expandedImage,
         rejectionDraft = rejectionDraft,
         confirmingProfessionalApproval = confirmingProfessionalApproval,
         notice = notice,
@@ -571,7 +659,7 @@ private val allApproved =
         DocumentType.LICENSE,
     ).map { previewDocument(it, ReviewStatus.APPROVED) }
 
-@Preview(showBackground = true, heightDp = 1500, name = "Revision con documentos pendientes, claro")
+@Preview(showBackground = true, heightDp = 1600, name = "Revision sin seleccion, claro")
 @Composable
 private fun ReviewLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
@@ -580,20 +668,30 @@ private fun ReviewLightPreview() {
     }
 }
 
-@Preview(showBackground = true, heightDp = 1500, name = "Revision lista para verificar, oscuro")
+@Preview(showBackground = true, heightDp = 1600, name = "Revision con tres marcados, oscuro")
 @Composable
-private fun ReviewReadyDarkPreview() {
+private fun ReviewSelectionDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         val content =
             previewContent(
-                previewDossier(allApproved),
+                previewDossier(partlyReviewed),
+                checkedTypes = setOf(DocumentType.ID_FRONT, DocumentType.DEGREE, DocumentType.OTHER),
                 image = DocumentImageState.Failed(VerificationError.NetworkUnavailable),
             )
         DocumentReviewContent(content, {}, {}, ReviewActions())
     }
 }
 
-@Preview(showBackground = true, heightDp = 2600, fontScale = 2f, name = "Revision al 200 %")
+@Preview(showBackground = true, heightDp = 1500, name = "Revision lista para verificar, claro")
+@Composable
+private fun ReviewReadyPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        val content = previewContent(previewDossier(allApproved), image = DocumentImageState.Missing)
+        DocumentReviewContent(content, {}, {}, ReviewActions())
+    }
+}
+
+@Preview(showBackground = true, heightDp = 3000, fontScale = 2f, name = "Revision al 200 %")
 @Composable
 private fun ReviewLargeFontPreview() {
     SaludEnCasaTheme(darkTheme = false) {
@@ -602,6 +700,7 @@ private fun ReviewLargeFontPreview() {
             previewContent(
                 previewDossier(documents, name = "Maria del Carmen Condori de la Torre"),
                 selectedType = DocumentType.SELFIE,
+                checkedTypes = setOf(DocumentType.SELFIE, DocumentType.DEGREE),
                 image = DocumentImageState.Missing,
                 notice = VerificationError.RequiredDocumentsNotApproved,
             )
@@ -609,13 +708,14 @@ private fun ReviewLargeFontPreview() {
     }
 }
 
-@Preview(showBackground = true, heightDp = 900, fontScale = 2f, name = "Rechazo al 200 %")
+@Preview(showBackground = true, heightDp = 900, fontScale = 2f, name = "Rechazo multiple al 200 %")
 @Composable
 private fun ReviewRejectDialogLargeFontPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val content =
             previewContent(
                 previewDossier(partlyReviewed),
+                checkedTypes = setOf(DocumentType.DEGREE, DocumentType.OTHER),
                 image = DocumentImageState.Missing,
                 rejectionDraft = "La foto esta borrosa y no se lee el numero de matricula.",
                 notice = VerificationError.InvalidRejectionReason,

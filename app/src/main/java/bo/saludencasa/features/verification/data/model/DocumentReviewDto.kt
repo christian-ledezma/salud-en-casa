@@ -4,13 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class PendingDocumentReviewDto(
+data class PendingReviewSubjectDto(
     @SerialName("profile_id") val profileId: String,
-    @SerialName("document_type") val documentType: String,
-    val caption: String? = null,
-    @SerialName("created_at") val createdAt: String,
     @SerialName("full_name") val fullName: String,
     val email: String,
+    @SerialName("pending_count") val pendingCount: Int,
+    @SerialName("oldest_pending_at") val oldestPendingAt: String,
 )
 
 @Serializable

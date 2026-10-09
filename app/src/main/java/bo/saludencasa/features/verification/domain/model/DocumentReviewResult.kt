@@ -1,18 +1,18 @@
 package bo.saludencasa.features.verification.domain.model
 
-sealed interface PendingReviewsResult {
+sealed interface PendingReviewSubjectsResult {
     data class Loaded(
-        val reviews: List<PendingDocumentReview>,
-    ) : PendingReviewsResult
+        val subjects: List<PendingReviewSubject>,
+    ) : PendingReviewSubjectsResult
 
     data class Failure(
         val error: VerificationError,
-    ) : PendingReviewsResult
+    ) : PendingReviewSubjectsResult
 }
 
 sealed interface PendingReviewPageResult {
     data class Loaded(
-        val reviews: List<PendingDocumentReview>,
+        val subjects: List<PendingReviewSubject>,
         val endReached: Boolean,
     ) : PendingReviewPageResult
 

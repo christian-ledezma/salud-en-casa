@@ -2,7 +2,7 @@ package bo.saludencasa.features.verification.data.datasource
 
 import bo.saludencasa.features.verification.data.model.ApproveProfessionalParams
 import bo.saludencasa.features.verification.data.model.DocumentReviewSubjectDto
-import bo.saludencasa.features.verification.data.model.PendingDocumentReviewDto
+import bo.saludencasa.features.verification.data.model.PendingReviewSubjectDto
 import bo.saludencasa.features.verification.data.model.VerificationDocumentDto
 import bo.saludencasa.features.verification.data.model.VerificationDocumentRow
 import io.github.jan.supabase.SupabaseClient
@@ -38,19 +38,31 @@ class SupabaseVerificationDataSource(
             }
     }
 
-    suspend fun findPendingReviews(
+    suspend fun findPendingSubjects(
+        term: String?,
+        role: String?,
+        newestFirst: Boolean,
         offset: Long,
         limit: Long,
-    ): List<PendingDocumentReviewDto> =
+    ): List<PendingReviewSubjectDto> =
         supabase
-            .from(QUEUE_VIEW)
-            .select(Columns.list("profile_id", "document_type", "caption", "created_at", "full_name", "email")) {
-                // id breaks ties so two documents with the same timestamp cannot
-                // swap places between pages.
-                order("created_at", Order.ASCENDING)
-                order("id", Order.ASCENDING)
+            .from(SUBJECT_QUEUE_VIEW)
+            .select(QUEUE_COLUMNS) {
+                filter {
+                    // The star is the wildcard PostgREST understands; a percent
+                    // sign would reach the engine as a literal.
+                    if (term != null) ilike("search_text", "*$term*")
+                    if (role != null) contains("held_roles", listOf(role))
+                }
+                order(
+                    "oldest_pending_at",
+                    if (newestFirst) Order.DESCENDING else Order.ASCENDING,
+                )
+                // profile_id breaks ties so two people whose oldest document
+                // shares a timestamp cannot swap places between pages.
+                order("profile_id", Order.ASCENDING)
                 range(offset, offset + limit - 1)
-            }.decodeList<PendingDocumentReviewDto>()
+            }.decodeList<PendingReviewSubjectDto>()
 
     suspend fun findReviewSubject(profileId: String): DocumentReviewSubjectDto? =
         supabase
@@ -74,10 +86,10 @@ class SupabaseVerificationDataSource(
     // raising, is not mistaken for a success.
     suspend fun writeVerdict(
         profileId: String,
-        documentType: String,
+        documentTypes: List<String>,
         status: String,
         rejectionReason: String?,
-    ): Boolean =
+    ): Int =
         supabase
             .from(TABLE)
             .update({
@@ -87,10 +99,10 @@ class SupabaseVerificationDataSource(
                 select(COLUMNS)
                 filter {
                     eq("profile_id", profileId)
-                    eq("document_type", documentType)
+                    isIn("document_type", documentTypes)
                 }
             }.decodeList<VerificationDocumentDto>()
-            .isNotEmpty()
+            .size
 
     suspend fun approveProfessional(profileId: String) {
         supabase.postgrest.rpc("approve_professional_verification", ApproveProfessionalParams(profileId))
@@ -116,11 +128,14 @@ class SupabaseVerificationDataSource(
     private companion object {
         const val BUCKET = "verification-documents"
         const val TABLE = "verification_documents"
-        const val QUEUE_VIEW = "document_review_queue"
+        const val SUBJECT_QUEUE_VIEW = "document_review_subject_queue"
         const val SUBJECT_VIEW = "document_review_profiles"
 
         // docs/decisions.md, 2026-10-06, signed URL lifetime.
         val SIGNED_URL_LIFETIME = 5.minutes
+
+        val QUEUE_COLUMNS: Columns =
+            Columns.list("profile_id", "full_name", "email", "pending_count", "oldest_pending_at")
 
         val COLUMNS: Columns =
             Columns.list("document_type", "status", "storage_path", "caption", "rejection_reason")
