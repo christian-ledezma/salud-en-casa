@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +41,7 @@ enum class NavigationDestination(
     val labelRes: Int,
 ) {
     HOME(Icons.Filled.Home, R.string.common_nav_home),
-    REQUESTS(Icons.Filled.List, R.string.common_nav_requests),
+    REQUESTS(Icons.AutoMirrored.Filled.List, R.string.common_nav_requests),
     PROFILE(Icons.Filled.Person, R.string.common_nav_profile),
 }
 
