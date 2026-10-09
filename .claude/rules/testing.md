@@ -51,9 +51,10 @@ causa de la intermitencia; no se reintenta hasta que pase.
 | Casos de uso | `app/src/test` | Máquina virtual de Java |
 | Transformadores | `app/src/test` | Máquina virtual de Java |
 | Modelos de vista | `app/src/test` | Máquina virtual de Java |
-| Interfaz | `app/src/androidTest` | Emulador |
+| Interfaz | `app/src/test`, con Robolectric | Máquina virtual de Java |
 | Forma de una pantalla | Previsualizaciones `@Preview` | Claro, oscuro y fuente al 200 % |
 | Políticas de seguridad y disparadores | Experimento SQL contra la base | Proyecto remoto, dentro de una transacción con `rollback` |
+| Que las migraciones reconstruyan el esquema | `supabase db reset` y `db diff --linked` | Entorno local con Docker |
 
 La estructura de paquetes de las pruebas replica la del código fuente.
 
@@ -64,11 +65,28 @@ un dispositivo». Para el resto, la forma de la pantalla se verifica con las tre
 previsualizaciones, que por eso pasaron de recomendación a obligación. Ver
 `docs/decisions.md`, 2026-10-04.
 
+**Las pruebas de interfaz corren en la máquina virtual de Java, no en un emulador.**
+Robolectric compone la pantalla con `createComposeRule`, y `graphicsMode=NATIVE`
+—en `app/src/test/resources/robolectric.properties`— es lo que hace que el texto se
+mida de verdad: sin él, cada `Text` mide tres o cuatro dp y ninguna aserción de
+disposición significa nada. La configuración fija un teléfono de **320 dp**, el ancho
+más angosto que Android todavía envía, porque es donde el 200 % de fuente recorta.
+Se prueba la función de contenido, que por eso es `internal` y no `private`.
+
+**Qué atrapan y qué no.** Atrapan: un control que deja de componerse, uno que queda
+fuera de los bordes de la pantalla, y contenido al que no se puede llegar porque la
+pantalla dejó de desplazarse. Las tres se comprobaron por mutación el 2026-10-08.
+**No atrapan el texto recortado dentro de su propio contenedor**: Compose mide ese
+`Text` al ancho del contenedor y ni los límites ni la semántica delatan el recorte.
+Esa forma —la del rótulo del control segmentado del Sprint 2.5 y la del chip de
+HU-07— **sigue dependiendo de mirar las previsualizaciones**, que por eso no se
+reemplazan. Ver `docs/decisions.md`, 2026-10-08.
+
 **Las pruebas de política no tienen archivo.** Una política de seguridad a nivel de
 fila y un disparador se ejecutan dentro de PostgreSQL, así que ninguna prueba de
-JUnit puede ejercerlos: no hay base de datos en la máquina virtual de Java y el
-proyecto no tiene entorno local con Docker (aplazado en HT-04). Se verifican con un
-experimento SQL contra el proyecto remoto, simulando al usuario autenticado con
+JUnit puede ejercerlos: no hay base de datos en la máquina virtual de Java. Se
+verifican con un experimento SQL contra el proyecto remoto, simulando al usuario
+autenticado con
 `set local role authenticated` y `set local request.jwt.claims`, **dentro de una
 transacción que termina en `rollback`** para no dejar residuo. Es el método con el
 que se verificaron los disparadores de dirección en HU-05 y con el que se encontró
@@ -240,11 +258,16 @@ Roles múltiples, desde el Sprint 2.5:
 
 - `screenRendersAllFourStates` — cargando, vacío, con contenido y error
 - `contentDescriptionsArePresentOnMeaningfulIcons`
+- **Obligatoria para toda pantalla nueva:** una prueba de interfaz que, al 200 % de
+  fuente y a 320 dp, afirme que cada control de la pantalla se alcanza, se muestra y
+  no se sale de los bordes. El ayudante está en `app/src/test/java/bo/saludencasa/ui/LargeFont.kt`
 - **Obligatoria, como previsualización y no como prueba:** toda pantalla tiene
-  `@Preview` en claro, en oscuro y con `fontScale = 2f`. Es el único control que
-  queda contra los recortes de texto y las filas que dejan de componerse, ahora
-  que no se recorre cada pantalla a mano. Los tres defectos de esa clase que lleva
-  el proyecto —dos en el Sprint 2.5 y uno en HU-06— aparecieron justo ahí
+  `@Preview` en claro, en oscuro y con `fontScale = 2f`. Desde el 2026-10-08 la
+  prueba de interfaz cubre las filas que dejan de componerse y los controles que se
+  salen de la pantalla, pero **el texto recortado dentro de su contenedor solo se ve
+  mirando**, así que la previsualización sigue siendo obligatoria y hay que abrirla:
+  compilar no es mirar, y el cierre de HU-09 declaró cumplido ese punto antes de que
+  nadie la hubiera abierto
 
 ## Pruebas transversales obligatorias
 

@@ -21,6 +21,7 @@ Proyecto de grado. El desarrollo sigue SCRUM con sprints de una semana.
 | JDK | 17 |
 | Android Studio | Quail o posterior |
 | Node.js | 20 LTS o superior, solo para la CLI de Supabase |
+| Docker | Para el entorno local de Supabase. Opcional: solo hace falta para `supabase start` y `supabase db reset` |
 
 Dispositivo o emulador con **Android 8.0 (API 26)** o superior.
 
@@ -94,24 +95,36 @@ npx supabase db push
 `npx supabase link` pide la contraseña de la base de datos una sola vez y la
 guarda en el llavero del sistema operativo.
 
-En esta etapa se trabaja **contra el proyecto remoto de desarrollo**. El entorno
-local con Docker (`supabase start`, `supabase db reset`) está fuera de alcance;
-la razón está en `docs/decisions.md`.
+El trabajo diario va **contra el proyecto remoto de desarrollo**. Para comprobar
+que las migraciones reconstruyen la base desde cero, que es lo que exige el cierre
+de cada sprint que toque el esquema, hay un entorno local con Docker:
+
+```bash
+npx supabase start     # levanta el entorno y aplica todas las migraciones
+npx supabase db reset  # recrea la base y las vuelve a aplicar desde cero
+npx supabase stop      # libera los contenedores
+```
+
+`db reset` sin `--linked` actúa **solo sobre el entorno local**. Nunca se corre
+`db reset --linked`: borraría los datos del proyecto remoto.
 
 ## Comandos
 
 | Comando | Qué hace |
 |---|---|
 | `./gradlew assembleDebug` | Compila la versión de depuración |
-| `./gradlew test` | Pruebas unitarias |
-| `./gradlew connectedAndroidTest` | Pruebas instrumentadas, requiere dispositivo |
+| `./gradlew test` | Pruebas unitarias, incluidas las de interfaz al 200 % de fuente |
+| `./gradlew connectedAndroidTest` | Pruebas instrumentadas, requiere dispositivo. Hoy no hay ninguna |
 | `./gradlew ktlintCheck` | Estilo de código |
 | `./gradlew staticAnalysis` | Estilo más las reglas propias: capas y texto escrito en el código |
 | `./gradlew build` | Verificación completa |
 | `./gradlew signingReport` | Muestra las huellas SHA-1 del proyecto |
 | `npx supabase migration new <nombre>` | Crea una migración |
 | `npx supabase db push --dry-run` | Muestra qué migraciones se aplicarían |
-| `npx supabase db push` | Aplica las migraciones pendientes |
+| `npx supabase db push` | Aplica las migraciones pendientes al proyecto remoto |
+| `npx supabase start` | Entorno local con Docker |
+| `npx supabase db reset` | Reconstruye la base local desde las migraciones |
+| `npx supabase db diff --linked --schema public` | Compara el remoto contra las migraciones |
 
 ## Integración continua
 
