@@ -801,6 +801,97 @@ Se verificaron de todos modos con los archivos sonda de HT-08 antes de dar esta
 historia por cerrada, no dando por sentado que documentar la regla bastaba para
 demostrar que la prueba automática la sostiene.
 
+### Rediseño de las dos pantallas de revisión, 2026-10-08
+
+Pedido del autor después del cierre: la cola «se hace muy larga» porque listaba una
+tarjeta por documento, y el detalle no permitía decidir varios documentos de una vez.
+No es una historia nueva: es la misma HU-09 con sus dos pantallas rehechas, y los cinco
+criterios de aceptación siguen cumpliéndose.
+
+**Qué cambió.**
+
+1. **La cola lista personas, no documentos.** Una tarjeta por usuario con nombre, correo
+   y cantidad de documentos pendientes, y nada más. La agrupación, el conteo y el orden
+   los hace el motor en la vista nueva `document_review_subject_queue`; la vista
+   `document_review_queue` se elimina porque ya nadie la consume.
+2. **Búsqueda, filtro y orden.** Búsqueda por nombre o correo con espera de 300 ms antes
+   de consultar, filtro por rol (todos, pacientes, profesionales) y orden por antigüedad
+   en los dos sentidos. Los tres viven en el motor, no en el cliente.
+3. **Veredicto en lote.** Casillero de selección por documento y dos botones arriba de la
+   lista, «Aprobar seleccionados» y «Rechazar seleccionados», más un «Seleccionar todos».
+   Toda la selección viaja en **una sola sentencia**, así que la decide PostgreSQL de
+   forma atómica. Los botones de veredicto por documento, debajo del visor, desaparecen.
+4. **Un motivo de rechazo compartido** por toda la selección, decisión del autor.
+5. **Botón de volver** en las dos pantallas, con el componente nuevo `ScreenHeader`.
+   Era la primera pantalla del proyecto con una vuelta explícita.
+6. **El documento se abre a pantalla completa**, el 2026-10-09. Pulsar la
+   previsualización abre la imagen sobre fondo oscuro con pinza para acercar, arrastre
+   para recorrer, doble toque que alterna entre ajustada y 2,5x, y botón de cerrar.
+   Sin biblioteca nueva. En el recuadro 4:3, sobre una imagen comprimida a 1600 px, un
+   número de matrícula no se lee: el criterio «veo la imagen» se cumplía de forma
+   aparente.
+
+Las decisiones están razonadas en `docs/decisions.md`, cuatro entradas del 2026-10-08 y
+una del 2026-10-09, con los motivos de lo descartado: agrupar en el cliente, el `or` de
+dos columnas para la búsqueda, un motivo por documento, el control segmentado para los
+chips y una biblioteca de zoom.
+
+**Verificaciones del 2026-10-08.**
+
+- **`supabase db reset` en local aplica las 27 migraciones** desde cero sin un error.
+- **Experimento en local sobre la vista nueva:** con un profesional de 5 documentos
+  pendientes, una paciente de 2 y un profesional ya aprobado, la cola devuelve **dos
+  filas** con los contadores 5 y 2, el aprobado no aparece, los dos órdenes funcionan,
+  el filtro por rol discrimina (`held_roles @> '{PROFESSIONAL}'` → solo el profesional)
+  y la búsqueda encuentra por apellido y por un fragmento de correo con punto.
+- **Seguridad a nivel de fila de la vista (INV-13):** el profesional y la paciente ven
+  **solo su propia fila**; el administrador ve las dos. Es lo que da `security_invoker`.
+- **Veredicto múltiple:** un solo `update` de tres documentos los deja los tres
+  `APPROVED` y **sellados con el uuid del administrador**, el contador de la cola baja
+  de 5 a 2, y un profesional que intenta el mismo `update` de varias filas sobre su
+  propio expediente recibe `document_review_is_written_by_an_administrator`.
+- **`supabase db diff --linked --schema public` → «No schema changes found»** tras
+  aplicar la migración al remoto: cero deriva.
+- **Las pruebas nuevas se comprobaron por mutación**, cinco mutaciones y cinco fallos
+  en la prueba que les corresponde y en ninguna otra:
+  pasar el grupo de chips de `FlowRow` a `Row` deja «Más recientes primero» fuera de la
+  pantalla y falla `everyQueueCriterionStaysOnScreen`; meter los dos botones de veredicto
+  en un `Row` falla `bothSelectionActionsStayOnScreen`; pedir la página siguiente con los
+  criterios por omisión falla `theNextPageCarriesTheActiveQuery`; dejar que «Seleccionar
+  todos» marque un casillero vacío falla `markingAllSelectsOnlyTheDocumentsThatExist`; y
+  quitar la cancelación de la consulta en vuelo falla
+  `aLateReplyToTheFormerCriteriaNeverLandsOnTheList`.
+- **La aritmética del zoom se comprobó por mutación**, dos mutaciones: quitar el recorte
+  del desplazamiento deja arrastrar el documento al vacío y falla
+  `theDragStopsAtTheEdgeOfTheEnlargedImage`; quitar los topes de zoom y la proporción del
+  desplazamiento rompe cuatro pruebas de `ImageTransformTest`.
+- **63 suites, 361 pruebas, 0 fallos, 0 omitidas.** `ktlintCheck`, `staticAnalysis` y
+  `assembleDebug` concluyen sin error.
+- **Previsualizaciones: pendientes de mirar.** Son **veinte**: ocho en la cola, ocho en el
+  detalle, dos del componente `ScreenHeader` y dos del visor. Las tres obligatorias
+  —claro, oscuro y `fontScale = 2f`— están en las dos pantallas, y hay tres nuevas que no
+  existían: la cola sin coincidencias, el detalle con tres documentos marcados y el visor.
+  Compilar no es mirar, y el cierre del 06/10 ya dio por cumplido ese punto antes de que
+  nadie las abriera. **El zoom y el arrastre solo se comprueban de verdad con los dedos:**
+  la aritmética tiene pruebas, el gesto que la alimenta no.
+
+**Revisión de `plan.md` al inicio y al final: realizadas las dos.**
+
+**Archivos creados, modificados o eliminados el 2026-10-08 y el 2026-10-09.**
+
+| Capa | Archivos |
+|---|---|
+| Migración | `supabase/migrations/20261008120000_group_review_queue_by_subject.sql` (nueva, aplicada en local y en el remoto) |
+| Dominio | `domain/model/{PendingReviewSubject, PendingReviewQuery}.kt` · `domain/usecase/{GetPendingReviewSubjects, ApproveDocuments, RejectDocuments}UseCase.kt` (nuevos) · `domain/model/{DocumentReviewResult, DocumentReviewDossier}.kt` · `domain/repository/IDocumentReviewRepository.kt` (modificados) · `domain/model/PendingDocumentReview.kt` · `domain/usecase/{GetPendingDocumentReviews, ApproveDocument, RejectDocument}UseCase.kt` (eliminados) |
+| Datos | `data/model/DocumentReviewDto.kt` · `data/mapper/DocumentReviewMapper.kt` · `data/datasource/SupabaseVerificationDataSource.kt` · `data/repository/DocumentReviewRepository.kt` (modificados) |
+| Presentación | `presentation/{DocumentReviewQueueViewModel, DocumentReviewQueueScreen, DocumentReviewViewModel, DocumentReviewScreen, VerificationLabels}.kt` (modificados) |
+| Interfaz compartida | `ui/components/ScreenHeader.kt` (nuevo) |
+| Visor a pantalla completa | `features/verification/presentation/FullScreenDocumentImage.kt` (nuevo, con `ImageTransform` y su aritmética) · `test/.../presentation/ImageTransformTest.kt` (nuevo) |
+| Inyección y navegación | `di/VerificationModule.kt` · `navigation/{Routes, SaludEnCasaNavHost}.kt` (la ruta del detalle deja de llevar el tipo de documento) |
+| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (claves de búsqueda, filtro, orden y selección; dos plurales nuevos; `cd_back_button`, `cd_select_document`, `cd_expand_document_image` y `cd_close_full_image`; se retiran `review_action_approve`, `review_action_reject` y `review_queue_item_submitted`) |
+| Pruebas | `test/.../verification/FakeDocumentReviewRepository.kt` · `presentation/{DocumentReviewQueueViewModelTest, DocumentReviewViewModelTest, DocumentReviewScreensLargeFontTest}.kt` · `data/mapper/DocumentReviewMapperTest.kt` · `ui/LargeFont.kt` (ayudante `plural`) (modificados) · `domain/usecase/{GetPendingReviewSubjects, RejectDocuments}UseCaseTest.kt` (nuevos, reemplazan a los de nombre singular) |
+| Reglas y documentos | `.claude/rules/glosario.md` · `.claude/rules/testing.md` (la trampa del `LazyColumn`) · `docs/decisions.md` (cuatro entradas del 2026-10-08 y una del 2026-10-09) · `plan.md` (esta sección) |
+
 ## Incremento del sprint
 
 Una prueba de humo con un botón que autentica con Google, crea el perfil en la
@@ -3380,8 +3471,11 @@ ejecutaron.
       contra el proyecto remoto: la consulta de la cola, por `created_at, id`
       ascendente, devuelve primero el documento más antiguo de cinco insertados
       con minutos distintos. El administrador ve los cinco y un tercero ve **cero**.
-      La paginación la cubren `GetPendingDocumentReviewsUseCaseTest` (página corta
+      La paginación la cubren `GetPendingReviewSubjectsUseCaseTest` (página corta
       contra página llena, el borde exacto) y `DocumentReviewQueueViewModelTest`.
+      **Rehecho el 2026-10-08:** la cola agrupa por persona y la antigüedad pasó a
+      ser el orden por omisión, elegible. Reverificado en local con la vista nueva,
+      en los dos sentidos. Ver «Rediseño de las dos pantallas» más abajo.
 - [x] Dado que abro un documento, cuando lo visualizo, entonces veo la imagen y los
       datos del usuario. **Los datos** salen de `document_review_profiles` (nombre,
       correo, roles, tipo y estado de verificación) y los cubre
@@ -3553,10 +3647,13 @@ falta otra, este es el procedimiento, con los comandos ya ejecutados el 2026-10-
 5. Si falla: `admin_role_is_exclusive` indica que la cuenta ya tiene otro rol; no se arregla
    con la aplicación, porque `profile_roles` es de solo agregar (FA-09).
 
-> **Advertencia sobre los datos de prueba.** La cola real contiene hoy los 4 documentos
+> **Advertencia sobre los datos de prueba.** La cola real contiene los 4 documentos
 > `PENDING` de la verificación en dispositivo de HU-07. **Aprobarlos o rechazarlos desde la
 > aplicación los convierte en otra cosa** y esa evidencia ya no coincide con lo anotado en
-> HU-07. Para recorrer el panel conviene subir documentos con otra cuenta.
+> HU-07. Desde el 2026-10-08 hay una segunda tanda con la que sí se puede recorrer el
+> panel: los **5 documentos** que el autor subió con su cuenta de rol doble, que es además
+> el profesional que el Sprint 4 necesita ver aprobado para que HU-11 devuelva algo. La
+> cola agrupada muestra hoy exactamente esas dos personas, con 4 y 5 pendientes.
 
 **Verificaciones del cierre, 2026-10-06.** `./gradlew ktlintCheck staticAnalysis
 assembleDebug` concluyen sin error. **59 suites, 331 pruebas, 0 fallos, 0 omitidas**, las

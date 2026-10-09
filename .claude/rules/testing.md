@@ -73,6 +73,13 @@ disposición significa nada. La configuración fija un teléfono de **320 dp**, 
 más angosto que Android todavía envía, porque es donde el 200 % de fuente recorta.
 Se prueba la función de contenido, que por eso es `internal` y no `private`.
 
+**Una trampa de mecánica.** Un `LazyColumn` no compone nada por debajo del pliegue, de
+modo que una fila fuera de la vista no está en el árbol semántico y `assertFitsTheScreen`
+falla con «could not find any node» en vez de decir algo sobre la disposición. Se mueve la
+lista al índice de esa fila primero, con `performScrollToIndex` sobre el nodo que tiene
+`hasScrollToIndexAction()`. No es un defecto de la pantalla. Ver `docs/decisions.md`,
+2026-10-08.
+
 **Qué atrapan y qué no.** Atrapan: un control que deja de componerse, uno que queda
 fuera de los bordes de la pantalla, y contenido al que no se puede llegar porque la
 pantalla dejó de desplazarse. Las tres se comprobaron por mutación el 2026-10-08.

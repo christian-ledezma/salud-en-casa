@@ -3580,6 +3580,189 @@ políticas en local antes de tocar el remoto.
 
 ---
 
+## 2026-10-08 · La cola de revisión lista personas, no documentos
+
+**Contexto.** HU-09 entregó la cola con una tarjeta por documento. Un profesional
+requiere cinco, de modo que una sola persona ocupaba cinco tarjetas y el administrador
+recorría una lista cuya longitud no decía cuánta gente esperaba. Con dos personas en
+el remoto la cola ya tenía nueve tarjetas.
+
+**Decisión.** Una tarjeta por persona, con nombre, correo y cantidad de documentos
+pendientes, y nada más. La agrupación la hace el motor, en la vista nueva
+`document_review_subject_queue`; la vista `document_review_queue`, de una fila por
+documento, se elimina en la misma migración porque ya nadie la consume. La cola admite
+búsqueda por nombre o correo, filtro por rol y elección del orden por antigüedad.
+
+**Razonamiento.** Agrupar en el cliente no servía: la paginación parte el conjunto, los
+documentos de una persona pueden caer a caballo de dos páginas y el contador de la
+primera tarjeta mentiría hasta que la lista llegara al final. El motor cuenta sobre el
+conjunto entero y la página pasa a ser una página de personas.
+
+Tres detalles de la vista tienen razón propia:
+
+- **`search_text`, una columna concatenada de nombre y correo**, en vez de buscar en dos
+  columnas con `or`. Dentro de una expresión lógica el cliente entrecomilla todo valor
+  que lleve punto, coma, dos puntos o paréntesis, y un término de búsqueda por correo
+  siempre lleva punto. Con una sola columna el filtro es un `ilike` suelto, que no pasa
+  por ese entrecomillado. El comodín es `*`, el que entiende PostgREST; un `%` llegaría
+  al motor como literal.
+- **`held_roles` se calcula con una subconsulta correlacionada**, no con un `join` a
+  `profile_roles`: el `join` multiplicaría las filas de documentos por los roles de la
+  persona y el `count(*)` quedaría inflado. La columna no se muestra en la tarjeta; es
+  lo que el filtro por rol compara.
+- **`security_invoker = true`**, como en las otras dos vistas de revisión. Es lo que
+  sostiene INV-13 aquí: se comprobó en local que el profesional y la paciente ven
+  únicamente su propia fila y que solo el administrador ve las dos.
+
+**Consecuencia.** La ruta del detalle deja de llevar el tipo de documento: la tarjeta
+nombra una persona, así que la pantalla elige qué abrir y abre el primer documento que
+nadie respondió todavía (`DocumentReviewDossier.firstTypeToShow`). El orden de la cola
+dejó de ser fijo, de modo que el subtítulo ya no promete «del más antiguo al más
+reciente». `onClearFilters` no toca el orden: el orden no esconde a nadie, así que no es
+un filtro.
+
+---
+
+## 2026-10-08 · El veredicto del administrador se escribe en una sola sentencia
+
+**Contexto.** La pantalla de detalle ahora permite marcar varios documentos y aprobarlos
+o rechazarlos juntos. Un bucle de escrituras de a una puede detenerse a la mitad y dejar
+media revisión aplicada, que es exactamente lo que INV-05 prohíbe para `services` y
+`payments` y lo que el criterio de atomicidad de `testing.md` existe para atrapar.
+
+**Decisión.** Toda la selección viaja en un solo `update` con `document_type in (...)`
+sobre el perfil revisado. PostgreSQL lo hace atómico sin que el cliente intervenga, los
+disparadores `verification_documents_stamp_review` y
+`sync_professional_verification` son por fila y sellan cada una, y el repositorio exige
+que la cantidad de filas devueltas iguale la cantidad pedida: una denegación de política
+actualiza cero filas sin levantar excepción, y una cuenta corta significa que el
+veredicto solo alcanzó a parte de lo pedido.
+
+**Razonamiento.** No hace falta una función de servidor: la regla de `supabase.md` dice
+que si una consulta del cliente respeta las políticas, se resuelve así. Esta las respeta,
+porque la política de administrador es la misma para una fila que para cinco. Se
+comprobó en local que un solo `update` de tres documentos los deja sellados con el uuid
+del administrador, y que un profesional no puede escribir el veredicto sobre su propio
+expediente ni en una sentencia de varias filas.
+
+**Consecuencia.** Solo se puede marcar un documento que exista. Un casillero vacío de la
+lista de requeridos no tiene fila que actualizar, así que enviarlo haría que el motor
+escribiera menos documentos de los pedidos y el repositorio reportaría una denegación
+sobre un veredicto correcto. De ahí `DocumentReviewDossier.selectableTypes`. Los botones
+de veredicto por documento, debajo del visor, desaparecen: queda una sola manera de
+emitir un veredicto, y las marcas se limpian tras una escritura exitosa para que el
+siguiente toque no decida sobre papeles ya resueltos. Tras un fallo se conservan, porque
+nada se decidió y volver a marcarlo todo sería trabajo perdido.
+
+---
+
+## 2026-10-08 · Un solo motivo de rechazo para toda la selección
+
+**Contexto.** El motivo de rechazo es obligatorio y el usuario rechazado lo lee en su
+aplicación (RF-07). Al rechazar varios documentos a la vez hay que decidir si se pide uno
+por documento o uno compartido.
+
+**Decisión.** Un solo diálogo pide el motivo y el mismo texto se escribe en todos los
+documentos marcados.
+
+**Razonamiento.** Un motivo por documento obliga a tantos diálogos como documentos y
+rompe lo que la entrada anterior acaba de conseguir: serían varias sentencias, y si la
+tercera falla las dos primeras ya están escritas. El caso real tampoco lo pide: los
+documentos de una misma tanda se rechazan casi siempre por lo mismo, una foto ilegible o
+un archivo que no corresponde. Quien quiera precisar un motivo distinto marca un solo
+documento y lo rechaza solo.
+
+**Consecuencia.** El texto de apoyo del diálogo es un plural con cantidad, para que diga
+«en el documento rechazado» o «el mismo motivo en los 3 documentos rechazados» según lo
+marcado, y no una frase que miente en uno de los dos casos.
+
+---
+
+## 2026-10-08 · Dos piezas de interfaz que la revisión dejó
+
+**Contexto.** Las dos pantallas de revisión necesitaban un botón de volver, que ninguna
+pantalla del proyecto tenía: hasta hoy la vuelta era el gesto del sistema, o un botón
+«Cancelar» que solo aparecía en los estados de error y vacío.
+
+**Decisión.** Un componente compartido `ScreenHeader`, con la flecha de volver, el
+título y un subtítulo opcional. La flecha es `Icons.AutoMirrored.Filled.ArrowBack`,
+porque en una configuración regional de derecha a izquierda tiene que apuntar al otro
+lado y la `Filled.ArrowBack` llana no gira.
+
+Para los criterios de la cola, **`FilterChip` dentro de un `FlowRow`, no
+`SegmentedControl`**. A 320 dp y al 200 % de fuente tres rótulos compartiendo una fila
+tienen que envolverse, y el control segmentado los recorta: ese recorte fue el primero de
+los cinco defectos de disposición del proyecto. Se comprobó por mutación: cambiar el
+`FlowRow` del grupo de chips por un `Row` deja «Más recientes primero» fuera de la
+pantalla y la prueba de interfaz falla.
+
+**Razonamiento.** La alternativa era un `TopAppBar` de Material 3 en estas dos pantallas
+y en ninguna otra, lo que habría dejado dos encabezados distintos en la misma
+aplicación. `ScreenHeader` se compone dentro del `LazyColumn` o de la columna que ya
+existe, así que no cambia el comportamiento de desplazamiento de nada.
+
+**Consecuencia.** Una nota de mecánica para las pruebas de interfaz: **un `LazyColumn` no
+compone nada por debajo del pliegue**, de modo que una tarjeta que el encabezado y los
+criterios empujaron fuera de la vista no está en el árbol semántico y
+`assertFitsTheScreen` no puede desplazarse hasta ella por su texto. La prueba mueve la
+lista al índice de la tarjeta primero, con `performScrollToIndex`. No es un defecto de la
+pantalla, y confundirlo con uno cuesta una tarde.
+
+---
+
+## 2026-10-09 · El documento se abre a pantalla completa, con zoom propio
+
+**Contexto.** La previsualización del detalle es un recuadro 4:3 del ancho de la
+pantalla. Los documentos se guardan comprimidos a 1600 px de lado largo, de modo que en
+ese recuadro un número de matrícula o la letra chica de un título **no se leen**. El
+criterio de aceptación «veo la imagen y los datos del usuario» se cumplía de forma
+aparente: la imagen estaba, pero no servía para decidir, que es para lo que el
+administrador la abre.
+
+**Decisión.** Al pulsar la previsualización se abre un `Dialog` a pantalla completa con
+la imagen sobre el fondo oscuro, con pinza para acercar, arrastre para recorrer, doble
+toque que alterna entre ajustada y 2,5x, y un botón de cerrar. **Sin biblioteca nueva:**
+los gestos son `detectTransformGestures` y `detectTapGestures` de Compose, y la
+transformación se aplica con `graphicsLayer`.
+
+**Razonamiento.** La disciplina de alcance pregunta qué requisito exige una biblioteca
+de zoom, y la respuesta es ninguno: la aritmética que hace falta son seis líneas, y una
+dependencia más es una versión más que vigilar hasta la defensa.
+
+Tres detalles tienen razón propia:
+
+- **El recorte del desplazamiento es la regla que importa.** A escala s el contenido mide
+  el contenedor por s, así que el centro puede viajar la mitad de ese excedente en cada
+  dirección. Sin ese límite un arrastre rápido empuja el documento fuera de la pantalla y
+  **nada lo trae de vuelta** salvo cerrar el visor. A la escala ajustada el excedente es
+  cero y la imagen vuelve al centro por construcción, no por un recorte.
+- **El desplazamiento crece con el zoom** (`offset * (nueva / anterior)`), para que el
+  punto bajo los dedos se quede donde está en vez de deslizarse hacia el centro. Sin eso
+  el zoom pelea con la mano.
+- **La misma `ImageRequest` en la previsualización y en el visor**, de modo que el mapa de
+  bits sale de la caché en memoria de Coil y no se descarga dos veces. La caché en disco
+  sigue desactivada: la decisión del 2026-10-06 sobre no dejar documentos de identidad
+  en el disco del administrador no cambia porque la imagen ahora se agrande.
+
+**Consecuencia.** La aritmética vive en una función pura, `ImageTransform.transformedBy`,
+y por eso tiene pruebas en la máquina virtual de Java: los dos topes de zoom, que la
+imagen ajustada no se mueva, que el arrastre se detenga en el borde exacto, que uno
+interior se siga tal cual, que al desacercar vuelva al centro, y que el desplazamiento
+escale con el zoom. Se comprobaron por mutación: quitar el recorte deja pasar el
+arrastre al vacío, y quitar los topes y la proporción del desplazamiento rompe cuatro.
+
+Dos cosas que el visor **no** hace, por no haberlas pedido nadie: rotar, y pasar al
+documento siguiente deslizando. Quedan como trabajo posible.
+
+**Un hallazgo que vale anotar.** La primera versión fallaba su propia prueba con
+«expected Offset(0.0, 0.0) but was Offset(0.0, 0.0)»: `coerceIn(-0f, 0f)` devuelve
+**cero negativo**, que no es igual a cero positivo y hace que un `data class` de estado
+se declare cambiado sin haber cambiado. Se corrigió expresando la regla en vez de la
+aritmética: a la escala ajustada se devuelve una transformación centrada y no se recorta
+nada.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
