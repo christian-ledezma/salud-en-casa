@@ -67,6 +67,15 @@ android {
         compose = true
         buildConfig = true
     }
+
+    // Robolectric reads the merged resources and the manifest from here, which is
+    // what lets a Compose interface test run on the JVM (docs/decisions.md,
+    // 2026-10-08).
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 kotlin {
@@ -100,6 +109,11 @@ dependencies {
     implementation(libs.coil.network.ktor3)
 
     testImplementation(libs.bundles.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.junit)
+    testImplementation(libs.robolectric)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.test.junit)
