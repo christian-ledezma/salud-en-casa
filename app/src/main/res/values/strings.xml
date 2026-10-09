@@ -217,8 +217,9 @@
     <string name="auth_account_open_document_review">Revisar documentos</string>
 
     <string name="review_queue_title">Documentos por revisar</string>
-    <string name="review_queue_subtitle">Un usuario por tarjeta, con sus documentos pendientes.</string>
-    <string name="review_queue_empty">No hay documentos pendientes de revisión.</string>
+    <string name="review_queue_subtitle">Un usuario por tarjeta, con lo que falta hacer.</string>
+    <string name="review_queue_empty">No hay nada pendiente de revisión.</string>
+    <string name="review_queue_ready_to_verify">Listo para verificar</string>
     <string name="review_queue_no_matches">Ningún usuario coincide con la búsqueda.</string>
     <string name="review_queue_clear_filters">Quitar la búsqueda y el filtro</string>
     <string name="review_queue_search_label">Buscar por nombre o correo</string>

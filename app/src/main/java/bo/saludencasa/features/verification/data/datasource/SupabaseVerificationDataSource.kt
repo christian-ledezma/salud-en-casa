@@ -55,11 +55,11 @@ class SupabaseVerificationDataSource(
                     if (role != null) contains("held_roles", listOf(role))
                 }
                 order(
-                    "oldest_pending_at",
+                    "waiting_since",
                     if (newestFirst) Order.DESCENDING else Order.ASCENDING,
                 )
-                // profile_id breaks ties so two people whose oldest document
-                // shares a timestamp cannot swap places between pages.
+                // profile_id breaks ties so two people who started waiting at
+                // the same instant cannot swap places between pages.
                 order("profile_id", Order.ASCENDING)
                 range(offset, offset + limit - 1)
             }.decodeList<PendingReviewSubjectDto>()
@@ -135,7 +135,14 @@ class SupabaseVerificationDataSource(
         val SIGNED_URL_LIFETIME = 5.minutes
 
         val QUEUE_COLUMNS: Columns =
-            Columns.list("profile_id", "full_name", "email", "pending_count", "oldest_pending_at")
+            Columns.list(
+                "profile_id",
+                "full_name",
+                "email",
+                "pending_count",
+                "awaiting_verification",
+                "waiting_since",
+            )
 
         val COLUMNS: Columns =
             Columns.list("document_type", "status", "storage_path", "caption", "rejection_reason")

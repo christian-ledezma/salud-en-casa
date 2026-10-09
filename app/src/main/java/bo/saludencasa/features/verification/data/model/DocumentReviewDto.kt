@@ -9,7 +9,8 @@ data class PendingReviewSubjectDto(
     @SerialName("full_name") val fullName: String,
     val email: String,
     @SerialName("pending_count") val pendingCount: Int,
-    @SerialName("oldest_pending_at") val oldestPendingAt: String,
+    @SerialName("awaiting_verification") val awaitingVerification: Boolean,
+    @SerialName("waiting_since") val waitingSince: String,
 )
 
 @Serializable

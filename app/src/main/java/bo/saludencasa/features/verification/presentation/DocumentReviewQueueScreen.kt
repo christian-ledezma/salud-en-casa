@@ -270,16 +270,27 @@ private fun PendingSubjectCard(
         ) {
             Text(text = subject.fullName, style = MaterialTheme.typography.titleMedium)
             Text(text = subject.email, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                text =
-                    pluralStringResource(
-                        R.plurals.review_queue_pending_count,
-                        subject.pendingCount,
-                        subject.pendingCount,
-                    ),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            // Both lines can apply at once: every required document approved
+            // and the optional attachment still waiting for a verdict.
+            if (subject.awaitingVerification) {
+                Text(
+                    text = stringResource(R.string.review_queue_ready_to_verify),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (subject.pendingCount > 0) {
+                Text(
+                    text =
+                        pluralStringResource(
+                            R.plurals.review_queue_pending_count,
+                            subject.pendingCount,
+                            subject.pendingCount,
+                        ),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -299,13 +310,15 @@ private fun previewSubject(
     index: Int = 0,
     name: String = "Ana Quispe Mamani",
     pendingCount: Int = 3,
+    awaitingVerification: Boolean = false,
 ): PendingReviewSubject =
     PendingReviewSubject(
         profileId = "00000000-0000-0000-0000-00000000000$index",
         fullName = name,
         email = "ana.quispe@example.com",
         pendingCount = pendingCount,
-        oldestPendingAt = Instant.parse("2026-10-01T15:30:00Z"),
+        awaitingVerification = awaitingVerification,
+        waitingSince = Instant.parse("2026-10-01T15:30:00Z"),
     )
 
 private fun previewState(
@@ -324,7 +337,8 @@ private val previewSubjects =
     listOf(
         previewSubject(1),
         previewSubject(2, name = "Ernesto Arancibia", pendingCount = 5),
-        previewSubject(3, name = "Noelia Tatiana Sejas", pendingCount = 1),
+        previewSubject(3, name = "Noelia Tatiana Sejas", pendingCount = 0, awaitingVerification = true),
+        previewSubject(4, name = "Rodrigo Villarroel", pendingCount = 1, awaitingVerification = true),
     )
 
 @Preview(showBackground = true, heightDp = 900, name = "Cola por usuario, claro")

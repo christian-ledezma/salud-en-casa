@@ -12,13 +12,14 @@ import java.time.OffsetDateTime
 // docs/decisions.md, 2026-10-08, the queue lists people.
 internal fun PendingReviewSubjectDto.toPendingSubject(): PendingReviewSubject? {
     // PostgREST sends the offset as +00:00, which Instant.parse does not take.
-    val oldest = runCatching { OffsetDateTime.parse(oldestPendingAt).toInstant() }.getOrNull() ?: return null
+    val since = runCatching { OffsetDateTime.parse(waitingSince).toInstant() }.getOrNull() ?: return null
     return PendingReviewSubject(
         profileId = profileId,
         fullName = fullName,
         email = email,
         pendingCount = pendingCount,
-        oldestPendingAt = oldest,
+        awaitingVerification = awaitingVerification,
+        waitingSince = since,
     )
 }
 

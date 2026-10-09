@@ -7,5 +7,6 @@ data class PendingReviewSubject(
     val fullName: String,
     val email: String,
     val pendingCount: Int,
-    val oldestPendingAt: Instant,
+    val awaitingVerification: Boolean,
+    val waitingSince: Instant,
 )
