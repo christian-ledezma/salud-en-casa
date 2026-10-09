@@ -1,8 +1,7 @@
 package bo.saludencasa.features.verification.data.mapper
 
 import bo.saludencasa.features.verification.data.model.DocumentReviewSubjectDto
-import bo.saludencasa.features.verification.data.model.PendingDocumentReviewDto
-import bo.saludencasa.features.verification.domain.model.DocumentType
+import bo.saludencasa.features.verification.data.model.PendingReviewSubjectDto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -12,15 +11,14 @@ import java.time.Instant
 
 class DocumentReviewMapperTest {
     private fun queueRow(
-        type: String = "ID_FRONT",
-        createdAt: String = "2026-10-01T15:30:00+00:00",
-    ) = PendingDocumentReviewDto(
+        pendingCount: Int = 3,
+        oldestPendingAt: String = "2026-10-01T15:30:00+00:00",
+    ) = PendingReviewSubjectDto(
         profileId = "p",
-        documentType = type,
-        caption = null,
-        createdAt = createdAt,
         fullName = "Ana",
         email = "ana@example.com",
+        pendingCount = pendingCount,
+        oldestPendingAt = oldestPendingAt,
     )
 
     private fun subjectRow(
@@ -40,26 +38,21 @@ class DocumentReviewMapperTest {
     // Instant.parse refuses; reading it wrongly would blank the whole queue.
     @Test
     fun parsesTheTimestampOffsetPostgrestSends() {
-        val review = queueRow(createdAt = "2026-10-01T15:30:00.123456+00:00").toPendingReview()
+        val subject = queueRow(oldestPendingAt = "2026-10-01T15:30:00.123456+00:00").toPendingSubject()
 
-        assertEquals(Instant.parse("2026-10-01T15:30:00.123456Z"), review?.createdAt)
+        assertEquals(Instant.parse("2026-10-01T15:30:00.123456Z"), subject?.oldestPendingAt)
     }
 
     // Null, not a dropped row: the repository turns it into a failure so that a
     // full page is never mistaken for the last one.
     @Test
-    fun anUnknownDocumentTypeIsReportedAsUnreadable() {
-        assertNull(queueRow(type = "PASSPORT").toPendingReview())
-    }
-
-    @Test
     fun anUnparsableTimestampIsReportedAsUnreadable() {
-        assertNull(queueRow(createdAt = "yesterday").toPendingReview())
+        assertNull(queueRow(oldestPendingAt = "yesterday").toPendingSubject())
     }
 
     @Test
-    fun aKnownRowKeepsItsType() {
-        assertEquals(DocumentType.DEGREE, queueRow(type = "DEGREE").toPendingReview()?.type)
+    fun aReadableRowKeepsItsPendingCount() {
+        assertEquals(5, queueRow(pendingCount = 5).toPendingSubject()?.pendingCount)
     }
 
     @Test

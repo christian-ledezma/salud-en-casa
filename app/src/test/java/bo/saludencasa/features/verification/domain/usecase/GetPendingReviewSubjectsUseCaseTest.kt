@@ -2,25 +2,26 @@ package bo.saludencasa.features.verification.domain.usecase
 
 import bo.saludencasa.features.verification.FakeDocumentReviewRepository
 import bo.saludencasa.features.verification.domain.model.PendingReviewPageResult
-import bo.saludencasa.features.verification.domain.model.PendingReviewsResult
-import bo.saludencasa.features.verification.pendingReview
+import bo.saludencasa.features.verification.domain.model.PendingReviewQuery
+import bo.saludencasa.features.verification.domain.model.PendingReviewSubjectsResult
+import bo.saludencasa.features.verification.pendingSubject
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class GetPendingDocumentReviewsUseCaseTest {
+class GetPendingReviewSubjectsUseCaseTest {
     private val repository = FakeDocumentReviewRepository()
-    private val getPending = GetPendingDocumentReviewsUseCase(repository)
+    private val getPending = GetPendingReviewSubjectsUseCase(repository)
 
-    private fun pageOf(size: Int) = PendingReviewsResult.Loaded(List(size) { pendingReview(it) })
+    private fun pageOf(size: Int) = PendingReviewSubjectsResult.Loaded(List(size) { pendingSubject(it) })
 
     // A short page is the only signal the queue has that nothing follows.
     @Test
     fun aShortPageMarksTheEndOfTheQueue() =
         runTest {
-            repository.pending = { _, _ -> pageOf(GetPendingDocumentReviewsUseCase.PAGE_SIZE - 1) }
+            repository.pending = { _, _ -> pageOf(GetPendingReviewSubjectsUseCase.PAGE_SIZE - 1) }
 
-            val result = getPending(offset = 0) as PendingReviewPageResult.Loaded
+            val result = getPending(PendingReviewQuery(), offset = 0) as PendingReviewPageResult.Loaded
 
             assertEquals(true, result.endReached)
         }
@@ -30,9 +31,9 @@ class GetPendingDocumentReviewsUseCaseTest {
     @Test
     fun aFullPageLeavesTheQueueOpen() =
         runTest {
-            repository.pending = { _, _ -> pageOf(GetPendingDocumentReviewsUseCase.PAGE_SIZE) }
+            repository.pending = { _, _ -> pageOf(GetPendingReviewSubjectsUseCase.PAGE_SIZE) }
 
-            val result = getPending(offset = 0) as PendingReviewPageResult.Loaded
+            val result = getPending(PendingReviewQuery(), offset = 0) as PendingReviewPageResult.Loaded
 
             assertEquals(false, result.endReached)
         }

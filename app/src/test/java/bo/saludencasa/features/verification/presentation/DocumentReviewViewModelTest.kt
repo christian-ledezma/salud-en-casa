@@ -9,11 +9,11 @@ import bo.saludencasa.features.verification.domain.model.DocumentUrlResult
 import bo.saludencasa.features.verification.domain.model.ReviewActionResult
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import bo.saludencasa.features.verification.domain.model.VerificationError
-import bo.saludencasa.features.verification.domain.usecase.ApproveDocumentUseCase
+import bo.saludencasa.features.verification.domain.usecase.ApproveDocumentsUseCase
 import bo.saludencasa.features.verification.domain.usecase.ApproveProfessionalVerificationUseCase
 import bo.saludencasa.features.verification.domain.usecase.GetDocumentReviewDossierUseCase
 import bo.saludencasa.features.verification.domain.usecase.GetSignedDocumentUrlUseCase
-import bo.saludencasa.features.verification.domain.usecase.RejectDocumentUseCase
+import bo.saludencasa.features.verification.domain.usecase.RejectDocumentsUseCase
 import bo.saludencasa.features.verification.everyRequiredNurseDocument
 import bo.saludencasa.features.verification.verificationDocument
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,15 +43,14 @@ class DocumentReviewViewModelTest {
             }
     }
 
-    private fun TestScope.opened(type: DocumentType = DocumentType.LICENSE): DocumentReviewViewModel {
+    private fun TestScope.opened(): DocumentReviewViewModel {
         val viewModel =
             DocumentReviewViewModel(
                 profileId = "subject-id",
-                initialType = type,
                 getDossier = GetDocumentReviewDossierUseCase(repository),
                 getSignedUrl = GetSignedDocumentUrlUseCase(repository),
-                approveDocument = ApproveDocumentUseCase(repository),
-                rejectDocument = RejectDocumentUseCase(repository),
+                approveDocuments = ApproveDocumentsUseCase(repository),
+                rejectDocuments = RejectDocumentsUseCase(repository),
                 approveProfessional = ApproveProfessionalVerificationUseCase(repository),
             )
         advanceUntilIdle()
@@ -60,6 +59,31 @@ class DocumentReviewViewModelTest {
 
     private fun DocumentReviewViewModel.content() = uiState.value as DocumentReviewUiState.Content
 
+    private fun DocumentReviewViewModel.approve(vararg types: DocumentType) {
+        types.forEach { onToggleChecked(it) }
+        onApproveSelected()
+    }
+
+    // The queue card names a person, so the screen has to pick the document
+    // itself, and the one worth opening is the first one nobody answered yet.
+    @Test
+    fun theViewerOpensOnTheFirstDocumentStillPending() =
+        runTest {
+            repository.documents =
+                everyRequiredNurseDocument.map {
+                    val approved = it == DocumentType.ID_FRONT
+                    verificationDocument(
+                        type = it,
+                        status = if (approved) ReviewStatus.APPROVED else ReviewStatus.PENDING,
+                    )
+                }
+
+            val viewModel = opened()
+
+            assertEquals(DocumentType.ID_BACK, viewModel.content().selectedType)
+            assertEquals(listOf("x/ID_BACK.jpg"), repository.urlRequests)
+        }
+
     @Test
     fun approvingTheLastRequiredDocumentOffersTheProfessionalApproval() =
         runTest {
@@ -67,10 +91,103 @@ class DocumentReviewViewModelTest {
             val viewModel = opened()
             assertFalse(viewModel.content().dossier.canApproveProfessional)
 
-            viewModel.onApprove()
+            viewModel.approve(DocumentType.LICENSE)
             advanceUntilIdle()
 
             assertTrue(viewModel.content().dossier.canApproveProfessional)
+        }
+
+    // One statement for the whole pile, because the engine is what makes the
+    // verdict atomic; a loop of single writes can stop halfway.
+    @Test
+    fun theWholeSelectionTravelsInOneVerdict() =
+        runTest {
+            repository.documents =
+                everyRequiredNurseDocument.map { verificationDocument(type = it, status = ReviewStatus.PENDING) }
+            val viewModel = opened()
+
+            viewModel.approve(DocumentType.ID_FRONT, DocumentType.ID_BACK, DocumentType.SELFIE)
+            advanceUntilIdle()
+
+            assertEquals(1, repository.verdicts.size)
+            assertEquals(
+                setOf(DocumentType.ID_FRONT, DocumentType.ID_BACK, DocumentType.SELFIE),
+                repository.verdicts.single().types,
+            )
+        }
+
+    // A slot the person never filled has no row to update. Sending it anyway
+    // would make the engine write fewer documents than were asked for, which the
+    // repository reports as a refusal, so a good verdict would look denied.
+    @Test
+    fun markingAllSelectsOnlyTheDocumentsThatExist() =
+        runTest {
+            repository.documents =
+                listOf(
+                    verificationDocument(type = DocumentType.ID_FRONT, status = ReviewStatus.PENDING),
+                    verificationDocument(type = DocumentType.DEGREE, status = ReviewStatus.PENDING),
+                )
+            val viewModel = opened()
+
+            viewModel.onToggleAllChecked()
+
+            assertEquals(setOf(DocumentType.ID_FRONT, DocumentType.DEGREE), viewModel.content().checkedTypes)
+            assertTrue(viewModel.content().allChecked)
+        }
+
+    @Test
+    fun aSecondTapOnSelectAllClearsTheSelection() =
+        runTest {
+            onlyTheLicenseIsLeft()
+            val viewModel = opened()
+
+            viewModel.onToggleAllChecked()
+            viewModel.onToggleAllChecked()
+
+            assertTrue(viewModel.content().checkedTypes.isEmpty())
+        }
+
+    // The marks name documents that have just been decided. Keeping them would
+    // let the next tap send a verdict on paperwork already settled.
+    @Test
+    fun aSuccessfulVerdictClearsTheMarks() =
+        runTest {
+            onlyTheLicenseIsLeft()
+            val viewModel = opened()
+
+            viewModel.approve(DocumentType.LICENSE)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.content().checkedTypes.isEmpty())
+        }
+
+    // Nothing was decided, so the selection is still what the admin meant to
+    // decide: clearing it would make them mark everything again to retry.
+    @Test
+    fun aFailedVerdictKeepsTheMarks() =
+        runTest {
+            onlyTheLicenseIsLeft()
+            repository.actionResult = ReviewActionResult.Failure(VerificationError.NetworkUnavailable)
+            val viewModel = opened()
+
+            viewModel.approve(DocumentType.LICENSE)
+            advanceUntilIdle()
+
+            assertEquals(setOf(DocumentType.LICENSE), viewModel.content().checkedTypes)
+        }
+
+    @Test
+    fun nothingIsWrittenWithoutASelection() =
+        runTest {
+            onlyTheLicenseIsLeft()
+            val viewModel = opened()
+
+            viewModel.onApproveSelected()
+            viewModel.onRejectClick()
+            advanceUntilIdle()
+
+            assertTrue(repository.verdicts.isEmpty())
+            assertNull(viewModel.content().rejectionDraft)
         }
 
     // The screen shows what the server reports after the write. Here the write
@@ -83,7 +200,7 @@ class DocumentReviewViewModelTest {
             repository.applyWrites = false
             val viewModel = opened()
 
-            viewModel.onApprove()
+            viewModel.approve(DocumentType.LICENSE)
             advanceUntilIdle()
 
             val license =
@@ -101,7 +218,7 @@ class DocumentReviewViewModelTest {
             repository.actionResult = ReviewActionResult.Failure(VerificationError.NotAuthorized)
             val viewModel = opened()
 
-            viewModel.onApprove()
+            viewModel.approve(DocumentType.LICENSE)
             advanceUntilIdle()
 
             val content = viewModel.content()
@@ -166,9 +283,9 @@ class DocumentReviewViewModelTest {
     @Test
     fun aDocumentNeverUploadedHasNoImageToRequest() =
         runTest {
-            repository.documents = listOf(verificationDocument(type = DocumentType.ID_FRONT))
+            repository.documents = emptyList()
 
-            val viewModel = opened(type = DocumentType.DEGREE)
+            val viewModel = opened()
 
             assertEquals(DocumentImageState.Missing, viewModel.content().image)
             assertTrue(repository.urlRequests.isEmpty())
@@ -178,7 +295,7 @@ class DocumentReviewViewModelTest {
     fun selectingAnotherDocumentRequestsItsOwnSignedUrl() =
         runTest {
             onlyTheLicenseIsLeft()
-            val viewModel = opened(type = DocumentType.LICENSE)
+            val viewModel = opened()
 
             viewModel.onSelect(DocumentType.SELFIE)
             advanceUntilIdle()
@@ -193,6 +310,7 @@ class DocumentReviewViewModelTest {
             onlyTheLicenseIsLeft()
             val viewModel = opened()
 
+            viewModel.onToggleChecked(DocumentType.LICENSE)
             viewModel.onRejectClick()
             viewModel.onRejectReasonChanged("   ")
             viewModel.onRejectConfirm()
@@ -204,24 +322,28 @@ class DocumentReviewViewModelTest {
             assertTrue(repository.verdicts.isEmpty())
         }
 
+    // docs/decisions.md, 2026-10-08, one reason for the whole selection.
     @Test
-    fun aRejectionRecordsItsReasonOnTheDocument() =
+    fun aRejectionRecordsTheSameReasonOnEveryMarkedDocument() =
         runTest {
-            onlyTheLicenseIsLeft()
+            repository.documents =
+                everyRequiredNurseDocument.map { verificationDocument(type = it, status = ReviewStatus.PENDING) }
             val viewModel = opened()
 
+            viewModel.onToggleChecked(DocumentType.LICENSE)
+            viewModel.onToggleChecked(DocumentType.DEGREE)
             viewModel.onRejectClick()
             viewModel.onRejectReasonChanged("Foto borrosa")
             viewModel.onRejectConfirm()
             advanceUntilIdle()
 
-            val license =
-                viewModel
-                    .content()
-                    .dossier.checklist
-                    .documentFor(DocumentType.LICENSE)
-            assertEquals("Foto borrosa", license?.rejectionReason)
-            assertEquals(ReviewStatus.REJECTED, license?.status)
+            val checklist = viewModel.content().dossier.checklist
+            listOf(DocumentType.LICENSE, DocumentType.DEGREE).forEach { type ->
+                val document = checklist.documentFor(type)
+                assertEquals("Foto borrosa", document?.rejectionReason)
+                assertEquals(ReviewStatus.REJECTED, document?.status)
+            }
+            assertEquals(ReviewStatus.PENDING, checklist.documentFor(DocumentType.SELFIE)?.status)
         }
 
     @Test
@@ -230,6 +352,7 @@ class DocumentReviewViewModelTest {
             onlyTheLicenseIsLeft()
             val viewModel = opened()
 
+            viewModel.onToggleChecked(DocumentType.LICENSE)
             viewModel.onRejectClick()
             viewModel.onRejectReasonChanged("Foto borrosa")
             viewModel.onRejectConfirm()
@@ -245,6 +368,7 @@ class DocumentReviewViewModelTest {
         runTest {
             onlyTheLicenseIsLeft()
             val viewModel = opened()
+            viewModel.onToggleChecked(DocumentType.LICENSE)
             viewModel.onRejectClick()
             viewModel.onRejectReasonChanged("Foto borrosa")
             repository.documentsFailure = VerificationError.NetworkUnavailable

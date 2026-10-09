@@ -7,8 +7,9 @@ import bo.saludencasa.features.verification.domain.model.DocumentReviewSubjectRe
 import bo.saludencasa.features.verification.domain.model.DocumentType
 import bo.saludencasa.features.verification.domain.model.DocumentUrlResult
 import bo.saludencasa.features.verification.domain.model.MyDocumentsResult
-import bo.saludencasa.features.verification.domain.model.PendingDocumentReview
-import bo.saludencasa.features.verification.domain.model.PendingReviewsResult
+import bo.saludencasa.features.verification.domain.model.PendingReviewQuery
+import bo.saludencasa.features.verification.domain.model.PendingReviewSubject
+import bo.saludencasa.features.verification.domain.model.PendingReviewSubjectsResult
 import bo.saludencasa.features.verification.domain.model.ReviewActionResult
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import bo.saludencasa.features.verification.domain.model.VerificationDocument
@@ -29,26 +30,31 @@ class FakeDocumentReviewRepository(
     var documentsFailure: VerificationError? = null,
 ) : IDocumentReviewRepository {
     data class Verdict(
-        val type: DocumentType,
+        val types: Set<DocumentType>,
         val status: ReviewStatus,
         val reason: String?,
     )
 
-    var pending: suspend (offset: Int, limit: Int) -> PendingReviewsResult = { _, _ ->
-        PendingReviewsResult.Loaded(
-            emptyList(),
-        )
+    data class PageRequest(
+        val query: PendingReviewQuery,
+        val offset: Int,
+        val limit: Int,
+    )
+
+    var pending: suspend (query: PendingReviewQuery, offset: Int) -> PendingReviewSubjectsResult = { _, _ ->
+        PendingReviewSubjectsResult.Loaded(emptyList())
     }
-    val pendingRequests: MutableList<Pair<Int, Int>> = mutableListOf()
+    val pendingRequests: MutableList<PageRequest> = mutableListOf()
     val verdicts: MutableList<Verdict> = mutableListOf()
     val urlRequests: MutableList<String> = mutableListOf()
 
-    override suspend fun findPendingReviews(
+    override suspend fun findPendingSubjects(
+        query: PendingReviewQuery,
         offset: Int,
         limit: Int,
-    ): PendingReviewsResult {
-        pendingRequests += offset to limit
-        return pending(offset, limit)
+    ): PendingReviewSubjectsResult {
+        pendingRequests += PageRequest(query, offset, limit)
+        return pending(query, offset)
     }
 
     override suspend fun getSubject(profileId: String): DocumentReviewSubjectResult = subjectResult
@@ -56,40 +62,16 @@ class FakeDocumentReviewRepository(
     override suspend fun getDocumentsOf(profileId: String): MyDocumentsResult =
         documentsFailure?.let(MyDocumentsResult::Failure) ?: MyDocumentsResult.Loaded(documents)
 
-    override suspend fun approveDocument(
+    override suspend fun approveDocuments(
         profileId: String,
-        type: DocumentType,
-    ): ReviewActionResult {
-        verdicts += Verdict(type, ReviewStatus.APPROVED, null)
-        if (actionResult is ReviewActionResult.Success && applyWrites) {
-            documents =
-                documents.map {
-                    if (it.type ==
-                        type
-                    ) {
-                        it.copy(status = ReviewStatus.APPROVED, rejectionReason = null)
-                    } else {
-                        it
-                    }
-                }
-        }
-        return actionResult
-    }
+        types: Set<DocumentType>,
+    ): ReviewActionResult = write(types, ReviewStatus.APPROVED, reason = null)
 
-    override suspend fun rejectDocument(
+    override suspend fun rejectDocuments(
         profileId: String,
-        type: DocumentType,
+        types: Set<DocumentType>,
         reason: RejectionReason,
-    ): ReviewActionResult {
-        verdicts += Verdict(type, ReviewStatus.REJECTED, reason.value)
-        if (actionResult is ReviewActionResult.Success && applyWrites) {
-            documents =
-                documents.map {
-                    if (it.type == type) it.copy(status = ReviewStatus.REJECTED, rejectionReason = reason.value) else it
-                }
-        }
-        return actionResult
-    }
+    ): ReviewActionResult = write(types, ReviewStatus.REJECTED, reason.value)
 
     override suspend fun approveProfessional(profileId: String): ReviewActionResult {
         val loaded = subjectResult as? DocumentReviewSubjectResult.Loaded
@@ -103,6 +85,21 @@ class FakeDocumentReviewRepository(
     override suspend fun getDocumentUrl(storagePath: String): DocumentUrlResult {
         urlRequests += storagePath
         return urlResult
+    }
+
+    private fun write(
+        types: Set<DocumentType>,
+        status: ReviewStatus,
+        reason: String?,
+    ): ReviewActionResult {
+        verdicts += Verdict(types, status, reason)
+        if (actionResult is ReviewActionResult.Success && applyWrites) {
+            documents =
+                documents.map {
+                    if (it.type in types) it.copy(status = status, rejectionReason = reason) else it
+                }
+        }
+        return actionResult
     }
 }
 
@@ -120,18 +117,17 @@ fun reviewSubject(
         professionalStatus = professionalStatus,
     )
 
-fun pendingReview(
+fun pendingSubject(
     index: Int = 0,
-    type: DocumentType = DocumentType.ID_FRONT,
     fullName: String = "Person $index",
-): PendingDocumentReview =
-    PendingDocumentReview(
+    pendingCount: Int = 3,
+): PendingReviewSubject =
+    PendingReviewSubject(
         profileId = "profile-$index",
-        type = type,
-        caption = null,
-        createdAt = Instant.parse("2026-10-01T15:30:00Z"),
         fullName = fullName,
         email = "person$index@example.com",
+        pendingCount = pendingCount,
+        oldestPendingAt = Instant.parse("2026-10-01T15:30:00Z"),
     )
 
 val everyRequiredNurseDocument: List<DocumentType> =

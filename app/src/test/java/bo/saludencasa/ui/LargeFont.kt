@@ -1,6 +1,7 @@
 package bo.saludencasa.ui
 
 import android.content.Context
+import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -42,6 +43,16 @@ fun string(
     @StringRes id: Int,
     vararg formatArgs: Any,
 ): String = ApplicationProvider.getApplicationContext<Context>().getString(id, *formatArgs)
+
+fun plural(
+    @PluralsRes id: Int,
+    quantity: Int,
+    vararg formatArgs: Any,
+): String =
+    ApplicationProvider
+        .getApplicationContext<Context>()
+        .resources
+        .getQuantityString(id, quantity, *formatArgs)
 
 // Scrolls first: every screen of this project is scrollable, so a control below
 // the fold is reachable rather than clipped, and asserting it is on screen without
