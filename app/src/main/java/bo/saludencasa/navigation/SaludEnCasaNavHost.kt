@@ -15,6 +15,8 @@ import bo.saludencasa.features.location.presentation.AddressScreen
 import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
+import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
+import bo.saludencasa.features.verification.presentation.DocumentReviewScreen
 import bo.saludencasa.features.verification.presentation.VerificationScreen
 
 @Composable
@@ -51,6 +53,7 @@ fun SaludEnCasaNavHost(
                 onOpenProfile = { navController.navigate(ProfileRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
                 onOpenVerification = { navController.navigate(VerificationRoute) },
+                onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
             )
         }
 
@@ -91,6 +94,24 @@ fun SaludEnCasaNavHost(
 
         composable<VerificationRoute> {
             VerificationScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable<DocumentReviewQueueRoute> {
+            DocumentReviewQueueScreen(
+                onBack = { navController.popBackStack() },
+                onOpenReview = { profileId, documentType ->
+                    navController.navigate(DocumentReviewRoute(profileId, documentType))
+                },
+            )
+        }
+
+        composable<DocumentReviewRoute> { entry ->
+            val route = entry.toRoute<DocumentReviewRoute>()
+            DocumentReviewScreen(
+                profileId = route.profileId,
+                documentType = route.documentType,
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

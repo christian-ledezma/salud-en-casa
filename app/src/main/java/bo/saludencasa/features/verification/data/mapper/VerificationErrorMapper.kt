@@ -11,6 +11,10 @@ internal fun Throwable.toVerificationError(): VerificationError {
     // message; matching the name is the only hold there is on it.
     if (message?.contains(DOCUMENT_REVIEW_BLOCK) == true) return VerificationError.DocumentFrozenByReview
 
+    // Raised by approve_professional_verification as stable keys, same
+    // mechanism as the one above.
+    ENGINE_REFUSALS.entries.firstOrNull { (key, _) -> message?.contains(key) == true }?.let { return it.value }
+
     return when (this) {
         // The platform compressor reports a decode failure as a plain
         // IOException, same text as "no network" but a different cause. The
@@ -23,3 +27,10 @@ internal fun Throwable.toVerificationError(): VerificationError {
 }
 
 private const val DOCUMENT_REVIEW_BLOCK = "document_review_is_written_by_an_administrator"
+
+private val ENGINE_REFUSALS =
+    mapOf(
+        "not_authorized" to VerificationError.NotAuthorized,
+        "required_documents_not_approved" to VerificationError.RequiredDocumentsNotApproved,
+        "professional_profile_incomplete" to VerificationError.ProfessionalProfileIncomplete,
+    )

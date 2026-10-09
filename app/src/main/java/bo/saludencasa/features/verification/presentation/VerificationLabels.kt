@@ -49,6 +49,10 @@ internal fun VerificationError.messageRes(): Int =
         VerificationError.CaptionNotAllowed -> R.string.error_verification_caption_not_allowed
         VerificationError.InvalidCaption -> R.string.error_verification_invalid_caption
         VerificationError.DocumentFrozenByReview -> R.string.error_verification_document_frozen
+        VerificationError.NotAuthorized -> R.string.error_verification_not_authorized
+        VerificationError.RequiredDocumentsNotApproved -> R.string.error_verification_required_documents_not_approved
+        VerificationError.ProfessionalProfileIncomplete -> R.string.error_verification_professional_profile_incomplete
+        VerificationError.InvalidRejectionReason -> R.string.error_verification_invalid_rejection_reason
         VerificationError.NetworkUnavailable -> R.string.error_network_unavailable
         VerificationError.Unexpected -> R.string.error_unexpected
     }

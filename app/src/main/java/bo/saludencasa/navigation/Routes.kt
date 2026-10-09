@@ -32,3 +32,12 @@ data class AddressRoute(
 
 @Serializable
 data object VerificationRoute
+
+@Serializable
+data object DocumentReviewQueueRoute
+
+@Serializable
+data class DocumentReviewRoute(
+    val profileId: String,
+    val documentType: String,
+)

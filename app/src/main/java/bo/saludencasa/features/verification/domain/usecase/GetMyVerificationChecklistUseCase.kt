@@ -46,7 +46,7 @@ class GetMyVerificationChecklistUseCase(
             }
 
         return VerificationChecklistResult.Loaded(
-            checklist = VerificationChecklist.create(roles, professionalType, documents),
+            checklist = VerificationChecklist.create(roles.held, professionalType, documents),
         )
     }
 

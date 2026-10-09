@@ -181,7 +181,7 @@ private fun newCaptureUri(
 }
 
 @Composable
-private fun VerificationContent(
+internal fun VerificationContent(
     uiState: VerificationUiState,
     onBack: () -> Unit,
     onRetryLoad: () -> Unit,
@@ -241,7 +241,7 @@ private fun VerificationContent(
 }
 
 @Composable
-private fun CenteredColumn(
+internal fun CenteredColumn(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -440,7 +440,7 @@ private fun pickActionRes(document: VerificationDocument?): Int =
     }
 
 @Composable
-private fun StatusBadge(status: ReviewStatus) {
+internal fun StatusBadge(status: ReviewStatus) {
     val color =
         when (status) {
             ReviewStatus.APPROVED -> SaludEnCasaTheme.statusColors.positive
@@ -501,7 +501,7 @@ private fun previewChecklist(
     roles: ProfileRoles,
     type: ProfessionalType?,
     documents: List<VerificationDocument> = emptyList(),
-): VerificationChecklist = VerificationChecklist.create(roles, type, documents)
+): VerificationChecklist = VerificationChecklist.create(roles.held, type, documents)
 
 private fun previewContent(
     roles: ProfileRoles = previewRoles(UserRole.PATIENT),

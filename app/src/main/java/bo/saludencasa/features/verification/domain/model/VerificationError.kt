@@ -17,6 +17,14 @@ sealed interface VerificationError {
 
     data object DocumentFrozenByReview : VerificationError
 
+    data object NotAuthorized : VerificationError
+
+    data object RequiredDocumentsNotApproved : VerificationError
+
+    data object ProfessionalProfileIncomplete : VerificationError
+
+    data object InvalidRejectionReason : VerificationError
+
     data object NetworkUnavailable : VerificationError
 
     data object Unexpected : VerificationError

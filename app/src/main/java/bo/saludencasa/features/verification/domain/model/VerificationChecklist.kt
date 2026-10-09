@@ -1,7 +1,6 @@
 package bo.saludencasa.features.verification.domain.model
 
 import bo.saludencasa.features.profile.domain.model.ProfessionalType
-import bo.saludencasa.features.profile.domain.model.ProfileRoles
 import bo.saludencasa.features.profile.domain.model.UserRole
 
 // Union of role-based document sets. See docs/decisions.md, 2026-10-01 (held
@@ -14,22 +13,22 @@ data class VerificationChecklist(
 
     companion object {
         fun create(
-            roles: ProfileRoles,
+            heldRoles: Set<UserRole>,
             professionalType: ProfessionalType?,
             documents: List<VerificationDocument>,
         ): VerificationChecklist =
             VerificationChecklist(
-                required = requiredFor(roles, professionalType),
+                required = requiredFor(heldRoles, professionalType),
                 documents = documents.associateBy { it.type },
             )
 
         private fun requiredFor(
-            roles: ProfileRoles,
+            heldRoles: Set<UserRole>,
             professionalType: ProfessionalType?,
         ): List<DocumentType> =
             buildList {
-                val patient = roles.has(UserRole.PATIENT)
-                val professional = roles.has(UserRole.PROFESSIONAL)
+                val patient = UserRole.PATIENT in heldRoles
+                val professional = UserRole.PROFESSIONAL in heldRoles
                 if (patient || professional) {
                     add(DocumentType.ID_FRONT)
                     add(DocumentType.ID_BACK)

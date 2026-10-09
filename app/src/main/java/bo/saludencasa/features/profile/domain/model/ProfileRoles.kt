@@ -14,6 +14,8 @@ data class ProfileRoles private constructor(
 
     fun has(role: UserRole): Boolean = role in held
 
+    val isAdmin: Boolean get() = has(UserRole.ADMIN)
+
     // ADMIN is granted manually and never takes part in the alternation, so it
     // is not something to switch into even for someone who holds it.
     val switchable: List<UserRole> get() = held.filterNot { it == UserRole.ADMIN }.sorted()
@@ -22,7 +24,9 @@ data class ProfileRoles private constructor(
 
     // AssignableRole stays the only place that lists what a person may grant
     // themselves, which is what keeps adminRoleIsNeverSelfAssignable meaningful.
-    val addable: List<AssignableRole> get() = AssignableRole.entries.filterNot { has(it.role) }
+    // docs/decisions.md, 2026-10-06, exclusive ADMIN role.
+    val addable: List<AssignableRole>
+        get() = if (isAdmin) emptyList() else AssignableRole.entries.filterNot { has(it.role) }
 
     companion object {
         fun create(

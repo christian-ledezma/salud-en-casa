@@ -21,7 +21,7 @@ class VerificationRepository(
         val userId = dataSource.currentUserId() ?: return MyDocumentsResult.Failure(VerificationError.NotSignedIn)
 
         return try {
-            MyDocumentsResult.Loaded(dataSource.findMyDocuments(userId).mapNotNull { it.toDocument() })
+            MyDocumentsResult.Loaded(dataSource.findDocumentsOf(userId).mapNotNull { it.toDocument() })
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (failure: Exception) {

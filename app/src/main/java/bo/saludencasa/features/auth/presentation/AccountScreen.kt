@@ -46,6 +46,7 @@ fun AccountScreen(
     onOpenProfile: () -> Unit,
     onOpenAddress: () -> Unit,
     onOpenVerification: () -> Unit,
+    onOpenDocumentReview: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AccountViewModel = koinViewModel(),
 ) {
@@ -62,6 +63,7 @@ fun AccountScreen(
         onOpenProfile = onOpenProfile,
         onOpenAddress = onOpenAddress,
         onOpenVerification = onOpenVerification,
+        onOpenDocumentReview = onOpenDocumentReview,
         onSwitchTo = viewModel::switchTo,
         onActivate = viewModel::activate,
         modifier = modifier,
@@ -69,13 +71,14 @@ fun AccountScreen(
 }
 
 @Composable
-private fun AccountContent(
+internal fun AccountContent(
     uiState: AccountUiState,
     onSignOutClick: () -> Unit,
     onDismissError: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenAddress: () -> Unit,
     onOpenVerification: () -> Unit,
+    onOpenDocumentReview: () -> Unit,
     onSwitchTo: (UserRole) -> Unit,
     onActivate: (AssignableRole) -> Unit,
     modifier: Modifier = Modifier,
@@ -128,18 +131,26 @@ private fun AccountContent(
                     onSwitchTo = onSwitchTo,
                     onActivate = onActivate,
                 )
-                PrimaryButton(text = stringResource(R.string.auth_account_open_profile), onClick = onOpenProfile)
-                OutlinedButton(
-                    onClick = onOpenAddress,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(R.string.auth_account_open_address))
-                }
-                OutlinedButton(
-                    onClick = onOpenVerification,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(R.string.auth_account_open_verification))
+                // docs/decisions.md, 2026-10-06, review panel lives in the app.
+                if (uiState.roleSection.roles.isAdmin) {
+                    PrimaryButton(
+                        text = stringResource(R.string.auth_account_open_document_review),
+                        onClick = onOpenDocumentReview,
+                    )
+                } else {
+                    PrimaryButton(text = stringResource(R.string.auth_account_open_profile), onClick = onOpenProfile)
+                    OutlinedButton(
+                        onClick = onOpenAddress,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(R.string.auth_account_open_address))
+                    }
+                    OutlinedButton(
+                        onClick = onOpenVerification,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(R.string.auth_account_open_verification))
+                    }
                 }
                 OutlinedButton(
                     onClick = onSignOutClick,
@@ -246,7 +257,7 @@ private val onlyPatient = setOf(UserRole.PATIENT)
 private fun AccountBothRolesLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -255,7 +266,7 @@ private fun AccountBothRolesLightPreview() {
 private fun AccountBothRolesDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PROFESSIONAL))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -264,7 +275,7 @@ private fun AccountBothRolesDarkPreview() {
 private fun AccountSingleRoleLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -273,7 +284,16 @@ private fun AccountSingleRoleLightPreview() {
 private fun AccountSingleRoleDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, name = "Cuenta de administrador")
+@Composable
+private fun AccountAdminPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        val state = AccountUiState.Content(previewSession(), previewRoles(setOf(UserRole.ADMIN), UserRole.ADMIN))
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -282,7 +302,7 @@ private fun AccountSingleRoleDarkPreview() {
 private fun AccountRoleSwitchErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val roles = previewRoles(bothRoles, UserRole.PATIENT, ProfileError.NetworkUnavailable)
-        AccountContent(AccountUiState.Content(previewSession(), roles), {}, {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Content(previewSession(), roles), {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -290,7 +310,7 @@ private fun AccountRoleSwitchErrorPreview() {
 @Composable
 private fun AccountLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Loading, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -298,6 +318,6 @@ private fun AccountLoadingPreview() {
 @Composable
 private fun AccountErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {}, {}, {}, {}, {})
     }
 }

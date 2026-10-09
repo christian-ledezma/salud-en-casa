@@ -213,4 +213,40 @@
     <string name="cd_professional_photo">Fotografía del profesional</string>
     <string name="cd_address_map">Mapa para marcar tu dirección</string>
     <string name="cd_address_marker">Marcador de tu dirección</string>
+
+    <string name="auth_account_open_document_review">Revisar documentos</string>
+
+    <string name="review_queue_title">Documentos por revisar</string>
+    <string name="review_queue_subtitle">Del más antiguo al más reciente.</string>
+    <string name="review_queue_empty">No hay documentos pendientes de revisión.</string>
+    <string name="review_queue_item_submitted">Enviado el %1$s</string>
+    <string name="review_queue_load_more_retry">Cargar más documentos</string>
+
+    <string name="review_detail_title">Revisión de documentos</string>
+    <string name="review_subject_email">Correo: %1$s</string>
+    <string name="review_subject_roles">Roles: %1$s</string>
+    <string name="review_subject_professional_type">Tipo de profesional: %1$s</string>
+    <string name="review_subject_professional_status">Verificación como profesional: %1$s</string>
+    <string name="review_documents_section_title">Documentos</string>
+    <string name="review_document_missing">Sin cargar</string>
+    <string name="review_image_error">No se pudo cargar la imagen del documento.</string>
+
+    <string name="review_action_approve">Aprobar documento</string>
+    <string name="review_action_reject">Rechazar documento</string>
+    <string name="review_reject_dialog_title">Rechazar documento</string>
+    <string name="review_reject_dialog_supporting">El usuario verá este motivo en su aplicación y podrá volver a subir el documento.</string>
+    <string name="review_reject_reason_label">Motivo del rechazo</string>
+    <string name="review_reject_confirm">Rechazar</string>
+
+    <string name="review_action_approve_professional">Verificar profesional</string>
+    <string name="review_approve_professional_dialog_title">Verificar profesional</string>
+    <string name="review_approve_professional_dialog_body">%1$s pasará a ser visible en las búsquedas de los pacientes. Todos sus documentos requeridos están aprobados.</string>
+    <string name="review_approve_professional_confirm">Verificar</string>
+
+    <string name="error_verification_not_authorized">Tu cuenta no tiene permiso para esta acción.</string>
+    <string name="error_verification_required_documents_not_approved">Faltan documentos requeridos por aprobar.</string>
+    <string name="error_verification_professional_profile_incomplete">El profesional aún no declaró su tipo ni su tarifa.</string>
+    <string name="error_verification_invalid_rejection_reason">Escribe el motivo del rechazo, de hasta 300 caracteres.</string>
+
+    <string name="cd_document_image">Imagen del documento</string>
 </resources>
