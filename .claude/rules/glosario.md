@@ -45,7 +45,10 @@ que lo introduce.
 | Reputación | `averageRating` | Promedio de calificaciones recibidas |
 | Total de calificaciones | `totalReviews` | Cuántas calificaciones sostienen el promedio |
 | Distancia en metros | `distanceM` | Resultado de la búsqueda por cercanía |
-| Cola de revisión | `PendingReviewSubject` | Persona con documentos `PENDING`, con su cantidad, que es la tarjeta de la cola |
+| Cola de revisión | `PendingReviewSubject` | Persona con trabajo pendiente del administrador: documentos por revisar, la verificación por conceder, o las dos |
+| Listo para verificar | `awaitingVerification` / `awaiting_verification` | Profesional con todos sus requeridos aprobados que todavía no es `APPROVED` |
+| Esperando desde | `waitingSince` / `waiting_since` | Cuándo el turno pasó al administrador: la subida del documento o la aprobación del último requerido |
+| Quién espera la verificación | `professionals_awaiting_verification` | Función del motor, solo para el administrador, que dice a quién le falta el acto de verificar |
 | Criterios de la cola | `PendingReviewQuery` | Búsqueda, filtro por rol y orden con que el administrador recorta la cola |
 | Filtro por rol | `ReviewRoleFilter` | `ALL`, `PATIENT` o `PROFESSIONAL` |
 | Orden de la cola | `ReviewQueueOrder` | `OLDEST_FIRST` o `NEWEST_FIRST`, por la fecha del documento más antiguo |

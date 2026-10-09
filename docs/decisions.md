@@ -3763,6 +3763,74 @@ nada.
 
 ---
 
+## 2026-10-09 · La cola es de trabajo pendiente, no de documentos pendientes
+
+**Contexto.** El autor recorrió el circuito completo: subió los cinco documentos con su
+cuenta de rol doble y los aprobó con la cuenta administradora. El profesional **no quedó
+verificado**, su ficha pública seguía diciendo que no está publicada, y en el panel del
+administrador ya no aparecía nada sobre esa persona.
+
+Dos cosas distintas se cruzaron ahí. Que aprobar documentos no verifique al profesional
+**es a propósito**: la promoción es un acto explícito del administrador custodiado por el
+motor, decisión del 2026-10-06, y el mensaje de la ficha es correcto porque INV-07 solo
+publica a un profesional `APPROVED` y activo. Lo que estaba mal era otra cosa: **el botón
+«Verificar profesional» vive solo en el expediente, y la única puerta al expediente era
+una cola que listaba únicamente a personas con documentos `PENDING`.** Al aprobar el
+último documento la persona salía de la cola y el acto que cierra la historia se volvía
+inalcanzable.
+
+El hueco es anterior a la reagrupación del 2026-10-08 —la vista de una fila por documento
+filtraba igual por `status = 'PENDING'`—, pero el veredicto en lote lo volvió trivial de
+pisar: antes se aprobaba de a uno y el botón aparecía con el último; ahora los cinco
+desaparecen de un toque. El botón sí se ofrece inmediatamente después de aprobar, porque
+la pantalla relee el expediente, pero es una ventana que se cierra al volver atrás.
+
+**Decisión.** La cola deja de significar «documentos pendientes» y pasa a significar
+**«trabajo pendiente del administrador»**. Incluye también al profesional con todos sus
+documentos requeridos aprobados que todavía no está verificado, y la tarjeta dice qué se
+le pide: «Listo para verificar», la cantidad de documentos pendientes, o las dos cosas.
+
+**Razonamiento.** Se descartó promover de forma automática al aprobarse el último
+documento requerido, que era lo más simple y habría cabido en un disparador espejo del que
+ya degrada. Revierte la decisión del 2026-10-06 y tiene un costo concreto: un documento
+aprobado por error publicaría al profesional en el acto, sin que nadie mire el expediente
+completo. También se descartó una pantalla de búsqueda de personas aparte: resolvería
+esto y más, pero ningún requisito la pide todavía.
+
+Cuatro detalles de la implementación tienen razón propia:
+
+- **Quién espera el acto se calcula en una función `security definer`**,
+  `professionals_awaiting_verification()`, porque la condición necesita
+  `required_document_types`, que deliberadamente no tiene permiso de ejecución para
+  `authenticated`: ejecutarla dice si un uuid dado tiene el rol profesional y de qué tipo.
+  El `is_admin()` va **como filtro y no como excepción**, para que la vista siga
+  funcionando para cualquiera que lee sus propios documentos pendientes. Se comprobó en
+  local que esa persona, llamando la función directamente, recibe cero identificadores.
+- **Las condiciones replican las de `approve_professional_verification`, tarifa incluida.**
+  Una tarjeta que prometiera un acto que el motor rechaza con
+  `professional_profile_incomplete` mandaría al administrador a un callejón sin salida, y
+  esa persona está esperando su propio perfil, no una revisión. Queda una asimetría
+  conocida: `DocumentReviewDossier.canApproveProfessional` no mira la tarifa, porque el
+  expediente no la trae, así que el botón puede ofrecerse y el motor negarse. Eso ya era
+  así y la pantalla muestra el error; el que no se equivoca de más es la cola.
+- **Una sola tarjeta por persona.** Alguien puede estar en los dos conjuntos a la vez: con
+  todos los requeridos aprobados y el adjunto opcional todavía pendiente. La unión de
+  identificadores es lo que lo mantiene en una tarjeta, porque dos filas con la misma
+  clave rompen la lista. Verificado en local: tres personas, tres filas.
+- **`waiting_since` reemplaza a `oldest_pending_at`.** Para un documento es cuándo se
+  subió; para el acto de verificar es cuándo se aprobó el último requerido, que es cuándo
+  el turno pasó a ser del administrador. Una columna con dos significados es como se
+  podre un modelo de lectura, así que el nombre dejó de decir «pendiente».
+
+**Consecuencia.** El subtítulo de la cola y su estado vacío dejan de hablar de documentos.
+Y queda anotado algo sobre las pruebas:
+`approvingTheLastRequiredDocumentOffersTheProfessionalApproval` estaba en verde todo este
+tiempo. Cubre que la pantalla ofrezca el botón, **no que exista un camino hasta esa
+pantalla**: la prueba nunca se va de la pantalla y el administrador sí. Una prueba de
+pantalla no es una prueba de recorrido, y este hueco es el ejemplo.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

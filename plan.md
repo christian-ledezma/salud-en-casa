@@ -168,6 +168,18 @@ configuraciones, y lo que lo compensaría de verdad es la suite de
 `app/src/androidTest`, que sigue vacía. Mientras siga vacía, este cambio aumenta
 el riesgo de forma consciente: está aceptado, no ignorado.
 
+> **Contraejemplo del 2026-10-09, anotado porque el tribunal puede preguntarlo.**
+> HU-09 **no** está en ninguno de los dos niveles de arriba: el panel del administrador
+> no rompe el flujo central del paciente ni mueve dinero. El autor lo recorrió de todos
+> modos con las dos cuentas, y el recorrido encontró un defecto que **ninguna prueba
+> podía ver**: el botón que verifica al profesional quedaba sin puerta en cuanto se
+> aprobaba el último documento, porque la cola no listaba a nadie con todo aprobado. No
+> era un defecto de disposición —era de recorrido—, y no se agrega HU-09 a la tabla por
+> esto: lo que el caso muestra es que las dos categorías de arriba cubren «qué pantallas
+> hay que mirar» y no cubren «qué caminos hay que caminar». La respuesta a eso no es una
+> tabla más larga, es recorrer el incremento de cada sprint de punta a punta antes de
+> cerrarlo. Ver «El hueco del 09/10» en el Sprint 3.
+
 ---
 
 ## Índice de sprints
@@ -830,11 +842,20 @@ criterios de aceptación siguen cumpliéndose.
    Sin biblioteca nueva. En el recuadro 4:3, sobre una imagen comprimida a 1600 px, un
    número de matrícula no se lee: el criterio «veo la imagen» se cumplía de forma
    aparente.
+7. **La cola es de trabajo pendiente, no de documentos pendientes**, el 2026-10-09.
+   Incluye al profesional con todos sus requeridos aprobados que todavía no está
+   verificado, y la tarjeta dice qué se le pide: «Listo para verificar», la cantidad de
+   documentos pendientes, o las dos cosas. Cierra un hueco real que encontró el autor
+   recorriendo el circuito: **el botón «Verificar profesional» vive solo en el
+   expediente, y la cola no listaba a nadie cuyos documentos estuvieran todos
+   aprobados**, de modo que el acto que cierra la historia quedaba sin puerta en cuanto
+   se aprobaba el último documento. Ver «El hueco del 09/10» más abajo.
 
 Las decisiones están razonadas en `docs/decisions.md`, cuatro entradas del 2026-10-08 y
-una del 2026-10-09, con los motivos de lo descartado: agrupar en el cliente, el `or` de
+dos del 2026-10-09, con los motivos de lo descartado: agrupar en el cliente, el `or` de
 dos columnas para la búsqueda, un motivo por documento, el control segmentado para los
-chips y una biblioteca de zoom.
+chips, una biblioteca de zoom, la promoción automática al aprobar el último documento y
+una pantalla de búsqueda de personas aparte.
 
 **Verificaciones del 2026-10-08.**
 
@@ -865,7 +886,7 @@ chips y una biblioteca de zoom.
   del desplazamiento deja arrastrar el documento al vacío y falla
   `theDragStopsAtTheEdgeOfTheEnlargedImage`; quitar los topes de zoom y la proporción del
   desplazamiento rompe cuatro pruebas de `ImageTransformTest`.
-- **63 suites, 361 pruebas, 0 fallos, 0 omitidas.** `ktlintCheck`, `staticAnalysis` y
+- **63 suites, 363 pruebas, 0 fallos, 0 omitidas.** `ktlintCheck`, `staticAnalysis` y
   `assembleDebug` concluyen sin error.
 - **Previsualizaciones: pendientes de mirar.** Son **veinte**: ocho en la cola, ocho en el
   detalle, dos del componente `ScreenHeader` y dos del visor. Las tres obligatorias
@@ -875,22 +896,75 @@ chips y una biblioteca de zoom.
   nadie las abriera. **El zoom y el arrastre solo se comprueban de verdad con los dedos:**
   la aritmética tiene pruebas, el gesto que la alimenta no.
 
+### El hueco del 09/10, y por qué ninguna prueba lo vio
+
+El autor recorrió el circuito completo: subió los cinco documentos con su cuenta de rol
+doble y los aprobó con la cuenta administradora. **El profesional no quedó verificado**, su
+ficha seguía diciendo que no está publicada, y el panel ya no mostraba nada sobre esa
+persona.
+
+Que aprobar documentos no verifique al profesional es a propósito: la promoción es un acto
+explícito del administrador, decisión del 2026-10-06, y el mensaje de la ficha es correcto
+porque INV-07 solo publica a un profesional `APPROVED` y activo. Lo que faltaba era la
+puerta: el botón vive en el expediente, y la cola no listaba a nadie con todos sus
+documentos aprobados.
+
+**Lo que esto enseña sobre las pruebas.**
+`approvingTheLastRequiredDocumentOffersTheProfessionalApproval` estaba en verde todo este
+tiempo, y sigue estándolo. Cubre que la pantalla ofrezca el botón, **no que exista un
+camino hasta esa pantalla**: la prueba nunca se va de la pantalla y el administrador sí.
+Una prueba de pantalla no es una prueba de recorrido. Es el mismo patrón que la prueba de
+interfaz que no ve el texto recortado dentro de su contenedor, y el mismo remedio: alguien
+tiene que recorrer el circuito en el dispositivo. Esta vez lo recorrió el autor, y por eso
+apareció.
+
+**Verificado en local el 2026-10-09**, sobre cinco personas construidas para el caso:
+
+| Caso | Aparece | Qué dice la tarjeta |
+|---|---|---|
+| Todos los requeridos aprobados, sin verificar | Sí | Listo para verificar |
+| Todos aprobados y el adjunto opcional pendiente | Sí, **una sola tarjeta** | Listo para verificar y 1 pendiente |
+| Le falta un documento por aprobar | Sí | 1 pendiente |
+| Todos aprobados pero sin tarifa declarada | **No** | Espera su propio perfil, no una revisión |
+| Ya verificada | **No** | Nada que hacer |
+
+Y la seguridad de la función `definer`: la profesional lista para verificar, leyendo la
+cola, ve **cero filas**, y llamando `professionals_awaiting_verification()` directamente
+recibe **cero identificadores**. La administradora ve las tres y recibe los dos.
+
+**En el remoto, tras aplicar la migración:** la cola de la administradora muestra las dos
+tarjetas que corresponden, `ledezma aramayo` con 4 documentos pendientes y
+`Christian Ledezma Silva` con 0 pendientes y **listo para verificar**. `supabase db diff
+--linked --schema public` responde «No schema changes found».
+
+**Recorrido en dispositivo por el autor el 2026-10-09, con las dos cuentas: correcto.**
+Se eligió deliberadamente **no** promover por SQL, para que el circuito quedara demostrado
+en pantalla y no solo contra la base. El autor subió los cinco documentos con su cuenta de
+rol doble, los aprobó con la cuenta administradora, pulsó «Verificar profesional», y
+comprobó desde la primera cuenta que **la ficha pública ya se publica**. Verificado además
+contra el remoto: `verification_status = APPROVED`, **1 fila en `professional_directory`**,
+y la cola de la administradora pasó a mostrar una sola tarjeta —los 4 documentos de HU-07—
+porque la persona verificada salió de la cola al no quedar trabajo sobre ella.
+
+Es la primera vez que el circuito completo de confianza se recorre en un dispositivo, y
+cierra la cautela que este documento escribió en «Incremento del sprint».
+
 **Revisión de `plan.md` al inicio y al final: realizadas las dos.**
 
 **Archivos creados, modificados o eliminados el 2026-10-08 y el 2026-10-09.**
 
 | Capa | Archivos |
 |---|---|
-| Migración | `supabase/migrations/20261008120000_group_review_queue_by_subject.sql` (nueva, aplicada en local y en el remoto) |
+| Migraciones | `supabase/migrations/20261008120000_group_review_queue_by_subject.sql` · `supabase/migrations/20261009120000_queue_includes_professionals_awaiting_verification.sql` (nuevas, aplicadas en local y en el remoto) |
 | Dominio | `domain/model/{PendingReviewSubject, PendingReviewQuery}.kt` · `domain/usecase/{GetPendingReviewSubjects, ApproveDocuments, RejectDocuments}UseCase.kt` (nuevos) · `domain/model/{DocumentReviewResult, DocumentReviewDossier}.kt` · `domain/repository/IDocumentReviewRepository.kt` (modificados) · `domain/model/PendingDocumentReview.kt` · `domain/usecase/{GetPendingDocumentReviews, ApproveDocument, RejectDocument}UseCase.kt` (eliminados) |
 | Datos | `data/model/DocumentReviewDto.kt` · `data/mapper/DocumentReviewMapper.kt` · `data/datasource/SupabaseVerificationDataSource.kt` · `data/repository/DocumentReviewRepository.kt` (modificados) |
 | Presentación | `presentation/{DocumentReviewQueueViewModel, DocumentReviewQueueScreen, DocumentReviewViewModel, DocumentReviewScreen, VerificationLabels}.kt` (modificados) |
 | Interfaz compartida | `ui/components/ScreenHeader.kt` (nuevo) |
 | Visor a pantalla completa | `features/verification/presentation/FullScreenDocumentImage.kt` (nuevo, con `ImageTransform` y su aritmética) · `test/.../presentation/ImageTransformTest.kt` (nuevo) |
 | Inyección y navegación | `di/VerificationModule.kt` · `navigation/{Routes, SaludEnCasaNavHost}.kt` (la ruta del detalle deja de llevar el tipo de documento) |
-| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (claves de búsqueda, filtro, orden y selección; dos plurales nuevos; `cd_back_button`, `cd_select_document`, `cd_expand_document_image` y `cd_close_full_image`; se retiran `review_action_approve`, `review_action_reject` y `review_queue_item_submitted`) |
+| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (claves de búsqueda, filtro, orden y selección; dos plurales nuevos; `cd_back_button`, `cd_select_document`, `cd_expand_document_image`, `cd_close_full_image` y `review_queue_ready_to_verify`; se retiran `review_action_approve`, `review_action_reject` y `review_queue_item_submitted`) |
 | Pruebas | `test/.../verification/FakeDocumentReviewRepository.kt` · `presentation/{DocumentReviewQueueViewModelTest, DocumentReviewViewModelTest, DocumentReviewScreensLargeFontTest}.kt` · `data/mapper/DocumentReviewMapperTest.kt` · `ui/LargeFont.kt` (ayudante `plural`) (modificados) · `domain/usecase/{GetPendingReviewSubjects, RejectDocuments}UseCaseTest.kt` (nuevos, reemplazan a los de nombre singular) |
-| Reglas y documentos | `.claude/rules/glosario.md` · `.claude/rules/testing.md` (la trampa del `LazyColumn`) · `docs/decisions.md` (cuatro entradas del 2026-10-08 y una del 2026-10-09) · `plan.md` (esta sección) |
+| Reglas y documentos | `.claude/rules/glosario.md` · `.claude/rules/testing.md` (la trampa del `LazyColumn`) · `docs/decisions.md` (cuatro entradas del 2026-10-08 y dos del 2026-10-09) · `plan.md` (esta sección) |
 
 ## Incremento del sprint
 
@@ -3490,6 +3564,11 @@ ejecutaron.
       como único pendiente, y pasa al aprobarse el último; el estado almacenado
       queda `APPROVED`. Un paciente no tiene estado de perfil (decisión del autor).
       `DocumentReviewDossierTest` fija cuándo se ofrece el botón.
+      **Recorrido en dispositivo el 2026-10-09 con las dos cuentas:** el autor aprobó los
+      cinco documentos desde el panel, pulsó «Verificar profesional» y comprobó que la
+      ficha pública del profesional se publica. En el remoto quedó
+      `verification_status = APPROVED` y 1 fila en `professional_directory`. Ese recorrido
+      es el que destapó el hueco de la puerta al botón, corregido el mismo día.
 - [x] Dado que rechazo un documento, cuando indico el motivo, entonces el usuario lo
       ve en su aplicación. **Verificado con experimento SQL:** el rechazo sin motivo
       y con motivo vacío o de 301 caracteres lo rechaza el motor; con motivo real
@@ -3682,14 +3761,29 @@ Un profesional carga su título, el administrador lo aprueba, y el profesional
 pasa a ser visible en las búsquedas. **El circuito de confianza queda cerrado.**
 
 > **Qué se demostró de ese enunciado y qué no, dicho antes de que lo cuestionen.**
-> Se demostró **contra la base**, con experimentos SQL en el remoto: el administrador
-> aprueba los documentos, promueve, y el profesional aparece en `professional_directory`;
-> si se le rechaza un documento requerido o cambia su tipo, desaparece. **No se
-> demostró en pantalla de punta a punta**: la pantalla de búsqueda llega con HU-11
-> (Sprint 4), y la revisión del administrador no se recorrió en un dispositivo. La
-> misma cautela que el Sprint 2.5 aprendió a escribir en su enunciado.
+> Se demostró primero **contra la base**, con experimentos SQL en el remoto: el
+> administrador aprueba los documentos, promueve, y el profesional aparece en
+> `professional_directory`; si se le rechaza un documento requerido o cambia su tipo,
+> desaparece.
+>
+> **Y el 2026-10-09 se demostró en pantalla**, con las dos cuentas en un dispositivo: el
+> profesional carga sus cinco documentos, el administrador los aprueba desde el panel,
+> pulsa «Verificar profesional», y la ficha pública del profesional pasa a publicarse.
+> Lo hizo el autor, y en el camino encontró el hueco que ese recorrido existía para
+> encontrar: el botón de verificar no tenía puerta una vez aprobado el último documento
+> (ver «El hueco del 09/10»).
+>
+> **Lo único que sigue sin demostrarse en pantalla es la frase «aparece en las
+> búsquedas»**, porque la pantalla de búsqueda llega con HU-11, en el Sprint 4. Hasta
+> entonces la visibilidad se comprueba en la ficha pública y en `professional_directory`,
+> no en un resultado de búsqueda.
 
 ## Retrospectiva
+
+> **Nota del 2026-10-09.** Esta retrospectiva se escribió el 06/10, cuando el circuito
+> solo estaba demostrado contra la base. El 09/10 el autor lo recorrió en un dispositivo
+> con las dos cuentas y funcionó, así que el párrafo siguiente quedó parcialmente
+> superado: lo que falta ya no es «la pantalla», es solo la de búsqueda.
 
 **El circuito de confianza quedó cerrado en la base, no todavía en pantalla.** Un
 administrador revisa documentos, aprueba o rechaza con motivo, y promueve al
@@ -3953,8 +4047,8 @@ su domicilio, filtrados por el tipo de atención que necesita.
 2026-10-08). El sprint se cierra ese día aunque queden historias abiertas: lo que no esté
 cerrado se traslada, y lo cerrado se cuenta. Es la primera vez que un sprint de este
 proyecto cierra por plazo y no por alcance, y por eso es la primera medición de velocidad
-que mide capacidad. **Primer día del sprint:** _anotar al empezar_, y con él la fecha de
-corte (primer día + 6 días, ambos incluidos).
+que mide capacidad. **Primer día del sprint: 2026-10-09. Fecha de corte: 2026-10-15**,
+siete días corridos contando los dos extremos.
 
 ### HU-10 · Declarar los servicios que presto `[ ]` — 5 puntos
 
