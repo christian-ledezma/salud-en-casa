@@ -121,13 +121,15 @@ fun pendingSubject(
     index: Int = 0,
     fullName: String = "Person $index",
     pendingCount: Int = 3,
+    awaitingVerification: Boolean = false,
 ): PendingReviewSubject =
     PendingReviewSubject(
         profileId = "profile-$index",
         fullName = fullName,
         email = "person$index@example.com",
         pendingCount = pendingCount,
-        oldestPendingAt = Instant.parse("2026-10-01T15:30:00Z"),
+        awaitingVerification = awaitingVerification,
+        waitingSince = Instant.parse("2026-10-01T15:30:00Z"),
     )
 
 val everyRequiredNurseDocument: List<DocumentType> =

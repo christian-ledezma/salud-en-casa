@@ -1,5 +1,6 @@
 package bo.saludencasa.features.verification.presentation
 
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -71,7 +72,11 @@ class DocumentReviewScreensLargeFontTest {
         }
     }
 
-    private fun showQueue(query: PendingReviewQuery = PendingReviewQuery()) {
+    private fun showQueue(
+        query: PendingReviewQuery = PendingReviewQuery(),
+        pendingCount: Int = 5,
+        awaitingVerification: Boolean = false,
+    ) {
         composeRule.setContentAtDoubleFontScale {
             DocumentReviewQueueContent(
                 uiState =
@@ -79,7 +84,14 @@ class DocumentReviewScreensLargeFontTest {
                         query = query,
                         list =
                             QueueListState.Content(
-                                subjects = listOf(pendingSubject(fullName = LONG_NAME, pendingCount = 5)),
+                                subjects =
+                                    listOf(
+                                        pendingSubject(
+                                            fullName = LONG_NAME,
+                                            pendingCount = pendingCount,
+                                            awaitingVerification = awaitingVerification,
+                                        ),
+                                    ),
                                 loadingMore = false,
                                 endReached = true,
                                 notice = null,
@@ -111,6 +123,21 @@ class DocumentReviewScreensLargeFontTest {
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(plural(R.plurals.review_queue_pending_count, 5, 5)),
         )
+    }
+
+    // The card of someone whose paperwork is in order carries no count, only
+    // the act being asked for, and that label is the longest of the card.
+    @Test
+    fun aCardReadyToVerifyKeepsItsLabelOnScreen() {
+        showQueue(pendingCount = 0, awaitingVerification = true)
+        scrollQueueToTheFirstCard()
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.review_queue_ready_to_verify)),
+        )
+        // And it says nothing about documents: a card reading "0 documentos
+        // pendientes" is nonsense on the one person who has none.
+        composeRule.onNodeWithText(plural(R.plurals.review_queue_pending_count, 0, 0)).assertIsNotDisplayed()
     }
 
     // Five chips and a text field above the list: the row that wraps worst on a
