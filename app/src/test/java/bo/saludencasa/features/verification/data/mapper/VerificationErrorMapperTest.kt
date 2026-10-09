@@ -42,4 +42,23 @@ class VerificationErrorMapperTest {
     fun `anything else is mapped to Unexpected`() {
         assertEquals(VerificationError.Unexpected, IllegalStateException("boom").toVerificationError())
     }
+
+    // approve_professional_verification raises these as stable keys. Falling
+    // through to Unexpected would show the administrator "something failed"
+    // when the reason is a missing document they can act on.
+    @Test
+    fun theEngineRefusalsMapToTheirOwnErrors() {
+        assertEquals(
+            VerificationError.NotAuthorized,
+            RuntimeException("P0001: not_authorized").toVerificationError(),
+        )
+        assertEquals(
+            VerificationError.RequiredDocumentsNotApproved,
+            RuntimeException("P0001: required_documents_not_approved").toVerificationError(),
+        )
+        assertEquals(
+            VerificationError.ProfessionalProfileIncomplete,
+            RuntimeException("P0001: professional_profile_incomplete").toVerificationError(),
+        )
+    }
 }

@@ -93,4 +93,13 @@ class ProfileRolesTest {
 
         assertTrue(roles.addable.isEmpty())
     }
+
+    @Test
+    fun anAdministratorIsOfferedNoRoleToActivate() {
+        val roles = ProfileRoles.create(setOf(UserRole.ADMIN), UserRole.ADMIN).getOrThrow()
+
+        assertTrue(roles.isAdmin)
+        assertTrue(roles.addable.isEmpty())
+        assertFalse(roles.canSwitch)
+    }
 }

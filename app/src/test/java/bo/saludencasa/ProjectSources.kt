@@ -25,6 +25,13 @@ internal object ProjectSources {
             .filter { it.isFile && it.extension == "kt" }
             .toList()
 
+    fun migrationFiles(): List<File> =
+        File(projectRoot(), "supabase/migrations")
+            .listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.extension == "sql" }
+            .sortedBy { it.name }
+
     fun localeStringsXmlFiles(): List<File> {
         val resDir = File(projectRoot(), "app/src/main/res")
         return resDir

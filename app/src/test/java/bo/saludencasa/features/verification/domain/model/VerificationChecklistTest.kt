@@ -1,7 +1,6 @@
 package bo.saludencasa.features.verification.domain.model
 
 import bo.saludencasa.features.profile.domain.model.ProfessionalType
-import bo.saludencasa.features.profile.domain.model.ProfileRoles
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.verification.verificationDocument
 import org.junit.Assert.assertEquals
@@ -65,7 +64,7 @@ class VerificationChecklistTest {
 
     @Test
     fun `a person with no roles has no required documents`() {
-        val checklist = VerificationChecklist.create(ProfileRoles.none, null, emptyList())
+        val checklist = VerificationChecklist.create(emptySet(), null, emptyList())
 
         assertTrue(checklist.required.isEmpty())
     }
@@ -82,5 +81,5 @@ class VerificationChecklistTest {
         assertEquals(null, checklist.documentFor(DocumentType.ID_BACK))
     }
 
-    private fun roles(vararg r: UserRole): ProfileRoles = ProfileRoles.create(r.toSet(), r.firstOrNull()).getOrThrow()
+    private fun roles(vararg r: UserRole): Set<UserRole> = r.toSet()
 }
