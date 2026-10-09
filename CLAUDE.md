@@ -43,11 +43,12 @@ posible trabajo futuro y se sigue con lo que el alcance pide.
 - **Inyección de dependencias:** Koin
 - **Preferencias y sesión local:** DataStore
 - **Compilar:** `./gradlew assembleDebug`
-- **Pruebas unitarias:** `./gradlew test`
-- **Pruebas instrumentadas:** `./gradlew connectedAndroidTest` — solo para historias críticas; ver «Cuándo hace falta un dispositivo» en `plan.md`
+- **Pruebas unitarias y de interfaz:** `./gradlew test` — incluye las de interfaz, que corren en la máquina virtual de Java con Robolectric
+- **Pruebas instrumentadas:** `./gradlew connectedAndroidTest` — **hoy no ejecuta nada**: `app/src/androidTest` está vacío a propósito. Queda disponible para lo que un emulador o un dispositivo sí aporte, como un permiso del sistema, la cámara o una notificación
 - **Análisis estático:** `./gradlew ktlintCheck`
 - **Verificación completa:** `./gradlew build`
-- **Migraciones:** `supabase migration new <nombre>` · `supabase db push` · `supabase db reset`
+- **Migraciones:** `supabase migration new <nombre>` · `supabase db push`
+- **Entorno local y reproducibilidad:** `supabase start` · `supabase db reset` · `supabase db diff --linked --schema public`. **`db reset` nunca se corre con `--linked`:** borraría el proyecto remoto
 
 **`namespace` y `applicationId` difieren de forma deliberada.** El `namespace`
 define la raíz de los paquetes y la clase de recursos; el `applicationId`
@@ -235,6 +236,20 @@ no hay respuesta, la prueba sobra.
 Cada característica tiene pruebas obligatorias enumeradas en
 `.claude/rules/testing.md`. Una historia con su prueba obligatoria ausente no está
 terminada, aunque funcione en el dispositivo.
+
+**Las pruebas de interfaz corren en la máquina virtual de Java, no en un emulador.**
+Viven en `app/src/test` con Robolectric, de modo que `./gradlew test` y la
+integración continua las ejecutan siempre; una prueba que depende de un emulador que
+nadie arranca no es un control. Toda pantalla nueva lleva la suya: al 200 % de fuente
+y en un teléfono de 320 dp, cada control se alcanza, se muestra y no se sale de los
+bordes. El ayudante está en `app/src/test/java/bo/saludencasa/ui/LargeFont.kt`.
+
+**Lo que esas pruebas no ven, y por eso la previsualización sigue siendo
+obligatoria:** el texto recortado **dentro** de su propio contenedor. Compose mide ese
+`Text` al ancho que el contenedor le da, así que ni los límites ni la semántica
+delatan el recorte, y dos de los cinco defectos de disposición del proyecto fueron de
+esa forma. Las tres previsualizaciones —claro, oscuro y `fontScale = 2f`— **hay que
+abrirlas y mirarlas**: compilar no es mirar. Ver `docs/decisions.md`, 2026-10-08.
 
 ## Disciplina de alcance
 
