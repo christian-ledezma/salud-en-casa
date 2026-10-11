@@ -17,3 +17,13 @@ sealed interface ServiceDeclarationResult {
         val error: CatalogError,
     ) : ServiceDeclarationResult
 }
+
+sealed interface ServiceTypesResult {
+    data class Loaded(
+        val types: List<ServiceType>,
+    ) : ServiceTypesResult
+
+    data class Failure(
+        val error: CatalogError,
+    ) : ServiceTypesResult
+}

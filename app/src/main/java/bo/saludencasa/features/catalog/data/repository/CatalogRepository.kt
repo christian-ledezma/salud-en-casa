@@ -4,16 +4,29 @@ import bo.saludencasa.core.vo.AmountBob
 import bo.saludencasa.features.catalog.data.datasource.SupabaseCatalogDataSource
 import bo.saludencasa.features.catalog.data.mapper.declaredServicesOf
 import bo.saludencasa.features.catalog.data.mapper.toCatalogError
+import bo.saludencasa.features.catalog.data.mapper.toServiceType
 import bo.saludencasa.features.catalog.data.model.ProfessionalServiceRow
 import bo.saludencasa.features.catalog.domain.model.CatalogError
 import bo.saludencasa.features.catalog.domain.model.DeclaredServicesResult
 import bo.saludencasa.features.catalog.domain.model.ServiceDeclarationResult
+import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
 import bo.saludencasa.features.catalog.domain.repository.ICatalogRepository
 import kotlinx.coroutines.CancellationException
 
 class CatalogRepository(
     private val dataSource: SupabaseCatalogDataSource,
 ) : ICatalogRepository {
+    // The catalog alone, with no read of what the caller declared: this is how
+    // the nearby search asks for the types it offers as filters.
+    override suspend fun getServiceTypes(): ServiceTypesResult =
+        try {
+            ServiceTypesResult.Loaded(dataSource.findServiceTypes().map { it.toServiceType() })
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            ServiceTypesResult.Failure(failure.toCatalogError())
+        }
+
     // docs/decisions.md, 2026-10-09, two reads instead of a PostgREST embed.
     override suspend fun getDeclaredServices(): DeclaredServicesResult {
         val userId =

@@ -5,6 +5,7 @@ import bo.saludencasa.features.catalog.data.repository.CatalogRepository
 import bo.saludencasa.features.catalog.domain.repository.ICatalogRepository
 import bo.saludencasa.features.catalog.domain.usecase.DeclareServiceUseCase
 import bo.saludencasa.features.catalog.domain.usecase.GetMyDeclaredServicesUseCase
+import bo.saludencasa.features.catalog.domain.usecase.GetServiceTypeCatalogUseCase
 import bo.saludencasa.features.catalog.domain.usecase.RemoveServiceUseCase
 import bo.saludencasa.features.catalog.domain.usecase.UpdateServicePriceUseCase
 import bo.saludencasa.features.catalog.presentation.MyServicesViewModel
@@ -18,6 +19,7 @@ val catalogModule =
         single<ICatalogRepository> { CatalogRepository(get()) }
 
         factory { GetMyDeclaredServicesUseCase(get()) }
+        factory { GetServiceTypeCatalogUseCase(get()) }
         factory { DeclareServiceUseCase(get()) }
         factory { UpdateServicePriceUseCase(get()) }
         factory { RemoveServiceUseCase(get()) }
