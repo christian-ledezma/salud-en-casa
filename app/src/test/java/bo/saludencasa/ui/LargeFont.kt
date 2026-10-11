@@ -9,8 +9,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -59,9 +59,23 @@ fun plural(
 // scrolling would fail for a layout that is perfectly fine.
 fun ComposeContentTestRule.assertFitsTheScreen(node: SemanticsNodeInteraction) {
     node.performScrollTo()
+    assertOnScreen(node)
+}
+
+// For a control whose container does not scroll, such as the button row of an
+// AlertDialog. There performScrollTo fails with "no parent layout with a Scroll
+// SemanticsAction", which says nothing about the layout under test.
+fun ComposeContentTestRule.assertFitsTheScreenWithoutScrolling(node: SemanticsNodeInteraction) {
+    assertOnScreen(node)
+}
+
+private fun ComposeContentTestRule.assertOnScreen(node: SemanticsNodeInteraction) {
     node.assertIsDisplayed()
     val bounds = node.getUnclippedBoundsInRoot()
-    val screen = onRoot().getUnclippedBoundsInRoot()
+    // An open dialog is a second window, so onRoot() finds two nodes and
+    // refuses to choose. The first is the screen; the dialog's own window
+    // spans the same width, which is the axis these two assertions are about.
+    val screen = onAllNodes(isRoot())[0].getUnclippedBoundsInRoot()
     assertTrue(
         "The node reaches ${bounds.right}, past the right edge at ${screen.right}.",
         bounds.right <= screen.right + OVERFLOW_TOLERANCE,

@@ -4050,48 +4050,426 @@ proyecto cierra por plazo y no por alcance, y por eso es la primera medición de
 que mide capacidad. **Primer día del sprint: 2026-10-09. Fecha de corte: 2026-10-15**,
 siete días corridos contando los dos extremos.
 
-### HU-10 · Declarar los servicios que presto `[ ]` — 5 puntos
+### HU-10 · Declarar los servicios que presto `[x]` — 5 puntos
 
 > Como **profesional**, quiero **indicar qué tipos de atención presto y a qué
 > precio**, para **aparecer en las búsquedas correctas**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que abro mis servicios, cuando consulto el catálogo, entonces veo los
-      tipos de atención disponibles.
-- [ ] Dado que selecciono un tipo, cuando fijo su precio de referencia, entonces
-      queda asociado a mi perfil.
-- [ ] Dado que intento agregar dos veces el mismo tipo, cuando guardo, entonces se
-      rechaza.
-- [ ] Dado que no declaro ningún servicio, cuando un paciente filtra por tipo,
-      entonces no aparezco.
+- [x] Dado que abro mis servicios, cuando consulto el catálogo, entonces veo los
+      tipos de atención disponibles. **Verificado.** La pantalla lista el catálogo
+      completo en su segunda sección, con nombre, descripción, precio de referencia y
+      duración estimada de cada tipo. `CatalogMapperTest` fija que el emparejamiento de
+      las dos lecturas conserva el precio propio y no el de referencia;
+      `MyServicesScreenLargeFontTest.theCatalogEntryLeftToDeclareKeepsItsActionOnScreen`
+      fija que la tarjeta del catálogo y su acción se alcanzan a 320 dp y 200 % de fuente.
+      La política `service_types_select_all` ya filtra por `active`, de modo que un tipo
+      desactivado no llega: no hay condición equivalente en el cliente.
+- [x] Dado que selecciono un tipo, cuando fijo su precio de referencia, entonces
+      queda asociado a mi perfil. **Verificado** por
+      `MyServicesViewModelTest.confirmingAPriceDeclaresTheTypeAndReadsTheListAgain`
+      —el tipo y el precio confirmados llegan al repositorio y la lista se relee— y por
+      `theDialogOpensWithTheCatalogReferenceAlreadyFilled`, que fija que el campo abre con
+      el precio de referencia del catálogo. **Y contra el proyecto remoto** (experimento
+      1b): dos tipos distintos se insertan con `active = true`.
+- [x] Dado que intento agregar dos veces el mismo tipo, cuando guardo, entonces se
+      rechaza. **Verificado el 2026-10-09 con experimento SQL** contra el proyecto
+      remoto, dentro de transacciones con `rollback`: el segundo insert del mismo tipo
+      falla con `23505` sobre
+      `professional_services_professional_id_service_type_id_key`, y **el control
+      discrimina**, porque dos tipos distintos en la misma transacción pasan. En el
+      cliente lo cubren
+      `DeclareServiceUseCaseTest.refusesATypeThatIsAlreadyDeclaredAndWritesNothing`
+      —y su par `declaresATypeTheProfessionalDoesNotOfferYet`, para que el rechazo no sea
+      un «deniega todo»—, `DeclaredServicesTest` sobre los tipos por declarar, y
+      `CatalogErrorMapperTest`, que traduce la violación del índice y **no** confunde con
+      ella la restricción del precio de la misma tabla.
+- [x] Dado que no declaro ningún servicio, cuando un paciente filtra por tipo,
+      entonces no aparezco. **Verificado el 2026-10-09 con experimento SQL** contra el
+      proyecto remoto. Es el criterio más importante de la historia porque es el que
+      conecta con HU-11, y el control discrimina en las dos direcciones (experimentos 3a
+      y 3b).
 
 **Requisitos:** RF-02.3, RF-05.1, RF-05.2.
 
-### HU-11 · Buscar profesionales cerca de mi domicilio `[ ]` — 13 puntos
+> **Sobre RF-05.2.** «El paciente selecciona el tipo de servicio que requiere al crear una
+> solicitud» no se cumple aquí: su consumidor es HU-13, en el Sprint 5. Lo que HU-10 deja
+> listo es el catálogo leíble por cualquier usuario autenticado y el caso de uso que lo
+> entrega. Se anota para que el criterio no se dé por cubierto al revisar el requisito.
+
+**Qué cambió al cerrarla.**
+
+- **El esquema no cambió, y eso se comprobó antes de escribir código.**
+  `service_types` y `professional_services` existen desde el Sprint 0 con sus tres
+  políticas y con el índice único que sostiene el tercer criterio. La única migración de
+  la historia es de dato: `20261009130000_accent_service_type_catalog.sql`, que acentúa
+  el nombre y la descripción de los doce tipos sembrados. HU-10 es la primera historia
+  que los muestra a un usuario. Aplicada con `db push` tras `--dry-run`, con una sola
+  migración pendiente.
+- **Característica nueva, `features/catalog/`**, dueña de las dos tablas. El catálogo es
+  dato de plataforma, no dato del perfil de nadie, y HU-11, HU-12 y HU-13 lo necesitan.
+  Razonamiento en `docs/decisions.md`, 2026-10-09.
+- **La historia incluye corregir el precio y quitar un servicio**, que los criterios no
+  piden. Decidido con el autor al empezar: con solo declarar y el rechazo del duplicado,
+  un precio mal escrito queda publicado en las búsquedas y no hay puerta para
+  arreglarlo. Quitar es un `delete`, no un `active = false`: el índice único es sobre el
+  par profesional–tipo y no sobre las filas activas, así que una fila apagada impediría
+  volver a declarar ese tipo. Registrado en `docs/decisions.md`, 2026-10-09.
+- **Puerta de entrada.** «Mis servicios», desde la sección profesional de «Mi perfil»,
+  que ya está condicionada al rol activo `PROFESSIONAL`. Declarar un servicio es una
+  afirmación que un paciente no puede hacer, igual que la disponibilidad inmediata.
+- **Experimentos SQL sobre el proyecto remoto**, 2026-10-09, todos dentro de
+  transacciones con `rollback`. Sin residuo: `professional_services` sigue con **0**
+  filas al terminar, comprobado.
+
+  | # | Qué se comprobó | Resultado |
+  |---|---|---|
+  | 1a | Declarar dos veces el mismo tipo | **Rechazado**, `23505` sobre `professional_services_professional_id_service_type_id_key` |
+  | 1b | Declarar dos tipos distintos | **Pasa**, 2 filas con `active = true`. El control discrimina |
+  | 2 | Declarar en nombre de otro profesional | **Rechazado por la política**, `42501` |
+  | 2b | Declarar desde una cuenta sin rol profesional | **Rechazado por la clave foránea**, `23503` contra `professionals` |
+  | 3a | Filtrar la búsqueda por tipo sin nada declarado | **0 resultados**, contra **1** sin filtro. El profesional existe y el filtro lo excluye |
+  | 3b | Declarar el tipo y repetir el filtro | **1 resultado** para el tipo declarado y **0** para otro tipo. El filtro discrimina |
+  | 4a | Corregir el precio propio | **Pasa**, la fila queda en 195,50 |
+  | 4b | Quitar lo propio | **Pasa**, 0 filas |
+  | 4c | Otro usuario intenta cambiar y borrar la fila ajena | **No la toca**: la ve (proyección pública, RF-02.6) y sigue en 180,00 y existiendo |
+
+  **El experimento 4 hubo que reescribirlo.** La primera versión encadenaba el insert, el
+  update y el delete como CTE hermanas de una sola sentencia, y daba 0 filas afectadas:
+  las CTE que escriben comparten la instantánea y no ven lo que insertó su hermana. No era
+  un rechazo de la política. Queda anotado porque el síntoma —0 filas— es idéntico al de
+  una política que deniega, y confundirlos habría dado por verificado lo contrario de lo
+  que pasaba.
+
+- **El ayudante de disposición gana una variante.**
+  `assertFitsTheScreenWithoutScrolling`, en `app/src/test/java/bo/saludencasa/ui/LargeFont.kt`,
+  para un control cuyo contenedor no desplaza, como los botones de un `AlertDialog`; y la
+  medición del borde de la pantalla toma la primera raíz, porque un diálogo abierto es una
+  segunda ventana y `onRoot()` encontraba dos nodos. Razonamiento en `docs/decisions.md`,
+  2026-10-09.
+
+**Lo que las pruebas de esta historia sí atrapan, verificado por mutación el 2026-10-09.**
+
+| Mutación | Resultado |
+|---|---|
+| La lista deja de desplazarse (`userScrollEnabled = false`) | **Fallan 4 de 6** pruebas de disposición |
+| La acción «Quitar» deja de componerse | **Falla** `bothActionsOfADeclaredServiceStayOnScreen` |
+| El diálogo del precio pierde su desplazamiento | **Falla**, pero por la razón equivocada (ver abajo) |
+| **Las dos acciones de la tarjeta en un `Row` en vez de un `FlowRow`** | **PASA. No lo atrapa** |
+
+**La última fila es el punto ciego del 2026-10-08, en vivo.** Se intentó esa mutación
+esperando que fallara y pasó: la etiqueta se recorta **dentro de su propio botón**, Compose
+la mide al ancho que el contenedor le da, y ni los límites ni la semántica delatan nada. El
+`FlowRow` se queda porque es la disposición correcta, pero **ninguna prueba lo sostiene**, y
+el comentario del código lo dice con esas palabras en vez de afirmar lo contrario. Esta es
+la tercera vez que esa forma de defecto aparece en el proyecto y sigue dependiendo de mirar
+las previsualizaciones.
+
+**Y se quitó un `verticalScroll` que se había agregado al contenido de los dos diálogos.**
+Sin él, a 320 dp y 200 % de fuente **no se recorta nada**: se comprobó midiendo con la
+variante que no desplaza. Dejarlo habría sido programación defensiva sin prueba que la
+sostenga, y además le quitaba a la prueba su única señal, porque con el desplazamiento
+puesto la pantalla ya no puede recortar. Sin él, `assertIsDisplayed` sobre el motivo del
+rechazo es lo que avisaría si el contenido del diálogo creciera.
+
+**Deuda declarada.**
+
+- **`active` queda como columna sin escritor.** Es el interruptor de «ahora mismo no presto
+  esto» que ningún requisito pide. Si se pide, el índice único hay que revisarlo primero.
+  Registrado en `docs/decisions.md`, 2026-10-09.
+- **Un tipo que el administrador desactive hace desaparecer de la pantalla el servicio
+  declarado sobre él**, en lugar de dibujar una tarjeta sin nombre. Es observable y no hay
+  aviso. Cubrirlo exige decidir qué pasa con un tipo retirado del catálogo, que es trabajo
+  de la pantalla de administración del catálogo y no existe hoy. Lo fija
+  `CatalogMapperTest.aDeclaredServiceWhoseTypeLeftTheCatalogIsDropped`.
+- **El catálogo no es traducible.** Viaja en español desde la base, y la regla de
+  internacionalización no lo alcanza porque es dato, no recurso de cadenas. El día que
+  exista `values-en/`, los nombres de los tipos seguirán en español.
+- **El cambio 5 de la retrospectiva del Sprint 3 se volvió a violar**, por orden de
+  trabajo: los comentarios que citan `docs/decisions.md`, 2026-10-09 se escribieron antes
+  que las entradas que citan. El estado final es correcto —las siete entradas existen y
+  cada cita apunta a la suya—, pero el orden fue el que la retrospectiva pidió cambiar.
+  Queda anotado aquí para que la retrospectiva del Sprint 4 lo recoja con el dato y no de
+  memoria.
+- **`supabase db reset` y `db diff --linked` no se corrieron:** Docker no estaba levantado.
+  La migración es de dato y no toca el esquema, así que `db diff --schema public` no tenía
+  nada que encontrar, pero la reconstrucción desde cero **sí** la ejerce —la semilla escribe
+  los nombres sin acento y esta migración los corrige después— y conviene comprobarla al
+  cerrar el sprint.
+
+
+**Verificaciones del cierre, 2026-10-09.** `./gradlew ktlintCheck staticAnalysis
+assembleDebug` concluye sin error y **sin ninguna advertencia nueva del compilador**.
+`./gradlew testDebugUnitTest`: **70 suites, 394 pruebas, 0 fallos, 0 omitidas** —eran 63 y
+363 antes de la historia, de modo que HU-10 agrega 7 suites y 31 pruebas.
+
+**Archivos creados o modificados el 2026-10-09.**
+
+| Capa | Archivos |
+|---|---|
+| Migración | `supabase/migrations/20261009130000_accent_service_type_catalog.sql` (nueva) |
+| Dominio | `features/catalog/domain/model/ServiceType.kt` · `ProfessionalService.kt` · `DeclaredServices.kt` · `CatalogError.kt` · `CatalogResult.kt` (nuevos) · `domain/repository/ICatalogRepository.kt` (nuevo) · `domain/usecase/GetMyDeclaredServicesUseCase.kt` · `DeclareServiceUseCase.kt` · `UpdateServicePriceUseCase.kt` · `RemoveServiceUseCase.kt` (nuevos) |
+| Datos | `features/catalog/data/model/CatalogDto.kt` · `data/datasource/SupabaseCatalogDataSource.kt` · `data/mapper/CatalogMapper.kt` · `data/mapper/CatalogErrorMapper.kt` · `data/repository/CatalogRepository.kt` (nuevos) |
+| Presentación | `features/catalog/presentation/MyServicesScreen.kt` · `MyServicesViewModel.kt` · `CatalogErrorMessages.kt` (nuevos) |
+| Inyección | `di/CatalogModule.kt` (nuevo) · `SaludEnCasaApplication.kt` |
+| Navegación | `navigation/Routes.kt` (`MyServicesRoute`) · `navigation/SaludEnCasaNavHost.kt` |
+| Perfil | `features/profile/presentation/ProfessionalProfileSection.kt` · `ProfileScreen.kt` (la lambda `onOpenMyServices` y las previsualizaciones) |
+| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (21 claves `catalog_`, `error_catalog_`, `profile_open_my_services` y el plural `catalog_estimated_duration`) |
+| Pruebas | `test/features/catalog/FakeCatalogRepository.kt` · `domain/model/DeclaredServicesTest.kt` · `domain/usecase/DeclareServiceUseCaseTest.kt` · `UpdateServicePriceUseCaseTest.kt` · `data/mapper/CatalogMapperTest.kt` · `CatalogErrorMapperTest.kt` · `presentation/MyServicesViewModelTest.kt` · `MyServicesScreenLargeFontTest.kt` (nuevos, 7 suites) · `test/ui/LargeFont.kt` (la variante que no desplaza) |
+| Documentos | `.claude/rules/glosario.md` (`DeclaredServices`, `undeclaredTypes`) · `docs/decisions.md` (siete entradas del 2026-10-09) · `plan.md` (esta sección) |
+
+### HU-11 · Buscar profesionales cerca de mi domicilio `[x]` — 13 puntos
 
 > Como **paciente**, quiero **ver qué profesionales hay cerca de mi dirección**,
 > para **elegir a quién solicitar la atención**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que tengo una dirección registrada, cuando abro la búsqueda, entonces
-      veo los profesionales dentro del radio sobre un mapa.
-- [ ] Dado que cambio a vista de lista, cuando la consulto, entonces veo distancia,
-      tarifa base y reputación de cada uno.
-- [ ] Dado que filtro por tipo de servicio, cuando aplico el filtro, entonces solo
-      aparecen quienes lo declararon.
-- [ ] Dado que filtro por disponibilidad inmediata, cuando aplico el filtro,
-      entonces solo aparecen quienes están disponibles ahora.
-- [ ] Los resultados están ordenados por distancia ascendente.
-- [ ] Solo aparecen profesionales verificados y activos.
-- [ ] Con quinientos profesionales cargados, la búsqueda responde en menos de un segundo.
+- [x] Dado que tengo una dirección registrada, cuando abro la búsqueda, entonces
+      veo los profesionales dentro del radio sobre un mapa. **La función no devolvía
+      ninguna coordenada**, así que el marcador no tenía de dónde salir: la migración
+      `20261009140000` agrega el punto de la base profesional, redondeado a la manzana.
+      Verificado contra el remoto y con `ProfessionalSearchMap`.
+- [x] Dado que cambio a vista de lista, cuando la consulto, entonces veo distancia,
+      tarifa base y reputación de cada uno. `ProfessionalCard`, montada por primera vez;
+      verificado por `aResultCardKeepsItsNameDistanceRateAndActionOnScreen`.
+- [x] Dado que filtro por tipo de servicio, cuando aplico el filtro, entonces solo
+      aparecen quienes lo declararon. El filtro viaja como `p_service_type_id`;
+      verificado por `choosingATypeAndAvailabilityNarrowsWhatIsAsked` y por el
+      experimento 3b de HU-10 contra el remoto.
+- [x] Dado que filtro por disponibilidad inmediata, cuando aplico el filtro,
+      entonces solo aparecen quienes están disponibles ahora. El parámetro es de tres
+      estados y el filtro apagado viaja como `null`;
+      `anAvailabilityFilterThatIsOffTravelsAsNothingAndNotAsFalse`.
+- [x] Los resultados están ordenados por distancia ascendente. Experimento 2:
+      1000, 1200, 2000, 4000 y 4000 metros, con el desempate por `id` idéntico en dos llamadas.
+- [x] Solo aparecen profesionales verificados y activos. Experimento 3: un `PENDING`,
+      un `REJECTED` y un `active = false` a kilómetro y medio, ninguno aparece.
+- [x] Con quinientos profesionales cargados, la búsqueda responde en menos de un segundo.
+      **64 ms** medidos con `explain (analyze)` sobre 500 profesionales sintéticos
+      (experimento 6). RNF-01 pide menos de 1000.
 
 **Requisitos:** RF-06.1 a RF-06.5, RNF-01, RN-01, RN-02, INV-08.
 
-**Tareas técnicas.** Consumo de la función de cercanía desde la capa de datos
-· `IProfessionalSearchRepository` y caso de uso · mapa con marcadores agrupados ·
-vista de lista alterna · prueba que verifique el uso del índice espacial.
+**Lo que ya estaba hecho desde el Sprint 0, y nunca se había llamado.**
+`search_nearby_professionals` ya filtraba por radio, tipo y disponibilidad, ya ordenaba por
+distancia, ya exigía `APPROVED` y `profiles.active`, ya excluía al llamante (RN-13) y ya unía
+con la base profesional y no con el domicilio (RN-02). Ningún archivo Kotlin la mencionaba.
+Igual con media docena de componentes —`ProfessionalCard`, `SegmentedControl`, `RatingBadge`,
+`AvailabilityDot`, `RadioOptionGroup`— construidos a partir de `docs/design-system.md` y
+jamás montados. HU-11 fue en buena parte el ensamblaje de piezas que llevaban un mes esperando.
+
+#### La decisión que gobernó la historia: la ubicación se publica por manzanas
+
+La función devolvía `distance_m` **exacta** —se midió: `1062.76035493` m— y recibe
+`p_latitude`, `p_longitude` y `p_radius_km` como parámetros libres, con
+`grant execute to authenticated`. Tres llamadas desde tres orígenes trilateran la base al
+metro, y una búsqueda binaria sobre el radio llega sola al mismo sitio. De modo que **la
+coordenada exacta del profesional ya era pública antes de que existiera el mapa**, y redondear
+solo el marcador habría sido cosmético: la resolución publicada es la del canal más fino que se
+expone.
+
+La migración `20261009140000` cuantiza **los tres canales** a la misma rejilla de una manzana:
+el punto a tres decimales (~110 m), la distancia a la centena de metros, y el radio pedido a
+décimas de kilómetro. El orden se sigue calculando con la distancia exacta, y gana un desempate
+por `id` que antes no tenía. Medido después: el punto sale `-17.368, -66.174` donde la base
+está en `-17.3676355, -66.1742961`, la distancia sale `1100`, y el borde del radio solo
+discrimina de cien en cien metros (1,00 y 1,04 fuera; 1,06 dentro). Razonamiento completo en
+`docs/decisions.md`, 2026-10-09.
+
+#### La deuda que el Sprint 3 le asignó, resuelta
+
+`professionals_select_counterpart` concedía lectura de la **fila completa** de `professionals`
+—`verification_status` incluido— a quien compartiera un servicio. Se retiró
+(`20261009141000`): la contraparte lee `professional_directory`, que por construcción solo
+contiene profesionales `APPROVED` y activos. Que la pertenencia a esa vista **sea** la
+verificación es la forma estructural de RF-04.6. Verificado con el experimento 8, que
+discrimina: con un servicio compartido, la contraparte **no** lee la fila y **sí** lee la
+proyección y su `profiles`.
+
+#### Experimentos SQL contra el proyecto remoto, 2026-10-09
+
+Ocho, todos dentro de transacciones que terminan en `rollback`. Los cinco obligatorios de
+«Ubicación» necesitaban profesionales sintéticos, y `profiles.id` referencia `auth.users`: el
+preparativo **suelta esa clave foránea dentro de la transacción**, porque en PostgreSQL el DDL
+es transaccional y el `rollback` la restituye. Comprobado después: la clave está, y no quedó
+ni un perfil, ni una dirección, ni una fila de profesional sintética.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | `nearbySearchReturnsOnlyProfessionalsWithinRadius` | **Pasa y discrimina.** 5 dentro de 5 km; el de 33 km aparece al pedir 40. Y el de cobertura 1 km a 3 km de distancia **no** aparece: RN-02 son dos radios, no uno |
+| 2 | `nearbySearchOrdersResultsByAscendingDistance` | **Pasa.** 1000, 1200, 2000, 4000 y 4000 metros en ese orden, y los dos empatados salen igual en dos llamadas seguidas |
+| 3 | `nearbySearchExcludesUnverifiedAndInactiveProfessionals` | **Pasa.** `PENDING`, `REJECTED` y `active = false` a 1,5 km: ninguno |
+| 4 | `nearbySearchUsesTheProfessionalBaseAndNotThePrimaryAddress` | **Pasa.** Domicilio a 33 km, base a 1,2 km: aparece a 1200 m. La distancia se mide desde la base |
+| 5 | `nearbySearchExcludesTheCallerFromTheirOwnResults` | **Pasa.** El llamante, con los dos roles y una base a 800 m —más cerca que nadie—, no aparece |
+| 6 | `nearbySearchUsesSpatialIndexAndNotSequentialScan` + RNF-01 | **Pasa sin forzar nada.** `Index Scan using idx_addresses_location` con `Index Cond: location && _st_expand(...)`, y ni un recorrido secuencial en el plan. **61 ms** el cuerpo, **64 ms** la función entera, con 500 profesionales. No hizo falta `enable_seqscan = off` |
+| 7 | Trilateración, antes y después | **La fuga existía y quedó acotada.** Antes: `distance_m = 1062.76035493`, once cifras, desde un origen elegido por el llamante con una cuenta de paciente. Después: `1100`, punto en la manzana, y el borde del radio quantizado a 100 m |
+| 8 | La contraparte sin la política | **Discrimina.** `shares_service = true`, lee la fila de `professionals` 0 veces, la proyección pública 1 y su `profiles` 1 |
+
+**Lo que el experimento 6 enseñó de método.** La función es `language sql` pero **no se
+inlinea**: `explain` sobre ella muestra un `Function Scan` y esconde el plan interno. El plan
+de verdad hay que pedirlo sobre el cuerpo de la consulta. Anotar los 64 ms sin mirar el plan
+habría dado por buena la cláusula del índice sin haberla visto nunca.
+
+#### Mutaciones, con su resultado
+
+| Mutación | Resultado |
+|---|---|
+| La página deja de desplazar (`userScrollEnabled = false`) | **11 de 11** pruebas de disposición fallan |
+| La etiqueta de una opción se fija a una línea | **Falla** `theLongestServiceTypeWrapsInsteadOfHidingItsTail`, y lo dice con un número: «Both rows are 48.0.dp tall» |
+| La etiqueta de una **ficha** se fija a una línea (diseño anterior) | **PASÓ.** Es la razón por la que el control cambió; ver abajo |
+
+#### Dos correcciones que la medición impuso, y no la planificación
+
+**El mapa dejó de ser el fondo de la pantalla.** Se construyó primero al estilo de Uber, con
+el mapa a pantalla completa y los controles flotando encima. La prueba al 200 % de fuente sobre
+320 dp lo tumbó: una columna flotante **no desplaza**, y a ese tamaño la cabecera, el origen,
+el selector y los filtros suman más que el alto de la pantalla. Quedó como una sola página que
+desplaza, con el mapa de `Spacing.mapHeight` entre los filtros y los resultados. El idioma de
+Uber se conserva donde de verdad vive, que es el movimiento.
+
+**El filtro por tipo dejó de ser una fila de fichas.** La ficha del nombre más largo del
+catálogo medía **470 dp en una pantalla de 320**. Se le puso tope de ancho y la prueba volvió a
+pasar —y eso era lo engañoso: con 240 dp la etiqueta siguió en una sola línea de 32,5 dp, es
+decir con más de la mitad del nombre oculta **dentro de la propia ficha**. Pasó a ser un
+`RadioOptionGroup` plegado, que es lo que el sistema de diseño reserva para etiquetas largas.
+Las fichas se quedan donde sus etiquetas son cortas: los tres radios y «Disponibles ahora».
+
+**Y una lección sobre cómo se escribe esta clase de aserción.** La primera versión comparaba la
+altura contra los 32 dp de reposo de Material y pasaba, porque al 200 % de fuente una sola
+línea ya los supera. Se mutó el código y **la prueba siguió pasando**: afirmaba algo que no
+sostenía. La que quedó compara la opción larga contra una opción **corta del mismo árbol**.
+Es la comparación relativa, y no la medida absoluta, lo que permite decir algo sobre el recorte
+interior.
+
+#### Cinco defectos que la revisión final encontró, y ninguna prueba veía
+
+- **El toque en un pin no llegaba a ninguna parte.** El mapa no avisaba de la selección, de
+  modo que `selectedId` no podía cambiar nunca y la tarjeta del profesional elegido era código
+  inalcanzable. Corregido: `onClusterItemClick` devuelve `true` —consume el toque, y con ello
+  impide que el SDK abra su propia ventanita encima— y un toque en el mapa fuera de un pin
+  guarda la tarjeta.
+- **La pantalla se quedaba en «Buscando…» para siempre** si alguien tocaba un filtro antes de
+  que el origen resolviera: el cambio de criterio cancelaba el trabajo que estaba resolviendo
+  la dirección, y la búsqueda que lo reemplazaba no tenía origen alrededor del que buscar, así
+  que se iba sin pedir nada. Reproducido con
+  `changingTheRadiusBeforeTheOriginResolvedStillSearches` —falla con «List is empty», cero
+  peticiones— y corregido resolviendo el origen de nuevo en vez de cancelarlo. La pantalla se
+  recuperaba al salir y volver, que es justo lo que hace que un defecto así sobreviva a una
+  demostración.
+
+- **La distancia desaparecía de la tarjeta de quien no tiene calificaciones.** La fila que
+  lleva el distintivo lleva también la distancia, y sin calificaciones el distintivo lo
+  reemplaza una frase: en un `Row` llano el segundo hijo solo recibe el ancho que dejó el
+  primero, que al 200 % de fuente era ninguno. `assertIsDisplayed` **falla**: la distancia no se
+  dibujaba en absoluto, y los profesionales sin calificar son el caso común en una plataforma
+  joven. Corregido con un `FlowRow` en el componente, y la prueba mide contra la distancia de la
+  otra tarjeta, que es una cadena **más larga**: una línea más corta no puede ser legítimamente
+  más alta que una más larga del mismo estilo.
+- **El pie de la lista se quedaba girando para siempre** si llegaba una reanudación —una
+  rotación, o volver de una ficha— mientras una página estaba en vuelo. `refresh` cancelaba ese
+  trabajo sin bajar su bandera, y la lista solo vuelve a pedir página con la bandera baja.
+  Corregido cancelándolo únicamente donde la lista se reemplaza de verdad, y probado con el
+  portillo del falso.
+- **La cámara encuadraba el círculo contra el ancho de la pantalla**, no contra el recuadro que
+  el mapa ocupa: el mapa va con el margen de la página a los lados y mide 280 dp de alto, de
+  modo que el borde del radio y los resultados más cercanos a él quedaban fuera de vista por los
+  dos ejes. Corregido midiendo el recuadro con `BoxWithConstraints` y tomando su lado más corto;
+  `fitZoom` ya no depende del ancho de la pantalla. **Ninguna prueba podía verlo**: la aritmética
+  del zoom era correcta y es lo único que `FitZoomTest` mira.
+
+Y una simplificación del mismo repaso: `rowsReturned` viajaba desde el repositorio hasta el
+caso de uso para que el final de la lista se decidiera con las filas que el motor envió y no
+con las que sobrevivieron a la lectura. **Nunca difieren**: una fila ilegible falla la página
+entera, así que nada se descarta nunca. Se quitó, junto con la prueba que lo ejercía, porque
+simulaba un estado que el repositorio no puede producir.
+
+#### Lo que ninguna prueba de este proyecto ve
+
+- **El radar y el resorte del círculo del radio.** No tienen semántica que afirmar. Se comprobó
+  antes de diseñarlos que una animación infinita **no** cuelga el reloj de Robolectric —Compose
+  la cancela en las pruebas—, de modo que no hubo que diseñar alrededor de un problema
+  inexistente. Pero que se vean bien lo dicen las previsualizaciones y el emulador.
+- **El texto recortado dentro de su contenedor**, salvo cuando hay una forma corta al lado
+  contra la que medir. Es lo que acaba de costar dos diseños.
+- **El mapa real.** Viaja como slot, de modo que ni la previsualización ni la prueba tocan el
+  SDK. Lo que se ve dentro del recuadro solo se comprueba en un dispositivo.
+
+#### Deuda declarada
+
+- **La paginación se pide desde el pie de la lista**, porque un mapa no tiene pie. En modo mapa
+  se dibujan los resultados ya cargados: los 20 más cercanos. Con el radio como está, nadie va
+  a notarlo; el día que haya cientos de profesionales en una ciudad, el mapa necesitará su
+  propia forma de pedir más.
+- **El distintivo de «verificado» por profesional sigue sin existir** (RF-04.6). HU-11 definió
+  **qué** ve la contraparte —la proyección pública— y lo hizo cumplir retirando la política;
+  dibujar el distintivo es criterio de HU-12. Mientras tanto la línea de la cuenta de
+  resultados dice «profesionales verificados», que hace visible RF-06.5 sin componente nuevo.
+- **`ProfessionalType.labelRes()` se usa desde `features/search/presentation`**, es decir
+  presentación de una característica leyendo presentación de otra. Ninguna de las tres reglas
+  de arquitectura lo prohíbe y las cuatro cadenas ya existen, pero el sitio natural de ese
+  enumerado compartido sería `core/`. Moverlo toca tres características y no es trabajo de esta
+  historia.
+- **El remoto sigue con 0 filas en `professional_services`.** El filtro por tipo devolviendo
+  cero resultados es correcto, no un defecto.
+- **La reproducibilidad del esquema quedó verificada el mismo día**, en cuanto hubo Docker, y
+  con ello se cierra el pendiente que HU-10 había dejado abierto. Ver abajo.
+
+#### Verificaciones del cierre
+
+`./gradlew build`, `ktlintCheck`, `staticAnalysis` y `assembleDebug`: sin error y **sin ninguna
+advertencia nueva del compilador**. `./gradlew testDebugUnitTest`: **78 suites, 451 pruebas, 0
+fallos, 0 omitidas** (eran 70 y 394 al cerrar HU-10). Las dos migraciones aplicadas con
+`db push` tras `--dry-run`, con los `revoke` y `grant` repetidos a mano porque el `drop` de una
+función se los lleva y PostgreSQL vuelve a conceder `execute` a `public` por omisión.
+
+#### Reproducibilidad del esquema, verificada el 2026-10-09
+
+Pendiente desde HU-10 por falta de Docker, y resuelto al levantarlo.
+
+- **`supabase db diff --linked --schema public`: «No schema changes found».** Y lo que hizo
+  para llegar ahí vale más que el resultado: aplicó **las 31 migraciones desde cero** sobre una
+  base sombra, las dos de esta historia incluidas, sin un error. De modo que la historia de
+  migraciones reconstruye el esquema **y** reproduce exactamente el del proyecto remoto, sin
+  desvío.
+- **`supabase db reset`, sin `--linked`**, sobre la pila local. Hacía falta además del diff
+  porque **un diff compara esquema y no datos**, y la migración de los acentos
+  (`20261009130000`) es de dato: su efecto no aparece en ninguna comparación de esquema. En la
+  base reconstruida los doce tipos salen con sus acentos donde el español los pide —
+  «Aplicación de inyectables», «Colocación y control de vía venosa», «Consulta médica general»,
+  «Curación de heridas», «Terapia física y rehabilitación»—, que es la secuencia que esa
+  migración tenía que demostrar: la semilla los escribe sin acento y la migración los corrige
+  después, siempre en ese orden.
+- En la misma base reconstruida: `professionals` tiene **4 políticas** y
+  `professionals_select_counterpart` **no está**, y `search_nearby_professionals` devuelve sus
+  **trece** columnas, con `base_latitude` y `base_longitude` entre ellas. La pila local se
+  detuvo al terminar.
+
+#### Verificación del autor, 2026-10-10
+
+Las catorce previsualizaciones abiertas y revisadas una por una, en orden, y el recorrido
+hecho en el emulador con las dos cuentas, también en orden. **Sin hallazgos**: ni un texto
+recortado dentro de su contenedor, que es lo único que ninguna prueba de este proyecto
+alcanza a ver. Con eso quedan cumplidos el punto 9 de la Definición de Terminado —las tres
+configuraciones **miradas** y no solo compiladas— y el punto 11, que HU-11 exige por ser
+historia crítica.
+
+**Acción pendiente del autor: ninguna.**
+
+#### Archivos
+
+| Qué | Archivos |
+|---|---|
+| Migraciones | `20261009140000_nearby_search_on_a_city_block_grid.sql`, `20261009141000_counterpart_reads_the_public_projection.sql` |
+| Dominio de la búsqueda | `SearchRadius`, `SearchCriteria`, `SearchOrigin`, `NearbyProfessional`, `SearchError`, `SearchResult`, `IProfessionalSearchRepository`, `GetSearchOriginUseCase`, `SearchNearbyProfessionalsUseCase` |
+| Datos de la búsqueda | `NearbySearchDto`, `SupabaseProfessionalSearchDataSource`, `NearbyProfessionalMapper`, `NearbySearchParamsMapper`, `SearchErrorMapper`, `ProfessionalSearchRepository` |
+| Presentación | `ProfessionalSearchScreen` (14 previsualizaciones), `ProfessionalSearchViewModel`, `ProfessionalSearchMap`, `SearchMapModel`, `SearchLabels` |
+| Compartido | `ui/animations/RadarPulse`, `ui/animations/RadarMotion`, `core/util/DistanceFormat`, `di/SearchModule` |
+| Modificados | `ui/components/ProfessionalCard` (la calificación pasa a ser opcional), `features/catalog/` (el catálogo solo, por caso de uso), `AccountScreen` y sus ocho previsualizaciones, `navigation/`, `SaludEnCasaApplication`, `libs.versions.toml`, los dos `strings.xml` (+34 entradas, 287 en total) |
+| Pruebas | `FakeProfessionalSearchRepository` con sus fábricas, `GetSearchOriginUseCaseTest`, `SearchNearbyProfessionalsUseCaseTest`, `NearbyProfessionalMapperTest`, `NearbySearchParamsMapperTest`, `SearchErrorMapperTest`, `FitZoomTest`, `ProfessionalSearchViewModelTest`, `ProfessionalSearchScreenLargeFontTest` |
+| Documentos | `docs/decisions.md` (7 entradas), `docs/design-system.md` (4 componentes nuevos), `.claude/rules/glosario.md`, `.claude/rules/testing.md` (cómo se afirma algo del recorte interior), `plan.md` |
+
 
 ### HU-12 · Consultar la ficha de un profesional `[ ]` — 5 puntos
 

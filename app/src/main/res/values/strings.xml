@@ -276,4 +276,85 @@
     <string name="cd_expand_document_image">Ver el documento en pantalla completa</string>
     <string name="cd_close_full_image">Cerrar la imagen</string>
     <string name="cd_select_document">Seleccionar %1$s</string>
+
+    <string name="profile_open_my_services">Mis servicios</string>
+
+    <string name="catalog_my_services_title">Mis servicios</string>
+    <string name="catalog_my_services_subtitle">Declara qué atenciones prestas y a qué precio. Los pacientes te encuentran filtrando por estos tipos.</string>
+
+    <string name="catalog_declared_section_title">Servicios actuales</string>
+    <string name="catalog_declared_empty_title">Todavía no declaraste ningún servicio</string>
+    <string name="catalog_declared_empty_description">Mientras no declares al menos uno no apareces cuando un paciente filtra por tipo de atención.</string>
+
+    <string name="catalog_available_section_title">Agregar un servicio</string>
+    <string name="catalog_available_empty">Ya declaraste todos los tipos del catálogo.</string>
+
+    <string name="catalog_declare_action">Declarar</string>
+    <string name="catalog_reprice_action">Cambiar precio</string>
+    <string name="catalog_remove_action">Quitar</string>
+
+    <string name="catalog_my_price">Tu precio: %1$s</string>
+    <string name="catalog_reference_price">Referencia del catálogo: %1$s</string>
+    <plurals name="catalog_estimated_duration">
+        <item quantity="one">Dura alrededor de %d minuto</item>
+        <item quantity="other">Dura alrededor de %d minutos</item>
+    </plurals>
+
+    <string name="catalog_price_dialog_title">Precio de «%1$s»</string>
+    <string name="catalog_price_dialog_description">Es el precio con el que apareces en las búsquedas. El monto de cada atención se acuerda después, en la negociación.</string>
+    <string name="catalog_price_label">Precio por visita, en bolivianos</string>
+    <string name="catalog_price_confirm">Guardar precio</string>
+
+    <string name="catalog_remove_dialog_title">¿Quitar este servicio?</string>
+    <string name="catalog_remove_dialog_message">Dejas de aparecer cuando un paciente filtra por «%1$s». Puedes volver a declararlo cuando quieras.</string>
+
+    <string name="error_catalog_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
+    <string name="error_catalog_invalid_price">Escribe un precio mayor a cero, con hasta dos decimales.</string>
+    <string name="error_catalog_service_already_declared">Ya declaraste ese tipo de atención. Cambia su precio en la lista de arriba.</string>
+
+    <string name="auth_account_open_search">Buscar profesionales</string>
+
+    <string name="search_title">Profesionales cerca</string>
+    <string name="search_origin">Cerca de «%1$s»</string>
+    <string name="search_mode_map">Mapa</string>
+    <string name="search_mode_list">Lista</string>
+
+    <string name="search_type_filter_label">Tipo de atención</string>
+    <string name="search_type_all">Todos</string>
+    <string name="cd_open_type_filter">Abrir la lista de tipos de atención</string>
+    <string name="search_radius_label">Distancia</string>
+    <string name="search_radius_option">%1$d km</string>
+    <string name="search_available_now_filter">Disponibles ahora</string>
+    <string name="search_available_now_badge">Disponible ahora</string>
+    <string name="search_no_rating_yet">Sin calificaciones</string>
+
+    <plurals name="search_results_count">
+        <item quantity="one">%d profesional verificado</item>
+        <item quantity="other">%d profesionales verificados</item>
+    </plurals>
+    <string name="search_searching">Buscando profesionales cerca de tu domicilio…</string>
+    <string name="search_load_more">Ver más resultados</string>
+
+    <string name="search_empty_title">No hay profesionales en este radio</string>
+    <string name="search_empty_description">Prueba con un radio más amplio. Todavía somos pocos en la plataforma.</string>
+    <string name="search_empty_narrowed_title">Ninguno coincide con los filtros</string>
+    <string name="search_empty_narrowed_description">Hay profesionales cerca, pero ninguno presta ese tipo de atención ahora mismo.</string>
+    <string name="search_widen_radius">Ampliar a %1$d km</string>
+    <string name="search_clear_filters">Quitar los filtros</string>
+
+    <string name="search_no_address_title">Todavía no registraste tu domicilio</string>
+    <string name="search_no_address_description">La búsqueda mide la distancia desde tu dirección principal. Regístrala para ver quién atiende cerca de ti.</string>
+    <string name="search_no_address_action">Registrar mi dirección</string>
+
+    <string name="search_distance_near">A menos de 100 m</string>
+    <string name="search_distance_m">A unos %1$d m</string>
+    <string name="search_distance_km">A unos %1$s km</string>
+
+    <string name="cd_search_map">Mapa con los profesionales cercanos</string>
+    <string name="cd_open_professional_profile">Ver la ficha de %1$s</string>
+    <string name="cd_allow_location">Mostrar mi ubicación en el mapa</string>
+
+    <string name="error_search_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
+    <string name="error_search_no_primary_address">Todavía no tienes una dirección principal registrada.</string>
+    <string name="error_search_unreadable_result">Un resultado llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
 </resources>

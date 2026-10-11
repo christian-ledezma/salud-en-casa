@@ -3829,6 +3829,418 @@ tiempo. Cubre que la pantalla ofrezca el botón, **no que exista un camino hasta
 pantalla**: la prueba nunca se va de la pantalla y el administrador sí. Una prueba de
 pantalla no es una prueba de recorrido, y este hueco es el ejemplo.
 
+## 2026-10-09 · HU-10: el catálogo y los servicios declarados viven en `features/catalog/`
+
+**Contexto.** HU-10 pide que el profesional declare qué tipos de atención presta y a qué
+precio. Las dos tablas que eso necesita —`service_types`, el catálogo de la plataforma, y
+`professional_services`, la unión profesional–tipo— existen desde el Sprint 0 con sus
+políticas, de modo que la historia no agrega esquema. Lo que había que decidir es de qué
+característica son.
+
+**Decisión.** Un paquete nuevo, `features/catalog/`, dueño de las dos tablas. RF-02.3 es un
+requisito de perfil, pero el catálogo es dato de plataforma que el administrador mantiene
+(RF-05.1), no dato del perfil de nadie.
+
+**Razonamiento.** HU-11 filtra la búsqueda por tipo de servicio, HU-12 muestra los
+servicios en la ficha pública y HU-13 pide el tipo al crear una solicitud. Las tres
+necesitan leer el catálogo. Si viviera en `features/profile/`, las tres tendrían que
+pedírselo a una característica que no es su dueña, y el nombre del Sprint 4 —«Catálogo y
+búsqueda por cercanía»— dejaría de corresponder a ninguna parte del código. La regla de
+capas lo permite: una característica puede consumir el caso de uso o la interfaz de
+repositorio de otra, lo que no puede es importar su capa `data`.
+
+**Consecuencia.** `GetMyDeclaredServicesUseCase` es la puerta de HU-10; HU-11 y HU-13
+entrarán por un caso de uso propio del mismo paquete cuando lo necesiten, no por el
+repositorio. La pantalla «Mis servicios» se alcanza desde la sección profesional de «Mi
+perfil», que ya está condicionada al rol activo `PROFESSIONAL`: declarar un servicio es
+una afirmación que un paciente no puede hacer, igual que la disponibilidad inmediata.
+
+---
+
+## 2026-10-09 · HU-10: el catálogo y lo declarado llegan en dos lecturas, no en un embed
+
+**Contexto.** La pantalla necesita dos cosas a la vez: los servicios que el profesional ya
+declaró, con el nombre de cada tipo, y los tipos que le quedan por declarar. PostgREST
+permite traerlo en una sola petición incrustando `service_types` dentro de
+`professional_services`.
+
+**Decisión.** Dos lecturas, `service_types` completo y `professional_services` propio, que
+el repositorio empareja. Sin embed.
+
+**Razonamiento.** La pantalla necesita el catálogo entero de todos modos, porque la segunda
+sección es justamente lo que falta por declarar: un embed traería el nombre de los tipos ya
+declarados y seguiría faltando una segunda petición por los otros. Son doce filas de dato
+de referencia. Se suma lo que ya pesó el 2026-10-06 al elegir dos vistas en lugar de un
+embed: la forma de la respuesta de un embed depende de la política de la tabla incrustada,
+y una fila que la política esconde desaparece sin avisar.
+
+**Consecuencia.** Y aquí ese riesgo aparece igual, porque `service_types_select_all` filtra
+por `active`: un tipo que el administrador desactive deja de tener fila contra la que
+emparejar, y el servicio declarado sobre él **desaparece de la pantalla** en lugar de
+dibujarse como una tarjeta sin nombre ni duración. La fila sigue en la base y la búsqueda
+sigue sin devolverlo, porque `search_nearby_professionals` también exige `ps.active` y la
+unión con el catálogo. Queda anotado porque es observable: el profesional vería un servicio
+menos sin que nada se lo explique. Cubrir eso exige decidir qué pasa con un tipo retirado
+del catálogo, que es trabajo de la pantalla de administración del catálogo y no existe hoy.
+
+---
+
+## 2026-10-09 · HU-10: quitar un servicio declarado es un `delete`, no `active = false`
+
+**Contexto.** Los criterios de HU-10 piden declarar un servicio y que el tipo repetido se
+rechace. No piden corregir el precio ni retirar un tipo. Con solo esas dos operaciones, un
+precio mal escrito queda publicado para siempre: el criterio del rechazo cierra la única
+puerta que quedaría para arreglarlo. `professional_services` tiene además una columna
+`active` que invita a un retiro blando.
+
+**Decisión.** La historia incluye las tres operaciones —declarar, corregir el precio y
+quitar—, y quitar es un `delete` de la fila. `active` se queda en su valor por omisión y
+nadie la escribe.
+
+**Razonamiento.** Las tres caben sin tocar el esquema: `professional_services_write_own` es
+`for all`. El retiro blando no sirve aquí, porque el índice único es sobre
+`(professional_id, service_type_id)` y no sobre las filas activas: una fila apagada
+bloquearía volver a declarar ese mismo tipo, de modo que «quitar» haría imposible
+«declarar» otra vez. Nada apunta a una fila de `professional_services` —
+`service_requests.service_type_id` referencia el catálogo, no la declaración—, así que el
+borrado no deja huérfanos ni toca histórico: INV-05 protege `services` y `payments`, que
+son otra cosa.
+
+**Consecuencia.** `active` queda como columna sin escritor. Es el interruptor de «ahora
+mismo no presto esto» que ningún requisito pide; el profesional que quiere dejar de
+aparecer apaga su disponibilidad inmediata (RF-02.5) o quita el servicio. Si algún día se
+pide la pausa por tipo, se agrega con su requisito y su historia, y entonces el índice
+único hay que revisarlo primero.
+
+---
+
+## 2026-10-09 · HU-10: el tipo repetido se rechaza en tres capas, y cada una por su razón
+
+**Contexto.** El tercer criterio de HU-10 es un rechazo: agregar dos veces el mismo tipo no
+se permite.
+
+**Decisión.** Lo garantiza el índice único del motor. Encima, el caso de uso lo rechaza
+antes de escribir, la pantalla no ofrece un tipo ya declarado, y el transformador de
+errores traduce la violación del índice a `CatalogError.ServiceAlreadyDeclared`.
+
+**Razonamiento.** El índice es la única garantía real y es lo que se verificó contra el
+proyecto remoto. Las otras tres no son copias de la regla, son tres cosas distintas: la
+pantalla no invita a un acto que va a fracasar, el caso de uso evita el viaje y devuelve un
+tipo de error accionable en vez de un nombre de restricción, y el transformador cubre lo
+único que queda después de todo eso: la carrera entre la lectura del caso de uso y su
+escritura, o un segundo dispositivo.
+
+**Consecuencia.** El transformador se agarra del nombre literal
+`professional_services_professional_id_service_type_id_key`, porque PostgREST entrega el
+detalle de la violación en el cuerpo de la respuesta y `supabase-kt` lo arrastra como
+mensaje de la excepción. Es el mismo asidero que ya se usa para los `raise` de plpgsql, con
+la misma fragilidad: si el nombre cambia, el rechazo se degrada a «error inesperado». Lo
+sostiene `CatalogErrorMapperTest`, que además comprueba que la restricción del precio de la
+misma tabla **no** se confunde con el duplicado.
+
+---
+
+## 2026-10-09 · HU-10: el estado vacío es un bloque de la pantalla, no una variante del estado
+
+**Contexto.** El punto 10 de la Definición de Terminado exige resolver los cuatro estados,
+y `.claude/rules/compose.md` los muestra como cuatro variantes de una jerarquía sellada,
+que es lo que hacen `AddressListUiState` y `QueueListState`.
+
+**Decisión.** `MyServicesUiState` tiene tres variantes —`Loading`, `Failed` y `Content`— y
+el estado vacío se dibuja dentro de `Content`.
+
+**Razonamiento.** Un profesional sin nada declarado sigue necesitando el catálogo en
+pantalla: es su única salida de ese estado. Una variante `Empty` tendría que cargar el
+catálogo, el editor abierto, el indicador de escritura en curso y el aviso de error, es
+decir todo lo que `Content` ya lleva menos la lista. Dos variantes idénticas salvo una lista
+vacía es la duplicación que la regla no pide; lo que la regla pide es que el estado esté
+resuelto, y lo está, con su propia previsualización y su propia prueba de interfaz.
+
+**Consecuencia.** La prueba
+`withNothingDeclaredTheEmptyBlockAndTheCatalogAreBothReachable` es la que fija esto: si
+alguien convierte el bloque en una pantalla aparte y se lleva el catálogo, falla.
+
+---
+
+## 2026-10-09 · El ayudante de disposición gana una variante que no desplaza, y un diálogo abre otra raíz
+
+**Contexto.** `assertFitsTheScreen` desplaza antes de medir, porque toda pantalla del
+proyecto es desplazable y exigir que un control esté a la vista sin desplazar marcaría como
+defecto una disposición correcta (2026-10-08). El contenido de un `AlertDialog` no desplaza:
+`performScrollTo` falla ahí con «no parent layout with a Scroll SemanticsAction», que no
+dice nada de la disposición. Y un diálogo abierto es una segunda ventana, de modo que
+`onRoot()` encuentra dos nodos y se niega a elegir.
+
+**Decisión.** `LargeFont.kt` gana `assertFitsTheScreenWithoutScrolling`, para un control
+cuyo contenedor no desplaza, y la medición del borde de la pantalla toma la primera de las
+raíces.
+
+**Razonamiento.** Hacer tolerante a `assertFitsTheScreen` habría sido más corto y habría
+apagado justamente la mutación que HT-18 verificó: quitarle el desplazamiento a una pantalla
+tiene que seguir fallando. Dos funciones explícitas dicen cuál de las dos cosas se está
+afirmando. La primera raíz es la pantalla; la ventana del diálogo abarca el mismo ancho, y
+el ancho es el eje del que hablan las dos aserciones.
+
+**Consecuencia, y es la parte incómoda.** Al escribir estas pruebas se intentó la mutación
+«los dos botones de la tarjeta en un `Row` en vez de un `FlowRow`» esperando que fallara,
+y **pasó**. Es el punto ciego del 2026-10-08 en vivo: la etiqueta se recorta dentro de su
+propio botón, Compose la mide al ancho que el contenedor le da, y ni los límites ni la
+semántica delatan nada. El `FlowRow` se queda porque es la disposición correcta, pero
+**ninguna prueba lo sostiene** y el comentario del código lo dice con esas palabras. Lo que
+sí se verificó por mutación: quitarle el desplazamiento a la lista hace fallar cuatro de las
+seis pruebas, y que una acción deje de componerse hace fallar la suya.
+
+Se intentó además un `verticalScroll` en el contenido de los dos diálogos, por el
+antecedente de HU-06. Se quitó: sin él, a 320 dp y 200 % de fuente **no se recorta nada**, y
+dejarlo habría sido programación defensiva sin prueba que la sostenga. Además lo empeoraba:
+con el desplazamiento puesto, la pantalla deja de poder recortar y la prueba pierde la única
+señal que tiene. Sin él, `assertIsDisplayed` sobre el motivo del rechazo es lo que avisaría
+si el contenido del diálogo creciera.
+
+---
+
+## 2026-10-09 · Los nombres del catálogo de servicios se acentúan con una migración nueva
+
+**Contexto.** Los doce tipos de atención se sembraron el 2026-09-11 sin acentos
+(«Consulta medica general», «Aplicacion de inyectables»). HU-10 es la primera historia que
+los muestra a un usuario: aparecen en la pantalla del profesional y, desde HU-11 y HU-12,
+en los resultados de búsqueda y en la ficha pública.
+
+**Decisión.** Una migración nueva que actualiza nombre y descripción de los doce. La
+semilla original no se toca.
+
+**Razonamiento.** Una migración aplicada no se edita, así que el arreglo es una migración
+nueva. El `update` se busca por el nombre antiguo, de modo que no encuentra nada una vez
+aplicado y una base reconstruida desde cero llega al mismo estado: la semilla escribe los
+nombres sin acento y esta migración los corrige después, siempre en ese orden.
+
+**Consecuencia.** El catálogo es dato, no recurso de cadenas, y viaja en español desde la
+base. La regla de internacionalización no lo alcanza y **no hay vía para traducirlo**: el
+día que exista `values-en/`, los nombres de los tipos seguirán en español. Traducirlos
+exigiría una tabla de traducciones del catálogo, que ningún requisito pide. Queda anotado
+aquí y no se agrega.
+
+---
+
+## 2026-10-09 · Una animación infinita no cuelga la prueba de interfaz
+
+**Contexto.** HU-11 pide movimiento tipo Uber: anillos de radar que laten mientras la
+búsqueda corre. Toda pantalla nueva lleva una prueba de disposición obligatoria que compone
+la función de contenido con Robolectric, y una animación infinita es exactamente lo que puede
+impedir que el reloj de Compose quede en reposo: `assertIsDisplayed` espera ese reposo y se
+quedaría esperando para siempre. El proyecto nunca se había topado con esto porque
+`AvailabilityDot`, su única animación infinita, solo vive en la pantalla de bienvenida, que no
+tiene prueba.
+
+**Decisión.** Se comprobó antes de diseñar nada, con un sondeo que compuso `AvailabilityDot` y
+un `CircularProgressIndicator` indeterminado bajo `createComposeRule`: **la prueba pasa, en
+15 s**. Compose instala en las pruebas una política que cancela las animaciones infinitas, de
+modo que el reloj llega al reposo. No hace falta apagar el movimiento en la prueba ni manejar
+el reloj a mano.
+
+**Razonamiento.** Era una premisa de diseño y no un detalle: si el reloj se hubiera colgado, el
+radar habría tenido que vivir detrás del slot del mapa y la tarjeta de resultado no habría
+podido llevar el punto de disponibilidad. Comprobarlo costó una prueba de quince líneas y
+evitó diseñar alrededor de un problema inexistente.
+
+**Consecuencia.** La cobertura vale solo para lo que pasa por `withInfiniteAnimationFrameNanos`,
+es decir `rememberInfiniteTransition` y `infiniteRepeatable`. Un bucle escrito a mano
+—`LaunchedEffect { while (true) { withFrameNanos ... } }`, o un `delay` en bucle— **no está
+cubierto y sí colgaría la prueba**. Toda animación continua de este proyecto se escribe con
+`rememberInfiniteTransition`. El sondeo se borró después de leer su resultado: probar el
+comportamiento de una biblioteca ajena no es trabajo de esta suite, y su regresión se
+manifestaría como una prueba colgada, que es un síntoma ruidoso y no silencioso.
+
+---
+
+## 2026-10-09 · HU-11: la ubicación del profesional se publica con la resolución de una manzana
+
+**Contexto.** El primer criterio de HU-11 pide ver a los profesionales sobre un mapa, y
+`search_nearby_professionals` no devuelve ninguna coordenada: devuelve `distance_m`. La tabla
+`addresses` no admite lectura ajena por política, de modo que el marcador no tiene de dónde
+salir si no se agrega el punto a lo que la función proyecta. Y la base profesional puede ser
+la propia casa: RN-02 solo exige que sea una dirección propia marcada como tal.
+
+**Decisión.** La función devuelve `base_latitude` y `base_longitude` **redondeados a tres
+decimales** —unos 110 m a esta latitud, una manzana—, devuelve `distance_m` **redondeada a la
+centena de metros**, y **encaja el radio pedido a décimas de kilómetro**. El orden se sigue
+calculando con la distancia exacta, con desempate por `id`. El filtro sigue usando el punto
+exacto: se redondea lo que sale, no lo que decide quién entra.
+
+**Razonamiento.** La resolución con la que se publica un punto es la del canal más fino que se
+expone, y aquí hay tres canales sobre el mismo punto. `distance_m` viajaba exacta, y
+`p_latitude`, `p_longitude` y `p_radius_km` son parámetros libres de una función con
+`grant execute to authenticated`: tres llamadas desde tres orígenes trilateran la base al
+metro, y una búsqueda binaria sobre el radio llega al mismo sitio sola. Redondear solo el
+marcador habría sido cosmético, porque el curioso usa el mejor de los tres canales; se
+cuantizan los tres a la misma rejilla o no se cuantiza ninguno. Se consideró dejarlo todo
+exacto y registrarlo como riesgo asumido, y se descartó porque el mapa no necesita la puerta
+para hacer su trabajo: necesita la manzana.
+
+**Consecuencia.** La plataforma no publica la ubicación de un profesional con mejor resolución
+que una manzana, por ningún canal, mientras no exista un trato entre las partes. Dos
+profesionales de la misma manzana comparten marcador, y el agrupador los junta. La lista puede
+mostrar «a 1,2 km» dos veces seguidas, y por eso el desempate por `id` pasa de conveniente a
+obligatorio: con la distancia redondeada los empates son frecuentes, y sin segunda clave la
+paginación por desplazamiento repite o se salta filas. La distancia cero pasa a ser un valor
+posible, y la interfaz la dice como «menos de 100 m», nunca como «0 m».
+
+---
+
+## 2026-10-09 · HU-11: la contraparte lee la proyección pública, no la fila del profesional
+
+**Contexto.** Deuda registrada el 2026-10-05 y asignada a HU-11 por la retrospectiva del
+Sprint 3. `professionals_select_counterpart` concede lectura de la **fila completa** de
+`professionals` a quien comparta un servicio, `verification_status` incluido, de modo que la
+contraparte podía ver un `PENDING` o un `REJECTED`. Contradice la intención de RF-04.6, que
+quiere que un perfil verificado exhiba un distintivo, no que exhiba su expediente.
+
+**Decisión.** Se retira la política. La contraparte lee `professional_directory`, que por
+construcción solo contiene profesionales `APPROVED` y activos y no lleva teléfono ni correo.
+`profiles_select_counterpart` se queda: es la que revela nombre, foto y teléfono tras aceptar
+una oferta (RN-06, RF-08.6).
+
+**Razonamiento.** La seguridad a nivel de fila resuelve filas y no columnas, así que no hay
+forma de permitir la lectura de la fila y esconderle `verification_status`: o se lee entera o
+no se lee. Y la proyección pública ya tiene lo que la contraparte necesita. Que la pertenencia
+a esa vista **sea** la verificación es además la forma estructural de RF-04.6: el distintivo
+no depende de una condición que alguien pueda relajar, sino de que la fila exista en la
+proyección.
+
+**Consecuencia.** Si un profesional con una atención en curso quedara inactivo o perdiera la
+verificación, su contraparte dejaría de verlo en la proyección pública, y le quedarían el
+nombre y la foto por `profiles_select_counterpart`. Hoy ninguna pantalla lo muestra y ninguna
+historia lo necesita; el Sprint 7, que construye la conversación, tendrá que decidir qué ve
+cada parte de la otra con una atención viva. Queda anotado, y no resuelto por adelantado.
+
+---
+
+## 2026-10-09 · La tarjeta de profesional no muestra un cero donde no hay calificaciones
+
+**Contexto.** `ProfessionalCard` se construyó en el Sprint 0 a partir de
+`docs/design-system.md` y HU-11 es su primer consumidor real. Recibía `rating: Double` no
+nulo y dibujaba siempre el `RatingBadge`. En la base, `professionals.average_rating` vale
+`0.00` mientras nadie haya calificado, de modo que **todo profesional nuevo habría aparecido
+en los resultados con una estrella y un 0.0**: la peor calificación posible, presentada como
+si alguien la hubiera dado.
+
+**Decisión.** `rating` pasa a ser `Double?` y la tarjeta recibe además la etiqueta que ocupa
+su lugar cuando no hay calificaciones. Quien decide es la pantalla, con la regla que importa:
+el distintivo se dibuja solo cuando `totalReviews` es mayor que cero, y no cuando el promedio
+es distinto de cero.
+
+**Razonamiento.** La regla no puede vivir en el componente, porque el componente no sabe
+cuántas calificaciones sostienen el promedio; y no puede derivarse del promedio, porque un
+promedio de cero es indistinguible de la ausencia de promedio. El texto tampoco puede vivir
+en el componente: la tarjeta no llama a `stringResource` para nada —recibe la distancia y la
+tarifa ya formateadas, y la descripción de contenido desde quien la usa— y romper eso por una
+cadena habría metido recursos de Android en un componente que hoy es puro.
+
+**Consecuencia.** Es un cambio en un componente del sistema de diseño, de modo que alcanza a
+todo consumidor futuro: la ficha de HU-12 y el historial del Sprint 9 heredan la misma
+decisión. `docs/design-system.md`, sección 5, lo recoge en la glosa del distintivo de
+calificación. Y queda la regla general detrás: **un promedio sin votos no se presenta como un
+promedio**, que es la misma razón por la que la insignia de la pantalla de bienvenida dice en
+su comentario que su cifra es texto de mercadeo y no un dato leído.
+
+---
+
+## 2026-10-09 · HU-11: el mapa es una tarjeta de la página, no el fondo de la pantalla
+
+**Contexto.** El autor pidió movimiento y disposición al estilo de Uber o InDrive, donde el
+mapa ocupa la pantalla entera y los controles flotan encima. Así se construyó primero: un
+`Box` con el mapa al fondo y una columna flotante con la cabecera, el origen, el selector de
+modo y las fichas de filtro.
+
+**Decisión.** Se cambió por **una sola página que desplaza**, con el mapa como una tarjeta de
+`Spacing.mapHeight` entre los filtros y los resultados. Es la forma que ya tienen la cola de
+HU-09 y el catálogo de HU-10, y la misma del mapa de dirección de HU-05.
+
+**Razonamiento.** La prueba obligatoria al 200 % de fuente sobre un teléfono de 320 dp lo
+tumbó antes de que nadie lo mirara: la columna flotante **no desplaza**, y a ese tamaño de
+fuente la cabecera, la insignia de origen, el selector y las dos filas de fichas suman más
+que el alto de la pantalla, de modo que los controles de abajo quedaban recortados contra el
+borde. Es exactamente la clase de defecto que este proyecto ya encontró cinco veces, y la
+disposición flotante lo volvía estructural en vez de accidental. Darle al mapa la altura
+sobrante con `weight(1f)` tampoco servía: con los filtros crecidos el mapa se habría quedado
+en nada.
+
+**Consecuencia.** El idioma visual de Uber se conserva donde de verdad vive, que es el
+movimiento —el radar sobre el punto del paciente, el círculo del radio creciendo con un
+resorte, los pines con la tarifa, la burbuja de grupo— y no en que el mapa sea el fondo. El
+puente con `WelcomeScreen` queda en la insignia flotante del origen, que es la misma receta de
+`ExtraShapes.featuredCard` sobre un contenedor de color. `docs/design-system.md` recoge el
+mapa de búsqueda con esta forma.
+
+---
+
+## 2026-10-09 · Una ficha de Material no puede con el nombre de un tipo de servicio
+
+**Contexto.** El filtro por tipo de servicio de HU-11 se construyó como una fila de
+`FilterChip` que desplaza de lado, que es lo que hace cualquier aplicación de búsqueda. La
+prueba obligatoria al 200 % de fuente sobre un teléfono de 320 dp midió la ficha del tipo más
+largo del catálogo, «Colocación y control de vía venosa»: **470 dp**.
+
+**Decisión.** Se le puso un tope de ancho; se volvió a medir; y **se cambió el control**. El
+tipo de servicio se elige en un grupo de opciones exclusivas —`RadioOptionGroup`— plegado por
+omisión, que es lo que el sistema de diseño reserva para más opciones de las que un segmento o
+una ficha pueden sostener.
+
+**Razonamiento.** El tope acotó la ficha a 240 dp, de modo que la prueba de disposición volvió
+a pasar, y **eso era lo engañoso**: con el ancho acotado la etiqueta se midió igual en una sola
+línea de 32,5 dp de alto, es decir que el nombre siguió entero dentro de una caja donde no
+cabe. 240 dp al 200 % de fuente dan para unos dieciséis caracteres y el nombre tiene treinta y
+cuatro: más de la mitad quedaba oculta **dentro de la propia ficha**, que es la única clase de
+defecto de disposición que ninguna aserción sobre límites puede ver. Las fichas se conservan
+donde sus etiquetas son cortas por naturaleza: los tres radios y «Disponibles ahora».
+
+**Cómo se supo, y qué enseña del método.** No lo encontró una prueba: lo encontró **medir**.
+La primera aserción que se escribió comparaba la altura de la ficha contra los 32 dp que
+Material le da en reposo, y pasaba —al 200 % de fuente una sola línea ya los supera—. Se
+mutó el código fijando la etiqueta a una línea y **la prueba siguió pasando**, que es la
+señal de que afirmaba algo que no sostenía. La aserción que quedó compara la opción larga
+contra una opción corta del mismo árbol: si la etiqueta envolvió, su fila es más alta; si se
+quedó en una línea, las dos miden lo mismo. Mutada otra vez, ahora falla, y lo dice con un
+número: «Both rows are 48.0.dp tall».
+
+**Consecuencia.** Es la comparación relativa, y no la medida absoluta, lo que permite afirmar
+algo sobre el recorte interior. Queda como la forma de escribir esta clase de aserción en el
+proyecto. Y queda la regla de producto: **ninguna etiqueta que venga del catálogo entra en una
+ficha de Material**, porque los nombres del catálogo son frases y no palabras.
+
+---
+
+## 2026-10-09 · HU-11: el modo mapa o lista vive en el estado, y el agrupamiento acepta una API experimental
+
+**Contexto.** Dos decisiones menores de HU-11 que no son evidentes al leer el código.
+
+**Decisión.**
+
+- **El modo vive en el estado de interfaz**, no en un `rememberSaveable` de la pantalla, y
+  cambiarlo **no vuelve a buscar**.
+- **El agrupamiento de marcadores usa `Clustering` de `maps-compose-utils`**, que está marcada
+  `@MapsComposeExperimentalApi` dentro de una versión estable, con el `@OptIn` acotado al
+  archivo del mapa.
+
+**Razonamiento.** El modo tiene que estar en el estado para que la función de contenido sea
+una función pura de él: con el modo escondido dentro de la pantalla, ni la previsualización ni
+la prueba de disposición podrían exigir el modo mapa, y es en ese modo donde vive la mitad de
+la pantalla. Que cambiar de modo no busque de nuevo es una regla con prueba: los dos modos
+dibujan los mismos resultados, así que una petición ahí es una petición de más y un parpadeo.
+
+Sobre el agrupamiento: la regla del proyecto prohíbe versiones `alpha`, `beta`, `rc` y
+`SNAPSHOT`, no las anotaciones de adhesión explícita, y el proyecto ya usa `@OptIn` para
+corrutinas y para `FlowRow`. La anotación además es de nivel advertencia, de modo que sin el
+`@OptIn` el código compilaría **con una advertencia nueva**, que la Definición de Terminado
+prohíbe: ponerla no es una concesión, es el requisito. `maps-compose-utils` entra con el mismo
+`version.ref` que `maps-compose`, para que las dos no puedan separarse.
+
+**Consecuencia.** Si `Clustering` cambia de forma en una versión posterior, el daño está
+acotado a `ProfessionalSearchMap.kt`, y el respaldo es dibujar marcadores llanos: el
+agrupamiento es tarea técnica de `plan.md`, no criterio de aceptación. Y el pin se captura a
+mapa de bits, de modo que nada dentro de él puede animarse: el punto de disponibilidad va fijo
+en el pin y late solo en la tarjeta.
+
 ---
 
 ## Plantilla para entradas nuevas

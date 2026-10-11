@@ -30,7 +30,9 @@ que lo introduce.
 | Contraoferta | Oferta con `parentOfferId` | No es un tipo aparte |
 | Atención / Servicio | `Service` | Atención acordada y prestada |
 | Tipo de servicio | `ServiceType` | Catálogo de tipos de atención |
-| Servicio ofrecido | `ProfessionalService` | Unión profesional–tipo de servicio |
+| Servicio ofrecido | `ProfessionalService` | Unión profesional–tipo de servicio, con el precio que el profesional declaró |
+| Servicios declarados | `DeclaredServices` | Lo que el profesional presta hoy junto con el catálogo que le queda por declarar |
+| Tipos por declarar | `undeclaredTypes` | Los tipos del catálogo que el profesional todavía no ofrece. No se le ofrecen dos veces |
 | Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
 | Dirección | `Address` | Domicilio georreferenciado |
 | Documento de verificación | `VerificationDocument` | Respaldo de identidad o título |
@@ -44,7 +46,14 @@ que lo introduce.
 | Identificador de dispositivo | `DeviceToken` | Destino de notificaciones |
 | Reputación | `averageRating` | Promedio de calificaciones recibidas |
 | Total de calificaciones | `totalReviews` | Cuántas calificaciones sostienen el promedio |
-| Distancia en metros | `distanceM` | Resultado de la búsqueda por cercanía |
+| Distancia en metros | `distanceM` | Resultado de la búsqueda por cercanía, redondeada a la centena de metros antes de salir del motor |
+| Búsqueda por cercanía | `ProfessionalSearch` | La característica entera: `features/search/` y la función `search_nearby_professionals` |
+| Profesional cercano | `NearbyProfessional` | Una fila del resultado de la búsqueda: lo público del profesional más su distancia y el punto aproximado de su base |
+| Criterios de búsqueda | `SearchCriteria` | Radio, tipo de servicio y disponibilidad con que el paciente recorta la búsqueda |
+| Origen de la búsqueda | `SearchOrigin` | La dirección **principal** del paciente, desde la que se mide la distancia. Nunca su base profesional |
+| Radio de búsqueda | `SearchRadius` | Las tres opciones que el paciente puede pedir: 2, 5 y 10 km |
+| Modo de resultados | `ResultsMode` | `MAP` o `LIST`, las dos formas de ver el mismo resultado |
+| Punto aproximado de la base | `basePoint` / `base_latitude`, `base_longitude` | Dónde se dibuja el marcador: la base profesional redondeada a la manzana. Nunca la coordenada exacta |
 | Cola de revisión | `PendingReviewSubject` | Persona con trabajo pendiente del administrador: documentos por revisar, la verificación por conceder, o las dos |
 | Listo para verificar | `awaitingVerification` / `awaiting_verification` | Profesional con todos sus requeridos aprobados que todavía no es `APPROVED` |
 | Esperando desde | `waitingSince` / `waiting_since` | Cuándo el turno pasó al administrador: la subida del documento o la aprobación del último requerido |
@@ -97,6 +106,7 @@ que lo introduce.
 | Revisado por | `reviewedBy` / `reviewed_by` |
 | Revisado en | `reviewedAt` / `reviewed_at` |
 | Motivo de rechazo | `rejectionReason` / `rejection_reason` |
+| Tope de ancho de una ficha | `filterChipMaxWidth` | Medida de `Spacing`: sin ella una etiqueta del catálogo no tiene ancho dentro del que envolver |
 | Precio de referencia | `referencePriceBob` / `reference_price_bob` |
 | Duración estimada | `estimatedDurationMin` / `estimated_duration_min` |
 | Día de la semana | `dayOfWeek` / `day_of_week` |
@@ -177,6 +187,10 @@ agregar. El término se conserva aquí por si esa tabla llega a existir.
 
 Dieciséis tablas. `profile_roles` se agregó en el Sprint 2.5, al dejar de ser
 único el rol de una persona.
+
+`professional_directory` es además **lo único que la contraparte lee de un profesional**:
+`professionals_select_counterpart` se retiró en HU-11, de modo que nadie lee la fila completa
+—con su `verification_status`— por compartir un servicio (`docs/decisions.md`, 2026-10-09).
 
 Vistas de apoyo: `professional_directory`, la proyección pública del profesional
 sin datos de contacto · `my_addresses`, las direcciones propias con el punto ya

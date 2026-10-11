@@ -51,6 +51,7 @@ import java.time.format.FormatStyle
 @Composable
 fun ProfileScreen(
     onOpenPublicProfile: (String) -> Unit,
+    onOpenMyServices: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
@@ -63,6 +64,7 @@ fun ProfileScreen(
         onRetryClick = viewModel::load,
         onAvailabilityChange = viewModel::onAvailabilityChange,
         onOpenPublicProfile = onOpenPublicProfile,
+        onOpenMyServices = onOpenMyServices,
         modifier = modifier,
     )
 }
@@ -75,6 +77,7 @@ private fun ProfileContent(
     onRetryClick: () -> Unit,
     onAvailabilityChange: (Boolean) -> Unit,
     onOpenPublicProfile: (String) -> Unit,
+    onOpenMyServices: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -117,6 +120,7 @@ private fun ProfileContent(
                 onSaveClick = onSaveClick,
                 onAvailabilityChange = onAvailabilityChange,
                 onOpenPublicProfile = { onOpenPublicProfile(uiState.header.userId) },
+                onOpenMyServices = onOpenMyServices,
                 modifier = modifier,
             )
         }
@@ -130,6 +134,7 @@ private fun EditableProfile(
     onSaveClick: () -> Unit,
     onAvailabilityChange: (Boolean) -> Unit,
     onOpenPublicProfile: () -> Unit,
+    onOpenMyServices: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val form = content.form
@@ -216,6 +221,7 @@ private fun EditableProfile(
                 onFormChange = onFormChange,
                 onAvailabilityChange = onAvailabilityChange,
                 onOpenPublicProfile = onOpenPublicProfile,
+                onOpenMyServices = onOpenMyServices,
             )
         }
 
@@ -402,7 +408,7 @@ private fun previewProfessional(
 @Composable
 private fun ProfilePatientLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewPatient(), {}, {}, {}, {}, {})
+        ProfileContent(previewPatient(), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -410,7 +416,7 @@ private fun ProfilePatientLightPreview() {
 @Composable
 private fun ProfilePatientDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(previewPatient(), {}, {}, {}, {}, {})
+        ProfileContent(previewPatient(), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -418,7 +424,7 @@ private fun ProfilePatientDarkPreview() {
 @Composable
 private fun ProfileProfessionalLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewProfessional(), {}, {}, {}, {}, {})
+        ProfileContent(previewProfessional(), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -426,7 +432,7 @@ private fun ProfileProfessionalLightPreview() {
 @Composable
 private fun ProfileProfessionalDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(previewProfessional(), {}, {}, {}, {}, {})
+        ProfileContent(previewProfessional(), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -441,6 +447,7 @@ private fun ProfileInvalidRatePreview() {
             {},
             {},
             {},
+            {},
         )
     }
 }
@@ -449,7 +456,7 @@ private fun ProfileInvalidRatePreview() {
 @Composable
 private fun ProfileInvalidPhonePreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewPatient(status = SaveStatus.Failed(ProfileError.InvalidPhone)), {}, {}, {}, {}, {})
+        ProfileContent(previewPatient(status = SaveStatus.Failed(ProfileError.InvalidPhone)), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -457,7 +464,7 @@ private fun ProfileInvalidPhonePreview() {
 @Composable
 private fun ProfileLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(ProfileUiState.Loading, {}, {}, {}, {}, {})
+        ProfileContent(ProfileUiState.Loading, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -465,6 +472,6 @@ private fun ProfileLoadingPreview() {
 @Composable
 private fun ProfileFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(ProfileUiState.Failed(ProfileError.NetworkUnavailable), {}, {}, {}, {}, {})
+        ProfileContent(ProfileUiState.Failed(ProfileError.NetworkUnavailable), {}, {}, {}, {}, {}, {})
     }
 }

@@ -89,6 +89,18 @@ Esa forma —la del rótulo del control segmentado del Sprint 2.5 y la del chip 
 HU-07— **sigue dependiendo de mirar las previsualizaciones**, que por eso no se
 reemplazan. Ver `docs/decisions.md`, 2026-10-08.
 
+**Hay un caso en que sí se puede afirmar algo del recorte interior, y se escribe
+comparando.** Si la pantalla muestra, al lado del elemento largo, otro del mismo
+tipo con una etiqueta corta, el largo tiene que medir **más alto** que el corto:
+si su etiqueta envolvió, creció; si quedó recortada en una línea, los dos miden
+lo mismo. Lo que **no** sirve es medir contra una constante —«más alto que los
+32 dp que Material da a una ficha»—: al 200 % de fuente una sola línea ya supera
+cualquier altura de reposo, de modo que la aserción pasa sin sostener nada. En
+HU-11 se escribió primero la versión absoluta, se mutó el código fijando la
+etiqueta a una línea y **la prueba siguió pasando**; la versión relativa falla con
+«Both rows are 48.0.dp tall». Mutar la aserción es lo único que distingue una de
+otra. Ver `docs/decisions.md`, 2026-10-09.
+
 **Las pruebas de política no tienen archivo.** Una política de seguridad a nivel de
 fila y un disparador se ejecutan dentro de PostgreSQL, así que ninguna prueba de
 JUnit puede ejercerlos: no hay base de datos en la máquina virtual de Java. Se

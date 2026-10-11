@@ -211,10 +211,23 @@ base. El botón de acción va abajo a la derecha.
 Adaptación al producto: **la distancia es información obligatoria**, porque la
 cercanía es el criterio principal de selección. En la referencia no aparece.
 
+La calificación es opcional, por la razón del distintivo de calificación, y quien
+usa la tarjeta entrega la etiqueta que ocupa su lugar: el componente no llama a
+los recursos de cadenas para nada, ni para la distancia, ni para la tarifa, ni
+para la descripción de contenido de su acción. Debajo de la tarjeta, y nunca
+dentro, va la línea de «disponible ahora» con `AvailabilityDot`.
+
 ### Distintivo de calificación
 
 Píldora en `tertiaryContainer` con la estrella rellena y el número en
 `onTertiaryContainer`. **El número nunca va en ámbar sobre blanco.**
+
+**El distintivo no se dibuja cuando no hay calificaciones.** Un profesional sin
+votos tiene promedio cero en la base, de modo que dibujarlo le pondría la peor
+nota posible como si alguien se la hubiera dado. Quien decide es la pantalla, por
+`totalReviews` y no por el promedio, y en su lugar va una línea en `labelSmall`
+sobre `onSurfaceVariant` que dice que todavía no tiene calificaciones. Registrado
+en `docs/decisions.md`, 2026-10-09.
 
 ### Selector de fecha
 
@@ -256,6 +269,62 @@ no distingue una calle de la siguiente.
 El mapa se instancia **sin identificador de estilo en la nube**, porque eso
 reclasifica cada carga a una categoría facturable, y adopta el esquema de color del
 sistema para que el esquema oscuro no quede con un mapa claro encima.
+
+### Mapa de búsqueda
+
+Introducido en HU-11. Es el mapa de dirección con otro trabajo: mismo recuadro de
+ancho completo y 280 dp con el radio de tarjeta del tema, dentro de una página que
+desplaza, entre los filtros y los resultados.
+
+**No es el fondo de la pantalla, y se intentó que lo fuera.** La primera versión
+puso el mapa a pantalla completa con los controles flotando encima, como en las
+aplicaciones de transporte. Al 200 % de fuente sobre un teléfono de 320 dp, la
+columna flotante —que no desplaza— suma más que el alto de la pantalla y recorta
+sus propios controles contra el borde. Lo que se conserva del idioma de esas
+aplicaciones es el movimiento, no que el mapa sea el fondo. Ver
+`docs/decisions.md`, 2026-10-09.
+
+Dentro del mapa van, por capas: el **círculo del radio** en `primary` al 8 % de
+opacidad con su borde al 50 %, el **radar** mientras la búsqueda corre, los
+**pines** y las **burbujas de grupo**. Arriba a la derecha, y solo cuando falta el
+permiso, el botón que enciende el punto azul.
+
+### Pin con la tarifa
+
+Píldora en `surface` con la tarifa formateada y, cuando el profesional está
+disponible, un punto de 8 dp en el verde de estado. El pin seleccionado invierte
+los colores a `primary` y `onPrimary`.
+
+**Nada dentro de un pin puede animarse**: el agrupador lo captura a mapa de bits
+una vez, así que el punto de disponibilidad va fijo aquí y late solo en la
+tarjeta. Por la misma razón el pin no cambia de forma al seleccionarse si eso
+exigiera redibujar cada fotograma.
+
+### Burbuja de grupo
+
+Círculo de 40 dp en `primary` con la cuenta en `labelLarge` sobre `onPrimary`.
+Aparece cuando varios pines caen juntos, que con la rejilla de una manzana ocurre
+siempre que dos profesionales comparten cuadra.
+
+### Radar
+
+Tres anillos concéntricos que crecen desde el punto del paciente y se desvanecen,
+desfasados un tercio de ciclo. Sobre el mapa se dibujan como círculos del propio
+mapa, de modo que quedan anclados al suelo y escalan con el zoom; fuera del mapa,
+en un `Canvas`, hacen de indicador de carga.
+
+El ciclo es el doble de `LIVE_INDICATOR_CYCLE_MILLIS`, el mismo latido que
+comparten el punto de disponibilidad y el corazón de la bienvenida. **En reposo
+los anillos quedan quietos**, no desaparecen: con el movimiento reducido la
+figura sigue leyéndose como un radar.
+
+### Ficha de filtro
+
+`FilterChip` de Material con una restricción que no es opcional: **ancho con tope**
+(`Spacing.filterChipMaxWidth`, 240 dp) y etiqueta sin límite de líneas. Una
+etiqueta solo envuelve dentro de un ancho acotado, y en una fila que desplaza de
+lado el ancho es infinito: sin el tope, el tipo de servicio más largo del catálogo
+mide 470 dp en una pantalla de 320. Ver `docs/decisions.md`, 2026-10-09.
 
 ### Visor de documento
 
