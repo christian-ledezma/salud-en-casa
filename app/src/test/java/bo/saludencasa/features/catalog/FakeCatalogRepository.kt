@@ -7,6 +7,7 @@ import bo.saludencasa.features.catalog.domain.model.DeclaredServicesResult
 import bo.saludencasa.features.catalog.domain.model.ProfessionalService
 import bo.saludencasa.features.catalog.domain.model.ServiceDeclarationResult
 import bo.saludencasa.features.catalog.domain.model.ServiceType
+import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
 import bo.saludencasa.features.catalog.domain.repository.ICatalogRepository
 import java.math.BigDecimal
 
@@ -32,6 +33,12 @@ class FakeCatalogRepository(
     val removals: MutableList<String> = mutableListOf()
 
     private val stored = services.toMutableList()
+
+    override suspend fun getServiceTypes(): ServiceTypesResult {
+        readFailure?.let { return ServiceTypesResult.Failure(it) }
+
+        return ServiceTypesResult.Loaded(catalog)
+    }
 
     override suspend fun getDeclaredServices(): DeclaredServicesResult {
         reads++

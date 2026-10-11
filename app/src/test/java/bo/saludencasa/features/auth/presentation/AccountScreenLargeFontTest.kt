@@ -38,6 +38,7 @@ class AccountScreenLargeFontTest {
                 onSignOutClick = {},
                 onDismissError = {},
                 onOpenProfile = {},
+                onOpenSearch = {},
                 onOpenAddress = {},
                 onOpenVerification = {},
                 onOpenDocumentReview = {},
