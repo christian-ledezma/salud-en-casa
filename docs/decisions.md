@@ -4243,6 +4243,34 @@ en el pin y late solo en la tarjeta.
 
 ---
 
+## 2026-10-09 · Las capturas de pantalla salen de las previsualizaciones, fuera de la suite
+
+**Contexto.** Antes de rediseñar la interfaz hacía falta una imagen de cada pantalla
+tal como está hoy, con datos de ejemplo, y poder repetirla después para comparar.
+
+**Decisión.** `app/src/test/java/bo/saludencasa/ui/ScreenCatalog.kt` compone cada
+previsualización existente con Robolectric y la guarda como PNG en
+`app/build/screenshots/`, o en el directorio que se indique con
+`-Pscreenshots=<directorio>`. Se ejecuta solo a pedido, con
+`./gradlew testDebugUnitTest -Pscreenshots --tests "*ScreenCatalog*"`, y la
+ejecución normal de pruebas la excluye.
+
+**Razonamiento.** Las previsualizaciones ya tienen los estados de ejemplo de cada
+pantalla, así que invocarlas por reflexión evita duplicar datos de prueba. No se
+agregó Paparazzi ni Roborazzi: Robolectric con `graphicsMode=NATIVE`, que el
+proyecto ya usa, basta para dibujar la vista en un mapa de bits. Queda fuera de la
+suite porque no verifica nada, y una prueba que no puede fallar por una razón real
+no pertenece a ella.
+
+**Consecuencia.** La captura usa un teléfono de 411 por 891 dp y muestra solo lo
+que cabe en esa altura, no el contenido que queda bajo el pliegue. La tipografía no
+es Inter sino la de la plataforma, por la misma razón que en las pruebas de interfaz
+(2026-10-08). El mapa de Google no se dibuja en la máquina virtual de Java. Una
+previsualización nueva entra sola al catálogo si su nombre termina en `Preview`; una
+pantalla nueva hay que agregarla a la lista de archivos.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

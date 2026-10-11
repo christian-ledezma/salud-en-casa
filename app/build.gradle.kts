@@ -129,6 +129,18 @@ ktlint {
     version.set(libs.versions.ktlintEngine.get())
 }
 
+// The screen catalog renders PNGs and verifies nothing, so it runs only on request:
+// ./gradlew testDebugUnitTest -Pscreenshots[=<directory>] --tests "*ScreenCatalog*"
+// (docs/decisions.md, 2026-10-09).
+tasks.withType<Test>().configureEach {
+    val screenshots = project.findProperty("screenshots")?.toString()
+    if (screenshots == null) {
+        exclude("**/ScreenCatalog*")
+    } else if (screenshots.isNotBlank()) {
+        systemProperty("screenshots.dir", file(screenshots).absolutePath)
+    }
+}
+
 // The project's own rules -- the dependency rule and the hardcoded-text rule --
 // are JVM tests rather than ktlint rules (docs/decisions.md, 2026-09-12), so the
 // static-analysis stage has to run both tools to cover them.
