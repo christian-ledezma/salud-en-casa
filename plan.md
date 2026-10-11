@@ -4219,43 +4219,257 @@ assembleDebug` concluye sin error y **sin ninguna advertencia nueva del compilad
 | Pruebas | `test/features/catalog/FakeCatalogRepository.kt` · `domain/model/DeclaredServicesTest.kt` · `domain/usecase/DeclareServiceUseCaseTest.kt` · `UpdateServicePriceUseCaseTest.kt` · `data/mapper/CatalogMapperTest.kt` · `CatalogErrorMapperTest.kt` · `presentation/MyServicesViewModelTest.kt` · `MyServicesScreenLargeFontTest.kt` (nuevos, 7 suites) · `test/ui/LargeFont.kt` (la variante que no desplaza) |
 | Documentos | `.claude/rules/glosario.md` (`DeclaredServices`, `undeclaredTypes`) · `docs/decisions.md` (siete entradas del 2026-10-09) · `plan.md` (esta sección) |
 
-### HU-11 · Buscar profesionales cerca de mi domicilio `[ ]` — 13 puntos
+### HU-11 · Buscar profesionales cerca de mi domicilio `[x]` — 13 puntos
 
 > Como **paciente**, quiero **ver qué profesionales hay cerca de mi dirección**,
 > para **elegir a quién solicitar la atención**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que tengo una dirección registrada, cuando abro la búsqueda, entonces
-      veo los profesionales dentro del radio sobre un mapa.
-- [ ] Dado que cambio a vista de lista, cuando la consulto, entonces veo distancia,
-      tarifa base y reputación de cada uno.
-- [ ] Dado que filtro por tipo de servicio, cuando aplico el filtro, entonces solo
-      aparecen quienes lo declararon.
-- [ ] Dado que filtro por disponibilidad inmediata, cuando aplico el filtro,
-      entonces solo aparecen quienes están disponibles ahora.
-- [ ] Los resultados están ordenados por distancia ascendente.
-- [ ] Solo aparecen profesionales verificados y activos.
-- [ ] Con quinientos profesionales cargados, la búsqueda responde en menos de un segundo.
+- [x] Dado que tengo una dirección registrada, cuando abro la búsqueda, entonces
+      veo los profesionales dentro del radio sobre un mapa. **La función no devolvía
+      ninguna coordenada**, así que el marcador no tenía de dónde salir: la migración
+      `20261009140000` agrega el punto de la base profesional, redondeado a la manzana.
+      Verificado contra el remoto y con `ProfessionalSearchMap`.
+- [x] Dado que cambio a vista de lista, cuando la consulto, entonces veo distancia,
+      tarifa base y reputación de cada uno. `ProfessionalCard`, montada por primera vez;
+      verificado por `aResultCardKeepsItsNameDistanceRateAndActionOnScreen`.
+- [x] Dado que filtro por tipo de servicio, cuando aplico el filtro, entonces solo
+      aparecen quienes lo declararon. El filtro viaja como `p_service_type_id`;
+      verificado por `choosingATypeAndAvailabilityNarrowsWhatIsAsked` y por el
+      experimento 3b de HU-10 contra el remoto.
+- [x] Dado que filtro por disponibilidad inmediata, cuando aplico el filtro,
+      entonces solo aparecen quienes están disponibles ahora. El parámetro es de tres
+      estados y el filtro apagado viaja como `null`;
+      `anAvailabilityFilterThatIsOffTravelsAsNothingAndNotAsFalse`.
+- [x] Los resultados están ordenados por distancia ascendente. Experimento 2:
+      1000, 1200, 2000, 4000 y 4000 metros, con el desempate por `id` idéntico en dos llamadas.
+- [x] Solo aparecen profesionales verificados y activos. Experimento 3: un `PENDING`,
+      un `REJECTED` y un `active = false` a kilómetro y medio, ninguno aparece.
+- [x] Con quinientos profesionales cargados, la búsqueda responde en menos de un segundo.
+      **64 ms** medidos con `explain (analyze)` sobre 500 profesionales sintéticos
+      (experimento 6). RNF-01 pide menos de 1000.
 
 **Requisitos:** RF-06.1 a RF-06.5, RNF-01, RN-01, RN-02, INV-08.
 
-**Tareas técnicas.** Consumo de la función de cercanía desde la capa de datos
-· `IProfessionalSearchRepository` y caso de uso · mapa con marcadores agrupados ·
-vista de lista alterna · prueba que verifique el uso del índice espacial.
+**Lo que ya estaba hecho desde el Sprint 0, y nunca se había llamado.**
+`search_nearby_professionals` ya filtraba por radio, tipo y disponibilidad, ya ordenaba por
+distancia, ya exigía `APPROVED` y `profiles.active`, ya excluía al llamante (RN-13) y ya unía
+con la base profesional y no con el domicilio (RN-02). Ningún archivo Kotlin la mencionaba.
+Igual con media docena de componentes —`ProfessionalCard`, `SegmentedControl`, `RatingBadge`,
+`AvailabilityDot`, `RadioOptionGroup`— construidos a partir de `docs/design-system.md` y
+jamás montados. HU-11 fue en buena parte el ensamblaje de piezas que llevaban un mes esperando.
 
-**Dato para quien la tome, dejado por HU-10 el 2026-10-09.**
-`search_nearby_professionals` **ya filtra por tipo de servicio y por disponibilidad
-inmediata**: el tercer y el cuarto criterio son parámetros de esa función, no lógica nueva,
-y los dos están verificados contra el remoto en los experimentos 3a y 3b de HU-10. El
-catálogo se pide por `GetMyDeclaredServicesUseCase` o por el caso de uso que HU-11 agregue
-en `features/catalog/`, nunca por su repositorio ni por su capa `data`.
+#### La decisión que gobernó la historia: la ubicación se publica por manzanas
 
-**Y un dato de datos de prueba:** en el proyecto remoto hay **0 filas** en
-`professional_services`. Los experimentos de HU-10 corrieron dentro de `rollback`, así que
-no dejaron ninguna. Para demostrar el filtro por tipo hay que declarar servicios desde la
-aplicación con la cuenta del único profesional `APPROVED`; mientras no se haga, el filtro
-por tipo devuelve 0 resultados y **eso es correcto**, no un defecto de HU-11.
+La función devolvía `distance_m` **exacta** —se midió: `1062.76035493` m— y recibe
+`p_latitude`, `p_longitude` y `p_radius_km` como parámetros libres, con
+`grant execute to authenticated`. Tres llamadas desde tres orígenes trilateran la base al
+metro, y una búsqueda binaria sobre el radio llega sola al mismo sitio. De modo que **la
+coordenada exacta del profesional ya era pública antes de que existiera el mapa**, y redondear
+solo el marcador habría sido cosmético: la resolución publicada es la del canal más fino que se
+expone.
+
+La migración `20261009140000` cuantiza **los tres canales** a la misma rejilla de una manzana:
+el punto a tres decimales (~110 m), la distancia a la centena de metros, y el radio pedido a
+décimas de kilómetro. El orden se sigue calculando con la distancia exacta, y gana un desempate
+por `id` que antes no tenía. Medido después: el punto sale `-17.368, -66.174` donde la base
+está en `-17.3676355, -66.1742961`, la distancia sale `1100`, y el borde del radio solo
+discrimina de cien en cien metros (1,00 y 1,04 fuera; 1,06 dentro). Razonamiento completo en
+`docs/decisions.md`, 2026-10-09.
+
+#### La deuda que el Sprint 3 le asignó, resuelta
+
+`professionals_select_counterpart` concedía lectura de la **fila completa** de `professionals`
+—`verification_status` incluido— a quien compartiera un servicio. Se retiró
+(`20261009141000`): la contraparte lee `professional_directory`, que por construcción solo
+contiene profesionales `APPROVED` y activos. Que la pertenencia a esa vista **sea** la
+verificación es la forma estructural de RF-04.6. Verificado con el experimento 8, que
+discrimina: con un servicio compartido, la contraparte **no** lee la fila y **sí** lee la
+proyección y su `profiles`.
+
+#### Experimentos SQL contra el proyecto remoto, 2026-10-09
+
+Ocho, todos dentro de transacciones que terminan en `rollback`. Los cinco obligatorios de
+«Ubicación» necesitaban profesionales sintéticos, y `profiles.id` referencia `auth.users`: el
+preparativo **suelta esa clave foránea dentro de la transacción**, porque en PostgreSQL el DDL
+es transaccional y el `rollback` la restituye. Comprobado después: la clave está, y no quedó
+ni un perfil, ni una dirección, ni una fila de profesional sintética.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | `nearbySearchReturnsOnlyProfessionalsWithinRadius` | **Pasa y discrimina.** 5 dentro de 5 km; el de 33 km aparece al pedir 40. Y el de cobertura 1 km a 3 km de distancia **no** aparece: RN-02 son dos radios, no uno |
+| 2 | `nearbySearchOrdersResultsByAscendingDistance` | **Pasa.** 1000, 1200, 2000, 4000 y 4000 metros en ese orden, y los dos empatados salen igual en dos llamadas seguidas |
+| 3 | `nearbySearchExcludesUnverifiedAndInactiveProfessionals` | **Pasa.** `PENDING`, `REJECTED` y `active = false` a 1,5 km: ninguno |
+| 4 | `nearbySearchUsesTheProfessionalBaseAndNotThePrimaryAddress` | **Pasa.** Domicilio a 33 km, base a 1,2 km: aparece a 1200 m. La distancia se mide desde la base |
+| 5 | `nearbySearchExcludesTheCallerFromTheirOwnResults` | **Pasa.** El llamante, con los dos roles y una base a 800 m —más cerca que nadie—, no aparece |
+| 6 | `nearbySearchUsesSpatialIndexAndNotSequentialScan` + RNF-01 | **Pasa sin forzar nada.** `Index Scan using idx_addresses_location` con `Index Cond: location && _st_expand(...)`, y ni un recorrido secuencial en el plan. **61 ms** el cuerpo, **64 ms** la función entera, con 500 profesionales. No hizo falta `enable_seqscan = off` |
+| 7 | Trilateración, antes y después | **La fuga existía y quedó acotada.** Antes: `distance_m = 1062.76035493`, once cifras, desde un origen elegido por el llamante con una cuenta de paciente. Después: `1100`, punto en la manzana, y el borde del radio quantizado a 100 m |
+| 8 | La contraparte sin la política | **Discrimina.** `shares_service = true`, lee la fila de `professionals` 0 veces, la proyección pública 1 y su `profiles` 1 |
+
+**Lo que el experimento 6 enseñó de método.** La función es `language sql` pero **no se
+inlinea**: `explain` sobre ella muestra un `Function Scan` y esconde el plan interno. El plan
+de verdad hay que pedirlo sobre el cuerpo de la consulta. Anotar los 64 ms sin mirar el plan
+habría dado por buena la cláusula del índice sin haberla visto nunca.
+
+#### Mutaciones, con su resultado
+
+| Mutación | Resultado |
+|---|---|
+| La página deja de desplazar (`userScrollEnabled = false`) | **11 de 11** pruebas de disposición fallan |
+| La etiqueta de una opción se fija a una línea | **Falla** `theLongestServiceTypeWrapsInsteadOfHidingItsTail`, y lo dice con un número: «Both rows are 48.0.dp tall» |
+| La etiqueta de una **ficha** se fija a una línea (diseño anterior) | **PASÓ.** Es la razón por la que el control cambió; ver abajo |
+
+#### Dos correcciones que la medición impuso, y no la planificación
+
+**El mapa dejó de ser el fondo de la pantalla.** Se construyó primero al estilo de Uber, con
+el mapa a pantalla completa y los controles flotando encima. La prueba al 200 % de fuente sobre
+320 dp lo tumbó: una columna flotante **no desplaza**, y a ese tamaño la cabecera, el origen,
+el selector y los filtros suman más que el alto de la pantalla. Quedó como una sola página que
+desplaza, con el mapa de `Spacing.mapHeight` entre los filtros y los resultados. El idioma de
+Uber se conserva donde de verdad vive, que es el movimiento.
+
+**El filtro por tipo dejó de ser una fila de fichas.** La ficha del nombre más largo del
+catálogo medía **470 dp en una pantalla de 320**. Se le puso tope de ancho y la prueba volvió a
+pasar —y eso era lo engañoso: con 240 dp la etiqueta siguió en una sola línea de 32,5 dp, es
+decir con más de la mitad del nombre oculta **dentro de la propia ficha**. Pasó a ser un
+`RadioOptionGroup` plegado, que es lo que el sistema de diseño reserva para etiquetas largas.
+Las fichas se quedan donde sus etiquetas son cortas: los tres radios y «Disponibles ahora».
+
+**Y una lección sobre cómo se escribe esta clase de aserción.** La primera versión comparaba la
+altura contra los 32 dp de reposo de Material y pasaba, porque al 200 % de fuente una sola
+línea ya los supera. Se mutó el código y **la prueba siguió pasando**: afirmaba algo que no
+sostenía. La que quedó compara la opción larga contra una opción **corta del mismo árbol**.
+Es la comparación relativa, y no la medida absoluta, lo que permite decir algo sobre el recorte
+interior.
+
+#### Cinco defectos que la revisión final encontró, y ninguna prueba veía
+
+- **El toque en un pin no llegaba a ninguna parte.** El mapa no avisaba de la selección, de
+  modo que `selectedId` no podía cambiar nunca y la tarjeta del profesional elegido era código
+  inalcanzable. Corregido: `onClusterItemClick` devuelve `true` —consume el toque, y con ello
+  impide que el SDK abra su propia ventanita encima— y un toque en el mapa fuera de un pin
+  guarda la tarjeta.
+- **La pantalla se quedaba en «Buscando…» para siempre** si alguien tocaba un filtro antes de
+  que el origen resolviera: el cambio de criterio cancelaba el trabajo que estaba resolviendo
+  la dirección, y la búsqueda que lo reemplazaba no tenía origen alrededor del que buscar, así
+  que se iba sin pedir nada. Reproducido con
+  `changingTheRadiusBeforeTheOriginResolvedStillSearches` —falla con «List is empty», cero
+  peticiones— y corregido resolviendo el origen de nuevo en vez de cancelarlo. La pantalla se
+  recuperaba al salir y volver, que es justo lo que hace que un defecto así sobreviva a una
+  demostración.
+
+- **La distancia desaparecía de la tarjeta de quien no tiene calificaciones.** La fila que
+  lleva el distintivo lleva también la distancia, y sin calificaciones el distintivo lo
+  reemplaza una frase: en un `Row` llano el segundo hijo solo recibe el ancho que dejó el
+  primero, que al 200 % de fuente era ninguno. `assertIsDisplayed` **falla**: la distancia no se
+  dibujaba en absoluto, y los profesionales sin calificar son el caso común en una plataforma
+  joven. Corregido con un `FlowRow` en el componente, y la prueba mide contra la distancia de la
+  otra tarjeta, que es una cadena **más larga**: una línea más corta no puede ser legítimamente
+  más alta que una más larga del mismo estilo.
+- **El pie de la lista se quedaba girando para siempre** si llegaba una reanudación —una
+  rotación, o volver de una ficha— mientras una página estaba en vuelo. `refresh` cancelaba ese
+  trabajo sin bajar su bandera, y la lista solo vuelve a pedir página con la bandera baja.
+  Corregido cancelándolo únicamente donde la lista se reemplaza de verdad, y probado con el
+  portillo del falso.
+- **La cámara encuadraba el círculo contra el ancho de la pantalla**, no contra el recuadro que
+  el mapa ocupa: el mapa va con el margen de la página a los lados y mide 280 dp de alto, de
+  modo que el borde del radio y los resultados más cercanos a él quedaban fuera de vista por los
+  dos ejes. Corregido midiendo el recuadro con `BoxWithConstraints` y tomando su lado más corto;
+  `fitZoom` ya no depende del ancho de la pantalla. **Ninguna prueba podía verlo**: la aritmética
+  del zoom era correcta y es lo único que `FitZoomTest` mira.
+
+Y una simplificación del mismo repaso: `rowsReturned` viajaba desde el repositorio hasta el
+caso de uso para que el final de la lista se decidiera con las filas que el motor envió y no
+con las que sobrevivieron a la lectura. **Nunca difieren**: una fila ilegible falla la página
+entera, así que nada se descarta nunca. Se quitó, junto con la prueba que lo ejercía, porque
+simulaba un estado que el repositorio no puede producir.
+
+#### Lo que ninguna prueba de este proyecto ve
+
+- **El radar y el resorte del círculo del radio.** No tienen semántica que afirmar. Se comprobó
+  antes de diseñarlos que una animación infinita **no** cuelga el reloj de Robolectric —Compose
+  la cancela en las pruebas—, de modo que no hubo que diseñar alrededor de un problema
+  inexistente. Pero que se vean bien lo dicen las previsualizaciones y el emulador.
+- **El texto recortado dentro de su contenedor**, salvo cuando hay una forma corta al lado
+  contra la que medir. Es lo que acaba de costar dos diseños.
+- **El mapa real.** Viaja como slot, de modo que ni la previsualización ni la prueba tocan el
+  SDK. Lo que se ve dentro del recuadro solo se comprueba en un dispositivo.
+
+#### Deuda declarada
+
+- **La paginación se pide desde el pie de la lista**, porque un mapa no tiene pie. En modo mapa
+  se dibujan los resultados ya cargados: los 20 más cercanos. Con el radio como está, nadie va
+  a notarlo; el día que haya cientos de profesionales en una ciudad, el mapa necesitará su
+  propia forma de pedir más.
+- **El distintivo de «verificado» por profesional sigue sin existir** (RF-04.6). HU-11 definió
+  **qué** ve la contraparte —la proyección pública— y lo hizo cumplir retirando la política;
+  dibujar el distintivo es criterio de HU-12. Mientras tanto la línea de la cuenta de
+  resultados dice «profesionales verificados», que hace visible RF-06.5 sin componente nuevo.
+- **`ProfessionalType.labelRes()` se usa desde `features/search/presentation`**, es decir
+  presentación de una característica leyendo presentación de otra. Ninguna de las tres reglas
+  de arquitectura lo prohíbe y las cuatro cadenas ya existen, pero el sitio natural de ese
+  enumerado compartido sería `core/`. Moverlo toca tres características y no es trabajo de esta
+  historia.
+- **El remoto sigue con 0 filas en `professional_services`.** El filtro por tipo devolviendo
+  cero resultados es correcto, no un defecto.
+- **La reproducibilidad del esquema quedó verificada el mismo día**, en cuanto hubo Docker, y
+  con ello se cierra el pendiente que HU-10 había dejado abierto. Ver abajo.
+
+#### Verificaciones del cierre
+
+`./gradlew build`, `ktlintCheck`, `staticAnalysis` y `assembleDebug`: sin error y **sin ninguna
+advertencia nueva del compilador**. `./gradlew testDebugUnitTest`: **78 suites, 451 pruebas, 0
+fallos, 0 omitidas** (eran 70 y 394 al cerrar HU-10). Las dos migraciones aplicadas con
+`db push` tras `--dry-run`, con los `revoke` y `grant` repetidos a mano porque el `drop` de una
+función se los lleva y PostgreSQL vuelve a conceder `execute` a `public` por omisión.
+
+#### Reproducibilidad del esquema, verificada el 2026-10-09
+
+Pendiente desde HU-10 por falta de Docker, y resuelto al levantarlo.
+
+- **`supabase db diff --linked --schema public`: «No schema changes found».** Y lo que hizo
+  para llegar ahí vale más que el resultado: aplicó **las 31 migraciones desde cero** sobre una
+  base sombra, las dos de esta historia incluidas, sin un error. De modo que la historia de
+  migraciones reconstruye el esquema **y** reproduce exactamente el del proyecto remoto, sin
+  desvío.
+- **`supabase db reset`, sin `--linked`**, sobre la pila local. Hacía falta además del diff
+  porque **un diff compara esquema y no datos**, y la migración de los acentos
+  (`20261009130000`) es de dato: su efecto no aparece en ninguna comparación de esquema. En la
+  base reconstruida los doce tipos salen con sus acentos donde el español los pide —
+  «Aplicación de inyectables», «Colocación y control de vía venosa», «Consulta médica general»,
+  «Curación de heridas», «Terapia física y rehabilitación»—, que es la secuencia que esa
+  migración tenía que demostrar: la semilla los escribe sin acento y la migración los corrige
+  después, siempre en ese orden.
+- En la misma base reconstruida: `professionals` tiene **4 políticas** y
+  `professionals_select_counterpart` **no está**, y `search_nearby_professionals` devuelve sus
+  **trece** columnas, con `base_latitude` y `base_longitude` entre ellas. La pila local se
+  detuvo al terminar.
+
+#### Verificación del autor, 2026-10-10
+
+Las catorce previsualizaciones abiertas y revisadas una por una, en orden, y el recorrido
+hecho en el emulador con las dos cuentas, también en orden. **Sin hallazgos**: ni un texto
+recortado dentro de su contenedor, que es lo único que ninguna prueba de este proyecto
+alcanza a ver. Con eso quedan cumplidos el punto 9 de la Definición de Terminado —las tres
+configuraciones **miradas** y no solo compiladas— y el punto 11, que HU-11 exige por ser
+historia crítica.
+
+**Acción pendiente del autor: ninguna.**
+
+#### Archivos
+
+| Qué | Archivos |
+|---|---|
+| Migraciones | `20261009140000_nearby_search_on_a_city_block_grid.sql`, `20261009141000_counterpart_reads_the_public_projection.sql` |
+| Dominio de la búsqueda | `SearchRadius`, `SearchCriteria`, `SearchOrigin`, `NearbyProfessional`, `SearchError`, `SearchResult`, `IProfessionalSearchRepository`, `GetSearchOriginUseCase`, `SearchNearbyProfessionalsUseCase` |
+| Datos de la búsqueda | `NearbySearchDto`, `SupabaseProfessionalSearchDataSource`, `NearbyProfessionalMapper`, `NearbySearchParamsMapper`, `SearchErrorMapper`, `ProfessionalSearchRepository` |
+| Presentación | `ProfessionalSearchScreen` (14 previsualizaciones), `ProfessionalSearchViewModel`, `ProfessionalSearchMap`, `SearchMapModel`, `SearchLabels` |
+| Compartido | `ui/animations/RadarPulse`, `ui/animations/RadarMotion`, `core/util/DistanceFormat`, `di/SearchModule` |
+| Modificados | `ui/components/ProfessionalCard` (la calificación pasa a ser opcional), `features/catalog/` (el catálogo solo, por caso de uso), `AccountScreen` y sus ocho previsualizaciones, `navigation/`, `SaludEnCasaApplication`, `libs.versions.toml`, los dos `strings.xml` (+34 entradas, 287 en total) |
+| Pruebas | `FakeProfessionalSearchRepository` con sus fábricas, `GetSearchOriginUseCaseTest`, `SearchNearbyProfessionalsUseCaseTest`, `NearbyProfessionalMapperTest`, `NearbySearchParamsMapperTest`, `SearchErrorMapperTest`, `FitZoomTest`, `ProfessionalSearchViewModelTest`, `ProfessionalSearchScreenLargeFontTest` |
+| Documentos | `docs/decisions.md` (7 entradas), `docs/design-system.md` (4 componentes nuevos), `.claude/rules/glosario.md`, `.claude/rules/testing.md` (cómo se afirma algo del recorte interior), `plan.md` |
+
 
 ### HU-12 · Consultar la ficha de un profesional `[ ]` — 5 puntos
 
