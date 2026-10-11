@@ -39,6 +39,7 @@ import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.ui.components.FormField
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ProfileAvatar
+import bo.saludencasa.ui.components.ScreenHeader
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -52,6 +53,7 @@ import java.time.format.FormatStyle
 fun ProfileScreen(
     onOpenPublicProfile: (String) -> Unit,
     onOpenMyServices: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = koinViewModel(),
 ) {
@@ -65,6 +67,7 @@ fun ProfileScreen(
         onAvailabilityChange = viewModel::onAvailabilityChange,
         onOpenPublicProfile = onOpenPublicProfile,
         onOpenMyServices = onOpenMyServices,
+        onBack = onBack,
         modifier = modifier,
     )
 }
@@ -78,6 +81,7 @@ private fun ProfileContent(
     onAvailabilityChange: (Boolean) -> Unit,
     onOpenPublicProfile: (String) -> Unit,
     onOpenMyServices: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -109,6 +113,9 @@ private fun ProfileContent(
                         color = MaterialTheme.colorScheme.error,
                     )
                     PrimaryButton(text = stringResource(R.string.common_retry), onClick = onRetryClick)
+                    OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                        Text(text = stringResource(R.string.common_cancel))
+                    }
                 }
             }
         }
@@ -121,6 +128,7 @@ private fun ProfileContent(
                 onAvailabilityChange = onAvailabilityChange,
                 onOpenPublicProfile = { onOpenPublicProfile(uiState.header.userId) },
                 onOpenMyServices = onOpenMyServices,
+                onBack = onBack,
                 modifier = modifier,
             )
         }
@@ -135,6 +143,7 @@ private fun EditableProfile(
     onAvailabilityChange: (Boolean) -> Unit,
     onOpenPublicProfile: () -> Unit,
     onOpenMyServices: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val form = content.form
@@ -148,11 +157,7 @@ private fun EditableProfile(
                 .padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
         verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
     ) {
-        Text(
-            text = stringResource(R.string.profile_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        ScreenHeader(title = stringResource(R.string.profile_title), onBack = onBack)
 
         ProfileAvatar(
             photoUrl = content.header.photoUrl,
@@ -408,7 +413,7 @@ private fun previewProfessional(
 @Composable
 private fun ProfilePatientLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewPatient(), {}, {}, {}, {}, {}, {})
+        ProfileContent(previewPatient(), {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -416,7 +421,7 @@ private fun ProfilePatientLightPreview() {
 @Composable
 private fun ProfilePatientDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(previewPatient(), {}, {}, {}, {}, {}, {})
+        ProfileContent(previewPatient(), {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -424,7 +429,7 @@ private fun ProfilePatientDarkPreview() {
 @Composable
 private fun ProfileProfessionalLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewProfessional(), {}, {}, {}, {}, {}, {})
+        ProfileContent(previewProfessional(), {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -432,7 +437,7 @@ private fun ProfileProfessionalLightPreview() {
 @Composable
 private fun ProfileProfessionalDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(previewProfessional(), {}, {}, {}, {}, {}, {})
+        ProfileContent(previewProfessional(), {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -448,6 +453,7 @@ private fun ProfileInvalidRatePreview() {
             {},
             {},
             {},
+            {},
         )
     }
 }
@@ -456,7 +462,16 @@ private fun ProfileInvalidRatePreview() {
 @Composable
 private fun ProfileInvalidPhonePreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(previewPatient(status = SaveStatus.Failed(ProfileError.InvalidPhone)), {}, {}, {}, {}, {}, {})
+        ProfileContent(
+            previewPatient(status = SaveStatus.Failed(ProfileError.InvalidPhone)),
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+        )
     }
 }
 
@@ -464,7 +479,7 @@ private fun ProfileInvalidPhonePreview() {
 @Composable
 private fun ProfileLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        ProfileContent(ProfileUiState.Loading, {}, {}, {}, {}, {}, {})
+        ProfileContent(ProfileUiState.Loading, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -472,6 +487,6 @@ private fun ProfileLoadingPreview() {
 @Composable
 private fun ProfileFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        ProfileContent(ProfileUiState.Failed(ProfileError.NetworkUnavailable), {}, {}, {}, {}, {}, {})
+        ProfileContent(ProfileUiState.Failed(ProfileError.NetworkUnavailable), {}, {}, {}, {}, {}, {}, {})
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ import bo.saludencasa.features.profile.domain.model.PublicProfile
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ProfileAvatar
 import bo.saludencasa.ui.components.RatingBadge
+import bo.saludencasa.ui.components.ScreenHeader
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -40,6 +42,7 @@ import java.math.BigDecimal
 @Composable
 fun PublicProfileScreen(
     professionalId: String,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PublicProfileViewModel = koinViewModel { parametersOf(professionalId) },
 ) {
@@ -48,6 +51,7 @@ fun PublicProfileScreen(
     PublicProfileContent(
         uiState = uiState,
         onRetryClick = viewModel::load,
+        onBack = onBack,
         modifier = modifier,
     )
 }
@@ -56,6 +60,7 @@ fun PublicProfileScreen(
 private fun PublicProfileContent(
     uiState: PublicProfileUiState,
     onRetryClick: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -70,17 +75,24 @@ private fun PublicProfileContent(
         }
 
         PublicProfileUiState.NotPublished -> {
-            CenteredMessage(modifier = modifier) {
-                Text(
-                    text = stringResource(R.string.public_profile_not_published_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
+            Column(modifier = modifier.fillMaxSize()) {
+                ScreenHeader(
+                    title = stringResource(R.string.public_profile_title),
+                    onBack = onBack,
+                    modifier = Modifier.padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
                 )
-                Text(
-                    text = stringResource(R.string.public_profile_not_published_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                CenteredMessage(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.public_profile_not_published_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(R.string.public_profile_not_published_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -92,11 +104,14 @@ private fun PublicProfileContent(
                     color = MaterialTheme.colorScheme.error,
                 )
                 PrimaryButton(text = stringResource(R.string.common_retry), onClick = onRetryClick)
+                OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = stringResource(R.string.common_cancel))
+                }
             }
         }
 
         is PublicProfileUiState.Content -> {
-            PublishedCard(profile = uiState.profile, modifier = modifier)
+            PublishedCard(profile = uiState.profile, onBack = onBack, modifier = modifier)
         }
     }
 }
@@ -104,6 +119,7 @@ private fun PublicProfileContent(
 @Composable
 private fun PublishedCard(
     profile: PublicProfile,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
@@ -117,12 +133,7 @@ private fun PublishedCard(
         verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = stringResource(R.string.public_profile_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        ScreenHeader(title = stringResource(R.string.public_profile_title), onBack = onBack)
 
         ProfileAvatar(
             photoUrl = profile.photoUrl,
@@ -285,7 +296,7 @@ private fun previewProfile(
 @Composable
 private fun PublicProfileLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        PublicProfileContent(PublicProfileUiState.Content(previewProfile()), {})
+        PublicProfileContent(PublicProfileUiState.Content(previewProfile()), {}, {})
     }
 }
 
@@ -293,7 +304,7 @@ private fun PublicProfileLightPreview() {
 @Composable
 private fun PublicProfileDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        PublicProfileContent(PublicProfileUiState.Content(previewProfile()), {})
+        PublicProfileContent(PublicProfileUiState.Content(previewProfile()), {}, {})
     }
 }
 
@@ -304,6 +315,7 @@ private fun PublicProfileWithoutRatePreview() {
         PublicProfileContent(
             PublicProfileUiState.Content(previewProfile(baseRateBob = null, totalReviews = 0)),
             {},
+            {},
         )
     }
 }
@@ -312,7 +324,7 @@ private fun PublicProfileWithoutRatePreview() {
 @Composable
 private fun PublicProfileNotPublishedPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        PublicProfileContent(PublicProfileUiState.NotPublished, {})
+        PublicProfileContent(PublicProfileUiState.NotPublished, {}, {})
     }
 }
 
@@ -320,7 +332,7 @@ private fun PublicProfileNotPublishedPreview() {
 @Composable
 private fun PublicProfileLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        PublicProfileContent(PublicProfileUiState.Loading, {})
+        PublicProfileContent(PublicProfileUiState.Loading, {}, {})
     }
 }
 
@@ -328,6 +340,6 @@ private fun PublicProfileLoadingPreview() {
 @Composable
 private fun PublicProfileFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        PublicProfileContent(PublicProfileUiState.Failed(ProfileError.NetworkUnavailable), {})
+        PublicProfileContent(PublicProfileUiState.Failed(ProfileError.NetworkUnavailable), {}, {})
     }
 }

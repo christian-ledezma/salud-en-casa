@@ -52,6 +52,7 @@ import bo.saludencasa.features.verification.domain.model.VerificationDocument
 import bo.saludencasa.features.verification.domain.model.VerificationError
 import bo.saludencasa.ui.components.FormField
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.ScreenHeader
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -225,6 +226,7 @@ internal fun VerificationContent(
                 onCaptionChanged = onCaptionChanged,
                 onPickType = onPickType,
                 onRetry = onRetry,
+                onBack = onBack,
                 modifier = modifier,
             )
 
@@ -266,6 +268,7 @@ private fun VerificationChecklistList(
     onCaptionChanged: (String) -> Unit,
     onPickType: (DocumentType) -> Unit,
     onRetry: (DocumentType) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -279,15 +282,10 @@ private fun VerificationChecklistList(
     ) {
         item(key = "header") {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
-                Text(
-                    text = stringResource(R.string.verification_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = stringResource(R.string.verification_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ScreenHeader(
+                    title = stringResource(R.string.verification_title),
+                    onBack = onBack,
+                    subtitle = stringResource(R.string.verification_subtitle),
                 )
                 content.notice?.let { error ->
                     Text(

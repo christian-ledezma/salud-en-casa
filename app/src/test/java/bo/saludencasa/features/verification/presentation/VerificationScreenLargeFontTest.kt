@@ -2,6 +2,7 @@ package bo.saludencasa.features.verification.presentation
 
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
@@ -78,6 +79,16 @@ class VerificationScreenLargeFontTest {
         )
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(string(R.string.verification_action_replace)),
+        )
+    }
+
+    // The checklist screen once had no way back but the system gesture.
+    @Test
+    fun theBackArrowStaysOnScreenBesideTheTitle() {
+        showPendingIdFront()
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithContentDescription(string(R.string.cd_back_button)),
         )
     }
 }

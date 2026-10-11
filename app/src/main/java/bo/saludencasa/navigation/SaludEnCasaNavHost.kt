@@ -64,6 +64,7 @@ fun SaludEnCasaNavHost(
             ProfileScreen(
                 onOpenPublicProfile = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
                 onOpenMyServices = { navController.navigate(MyServicesRoute) },
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -85,6 +86,7 @@ fun SaludEnCasaNavHost(
             AddressListScreen(
                 onAddClick = { navController.navigate(AddressRoute()) },
                 onEditClick = { addressId -> navController.navigate(AddressRoute(addressId)) },
+                onBack = { navController.popBackStack() },
             )
         }
 
@@ -103,11 +105,15 @@ fun SaludEnCasaNavHost(
                         popUpTo(AddressListRoute) { inclusive = true }
                     }
                 },
+                onBack = { navController.popBackStack() },
             )
         }
 
         composable<PublicProfileRoute> { entry ->
-            PublicProfileScreen(professionalId = entry.toRoute<PublicProfileRoute>().professionalId)
+            PublicProfileScreen(
+                professionalId = entry.toRoute<PublicProfileRoute>().professionalId,
+                onBack = { navController.popBackStack() },
+            )
         }
 
         composable<VerificationRoute> {

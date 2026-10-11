@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,6 +33,7 @@ import bo.saludencasa.core.vo.Coordinate
 import bo.saludencasa.features.location.domain.model.Address
 import bo.saludencasa.features.location.domain.model.AddressError
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.ScreenHeader
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -40,6 +42,7 @@ import org.koin.androidx.compose.koinViewModel
 fun AddressListScreen(
     onAddClick: () -> Unit,
     onEditClick: (String) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AddressListViewModel = koinViewModel(),
 ) {
@@ -57,6 +60,7 @@ fun AddressListScreen(
         onRetryClick = viewModel::load,
         onAddClick = onAddClick,
         onEditClick = onEditClick,
+        onBack = onBack,
         modifier = modifier,
     )
 }
@@ -74,6 +78,7 @@ private fun AddressListContent(
     onRetryClick: () -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (String) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
@@ -88,18 +93,25 @@ private fun AddressListContent(
         }
 
         AddressListUiState.Empty -> {
-            CenteredMessage(modifier = modifier) {
-                Text(
-                    text = stringResource(R.string.address_list_empty_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
+            Column(modifier = modifier.fillMaxSize()) {
+                ScreenHeader(
+                    title = stringResource(R.string.address_list_title),
+                    onBack = onBack,
+                    modifier = Modifier.padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
                 )
-                Text(
-                    text = stringResource(R.string.address_list_empty_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                PrimaryButton(text = stringResource(R.string.address_list_add), onClick = onAddClick)
+                CenteredMessage(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.address_list_empty_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(R.string.address_list_empty_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    PrimaryButton(text = stringResource(R.string.address_list_add), onClick = onAddClick)
+                }
             }
         }
 
@@ -111,6 +123,9 @@ private fun AddressListContent(
                     color = MaterialTheme.colorScheme.error,
                 )
                 PrimaryButton(text = stringResource(R.string.common_retry), onClick = onRetryClick)
+                OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                    Text(text = stringResource(R.string.common_cancel))
+                }
             }
         }
 
@@ -126,6 +141,7 @@ private fun AddressListContent(
                 onDismissSuccessorChoice = onDismissSuccessorChoice,
                 onAddClick = onAddClick,
                 onEditClick = onEditClick,
+                onBack = onBack,
                 modifier = modifier,
             )
         }
@@ -164,6 +180,7 @@ private fun AddressListItems(
     onDismissSuccessorChoice: () -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (String) -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -171,11 +188,7 @@ private fun AddressListItems(
             modifier = Modifier.padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
             verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
         ) {
-            Text(
-                text = stringResource(R.string.address_list_title),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
+            ScreenHeader(title = stringResource(R.string.address_list_title), onBack = onBack)
 
             content.notice?.let { error ->
                 Text(
@@ -428,7 +441,7 @@ private fun previewContent(
 @Composable
 private fun AddressListContentLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -436,7 +449,7 @@ private fun AddressListContentLightPreview() {
 @Composable
 private fun AddressListContentDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -444,7 +457,7 @@ private fun AddressListContentDarkPreview() {
 @Composable
 private fun AddressListContentChoosingSuccessorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -452,7 +465,7 @@ private fun AddressListContentChoosingSuccessorPreview() {
 @Composable
 private fun AddressListContentChoosingSuccessorLargeFontPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -460,7 +473,7 @@ private fun AddressListContentChoosingSuccessorLargeFontPreview() {
 @Composable
 private fun AddressListContentChoosingSuccessorDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(choosingSuccessorFor = "1"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -468,7 +481,7 @@ private fun AddressListContentChoosingSuccessorDarkPreview() {
 @Composable
 private fun AddressListContentConfirmingDeletePreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(previewContent(confirmingDeleteId = "2"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(previewContent(confirmingDeleteId = "2"), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -476,7 +489,7 @@ private fun AddressListContentConfirmingDeletePreview() {
 @Composable
 private fun AddressListEmptyPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(AddressListUiState.Empty, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(AddressListUiState.Empty, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -484,7 +497,7 @@ private fun AddressListEmptyPreview() {
 @Composable
 private fun AddressListLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressListContent(AddressListUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AddressListContent(AddressListUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -494,6 +507,7 @@ private fun AddressListFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         AddressListContent(
             AddressListUiState.Failed(AddressError.NetworkUnavailable),
+            {},
             {},
             {},
             {},

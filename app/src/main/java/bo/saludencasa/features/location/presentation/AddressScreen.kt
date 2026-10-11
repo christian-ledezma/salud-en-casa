@@ -33,6 +33,7 @@ import bo.saludencasa.features.location.domain.model.AddressError
 import bo.saludencasa.features.location.domain.model.MapDefaults
 import bo.saludencasa.ui.components.FormField
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.ScreenHeader
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -41,6 +42,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun AddressScreen(
     onSaved: () -> Unit,
+    onBack: () -> Unit,
     addressId: String? = null,
     modifier: Modifier = Modifier,
     viewModel: AddressViewModel = koinViewModel { parametersOf(addressId) },
@@ -66,6 +68,7 @@ fun AddressScreen(
         onDeclineLocationClick = viewModel::onPermissionDeclined,
         onSaveClick = viewModel::save,
         onRetryClick = viewModel::load,
+        onBack = onBack,
         modifier = modifier,
     ) { content, mapModifier ->
         AddressMap(
@@ -91,6 +94,7 @@ private fun AddressContent(
     onDeclineLocationClick: () -> Unit,
     onSaveClick: () -> Unit,
     onRetryClick: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     map: @Composable (AddressUiState.Content, Modifier) -> Unit,
 ) {
@@ -123,6 +127,9 @@ private fun AddressContent(
                         color = MaterialTheme.colorScheme.error,
                     )
                     PrimaryButton(text = stringResource(R.string.common_retry), onClick = onRetryClick)
+                    OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                        Text(text = stringResource(R.string.common_cancel))
+                    }
                 }
             }
         }
@@ -136,6 +143,7 @@ private fun AddressContent(
                 onAllowLocationClick = onAllowLocationClick,
                 onDeclineLocationClick = onDeclineLocationClick,
                 onSaveClick = onSaveClick,
+                onBack = onBack,
                 modifier = modifier,
                 map = map,
             )
@@ -152,6 +160,7 @@ private fun EditableAddress(
     onAllowLocationClick: () -> Unit,
     onDeclineLocationClick: () -> Unit,
     onSaveClick: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     map: @Composable (AddressUiState.Content, Modifier) -> Unit,
 ) {
@@ -166,11 +175,7 @@ private fun EditableAddress(
                 .padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
         verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
     ) {
-        Text(
-            text = stringResource(R.string.address_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        ScreenHeader(title = stringResource(R.string.address_title), onBack = onBack)
 
         if (content.point == null && content.permission == LocationPermissionState.NotRequested) {
             LocationRationale(
@@ -404,7 +409,7 @@ private fun PreviewMap(modifier: Modifier = Modifier) {
 @Composable
 private fun AddressContentLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressContent(previewContent(), {}, {}, {}, {}, {}, {}, {}) { _, modifier -> PreviewMap(modifier) }
+        AddressContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}) { _, modifier -> PreviewMap(modifier) }
     }
 }
 
@@ -412,7 +417,7 @@ private fun AddressContentLightPreview() {
 @Composable
 private fun AddressContentDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        AddressContent(previewContent(), {}, {}, {}, {}, {}, {}, {}) { _, modifier -> PreviewMap(modifier) }
+        AddressContent(previewContent(), {}, {}, {}, {}, {}, {}, {}, {}) { _, modifier -> PreviewMap(modifier) }
     }
 }
 
@@ -433,6 +438,7 @@ private fun AddressContentFirstTimePreview() {
             {},
             {},
             {},
+            {},
         ) { _, modifier -> PreviewMap(modifier) }
     }
 }
@@ -446,6 +452,7 @@ private fun AddressContentDeniedPreview() {
                 permission = LocationPermissionState.Denied,
                 notice = AddressNotice.PlaceNotFound,
             ),
+            {},
             {},
             {},
             {},
@@ -475,6 +482,7 @@ private fun AddressContentWithoutPointPreview() {
             {},
             {},
             {},
+            {},
         ) { _, modifier -> PreviewMap(modifier) }
     }
 }
@@ -483,7 +491,7 @@ private fun AddressContentWithoutPointPreview() {
 @Composable
 private fun AddressLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AddressContent(AddressUiState.Loading, {}, {}, {}, {}, {}, {}, {}) { _, modifier -> PreviewMap(modifier) }
+        AddressContent(AddressUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {}) { _, modifier -> PreviewMap(modifier) }
     }
 }
 
@@ -493,6 +501,7 @@ private fun AddressFailedPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         AddressContent(
             AddressUiState.Failed(AddressError.NetworkUnavailable),
+            {},
             {},
             {},
             {},
