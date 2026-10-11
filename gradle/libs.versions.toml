@@ -77,6 +77,7 @@ googleid = { group = "com.google.android.libraries.identity.googleid", name = "g
 
 # Mapas y ubicacion
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+maps-compose-utils = { group = "com.google.maps.android", name = "maps-compose-utils", version.ref = "mapsCompose" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 # Monitoreo de fallos. Sin firebase-analytics: Crashlytics no lo exige y RNF-03
@@ -137,6 +138,7 @@ supabase = [
 ]
 maps = [
     "maps-compose",
+    "maps-compose-utils",
     "play-services-location",
 ]
 auth = [

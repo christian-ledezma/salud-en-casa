@@ -16,6 +16,7 @@ import bo.saludencasa.features.location.presentation.AddressScreen
 import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
+import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewScreen
 import bo.saludencasa.features.verification.presentation.VerificationScreen
@@ -52,6 +53,7 @@ fun SaludEnCasaNavHost(
             AccountScreen(
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
                 onOpenProfile = { navController.navigate(ProfileRoute) },
+                onOpenSearch = { navController.navigate(ProfessionalSearchRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
                 onOpenVerification = { navController.navigate(VerificationRoute) },
                 onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
@@ -62,6 +64,16 @@ fun SaludEnCasaNavHost(
             ProfileScreen(
                 onOpenPublicProfile = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
                 onOpenMyServices = { navController.navigate(MyServicesRoute) },
+            )
+        }
+
+        composable<ProfessionalSearchRoute> {
+            ProfessionalSearchScreen(
+                onBack = { navController.popBackStack() },
+                onOpenProfessional = { professionalId ->
+                    navController.navigate(PublicProfileRoute(professionalId))
+                },
+                onRegisterAddress = { navController.navigate(AddressRoute()) },
             )
         }
 

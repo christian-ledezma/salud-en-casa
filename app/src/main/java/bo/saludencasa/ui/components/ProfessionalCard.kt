@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,7 +37,12 @@ import coil3.compose.AsyncImage
 fun ProfessionalCard(
     name: String,
     specialty: String,
-    rating: Double,
+    // Null when nobody has rated this person yet. The average alone cannot say
+    // so: a professional with no votes carries an average of zero, and drawing
+    // the badge for it shows the worst possible score as if someone had given
+    // it (docs/decisions.md, 2026-10-09).
+    rating: Double?,
+    noRatingLabel: String,
     distanceText: String,
     rateText: String,
     photoUrl: String?,
@@ -66,11 +72,24 @@ fun ProfessionalCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(
+                    // FlowRow and not Row: without a rating the badge's place is
+                    // taken by a sentence, and in a plain Row the distance only
+                    // got the width that sentence left over -- which at a 200 %
+                    // font scale was none, and the distance stopped being drawn
+                    // at all. Here it drops to the line below instead.
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
                     ) {
-                        RatingBadge(rating = rating)
+                        if (rating == null) {
+                            Text(
+                                text = noRatingLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            RatingBadge(rating = rating)
+                        }
                         Text(
                             text = distanceText,
                             style = MaterialTheme.typography.labelSmall,
@@ -143,6 +162,7 @@ private fun ProfessionalCardLightPreview() {
             name = "Ana Pérez",
             specialty = "Enfermería",
             rating = 4.8,
+            noRatingLabel = "Sin calificaciones",
             distanceText = "1.2 km",
             rateText = "Bs 80",
             photoUrl = null,
@@ -162,6 +182,7 @@ private fun ProfessionalCardDarkPreview() {
             name = "Ana Pérez",
             specialty = "Enfermería",
             rating = 4.8,
+            noRatingLabel = "Sin calificaciones",
             distanceText = "1.2 km",
             rateText = "Bs 80",
             photoUrl = null,
