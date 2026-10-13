@@ -4970,27 +4970,65 @@ minuto**. Se confirmó en vivo que existen `platform_settings` (RLS, plazo 30),
   pide la Definición de Terminado para un sprint que toca el esquema. La migración
   directa ya se aplicó limpia sobre el remoto.
 
-### HU-14 · Ver las solicitudes de mi zona `[ ]` — 8 puntos
+### HU-14 · Ver las solicitudes de mi zona `[x]` — 8 puntos
 
 > Como **profesional**, quiero **ver en tiempo real las solicitudes publicadas
 > dentro de mi radio**, para **ofertar por las que me interesan**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que soy profesional verificado, cuando abro mi bandeja, entonces veo las
+- [x] Dado que soy profesional verificado, cuando abro mi bandeja, entonces veo las
       solicitudes publicadas dentro de mi radio de cobertura.
-- [ ] Dado que se publica una solicitud nueva en mi radio, cuando estoy en la
+- [x] Dado que se publica una solicitud nueva en mi radio, cuando estoy en la
       bandeja, entonces aparece sin que yo recargue.
-- [ ] Dado que una solicitud es de un tipo que no presto, cuando abro la bandeja,
+- [x] Dado que una solicitud es de un tipo que no presto, cuando abro la bandeja,
       entonces no la veo.
-- [ ] Dado que una solicitud ya fue aceptada, cuando abro la bandeja, entonces
+- [x] Dado que una solicitud ya fue aceptada, cuando abro la bandeja, entonces
       desaparece.
-- [ ] La bandeja está paginada.
+- [x] La bandeja está paginada.
 
 **Requisitos:** RF-07.4, RNF-08, RN-04.
 
 **Tareas técnicas.** Suscripción en tiempo real expuesta como flujo desde el
 la capa de datos · filtrado por radio y tipo de servicio.
+
+**Cerrada (2026-10-13).** Migración `20261013120000_professional_inbox.sql`
+aplicada al remoto (`db push` tras `--dry-run` limpio). La bandeja se lee por la
+RPC `immediate_inbox` (definidor), que proyecta tipo, ciudad, descripción,
+presupuesto y **distancia desde la base redondeada a 100 m**, sin la ubicación
+exacta, la dirección ni la identidad del paciente (RF-08.6). El tiempo real es un
+Broadcast sin datos desde un trigger en `service_requests` al tema compartido
+`immediate_inbox`, con una política en `realtime.messages` que solo deja escuchar
+a un profesional aprobado; el cliente re-consulta la RPC en cada aviso (motivo:
+supabase-kt no recorta columnas del evento, ver `docs/decisions.md` 2026-10-13).
+De paso se corrigió una **regresión de HU-13**: el inbox había perdido la
+exclusión `patient_id <> auth.uid()` (RN-13/INV-16) al recrearse para el guard de
+tiempo; ahora lleva ambos guards.
+
+Pruebas JVM (incluida `InboxViewModelTest`, que prueba que un aviso trae la
+solicitud nueva sin recargar), `ktlintCheck` y las tres previsualizaciones, todas
+en verde. Experimentos SQL contra el remoto (`begin…rollback`, 2026-10-13, todos
+en verde):
+
+1. `immediate_inbox` como profesional aprobado que cubre devuelve **solo** la
+   `PUBLISHED` inmediata en radio de un tipo que presta, con `distance_m` = 0;
+   descarta a la vez el tipo no ofrecido, la de fuera de radio, la vencida, la
+   `ACCEPTED` y **la propia** del profesional de doble rol.
+2. La firma de retorno de la RPC es `TABLE(id, service_type_name, city,
+   description, suggested_budget_bob, distance_m, status, created_at)`: sin
+   `location`, `address_text`, `reference` ni `patient_id`.
+3. El predicado de escucha (`existe en professional_directory`) es verdadero para
+   el profesional aprobado y falso para el paciente.
+4. La política sobre `realtime.messages`, los dos triggers y `realtime.send` se
+   crean y ejecutan sin error; el insert y el cambio de estado disparan el aviso.
+5. La política `service_requests_select_inbox` recuperada, leída de `pg_policies`,
+   contiene a la vez `patient_id <> auth.uid()` y `expires_at > now()`.
+
+Verificación en vivo tras el push: RPC, función y dos triggers presentes, política
+del inbox con ambos guards y política de `realtime.messages` creadas. No se crearon
+tablas nuevas, así que `everyTableHasRowLevelSecurityEnabledAndAtLeastOnePolicy` no
+cambia. Pendiente a nivel de sprint (no de historia): `supabase db reset` local al
+cierre del Sprint 5.
 
 ### HU-15 · Declarar mi disponibilidad horaria `[ ]` — 3 puntos
 

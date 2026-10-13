@@ -57,6 +57,8 @@ que lo introduce.
 | Radio de búsqueda | `SearchRadius` | Las tres opciones que el paciente puede pedir: 2, 5 y 10 km |
 | Modo de resultados | `ResultsMode` | `MAP` o `LIST`, las dos formas de ver el mismo resultado |
 | Punto aproximado de la base | `basePoint` / `base_latitude`, `base_longitude` | Dónde se dibuja el marcador: la base profesional redondeada a la manzana. Nunca la coordenada exacta |
+| Bandeja de solicitudes | `immediate_inbox` / `InboxRequest` | Las solicitudes inmediatas publicadas dentro del radio del profesional, leídas por la RPC de definidor. Cada fila lleva tipo, ciudad, presupuesto y la distancia redondeada, nunca la ubicación exacta ni la identidad del paciente |
+| Aviso de la bandeja | `inboxSignals` / `notify_immediate_inbox` | El Broadcast sin datos que dispara un trigger al tema `immediate_inbox` para que el cliente re-consulte. No transporta la fila |
 | Cola de revisión | `PendingReviewSubject` | Persona con trabajo pendiente del administrador: documentos por revisar, la verificación por conceder, o las dos |
 | Listo para verificar | `awaitingVerification` / `awaiting_verification` | Profesional con todos sus requeridos aprobados que todavía no es `APPROVED` |
 | Esperando desde | `waitingSince` / `waiting_since` | Cuándo el turno pasó al administrador: la subida del documento o la aprobación del último requerido |

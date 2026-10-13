@@ -4553,6 +4553,51 @@ contra el remoto y se anotan en `plan.md`.
 
 ---
 
+## 2026-10-13 · HU-14: el tiempo real de la bandeja es un aviso sin datos, no la fila
+
+**Contexto.** La bandeja del profesional debe actualizarse sin que recargue
+(RF-07.4). Es la primera característica en tiempo real del proyecto. Supabase
+Realtime transmite filas de tabla, y la fila de `service_requests` lleva el
+snapshot exacto (`location` como PostGIS, `address_text`, `reference`,
+`patient_id`): entregarla por el socket a todo profesional que cubra la zona,
+antes de que acepte, contradice RF-08.6 y la doctrina de privacidad de HU-11.
+
+**Decisión.** La bandeja se lee por la RPC de definidor `immediate_inbox`, que
+proyecta tipo, ciudad, descripción, presupuesto y la distancia desde la base
+redondeada a 100 m, sin ubicación exacta ni identidad del paciente. El tiempo real
+es un **Broadcast sin datos** desde un trigger en `service_requests` a un tema
+compartido (`immediate_inbox`), con una política en `realtime.messages` que solo
+deja escuchar a un profesional aprobado; el cliente re-consulta la RPC en cada
+aviso.
+
+**Razonamiento.** Se descartó Postgres Changes directo porque supabase-kt 3.8.0
+—a diferencia del cliente JS— **no expone el filtro de columnas por suscripción**:
+su `postgresChangeFlow` solo acepta `table` y `filter` por fila. Y la RLS de
+Realtime sobre Postgres Changes se evalúa contra el registro del WAL, que la
+política del inbox necesita con `location` para filtrar por cobertura; es decir, o
+`location` viaja por el socket (fuga), o se quita de la publicación y el profesional
+deja de recibir eventos. El Broadcast desde trigger rompe esa disyuntiva: el aviso
+no lleva nada (`'{}'::jsonb`), la RPC —que ya filtra por cobertura, tipo, estado y
+tiempo— decide qué se ve, y la autorización de escucha vive en `realtime.messages`,
+no en las columnas. El tema es compartido (no dirigido) porque computar los
+profesionales que cubren cada solicitud sería un fan-out innecesario a esta escala:
+cada re-consulta ya viene filtrada, y pingear a todos cuesta una consulta barata.
+La distancia se redondea a 100 m como en HU-11, aunque aquí el origen es la base
+fija del profesional y no un parámetro libre, de modo que el canal de bisección de
+HU-11 no aplica y el redondeo es defensa en profundidad. `realtime.messages` ya
+tiene RLS habilitada por la plataforma, así que la migración solo agrega la
+política (supautils lo permite a `postgres`); un `alter table ... enable rls`
+fallaría por no ser dueño y abortaría la transacción.
+
+**Consecuencia.** El proyecto usa Realtime por primera vez, con el patrón
+«aviso + re-consulta» que HU-18 reutilizará para el hilo de ofertas. De paso se
+corrigió una regresión de HU-13: al recrear `service_requests_select_inbox` para
+el guard de tiempo, se había perdido la exclusión `patient_id <> auth.uid()`
+(RN-13/INV-16); la migración de HU-14 restituye ambos guards. El toque de fila en
+la bandeja queda reservado para HU-17 (ofertar); HU-14 solo muestra.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
