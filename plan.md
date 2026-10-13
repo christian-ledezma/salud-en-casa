@@ -798,7 +798,7 @@ se revisaron además visualmente. Es la misma herramienta que usa la vista previ
 de Mermaid de GitHub por debajo, así que un diagrama que renderiza aquí renderiza
 ahí.
 
-### HT-19 · Identidad de marca: ícono y arranque `[~]` — 2026-10-13
+### HT-19 · Identidad de marca: ícono y arranque `[x]` — 2026-10-13
 
 > Como **persona que abre la aplicación**, quiero **reconocer la marca desde el ícono
 > hasta la primera pantalla**, para **saber que estoy en Salud en Casa y no en una
@@ -835,16 +835,17 @@ sección 9.
       `app_name` como descripción
 - [x] La integración continua pasó el 2026-10-13 (ejecución 54) con Java 17: análisis
       estático, `./gradlew test` con las ocho pruebas nuevas y `assembleDebug`
-- [ ] `./gradlew build` completo. Suma el análisis de Android lint, que la integración
-      continua no corre
-- [ ] Las tres previsualizaciones del arranque —claro, oscuro y al 200 %— se abrieron y
-      se ven correctas
-- [ ] Recorrido en emulador con Android 12 o superior y con uno de 8 a 11:
+- [x] `./gradlew build` completo. Suma el análisis de Android lint, que la integración
+      continua no corre. Verificado por el autor el 2026-10-13
+- [x] Las tres previsualizaciones del arranque —claro, oscuro y al 200 %— se abrieron y
+      se ven correctas. Verificado por el autor el 2026-10-13
+- [x] Recorrido en emulador con Android 12 o superior y con uno de 8 a 11, hecho por el
+      autor el 2026-10-13:
   - el logo no salta entre el splash y la animación;
   - la aplicación llega a la pantalla que corresponde;
   - al girar el teléfono en cualquier pantalla no asoma el logo
 
-**Por qué los tres últimos siguen abiertos.** La sesión del 2026-10-13 no pudo compilar.
+**Por qué los tres últimos los cerró el autor.** La sesión del 2026-10-13 no pudo compilar.
 La política de red del entorno rechaza `dl.google.com`, donde vive el complemento de
 Android, y Maven Central respondió con límite de peticiones. Además, el entorno solo tiene
 Java 21 y el proceso de Gradle está fijado en 17. Para intentarlo, se cambió
@@ -852,8 +853,9 @@ temporalmente `gradle/gradle-daemon-jvm.properties` a 21 y se agregó un
 `app/google-services.json` de relleno. **Los dos se restauraron**: el primero quedó igual
 byte a byte, y el segundo se eliminó. La primera compilación real fue la de la
 integración continua, que no corre Android lint ni puede abrir una previsualización. El
-recorrido es obligatorio porque el arranque es parte del primer ingreso de HU-01, que
-figura como crítica en «Cuándo hace falta un dispositivo».
+autor verificó los tres puntos y los dio por cumplidos el 2026-10-13. El recorrido era
+obligatorio porque el arranque es parte del primer ingreso de HU-01, que figura como
+crítica en «Cuándo hace falta un dispositivo».
 
 **Pruebas.**
 
