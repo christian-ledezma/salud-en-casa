@@ -16,6 +16,8 @@ import bo.saludencasa.features.location.presentation.AddressScreen
 import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
+import bo.saludencasa.features.requests.presentation.CreateRequestScreen
+import bo.saludencasa.features.requests.presentation.MyRequestsScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewScreen
@@ -54,6 +56,8 @@ fun SaludEnCasaNavHost(
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
                 onOpenProfile = { navController.navigate(ProfileRoute) },
                 onOpenSearch = { navController.navigate(ProfessionalSearchRoute) },
+                onOpenCreateRequest = { navController.navigate(CreateRequestRoute) },
+                onOpenMyRequests = { navController.navigate(MyRequestsRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
                 onOpenVerification = { navController.navigate(VerificationRoute) },
                 onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
@@ -75,6 +79,28 @@ fun SaludEnCasaNavHost(
                     navController.navigate(PublicProfileRoute(professionalId))
                 },
                 onRegisterAddress = { navController.navigate(AddressRoute()) },
+            )
+        }
+
+        composable<CreateRequestRoute> {
+            CreateRequestScreen(
+                onBack = { navController.popBackStack() },
+                // The published request lands on the list that shows it, and the
+                // create screen is torn off the back stack so returning does not
+                // reopen a spent form.
+                onCreated = {
+                    navController.navigate(MyRequestsRoute) {
+                        popUpTo(CreateRequestRoute) { inclusive = true }
+                    }
+                },
+                onRegisterAddress = { navController.navigate(AddressRoute()) },
+            )
+        }
+
+        composable<MyRequestsRoute> {
+            MyRequestsScreen(
+                onBack = { navController.popBackStack() },
+                onCreateRequest = { navController.navigate(CreateRequestRoute) },
             )
         }
 

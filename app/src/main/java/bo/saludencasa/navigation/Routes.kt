@@ -26,6 +26,12 @@ data class PublicProfileRoute(
 data object ProfessionalSearchRoute
 
 @Serializable
+data object CreateRequestRoute
+
+@Serializable
+data object MyRequestsRoute
+
+@Serializable
 data object MyServicesRoute
 
 @Serializable

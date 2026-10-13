@@ -45,6 +45,8 @@ fun AccountScreen(
     onSignedOut: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSearch: () -> Unit,
+    onOpenCreateRequest: () -> Unit,
+    onOpenMyRequests: () -> Unit,
     onOpenAddress: () -> Unit,
     onOpenVerification: () -> Unit,
     onOpenDocumentReview: () -> Unit,
@@ -63,6 +65,8 @@ fun AccountScreen(
         onDismissError = viewModel::dismissError,
         onOpenProfile = onOpenProfile,
         onOpenSearch = onOpenSearch,
+        onOpenCreateRequest = onOpenCreateRequest,
+        onOpenMyRequests = onOpenMyRequests,
         onOpenAddress = onOpenAddress,
         onOpenVerification = onOpenVerification,
         onOpenDocumentReview = onOpenDocumentReview,
@@ -79,6 +83,8 @@ internal fun AccountContent(
     onDismissError: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSearch: () -> Unit,
+    onOpenCreateRequest: () -> Unit,
+    onOpenMyRequests: () -> Unit,
     onOpenAddress: () -> Unit,
     onOpenVerification: () -> Unit,
     onOpenDocumentReview: () -> Unit,
@@ -148,6 +154,18 @@ internal fun AccountContent(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(text = stringResource(R.string.auth_account_open_search))
+                        }
+                        OutlinedButton(
+                            onClick = onOpenCreateRequest,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(text = stringResource(R.string.auth_account_open_create_request))
+                        }
+                        OutlinedButton(
+                            onClick = onOpenMyRequests,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(text = stringResource(R.string.auth_account_open_my_requests))
                         }
                     }
                     OutlinedButton(
@@ -268,7 +286,7 @@ private val onlyPatient = setOf(UserRole.PATIENT)
 private fun AccountBothRolesLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -277,7 +295,7 @@ private fun AccountBothRolesLightPreview() {
 private fun AccountBothRolesDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         val state = AccountUiState.Content(previewSession(), previewRoles(bothRoles, UserRole.PROFESSIONAL))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -286,7 +304,7 @@ private fun AccountBothRolesDarkPreview() {
 private fun AccountSingleRoleLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -295,7 +313,7 @@ private fun AccountSingleRoleLightPreview() {
 private fun AccountSingleRoleDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
         val state = AccountUiState.Content(previewSession(), previewRoles(onlyPatient, UserRole.PATIENT))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -304,7 +322,7 @@ private fun AccountSingleRoleDarkPreview() {
 private fun AccountAdminPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val state = AccountUiState.Content(previewSession(), previewRoles(setOf(UserRole.ADMIN), UserRole.ADMIN))
-        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(state, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -313,7 +331,7 @@ private fun AccountAdminPreview() {
 private fun AccountRoleSwitchErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
         val roles = previewRoles(bothRoles, UserRole.PATIENT, ProfileError.NetworkUnavailable)
-        AccountContent(AccountUiState.Content(previewSession(), roles), {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Content(previewSession(), roles), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -321,7 +339,7 @@ private fun AccountRoleSwitchErrorPreview() {
 @Composable
 private fun AccountLoadingPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Loading, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -329,6 +347,6 @@ private fun AccountLoadingPreview() {
 @Composable
 private fun AccountErrorPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {}, {}, {}, {}, {}, {})
+        AccountContent(AccountUiState.Error(AuthError.NetworkUnavailable), {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }

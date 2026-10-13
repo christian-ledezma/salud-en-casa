@@ -385,4 +385,39 @@
     <string name="error_search_unreadable_result">Un resultado llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
     <string name="error_reviews_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_reviews_unreadable_result">Un comentario llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
+    <string name="auth_account_open_create_request">Solicitar atención</string>
+    <string name="auth_account_open_my_requests">Mis solicitudes</string>
+
+    <string name="request_create_title">Solicitar atención</string>
+    <string name="request_create_subtitle">Publica tu solicitud y los profesionales cercanos podrán ofertar.</string>
+    <string name="request_create_service_type_label">Tipo de atención</string>
+    <string name="request_create_address_label">Dónde necesitas la atención</string>
+    <string name="request_create_description_label">Describe lo que necesitas (opcional)</string>
+    <string name="request_create_budget_label">Presupuesto sugerido en bolivianos (opcional)</string>
+    <string name="request_create_submit">Publicar solicitud</string>
+    <string name="request_create_no_address_title">Todavía no registraste una dirección</string>
+    <string name="request_create_no_address_description">La solicitud se publica alrededor de una de tus direcciones. Registra una para continuar.</string>
+    <string name="request_create_no_address_action">Registrar mi dirección</string>
+
+    <string name="request_list_title">Mis solicitudes</string>
+    <string name="request_list_empty_title">Todavía no publicaste ninguna solicitud</string>
+    <string name="request_list_empty_description">Cuando necesites atención, publica una solicitud y los profesionales cercanos podrán ofertar.</string>
+    <string name="request_list_create_action">Solicitar atención</string>
+    <string name="request_list_budget">Presupuesto sugerido: %1$s</string>
+    <string name="request_list_cancel_action">Cancelar solicitud</string>
+    <string name="request_list_load_more">Ver más solicitudes</string>
+
+    <string name="request_status_published">Publicada</string>
+    <string name="request_status_negotiating">En negociación</string>
+    <string name="request_status_accepted">Aceptada</string>
+    <string name="request_status_in_progress">En curso</string>
+    <string name="request_status_completed">Completada</string>
+    <string name="request_status_cancelled">Cancelada</string>
+    <string name="request_status_expired">Expirada</string>
+
+    <string name="error_request_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
+    <string name="error_request_address_not_owned">Esa dirección ya no está disponible. Elige otra e inténtalo de nuevo.</string>
+    <string name="error_request_service_type_unavailable">Ese tipo de atención ya no está disponible. Elige otro.</string>
+    <string name="error_request_invalid_description">La descripción es demasiado larga. Acórtala e inténtalo de nuevo.</string>
+    <string name="error_request_invalid_budget">Ingresa un monto válido, mayor a cero y con hasta dos decimales.</string>
 </resources>
