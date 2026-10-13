@@ -8,6 +8,7 @@ import bo.saludencasa.features.catalog.data.mapper.toServiceType
 import bo.saludencasa.features.catalog.data.model.ProfessionalServiceRow
 import bo.saludencasa.features.catalog.domain.model.CatalogError
 import bo.saludencasa.features.catalog.domain.model.DeclaredServicesResult
+import bo.saludencasa.features.catalog.domain.model.ProfessionalServicesResult
 import bo.saludencasa.features.catalog.domain.model.ServiceDeclarationResult
 import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
 import bo.saludencasa.features.catalog.domain.repository.ICatalogRepository
@@ -37,13 +38,34 @@ class CatalogRepository(
             DeclaredServicesResult.Loaded(
                 declaredServicesOf(
                     types = dataSource.findServiceTypes(),
-                    services = dataSource.findMyServices(userId),
+                    services = dataSource.findServicesOf(userId),
                 ),
             )
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (failure: Exception) {
             DeclaredServicesResult.Failure(failure.toCatalogError())
+        }
+    }
+
+    // The same two reads as above, aimed at somebody else and without the
+    // catalog: a visitor has nothing to declare (RF-02.6).
+    override suspend fun getServicesOf(professionalId: String): ProfessionalServicesResult {
+        if (dataSource.currentUserId() == null) {
+            return ProfessionalServicesResult.Failure(CatalogError.NotSignedIn)
+        }
+
+        return try {
+            ProfessionalServicesResult.Loaded(
+                declaredServicesOf(
+                    types = dataSource.findServiceTypes(),
+                    services = dataSource.findServicesOf(professionalId),
+                ).services,
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            ProfessionalServicesResult.Failure(failure.toCatalogError())
         }
     }
 

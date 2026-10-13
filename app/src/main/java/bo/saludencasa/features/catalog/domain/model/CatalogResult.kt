@@ -27,3 +27,16 @@ sealed interface ServiceTypesResult {
         val error: CatalogError,
     ) : ServiceTypesResult
 }
+
+// The visitor's read: what this professional offers today, with no catalog and
+// no undeclared types, which are the owner's business (docs/decisions.md,
+// 2026-10-11).
+sealed interface ProfessionalServicesResult {
+    data class Loaded(
+        val services: List<ProfessionalService>,
+    ) : ProfessionalServicesResult
+
+    data class Failure(
+        val error: CatalogError,
+    ) : ProfessionalServicesResult
+}

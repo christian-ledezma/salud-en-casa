@@ -29,8 +29,9 @@ class SupabaseCatalogDataSource(
     // Narrowed by professional on this side, unlike the addresses read.
     // professional_services_select_public makes every approved professional's
     // rows readable on purpose (RF-02.6), so without the filter this would
-    // return the whole directory's services instead of the caller's.
-    suspend fun findMyServices(professionalId: String): List<ProfessionalServiceDto> =
+    // return the whole directory's services instead of the one asked for. That
+    // same policy is what lets HU-12 pass somebody else's id in here.
+    suspend fun findServicesOf(professionalId: String): List<ProfessionalServiceDto> =
         supabase
             .from(PROFESSIONAL_SERVICES)
             .select(SERVICE_COLUMNS) {
