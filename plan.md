@@ -833,7 +833,10 @@ sección 9.
       conserva el botón para reintentar
 - [x] Ninguna leyenda ni texto visible escrito en el código: el nombre es una imagen con
       `app_name` como descripción
-- [ ] `./gradlew build` y `./gradlew test` concluyen sin error
+- [x] La integración continua pasó el 2026-10-13 (ejecución 54) con Java 17: análisis
+      estático, `./gradlew test` con las ocho pruebas nuevas y `assembleDebug`
+- [ ] `./gradlew build` completo. Suma el análisis de Android lint, que la integración
+      continua no corre
 - [ ] Las tres previsualizaciones del arranque —claro, oscuro y al 200 %— se abrieron y
       se ven correctas
 - [ ] Recorrido en emulador con Android 12 o superior y con uno de 8 a 11:
@@ -847,7 +850,8 @@ Android, y Maven Central respondió con límite de peticiones. Además, el entor
 Java 21 y el proceso de Gradle está fijado en 17. Para intentarlo, se cambió
 temporalmente `gradle/gradle-daemon-jvm.properties` a 21 y se agregó un
 `app/google-services.json` de relleno. **Los dos se restauraron**: el primero quedó igual
-byte a byte, y el segundo se eliminó. Ninguna prueba nueva se ejecutó todavía. El
+byte a byte, y el segundo se eliminó. La primera compilación real fue la de la
+integración continua, que no corre Android lint ni puede abrir una previsualización. El
 recorrido es obligatorio porque el arranque es parte del primer ingreso de HU-01, que
 figura como crítica en «Cuándo hace falta un dispositivo».
 
