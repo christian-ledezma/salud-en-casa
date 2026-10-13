@@ -17,6 +17,7 @@ import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 import bo.saludencasa.features.requests.presentation.CreateRequestScreen
+import bo.saludencasa.features.requests.presentation.InboxScreen
 import bo.saludencasa.features.requests.presentation.MyRequestsScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
@@ -58,6 +59,7 @@ fun SaludEnCasaNavHost(
                 onOpenSearch = { navController.navigate(ProfessionalSearchRoute) },
                 onOpenCreateRequest = { navController.navigate(CreateRequestRoute) },
                 onOpenMyRequests = { navController.navigate(MyRequestsRoute) },
+                onOpenInbox = { navController.navigate(InboxRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
                 onOpenVerification = { navController.navigate(VerificationRoute) },
                 onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
@@ -102,6 +104,10 @@ fun SaludEnCasaNavHost(
                 onBack = { navController.popBackStack() },
                 onCreateRequest = { navController.navigate(CreateRequestRoute) },
             )
+        }
+
+        composable<InboxRoute> {
+            InboxScreen(onBack = { navController.popBackStack() })
         }
 
         composable<MyServicesRoute> {

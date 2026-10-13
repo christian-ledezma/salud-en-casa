@@ -32,6 +32,9 @@ data object CreateRequestRoute
 data object MyRequestsRoute
 
 @Serializable
+data object InboxRoute
+
+@Serializable
 data object MyServicesRoute
 
 @Serializable

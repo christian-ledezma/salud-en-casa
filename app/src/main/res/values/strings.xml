@@ -387,6 +387,7 @@
     <string name="error_reviews_unreadable_result">Un comentario llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
     <string name="auth_account_open_create_request">Solicitar atención</string>
     <string name="auth_account_open_my_requests">Mis solicitudes</string>
+    <string name="auth_account_open_inbox">Solicitudes de mi zona</string>
 
     <string name="request_create_title">Solicitar atención</string>
     <string name="request_create_subtitle">Publica tu solicitud y los profesionales cercanos podrán ofertar.</string>
@@ -406,6 +407,15 @@
     <string name="request_list_budget">Presupuesto sugerido: %1$s</string>
     <string name="request_list_cancel_action">Cancelar solicitud</string>
     <string name="request_list_load_more">Ver más solicitudes</string>
+
+    <string name="request_inbox_title">Solicitudes de mi zona</string>
+    <string name="request_inbox_empty_title">No hay solicitudes en tu zona ahora</string>
+    <string name="request_inbox_empty_description">Cuando un paciente publique una solicitud dentro de tu radio, aparecerá aquí sin que recargues.</string>
+    <string name="request_inbox_budget">Presupuesto sugerido: %1$s</string>
+    <string name="request_inbox_load_more">Ver más solicitudes</string>
+    <string name="request_inbox_distance_near">A menos de 100 m</string>
+    <string name="request_inbox_distance_m">A unos %1$d m</string>
+    <string name="request_inbox_distance_km">A unos %1$s km</string>
 
     <string name="request_status_published">Publicada</string>
     <string name="request_status_negotiating">En negociación</string>

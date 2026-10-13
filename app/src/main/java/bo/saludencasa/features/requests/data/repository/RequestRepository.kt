@@ -1,16 +1,19 @@
 package bo.saludencasa.features.requests.data.repository
 
 import bo.saludencasa.features.requests.data.datasource.SupabaseRequestDataSource
+import bo.saludencasa.features.requests.data.mapper.toInboxRequest
 import bo.saludencasa.features.requests.data.mapper.toRequestError
 import bo.saludencasa.features.requests.data.mapper.toServiceRequest
 import bo.saludencasa.features.requests.data.model.CreateImmediateRequestParams
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.CreateImmediateRequestDraft
+import bo.saludencasa.features.requests.domain.model.InboxResult
 import bo.saludencasa.features.requests.domain.model.MyRequestsResult
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.repository.IRequestRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 
 class RequestRepository(
     private val dataSource: SupabaseRequestDataSource,
@@ -76,4 +79,30 @@ class RequestRepository(
             CancelRequestResult.Failure(failure.toRequestError())
         }
     }
+
+    override suspend fun getInbox(
+        offset: Int,
+        limit: Int,
+    ): InboxResult {
+        if (dataSource.currentUserId() == null) {
+            return InboxResult.Failure(RequestError.NotSignedIn)
+        }
+
+        return try {
+            val rows = dataSource.fetchInbox(offset = offset, limit = limit)
+            val requests = rows.map { it.toInboxRequest() }
+
+            if (requests.any { it == null }) {
+                InboxResult.Failure(RequestError.Unexpected)
+            } else {
+                InboxResult.Loaded(requests.filterNotNull())
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            InboxResult.Failure(failure.toRequestError())
+        }
+    }
+
+    override fun inboxSignals(): Flow<Unit> = dataSource.inboxSignals()
 }
