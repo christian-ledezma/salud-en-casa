@@ -32,5 +32,5 @@ val profileModule =
 
         viewModel { RoleSelectionViewModel(get()) }
         viewModel { ProfileViewModel(get(), get(), get()) }
-        viewModel { (professionalId: String) -> PublicProfileViewModel(professionalId, get()) }
+        viewModel { (professionalId: String) -> PublicProfileViewModel(professionalId, get(), get(), get()) }
     }

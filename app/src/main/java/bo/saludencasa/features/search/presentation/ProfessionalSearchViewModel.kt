@@ -192,9 +192,10 @@ class ProfessionalSearchViewModel(
                             when (result) {
                                 is NearbyProfessionalsPageResult.Loaded -> {
                                     current.copy(
-                                        // Two rows with the same key freeze a
-                                        // LazyColumn, and a tie in distance can
-                                        // bring a row back on the next offset.
+                                        // A repeated key throws out of a
+                                        // LazyColumn and takes the screen down,
+                                        // and a tie in distance can bring a row
+                                        // back on the next offset.
                                         professionals =
                                             (current.professionals + result.professionals)
                                                 .distinctBy(NearbyProfessional::professionalId),

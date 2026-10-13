@@ -87,6 +87,30 @@
         <item quantity="other">%d atenciones realizadas</item>
     </plurals>
 
+    <string name="relative_time_just_now">Hace unos minutos</string>
+    <plurals name="relative_time_hours">
+        <item quantity="one">Hace %d hora</item>
+        <item quantity="other">Hace %d horas</item>
+    </plurals>
+    <plurals name="relative_time_days">
+        <item quantity="one">Hace %d día</item>
+        <item quantity="other">Hace %d días</item>
+    </plurals>
+    <plurals name="relative_time_months">
+        <item quantity="one">Hace %d mes</item>
+        <item quantity="other">Hace %d meses</item>
+    </plurals>
+    <plurals name="relative_time_years">
+        <item quantity="one">Hace %d año</item>
+        <item quantity="other">Hace %d años</item>
+    </plurals>
+
+    <string name="public_profile_services_title">Servicios y tarifas</string>
+    <string name="public_profile_services_empty">Este profesional todavía no declaró sus servicios.</string>
+    <string name="public_profile_reviews_title">Comentarios</string>
+    <string name="public_profile_reviews_empty">Todavía no recibió comentarios.</string>
+    <string name="public_profile_review_without_comment">Calificó sin dejar un comentario.</string>
+
     <string name="address_title">Mi dirección</string>
     <string name="address_alias_label">Nombre de la dirección</string>
     <string name="address_text_label">Dirección</string>
@@ -211,6 +235,8 @@
     <string name="cd_loading">Cargando</string>
     <string name="cd_profile_photo">Tu fotografía de perfil</string>
     <string name="cd_professional_photo">Fotografía del profesional</string>
+    <string name="cd_verified_badge">Profesional con verificación aprobada</string>
+    <string name="cd_review_rating">%1$d de 5 estrellas</string>
     <string name="cd_address_map">Mapa para marcar tu dirección</string>
     <string name="cd_address_marker">Marcador de tu dirección</string>
 
@@ -357,4 +383,6 @@
     <string name="error_search_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_search_no_primary_address">Todavía no tienes una dirección principal registrada.</string>
     <string name="error_search_unreadable_result">Un resultado llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
+    <string name="error_reviews_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
+    <string name="error_reviews_unreadable_result">Un comentario llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
 </resources>
