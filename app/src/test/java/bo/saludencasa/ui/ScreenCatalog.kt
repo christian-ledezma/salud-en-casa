@@ -73,6 +73,8 @@ class ScreenCatalog(
                 "bo.saludencasa.features.verification.presentation.FullScreenDocumentImageKt",
                 "bo.saludencasa.features.catalog.presentation.MyServicesScreenKt",
                 "bo.saludencasa.features.search.presentation.ProfessionalSearchScreenKt",
+                "bo.saludencasa.features.requests.presentation.CreateRequestScreenKt",
+                "bo.saludencasa.features.requests.presentation.MyRequestsScreenKt",
             )
 
         // The Compose compiler appends a Composer and a changed-flags Int to every

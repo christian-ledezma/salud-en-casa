@@ -39,6 +39,8 @@ class AccountScreenLargeFontTest {
                 onDismissError = {},
                 onOpenProfile = {},
                 onOpenSearch = {},
+                onOpenCreateRequest = {},
+                onOpenMyRequests = {},
                 onOpenAddress = {},
                 onOpenVerification = {},
                 onOpenDocumentReview = {},
