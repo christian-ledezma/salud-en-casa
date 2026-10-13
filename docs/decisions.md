@@ -4085,6 +4085,10 @@ obligatorio: con la distancia redondeada los empates son frecuentes, y sin segun
 paginación por desplazamiento repite o se salta filas. La distancia cero pasa a ser un valor
 posible, y la interfaz la dice como «menos de 100 m», nunca como «0 m».
 
+> **Corregida el 2026-10-11.** Los canales eran cuatro, no tres: faltaba la
+> respuesta binaria con el origen como parámetro libre, que la cuantización del
+> radio no podía cerrar. Ver la entrada de esa fecha.
+
 ---
 
 ## 2026-10-09 · HU-11: la contraparte lee la proyección pública, no la fila del profesional
@@ -4268,6 +4272,225 @@ es Inter sino la de la plataforma, por la misma razón que en las pruebas de int
 (2026-10-08). El mapa de Google no se dibuja en la máquina virtual de Java. Una
 previsualización nueva entra sola al catálogo si su nombre termina en `Preview`; una
 pantalla nueva hay que agregarla a la lista de archivos.
+
+---
+
+## 2026-10-11 · HU-12: los comentarios de la ficha se leen de una proyección, no de la tabla
+
+**Contexto.** HU-12 lista los comentarios que recibió un profesional.
+`reviews_select_visible` ya dice exactamente cuáles son públicos —visibles,
+recibidos del lado profesional de esa atención, y sobre alguien que el directorio
+lleva—, de modo que una consulta del cliente contra `public.reviews` parecía
+bastar.
+
+**Decisión.** Los comentarios se leen de una vista nueva,
+`professional_reviews`, con `security_invoker = false`, y el cliente nunca
+consulta la tabla.
+
+**Razonamiento.** No basta, porque `reviews_select_own` es una **segunda política
+permisiva** sobre la misma tabla: quien es destinatario de la calificación también
+puede leerla. La seguridad a nivel de fila une sus políticas permisivas con un
+`or`, así que el único lector que es a la vez el sujeto de la ficha y quien la
+abre —un profesional mirando su propia vista previa— lee estrictamente más que un
+paciente.
+
+Medido contra este proyecto el 2026-10-11, dentro de una transacción terminada en
+`rollback`: con dos calificaciones dirigidas a la misma persona de doble rol, un
+tercero vio solo la recibida como profesional, y la persona misma vio las dos,
+incluida la recibida como paciente. Eso es INV-17 roto en la pantalla que existe
+para mostrar lo que ve un paciente, y ningún filtro del cliente lo repara: decidir
+de qué lado de una atención estuvo alguien exige leer `public.services`, que un
+tercero no ve.
+
+Se descartó filtrar en el cliente por imposible, y se descartó estrechar
+`reviews_select_own`, que existe para que cada quien vea sus propias
+calificaciones en su historial y no es la que está mal.
+
+**Consecuencia.** La regla vive donde `professional_directory` ya guarda la suya:
+en una proyección que corre con los privilegios de su dueño y cuyo `where` es la
+regla misma, idéntica para todo lector. La vista no proyecta `author_id`. Cuando
+el Sprint 9 construya la escritura de calificaciones, la lectura pública ya no
+dependerá de qué políticas tenga la tabla.
+
+---
+
+## 2026-10-11 · HU-12: el comentario dice qué se dijo y cuándo, nunca quién lo dijo
+
+**Contexto.** La lista de comentarios de una ficha suele mostrar quién escribió
+cada uno. Ninguna política deja hoy a un tercero leer `profiles.full_name` de otro
+paciente: `profiles_select_counterpart` solo abre esa fila a quien comparte una
+atención.
+
+**Decisión.** El comentario se muestra anónimo: estrellas, texto y fecha.
+
+**Razonamiento.** Mostrar el nombre exigiría una proyección pública nueva de
+`profiles` para los autores de calificaciones visibles, es decir exponer al
+paciente que calificó ante cualquier usuario autenticado, a cambio de nada que el
+criterio de aceptación pida: RF-02.6 y RF-12.4 hablan de los comentarios
+recibidos, no de su autoría. Es también lo que hacen Uber e InDrive del lado del
+pasajero.
+
+**Consecuencia.** `professional_reviews` no proyecta `author_id`, de modo que la
+decisión está sostenida por el esquema y no por la disciplina de la pantalla.
+Revertirla es una migración, no un cambio de interfaz.
+
+---
+
+## 2026-10-11 · HU-12: la fecha del comentario es relativa y la da la plataforma
+
+**Contexto.** Una lista de comentarios necesita fechar cada uno. El proyecto ya
+formatea fechas absolutas con `DateTimeFormatter.ofLocalizedDate` en el perfil
+propio.
+
+**Decisión.** La fecha del comentario se muestra en forma relativa —«Hace 2
+meses»— con una función propia que reparte la antigüedad en cinco tramos y cuatro
+`plurals`, **no** con `android.text.format.DateUtils`.
+
+**Razonamiento.** En una reputación lo que importa es la antigüedad, no el día: la
+diferencia entre un comentario de la semana pasada y uno de hace tres años es la
+información, y una fecha absoluta obliga al lector a calcularla.
+
+`DateUtils.getRelativeTimeSpanString` se escribió primero, por ser el formateador
+de la plataforma que `.claude/rules/i18n.md` prefiere para fechas. **Se descartó al
+mirar la previsualización:** pasada una semana deja de ser relativo y devuelve una
+fecha absoluta —«Sep 29, 2026» para un comentario de doce días—, de modo que casi
+todo comentario real habría salido fechado y no envejecido. Compilar no es mirar, y
+esta es la tercera vez que el proyecto lo comprueba.
+
+La función propia reparte en minutos, horas, días, meses y años, y la frase vive en
+`plurals` de `values-es/` y `values/`, que es como la regla de internacionalización
+pide resolver un conteo.
+
+**Consecuencia.** El cálculo es puro y recibe el instante **y** el ahora, de modo
+que los bordes de los cinco tramos tienen prueba unitaria; la frase se arma en la
+capa de presentación, que es la única que conoce los recursos. Por debajo de una
+hora no se cuenta nada: un comentario de dos minutos y uno de once son el mismo
+comentario.
+
+---
+
+## 2026-10-11 · HU-12: las calificaciones son una característica propia, y el catálogo gana la lectura del visitante
+
+**Contexto.** HU-12 necesita dos lecturas que no existían: los comentarios de un
+profesional y los servicios que declaró. El glosario ya nombraba `Review`, y
+`features/catalog` ya era dueña de `professional_services`.
+
+**Decisión.** Los comentarios viven en `features/reviews/`, una característica
+nueva, y la lectura de los servicios de otro profesional se agrega a
+`features/catalog` como `getServicesOf(professionalId)` con su propio resultado,
+`ProfessionalServicesResult`.
+
+**Razonamiento.** Las calificaciones son un concepto del dominio con vida propia:
+HU-29 y HU-30 construirán su escritura, y meterlas dentro de `features/profile`
+obligaría a moverlas entonces. El catálogo, en cambio, ya es dueño de la tabla, y
+HU-11 fijó el precedente de que otra característica le pide lo suyo **por un caso
+de uso**, nunca por su repositorio ni por su capa de datos.
+
+El resultado del visitante es propio y no `DeclaredServicesResult` porque este
+último transporta `DeclaredServices`, con el catálogo entero y los tipos por
+declarar: cosas del dueño, ruido en una ficha ajena.
+
+**Consecuencia.** `PublicProfileViewModel` inyecta tres casos de uso, dos de ellos
+de otras características, que es lo que las reglas de arquitectura permiten y el
+análisis estático verifica. `SupabaseCatalogDataSource.findMyServices` pasó a
+llamarse `findServicesOf`: siempre recibió un identificador ajeno, y el nombre
+decía lo contrario.
+
+---
+
+## 2026-10-11 · Una vista de definidor sobre una sola tabla se puede escribir, y hay que quitarle el permiso a mano
+
+**Contexto.** `professional_reviews` se creó con `security_invoker = false` para
+que su `where` fuera la regla para todo lector, con `revoke all … from anon` y
+`grant select … to authenticated`. Era la forma que `professional_directory` ya
+tenía, y pasó las cuatro pruebas de política, que miraban la lectura.
+
+**Decisión.** Toda vista de definidor del proyecto revoca explícitamente la
+escritura a `authenticated`, no solo a `anon`.
+
+**Razonamiento.** La vista resultó **auto-actualizable**: una sola tabla, sin
+`join`, sin agregados, sin `distinct`, con la subconsulta confinada al `where`.
+PostgreSQL encamina por ella un `update` o un `delete`, y como corre con los
+privilegios de su dueño esa escritura **nunca enfrenta la seguridad de fila** de
+`public.reviews`. Supabase concede todo a `authenticated` sobre un objeto nuevo,
+de modo que no quitárselo es concedérselo.
+
+Medido el 2026-10-11, dentro de una transacción con `rollback`: un profesional
+autenticado reescribió con `update` la calificación que había recibido —puntaje y
+texto— y el disparador `reviews_recalculate_reputation` le recalculó el promedio
+público a 5,00. Un `delete` con el mismo filtro borra un comentario incómodo.
+`reviews` no tiene política de `update` ni de `delete` a propósito, y la vista
+pasaba por encima de las dos.
+
+Las otras cinco vistas se auditaron y ninguna estaba expuesta, por dos razones
+distintas: `my_addresses` es auto-actualizable pero `security_invoker = true`, así
+que una escritura sigue enfrentando las políticas; `professional_directory` corre
+como su dueño pero une dos tablas, y eso la vuelve de solo lectura para el motor.
+`professional_reviews` fue la primera en combinar las dos condiciones.
+
+**Consecuencia.** Lo que protegía a las vistas anteriores era una coincidencia de
+su forma, no una decisión. Desde hoy, una vista nueva con `security_invoker =
+false` lleva su `revoke all … from anon, authenticated` seguido del `grant select`,
+y **la prueba de política que la acompaña incluye un intento de escritura**, no
+solo lecturas: las cuatro pruebas de lectura de HU-12 pasaron sin ver nada.
+
+---
+
+## 2026-10-11 · HU-11: el cuarto canal era la respuesta misma, y la cuantización no lo cerraba
+
+**Contexto.** La entrada del 2026-10-09 enumeró tres canales sobre el punto de la
+base profesional —el marcador, la distancia devuelta y el borde del radio pedido—
+y los cuantizó a una rejilla de ~110 m. La frase que la cerraba, «se cuantizan los
+tres a la misma rejilla o no se cuantiza ninguno», es correcta en su principio. El
+inventario no lo era.
+
+**Decisión.** La función deja de tocar el punto exacto una vez lo ha leído: lo
+encaja en la rejilla una sola vez, y ese punto encajado —el mismo que el marcador
+publica— decide quién entra, qué distancia sale y en qué orden salen las filas. El
+punto exacto sobrevive solo en un prefiltro con holgura, para no perder el índice.
+
+**Razonamiento.** Hay un cuarto canal que no es un número que la función devuelva:
+**es la respuesta misma**. `p_latitude` y `p_longitude` son parámetros `double
+precision` libres, de modo que en vez de fijar el origen y mover el radio —la
+dirección que el encaje protege— se fija el radio y se mueve el origen. Con el
+radio en 5,0 km, que el encaje vuelve exactamente 5000 m y por tanto **conocido**,
+una bisección sobre el origen encuentra un punto que está a 5000 m exactos de la
+base, y por tres puntos de una circunferencia pasa una sola: su centro es la base,
+al metro. Unas veinte llamadas.
+
+Medido el 2026-10-10 contra este proyecto: con el radio fijo, un origen a 4999 m de
+la base devolvía al profesional y uno a 5001 m no. El borde era nítido al metro. Y
+había un camino más barato todavía: el segundo `st_dwithin`, el de
+`coverage_radius_km`, nunca se encajó, y ese radio es público en
+`professional_directory`, de modo que conociéndolo basta **un** punto del borde en
+lugar de tres.
+
+**El error de razonamiento, dicho con todas las letras.** Encajar `p_radius_km` a
+la décima no cierra esto y nunca pudo: deja el radio en un valor discreto pero
+**conocido**, y un radio conocido es todo lo que la trilateración necesita cuando
+el origen es continuo. Lo que acota la resolución no es redondear lo que sale, sino
+que todo lo que la función afirma hable del mismo punto publicado.
+
+**Consecuencia.** El borde que un llamante puede encontrar es ahora la
+circunferencia alrededor de un punto que la primera llamada ya le dio, y el momento
+en que dos filas intercambian su orden revela la mediatriz de dos marcadores
+públicos. Ninguno de los cuatro canales dice nada nuevo. Verificado el 2026-10-11:
+medido desde el punto exacto, 4999 m y 5001 m devuelven lo mismo —el borde
+desapareció de ahí—; medido desde el nodo publicado, 4999 devuelve y 5001 no. Lo
+mismo con el radio de cobertura.
+
+El costo era el índice, y está resuelto sin perderlo: `st_dwithin` sobre una
+expresión calculada no puede usar `idx_addresses_location`, así que la columna
+intacta conserva un prefiltro con 100 m de holgura —media diagonal de una celda son
+79 m como mucho, en el ecuador, donde el grado de longitud es más largo— y el punto
+encajado decide después. Con 500 profesionales sintéticos: `Index Scan using
+idx_addresses_location`, `Index Cond: location && _st_expand(..., 5100)`, 1,7 ms.
+
+Queda una regla general, que vale más que el arreglo: **cuantizar lo que una
+función devuelve no acota lo que un parámetro libre puede sondear.** Mientras un
+predicado binario dependa de un punto exacto y el llamante controle una coordenada
+continua, ese punto es recuperable, por muchos decimales que se recorten a la
+salida.
 
 ---
 

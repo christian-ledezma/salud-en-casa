@@ -42,6 +42,9 @@ que lo introduce.
 | Pago | `Payment` | Registro económico de una atención |
 | Comisión de la plataforma | `platformFee` | Porción que retiene la plataforma |
 | Calificación | `Review` | Puntaje y comentario cruzados |
+| Comentario de la ficha | `ProfessionalReview` | Una calificación tal como la ficha pública la muestra: puntaje, comentario y fecha. **Sin su autor**, que no se publica |
+| Proyección pública de calificaciones | `professional_reviews` | La vista que decide cuáles son públicas. El cliente nunca consulta `reviews` |
+| Servicios de otro profesional | `ProfessionalServicesResult` | Lo que un visitante lee del catálogo ajeno: lo declarado, sin los tipos por declarar |
 | Mensaje | `Message` | Comunicación dentro de la solicitud |
 | Identificador de dispositivo | `DeviceToken` | Destino de notificaciones |
 | Reputación | `averageRating` | Promedio de calificaciones recibidas |
@@ -193,7 +196,10 @@ Dieciséis tablas. `profile_roles` se agregó en el Sprint 2.5, al dejar de ser
 —con su `verification_status`— por compartir un servicio (`docs/decisions.md`, 2026-10-09).
 
 Vistas de apoyo: `professional_directory`, la proyección pública del profesional
-sin datos de contacto · `my_addresses`, las direcciones propias con el punto ya
+sin datos de contacto · `professional_reviews`, los comentarios que la ficha
+muestra, que son los recibidos **como profesional** y nada más: la tabla `reviews`
+responde distinto al dueño de la ficha que a un paciente, porque `reviews_select_own`
+es una segunda política permisiva (`docs/decisions.md`, 2026-10-11) · `my_addresses`, las direcciones propias con el punto ya
 proyectado a latitud y longitud · `my_roles`, los roles propios y el rol activo
 en una sola fila · `document_review_subject_queue`, una fila por persona con
 documentos pendientes, y `document_review_profiles`, las dos lecturas del

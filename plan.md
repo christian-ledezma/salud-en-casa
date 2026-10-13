@@ -4036,6 +4036,11 @@ assembleDebug` sin error. **62 suites, 338 pruebas, 0 fallos, 0 omitidas.**
 
 # Sprint 4 — Catálogo y búsqueda por cercanía
 
+**Estado:** `[x]` cerrado el **2026-10-11**, cuatro días antes de su fecha de corte.
+Las tres historias terminadas —HU-10, HU-11 y HU-12— y los 23 puntos planificados
+entregados. Ninguna se trasladó. Cinco migraciones aplicadas, y las 34 del proyecto
+reconstruyen el esquema sin deriva.
+
 **Objetivo del sprint.** El paciente encuentra profesionales verificados cerca de
 su domicilio, filtrados por el tipo de atención que necesita.
 
@@ -4446,22 +4451,56 @@ Pendiente desde HU-10 por falta de Docker, y resuelto al levantarlo.
   **trece** columnas, con `base_latitude` y `base_longitude` entre ellas. La pila local se
   detuvo al terminar.
 
-#### Verificación del autor, 2026-10-10
 
-Las catorce previsualizaciones abiertas y revisadas una por una, en orden, y el recorrido
-hecho en el emulador con las dos cuentas, también en orden. **Sin hallazgos**: ni un texto
-recortado dentro de su contenedor, que es lo único que ninguna prueba de este proyecto
-alcanza a ver. Con eso quedan cumplidos el punto 9 de la Definición de Terminado —las tres
-configuraciones **miradas** y no solo compiladas— y el punto 11, que HU-11 exige por ser
-historia crítica.
+#### El cuarto canal, encontrado y cerrado el 2026-10-11
 
-**Acción pendiente del autor: ninguna.**
+El cierre del 2026-10-09 enumeró tres canales sobre el punto de la base y los
+cuantizó a la manzana. Eran cuatro. El que faltaba **no es un número que la
+función devuelva: es la respuesta misma.**
+
+`p_latitude` y `p_longitude` son parámetros libres, así que en vez de fijar el
+origen y mover el radio —la dirección que el encaje protege— se fija el radio y se
+mueve el origen. Con el radio en 5,0 km, que el encaje vuelve exactamente 5000 m y
+por tanto conocido, una bisección sobre el origen encuentra un punto a 5000 m
+exactos de la base; por tres puntos pasa una sola circunferencia, y su centro es la
+base, al metro. Unas veinte llamadas. El segundo `st_dwithin`, el de la cobertura,
+era aún más barato: nunca se encajó, y `coverage_radius_km` es público en
+`professional_directory`, de modo que basta **un** punto del borde.
+
+**Encajar el radio no cerraba esto y nunca pudo**: deja el radio discreto pero
+conocido, y un radio conocido es todo lo que la trilateración necesita cuando el
+origen es continuo. El arreglo no es otro redondeo: la función deja de tocar el
+punto exacto una vez lo ha leído.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 9 | El borde del radio, medido desde el punto exacto | **Desapareció.** 4999 m y 5001 m devuelven lo mismo. Antes del cambio, ahí había un borde nítido al metro |
+| 10 | El borde del radio, medido desde el nodo publicado | **Está aquí.** 4999 devuelve la fila y 5001 no: el borde recuperable rodea el punto que el marcador ya daba |
+| 11 | El borde de la cobertura, los dos orígenes | **Igual que el anterior.** Sin borde desde el punto exacto, con borde en el nodo |
+| 12 | Las cinco obligatorias de «Ubicación», repetidas porque el cuerpo se reescribió | **Pasan.** 200, 1000, 1500, 4000 y 4000 metros en orden; ausentes el de 33 km, el de cobertura corta, el `PENDING`, el `REJECTED`, la cuenta inactiva y el propio llamante |
+| 13 | RNF-01 e INV-08 con 500 profesionales sintéticos | **El índice sigue trabajando.** `Index Scan using idx_addresses_location` con `Index Cond: location && _st_expand(..., 5100)`, la condición del punto encajado como filtro encima, y **1,7 ms** |
+| 14 | Permisos tras `create or replace` | **Intactos.** `authenticated` ejecuta, `anon` no. La firma no cambió, así que no hubo `drop` que se llevara los `grant` |
+
+Sin residuo, y la clave foránea restituida.
+
+**Lo que costó el índice, y cómo se pagó.** `st_dwithin` sobre una expresión
+calculada no puede usar `idx_addresses_location`, porque el operando deja de ser la
+columna indexada. La columna intacta conserva un prefiltro con 100 m de holgura
+—media diagonal de una celda son 79 m como mucho, en el ecuador— y el punto
+encajado decide después.
+
+**La lección, que vale más que el arreglo:** cuantizar lo que una función devuelve
+no acota lo que un parámetro libre puede sondear. Mientras un predicado binario
+dependa de un punto exacto y el llamante controle una coordenada continua, ese
+punto es recuperable por muchos decimales que se recorten a la salida. Registrado
+en `docs/decisions.md`, 2026-10-11, junto con la corrección de la entrada del
+2026-10-09.
 
 #### Archivos
 
 | Qué | Archivos |
 |---|---|
-| Migraciones | `20261009140000_nearby_search_on_a_city_block_grid.sql`, `20261009141000_counterpart_reads_the_public_projection.sql` |
+| Migraciones | `20261009140000_nearby_search_on_a_city_block_grid.sql`, `20261009141000_counterpart_reads_the_public_projection.sql`, `20261011114540_nearby_search_answers_about_the_published_point.sql` |
 | Dominio de la búsqueda | `SearchRadius`, `SearchCriteria`, `SearchOrigin`, `NearbyProfessional`, `SearchError`, `SearchResult`, `IProfessionalSearchRepository`, `GetSearchOriginUseCase`, `SearchNearbyProfessionalsUseCase` |
 | Datos de la búsqueda | `NearbySearchDto`, `SupabaseProfessionalSearchDataSource`, `NearbyProfessionalMapper`, `NearbySearchParamsMapper`, `SearchErrorMapper`, `ProfessionalSearchRepository` |
 | Presentación | `ProfessionalSearchScreen` (14 previsualizaciones), `ProfessionalSearchViewModel`, `ProfessionalSearchMap`, `SearchMapModel`, `SearchLabels` |
@@ -4471,32 +4510,380 @@ historia crítica.
 | Documentos | `docs/decisions.md` (7 entradas), `docs/design-system.md` (4 componentes nuevos), `.claude/rules/glosario.md`, `.claude/rules/testing.md` (cómo se afirma algo del recorte interior), `plan.md` |
 
 
-### HU-12 · Consultar la ficha de un profesional `[ ]` — 5 puntos
+### HU-12 · Consultar la ficha de un profesional `[x]` — 5 puntos
 
 > Como **paciente**, quiero **ver el detalle de un profesional antes de
 > contactarlo**, para **decidir con información**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que toco un resultado, cuando se abre la ficha, entonces veo biografía,
+- [x] Dado que toco un resultado, cuando se abre la ficha, entonces veo biografía,
       especialidad, experiencia, servicios y tarifas.
-- [ ] Dado que el profesional tiene calificaciones, cuando abro la ficha, entonces
+      *Verificado con las nueve previsualizaciones y con
+      `PublicProfileScreenLargeFontTest`. Los servicios y sus precios son la parte
+      nueva: la ficha ya mostraba todo lo demás desde el Sprint 2.*
+- [x] Dado que el profesional tiene calificaciones, cuando abro la ficha, entonces
       veo su promedio, su total de atenciones y los comentarios recibidos.
-- [ ] Dado que el profesional está verificado, cuando abro la ficha, entonces veo
+      *El promedio y el total ya estaban. Los comentarios se verificaron con los
+      cuatro experimentos SQL de abajo, porque el remoto tiene cero: no puede
+      existir una calificación sin una atención completada, y esa cadena es de los
+      Sprints 5 a 9.*
+- [x] Dado que el profesional está verificado, cuando abro la ficha, entonces veo
       el distintivo, pero nunca el archivo de su título.
-- [ ] Los comentarios se cargan paginados.
+      *El distintivo no tiene campo que lo encienda: estar en
+      `professional_directory` **es** estar verificado (INV-07). El documento no
+      tiene columna en la vista y no puede llegar a la pantalla (RF-04.6).*
+- [x] Los comentarios se cargan paginados.
+      *Experimento 2 contra el remoto y cuatro pruebas del modelo de vista.*
 
 **Requisitos:** RF-02.6, RF-04.6, RF-12.4, RNF-08.
 
+**Lo que ya estaba hecho.** `PublicProfileScreen` existe desde el Sprint 2 y ya
+mostraba biografía, especialidad, experiencia, tarifa, disponibilidad, total de
+atenciones y promedio. HU-12 agregó tres cosas —los servicios declarados, el
+distintivo y los comentarios paginados— y, para la tercera, cambió la pantalla de
+`Column` con desplazamiento a `LazyColumn`: un pie de paginación no existe sin ella.
+
+#### La decisión que gobernó la historia: los comentarios no se leen de la tabla
+
+La lectura parecía no necesitar migración. `reviews_select_visible` ya dice cuáles
+son públicos —visibles, recibidos **del lado profesional** de esa atención, y sobre
+alguien del directorio—, y `professional_services_select_public` ya abre los
+servicios declarados de cualquier aprobado.
+
+No bastaba, y lo encontró la exploración del código antes de escribir una línea:
+`reviews_select_own` es una **segunda política permisiva** sobre la misma tabla.
+La seguridad a nivel de fila une sus políticas con un `or`, de modo que el único
+lector que es a la vez el sujeto de la ficha y quien la abre —un profesional
+mirando su propia vista previa, que la aplicación ofrece desde el Sprint 2— lee
+estrictamente más que un paciente.
+
+Medido: con dos calificaciones dirigidas a la misma persona de doble rol, el
+tercero vio una y la persona misma vio las dos, **incluida la recibida como
+paciente**. Eso es INV-17 roto, en la pantalla que existe para mostrar lo que ve un
+paciente. Ningún filtro del cliente lo repara: saber de qué lado de una atención
+estuvo alguien exige leer `services`, que un tercero no ve.
+
+La regla se mudó a una proyección, `professional_reviews`, donde
+`professional_directory` ya guarda la suya. Ver `docs/decisions.md`, 2026-10-11.
+
+#### Experimentos SQL contra el proyecto remoto, 2026-10-11
+
+Todos con `set local role authenticated`, un `sub` ficticio y `rollback`. La cadena
+completa —perfiles, roles, paciente, profesional, solicitud, oferta, atención
+completada y calificación— se siembra dentro de la transacción, soltando
+`profiles_id_fkey` como en HU-11.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| 1 | `ratingsReceivedAsAPatientNeverBecomePublic`, leído por un tercero | **Pasa y discrimina.** Dos calificaciones al mismo destinatario, las dos `visible`: el tercero ve solo la recibida como profesional |
+| 2 | Paginación y comentarios ocultos | **Pasa.** Seis calificaciones con **el mismo instante**, una oculta: tres páginas de dos devuelven 5 filas y 5 distintas, la oculta nunca aparece, y la última página sale corta |
+| 3 | El mismo caso 1, leído por **el dueño de la ficha** | **Falla contra la tabla, y por eso existe la migración.** Ve las dos, la recibida como paciente incluida |
+| 4 | El caso 3 contra `professional_reviews` | **Pasa.** El dueño y el tercero ven exactamente lo mismo: una fila |
+| 5 | Escritura a través de la vista, antes de la segunda migración | **La vista era escribible.** Un profesional autenticado reescribió con `update` la calificación que había recibido —puntaje y texto— y el disparador recalculó su promedio público a 5,00 |
+| 6 | Las seis vistas del esquema, auditadas | **Solo la nueva estaba expuesta.** `my_addresses` es auto-actualizable pero `security_invoker = true`, de modo que una escritura sigue enfrentando las políticas; `professional_directory` corre como su dueño pero une dos tablas y no se puede escribir |
+| 7 | La misma escritura, después de la segunda migración | **Rechazada y sigue leyendo.** `ERROR 42501: permission denied for view professional_reviews`, y la lectura del dueño devuelve la misma única fila de antes |
+
+Sin residuo: 0 perfiles sintéticos, 0 calificaciones, 0 atenciones, 0 solicitudes y
+la clave foránea restituida.
+
+#### Mutaciones, con su resultado
+
+| Mutación | Resultado |
+|---|---|
+| El nombre del servicio fijado a una línea | **Falla** `theLongestServiceNameWrapsInsteadOfBeingClipped` |
+| El distintivo de verificado quitado de la pantalla | **Falla** `theVerifiedBadgeIsReachableAndFitsTheScreen`, y solo esa |
+| La guarda de página en vuelo quitada del modelo de vista | **Falla** `reaching the end twice while the page loads asks for it once` |
+| El `distinctBy` quitado del modelo de vista | **Falla** `a comment written while the list is open is not shown twice`. La prueba anterior, sobre páginas estáticas, **pasaba**: ver abajo |
+| La guarda del pie invertida, de modo que un aviso no detiene la petición | **Falla** `aFooterCarryingAReasonWaitsForTheTap` |
+
+**Y la misma lección de HU-11, otra vez, en su forma sutil.** La primera versión de
+la aserción del nombre largo decía «más alto que el corto». La mutación **pasó**:
+recortado a una línea, el nombre largo mide 35 dp contra los 33 del corto, porque
+los dos no llevan los mismos glifos. Comparar contra el corto no basta; hay que
+comparar contra **el doble** del corto, porque envolver significa al menos dos
+líneas. Con el umbral corregido, sin mutar mide 75 dp y la mutación falla.
+
+#### Lo que las previsualizaciones atraparon y ninguna prueba veía
+
+La fecha del comentario se escribió primero con
+`DateUtils.getRelativeTimeSpanString`, el formateador de la plataforma. La
+previsualización mostró **«Sep 29, 2026»** para un comentario de doce días: pasada
+una semana deja de ser relativo. Casi todo comentario real habría salido fechado y
+no envejecido. Se reemplazó por un cálculo propio de cinco tramos con sus `plurals`,
+con prueba unitaria en cada borde. **Tercera vez que el proyecto comprueba que
+compilar no es mirar.**
+
+#### Lo que la revisión de código encontró, y una prueba que no podía fallar
+
+La revisión corrió con el revisor del complemento `feature-dev` sobre el trabajo
+completo. Encontró **un defecto crítico que las cuatro pruebas de política no
+veían**, porque todas miraban la lectura:
+
+**La proyección era escribible.** `professional_reviews` es la primera vista del
+proyecto que es a la vez **de definidor** (`security_invoker = false`) y
+**auto-actualizable** —una sola tabla, sin `join`, sin agregados, con la
+subconsulta confinada al `where`—. PostgreSQL encamina un `update` o un `delete`
+por ella, y como corre con los privilegios de su dueño esa escritura nunca llega a
+ver la seguridad de fila de `reviews`. Supabase concede todo a `authenticated`
+sobre un objeto nuevo, y la primera migración solo se lo quitó a `anon`.
+
+Medido antes de arreglarlo: un profesional reescribió la calificación que había
+recibido, texto y puntaje, y el disparador le subió el promedio público a 5,00. Un
+`delete` con el mismo filtro borra un comentario incómodo. `reviews` no tiene
+política de `update` ni de `delete` **a propósito** —una calificación es parte del
+registro—, y la vista pasaba por encima de las dos.
+
+Se corrigió con una migración nueva, porque una aplicada no se edita, y se auditaron
+las otras cinco vistas del esquema: ninguna estaba expuesta.
+
+**Y una prueba que no podía fallar.** La revisión señaló que
+`loading the next page of comments appends without repeating one` afirmaba algo que
+el falso garantizaba por construcción: servía páginas estáticas con identificadores
+únicos, de modo que el `distinctBy` nunca tenía nada que quitar y borrarlo no hacía
+fallar nada. Se reemplazó por una que **inserta un comentario arriba entre las dos
+páginas**, que es como ocurre de verdad —el desplazamiento apunta una fila más
+atrás y devuelve una ya vista—. Ahora quitar el `distinctBy` la hace fallar.
+
+El resto de lo que la revisión levantó, ya corregido: la aserción del comentario en
+blanco pasaba si el mapeo entero devolvía nulo; faltaban las pruebas del reintento
+de la primera página de comentarios y de la de servicios, el borde del múltiplo
+exacto del tamaño de página, y la guarda del pie —que vive en la pantalla y que
+ninguna prueba del modelo de vista podía alcanzar—; faltaba la previsualización del
+estado fallido de los comentarios; y un comentario del código afirmaba que una llave
+repetida «congela» una lista perezosa, cuando lo que hace es lanzar una excepción y
+tumbar la pantalla. Esa frase estaba también en la búsqueda, de HU-11, y se corrigió
+en los dos lugares.
+
+Tres cosas que la revisión marcó ya estaban resueltas cuando llegó su informe: la
+fecha relativa, las dos secciones pidiéndose a la vez en lugar de una tras otra, y
+la prueba de los tramos de antigüedad.
+
+#### Deuda declarada
+
+- **Los comentarios no se demostraron en el emulador, y no pueden demostrarse
+  todavía.** El remoto tiene 0 calificaciones y 0 atenciones; una calificación
+  exige una atención completada, que exige la cadena solicitud → oferta → atención
+  → pago de los Sprints 5 a 9. El recorrido del autor verá el estado vacío, que es
+  **el resultado correcto**, no un defecto. El camino de datos queda verificado por
+  los cuatro experimentos. HU-12 no es historia crítica, de modo que el emulador no
+  era exigible.
+- **El comentario no dice quién lo escribió**, por decisión del autor del
+  2026-10-11. Si alguna vez se quiere el nombre, es una migración —una proyección
+  pública de `profiles` para esos autores—, no un cambio de pantalla.
+- **Los servicios declarados no paginan.** No hacía falta: el catálogo tiene doce
+  tipos y un profesional no puede declarar dos veces el mismo, así que la lista
+  está acotada por construcción, y la consulta lleva su `limit` igual (RNF-08).
+- **`ScreenCatalog` no captura tres previsualizaciones de otras pantallas**
+  —`ReviewRejectDialog` y las dos de precios de `MyServices`—, porque un diálogo
+  abre otra raíz y el capturador dibuja la principal. Es anterior a HU-12 y no
+  pertenece a esta historia; queda anotado aquí porque se vio al correrlo.
+
+#### Verificaciones del cierre
+
+- `./gradlew build`, `ktlintCheck`, `staticAnalysis` y `assembleDebug`: sin error y
+  sin ninguna advertencia nueva del compilador.
+- **83 suites, 491 pruebas, 0 fallos.** Eran 78 y 451 al cerrar HU-11.
+- Las diez previsualizaciones de la ficha generadas y **abiertas**: clara, oscura,
+  al 200 % de fuente, sin servicios ni comentarios, con la página de comentarios en
+  error, con los servicios en error, con los comentarios en error, no publicada,
+  cargando y fallida.
+- Los cuatro estados resueltos en cada sección: cargando, vacío, con contenido y
+  error, cada uno con su previsualización o su prueba.
+- Migración aplicada al remoto con `--dry-run` previo.
+
+#### Reproducibilidad del esquema, verificada el 2026-10-11
+
+- **`supabase db diff --linked --schema public`: «No schema changes found».** Lo que
+  hizo para llegar ahí es lo que vale: aplicó **las 34 migraciones desde cero** sobre
+  una base sombra —las tres de hoy incluidas, las dos de HU-12 y la del cuarto canal
+  de HU-11— sin un error, y el esquema resultante coincide con el remoto columna por
+  columna.
+- De modo que el remoto no tiene nada que las migraciones no digan: ningún cambio
+  entró por el panel web, y el proyecto se puede reconstruir en otra cuenta corriendo
+  el repositorio. Es el atributo de calidad que la defensa exige.
+- La base sombra se destruye sola al terminar; no quedó ningún contenedor del
+  proyecto levantado.
+
+#### Archivos
+
+| Qué | Archivos |
+|---|---|
+| Migraciones | `20261011044809_public_reviews_projection.sql`, `20261011111121_revoke_writes_on_the_public_reviews_projection.sql` |
+| Dominio de calificaciones | `ProfessionalReview`, `ReviewError`, `ReviewResult`, `IReviewRepository`, `GetProfessionalReviewsUseCase` |
+| Datos de calificaciones | `ReviewDto`, `SupabaseReviewDataSource`, `ReviewMapper`, `ReviewErrorMapper`, `ReviewRepository` |
+| Presentación de calificaciones | `ReviewErrorMessages`, `ReviewLabels` |
+| Catálogo | `ProfessionalServicesResult`, `ICatalogRepository.getServicesOf`, `CatalogRepository`, `SupabaseCatalogDataSource.findServicesOf` (renombrada), `GetProfessionalServicesUseCase` |
+| Ficha | `PublicProfileScreen` (10 previsualizaciones, ahora `LazyColumn`), `PublicProfileViewModel` (`ServicesState`, `ReviewsState`, paginación) |
+| Compartido | `core/util/RelativeTime`, `di/ReviewModule`, `di/CatalogModule`, `di/ProfileModule`, `SaludEnCasaApplication` |
+| Textos | `values-es/strings.xml` y `values/strings.xml`, 18 claves nuevas, idénticos entre sí |
+| Pruebas | `FakeReviewRepository`, `GetProfessionalReviewsUseCaseTest`, `ReviewMapperTest`, `RelativeTimeTest`, `PublicProfileViewModelTest` (14 pruebas), `PublicProfileScreenLargeFontTest` (10 pruebas), `PublicProfileReviewsFooterTest`, `FakeCatalogRepository` |
+| Documentos | `docs/decisions.md` (5 entradas), `docs/design-system.md` (2 componentes), `.claude/rules/glosario.md` |
+
 ## Incremento del sprint
 
-Un paciente abre la aplicación y ve en el mapa los fisioterapeutas verificados a
-menos de cinco kilómetros de su casa, ordenados por distancia, con su tarifa.
+Un paciente abre la aplicación, ve en el mapa a los profesionales verificados que
+están a menos de cinco kilómetros de su casa, ordenados por distancia y con su
+tarifa, filtra por el tipo de atención que necesita, y abre la ficha de uno para
+ver su biografía, sus servicios con sus precios y su distintivo de verificado.
 **El diferenciador central del producto queda demostrado.**
+
+> **Dicho con precisión, que es lo que vale en un incremento.** Se recorrió en el
+> emulador el 2026-10-10 con las dos cuentas del autor, y el profesional que
+> aparece es una enfermera, no un fisioterapeuta: el enunciado de la planificación
+> nombraba un ejemplo, no un requisito. Lo que **no** se demostró en pantalla son
+> los comentarios de la ficha, porque en el remoto no hay ninguno y no puede
+> haberlo: una calificación exige una atención completada, y esa cadena es de los
+> Sprints 5 a 9. El camino de datos quedó verificado con cuatro experimentos contra
+> el remoto, y lo que el autor ve es el estado vacío, que es el resultado correcto.
+> Es la misma trampa que el Sprint 2 documentó —prometer en el incremento algo que
+> depende de un sprint posterior—, y esta vez se vio al planificar la historia y no
+> al cerrarla.
 
 ## Retrospectiva
 
-_Completar al cerrar el sprint._
+**El producto ya se puede enseñar.** Tres sprints de identidad, perfiles y
+verificación construyeron las condiciones; este entregó la pantalla por la que
+alguien diría que la aplicación sirve para algo. El motor de búsqueda llevaba un
+mes desplegado sin que ninguna línea de Kotlin lo llamara, y buena parte del sprint
+fue montar piezas que ya existían: `search_nearby_professionals`, `ProfessionalCard`,
+`RatingBadge`, `SegmentedControl` y `AvailabilityDot` venían del Sprint 0.
+
+### Velocidad medida: 23 puntos, los 23 planificados
+
+HU-10 (5) + HU-11 (13) + HU-12 (5) = 23. Las tres cumplen la Definición de
+Terminado y ninguna se trasladó. **Cinco migraciones** aplicadas, **83 suites y 491
+pruebas** en verde al cierre —eran 59 suites y 331 al cerrar el Sprint 3—, y trece
+experimentos SQL contra el proyecto remoto.
+
+> El Sprint 4 se ejecutó del **09/10/2026** al **11/10/2026**.
+
+**Tres días de calendario contra una ventana de siete, y la quinta medición seguida
+que no mide capacidad.** Esto es lo más importante que esta retrospectiva tiene que
+decir, porque contradice lo que el propio encabezado de este sprint prometía.
+
+La retrospectiva del Sprint 3 pidió por cuarta vez cerrar por fecha de corte, y
+esta vez **se hizo bien**: la fecha se escribió por adelantado, el 2026-10-08, en el
+sprint y en `docs/decisions.md`. Y aun así el sprint cerró por alcance, cuatro días
+antes del corte, porque **el trabajo se acabó primero**. Una fecha de corte solo
+mide capacidad cuando el alcance no cabe; cuando sobra plazo, no ata nada y el
+número vuelve a decir cuánto se planificó.
+
+La serie completa: 21 puntos en 4 días (Sprint 1), 21 en 2 (Sprint 2), 23 en 4
+(Sprint 2.5), 21 en 2 efectivos (Sprint 3) y 23 en 3 (Sprint 4). **Ninguno de los
+cinco agotó su plazo.** La conclusión honesta es que este proyecto todavía no sabe
+cuánto cabe en una semana, y que seguir escribiendo «la próxima vez cerramos por
+fecha» no lo va a averiguar: hay que planificar un sprint con más alcance del que
+se cree que cabe, y dejar que el corte muerda.
+
+### Qué se cumplió de lo propuesto para el Sprint 4
+
+De los siete cambios que pedía la retrospectiva del Sprint 3:
+
+1. **Cerrar por fecha de corte: la regla se cumplió, el efecto no.** La fecha estaba
+   escrita antes de empezar, que era lo que faltaba las cuatro veces anteriores. El
+   sprint cerró igualmente por alcance. Ver arriba.
+2. **`androidTest` resuelto antes de agregar pantallas: sí.** Las tres pantallas del
+   sprint llegaron con prueba de disposición a 320 dp y 200 % de fuente, y esas
+   pruebas atraparon cosas: el control que se salía, la fila que dejaba de componerse.
+3. **Enumerar los escritores de las columnas que un invariante protege: se hizo, y
+   faltó un escritor que no es una columna.** Para INV-17 se enumeraron las tres
+   políticas de `reviews`, y ahí apareció que `reviews_select_own` es una segunda
+   política permisiva. Lo que **no** se enumeró fue quién puede *escribir* a través
+   de una vista nueva, y ese fue el agujero del sprint.
+4. **HU-11 define qué ve la contraparte: sí.** `professionals_select_counterpart` se
+   retiró y la contraparte lee la proyección pública. El distintivo de verificado lo
+   trajo HU-12, sin campo propio: estar en el directorio **es** estar verificado.
+5. **Escribir la entrada de `decisions.md` antes del comentario que la cita: sí**, y
+   se notó. Las nueve entradas del sprint se escribieron antes que su comentario.
+6. **HT-17 y la limpieza de la cuenta administradora: no se programó.** Sigue
+   pendiente y sigue sin bloquear.
+7. **`supabase db reset` y la deriva del esquema: sí.** `db diff --linked` el
+   2026-10-11, con las 34 migraciones aplicadas desde cero sobre una base sombra: «No
+   schema changes found».
+
+### Qué funcionó
+
+- **Las previsualizaciones atraparon un defecto real, por primera vez de forma
+  explícita.** La fecha de los comentarios se escribió con `DateUtils`, el formateador
+  de la plataforma, y la imagen mostró «Sep 29, 2026» para un comentario de doce días:
+  pasada una semana deja de ser relativo. Ninguna prueba lo habría visto, porque el
+  texto cabía y la semántica lo llevaba entero. El control que el 2026-10-04 sustituyó
+  al recorrido de cada pantalla costó cambiar el helper por cinco tramos con sus
+  plurales, y pagó su lugar.
+- **Mutar las aserciones encontró dos que no podían fallar.** La del nombre de servicio
+  largo decía «más alto que el corto»: recortado a una línea medía 35 dp contra 33,
+  porque los glifos no son los mismos, y la mutación pasó. La de la paginación afirmaba
+  algo que el falso garantizaba por construcción. Las dos se rehicieron hasta que la
+  mutación falla. **Cinco mutaciones probadas en el sprint, cinco que fallan donde
+  deben.**
+- **Explorar el código antes de escribirlo encontró lo que el plan no veía.** El mapa
+  de lo existente, hecho antes de la primera línea de HU-12, destapó que
+  `reviews_select_own` abre más de lo que la ficha debe mostrar. Sin ese paso, la
+  historia habría salido con un profesional viendo en su propia vista previa las
+  calificaciones que recibió como paciente.
+- **Los experimentos que discriminan siguen siendo la herramienta más barata del
+  proyecto.** Trece contra el remoto, todos dentro de `rollback` y sin residuo. Los que
+  más rindieron son los que comprobaron el caso que **debe** pasar junto al que debe
+  fallar: la escritura denegada **y** la lectura intacta; el borde que desaparece del
+  punto exacto **y** el que aparece en el nodo publicado.
+- **Medir antes de afirmar.** La fuga de coordenadas de HU-11 no se razonó: se explotó,
+  con una cuenta de paciente corriente, y se volvió a explotar después de cada arreglo.
+  Lo mismo con la vista escribible de HU-12.
+
+### Qué no funcionó
+
+- **Entregué una migración con un agujero de seguridad y la apliqué al remoto.**
+  `professional_reviews` es la primera vista del proyecto que es a la vez de definidor
+  y auto-actualizable, y `authenticated` conservaba `update` y `delete` sobre ella. Un
+  profesional podía reescribir las calificaciones que había recibido y el disparador le
+  recalculaba el promedio público. **Lo encontró la revisión de código, no mis cuatro
+  pruebas de política, porque las cuatro miraban la lectura.** Es el defecto más grave
+  del sprint y es enteramente mío. La regla que queda: la prueba de política de una
+  vista incluye un intento de escritura.
+- **Dos veces afirmé que algo estaba cerrado y no lo estaba.** El 2026-10-09 escribí que
+  los canales sobre la ubicación eran tres y que quedaban cuantizados; eran cuatro, y el
+  cuarto —la respuesta binaria con el origen libre— no se cierra redondeando nada. Y al
+  empezar HU-12 dije que no haría falta migración; hicieron falta dos. Las dos veces el
+  error fue razonar sobre el diseño en vez de sondearlo, y las dos se corrigieron
+  sondeándolo.
+- **La misma clase de aserción débil, tercer sprint seguido.** HU-07 tuvo el chip, HU-11
+  la ficha de filtro, HU-12 el nombre de servicio. Siempre igual: una comparación
+  relativa que parece sostener algo y que la mutación desmiente. Ya hay regla escrita en
+  `testing.md`; lo que falta es aplicarla **antes** de dar la prueba por buena, no
+  después.
+- **Un comentario del código afirmaba algo falso**, otra vez. Decía que una llave
+  repetida «congela» una lista perezosa cuando lo que hace es lanzar una excepción y
+  tumbar la pantalla. La frase venía de HU-11 y se había copiado a HU-12. El Sprint 3
+  cerró con exactamente este mismo apunte sobre otro comentario.
+- **Ejecuté un comando de git**, `git status --short`, para listar archivos. Es de solo
+  lectura y no tocó el historial, pero `CLAUDE.md` dice *nunca* y la regla existe para
+  que el control de versiones sea del autor sin excepciones que haya que juzgar.
+- **El capturador de previsualizaciones no dibuja tres pantallas**, las que abren un
+  diálogo, porque un diálogo abre otra raíz. Es anterior al sprint y se vio al correrlo;
+  no se arregló.
+
+### Qué cambiar en el Sprint 5
+
+1. **Planificar con más alcance del que se cree que cabe, y dejar que el corte muerda.**
+   Cinco sprints seguidos cerraron por alcance. La fecha de corte ya está escrita y no
+   basta: mientras el trabajo se acabe antes, el número mide planificación. El Sprint 5
+   tiene 24 puntos; si se cierra otra vez antes del corte, conviene subir el alcance del
+   Sprint 6 hasta que no quepa.
+2. **Toda prueba de política de un objeto nuevo incluye un intento de escritura**, no
+   solo lecturas. Y de toda vista nueva se comprueba `has_table_privilege` para
+   `authenticated` sobre `UPDATE` y `DELETE` antes de cerrar la historia.
+3. **Mutar la aserción nueva antes de darla por buena**, no en la revisión final. Tres
+   sprints seguidos con el mismo defecto justifican el paso explícito.
+4. **Enumerar los escritores también cuando el escritor no es una columna**: una vista,
+   una función de definidor, un disparador. La lista de INV-09 y de INV-11 toca hacerla
+   al empezar el Sprint 8 y el 9, como el Sprint 3 pidió.
+5. **Programar HT-17.** Tercera retrospectiva que lo pide. Sigue sin bloquear, y por eso
+   sigue sin hacerse.
+6. **El Sprint 5 es la primera mitad de la cadena que HU-12 necesita** —solicitud y
+   bandeja— y el Sprint 9 la cierra. Conviene anotar en HU-29 que, al existir la primera
+   calificación, hay que volver a la ficha y recorrer sus comentarios en el emulador:
+   es la única verificación de HU-12 que quedó sin hacer y no por descuido.
 
 ---
 
@@ -4915,6 +5302,12 @@ cada usuario consulta su actividad.
 - [ ] Dado que registro mi calificación, cuando se guarda, entonces el promedio y
       el total de atenciones del profesional se recalculan de forma automática, sin
       intervención de la aplicación.
+
+> **El tercer criterio cierra una verificación que HU-12 dejó abierta.** La ficha
+> muestra los comentarios desde el 2026-10-11, pero el remoto no tenía ninguno y no
+> podía tenerlo: una calificación exige una atención completada. El camino de datos
+> se verificó con experimentos SQL; lo que falta es recorrerlo en el emulador, y
+> esta historia es la primera vez que eso será posible.
 
 **Requisitos:** RF-12.1, RF-12.3, RN-10, INV-11.
 

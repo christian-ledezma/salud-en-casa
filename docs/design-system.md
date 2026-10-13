@@ -229,6 +229,43 @@ nota posible como si alguien se la hubiera dado. Quien decide es la pantalla, po
 sobre `onSurfaceVariant` que dice que todavía no tiene calificaciones. Registrado
 en `docs/decisions.md`, 2026-10-09.
 
+### Distintivo de verificado
+
+Icono de comprobación y la palabra «Verificado», los dos en el verde de estado
+`#15782B` en claro y `#6FD588` en oscuro. Nunca en ámbar: el verde es el color
+semántico de lo aprobado en este sistema.
+
+**No lleva un campo que lo encienda.** `professional_directory` solo contiene
+profesionales aprobados y activos, de modo que una ficha publicada es una ficha
+verificada (INV-07): la pantalla lo dibuja por estar en el estado `Content` y no
+por una bandera que alguien pudiera olvidar poner. El archivo del documento que
+sostiene esa verificación no tiene columna en la vista y no puede llegar a la
+pantalla (RF-04.6).
+
+La fila entera lleva una sola descripción de contenido, `cd_verified_badge`, y el
+icono la declara nula: un lector de pantalla que leyera las dos diría lo mismo
+dos veces.
+
+### Tarjeta de comentario
+
+Superficie con la forma `featuredCard` y elevación tonal mínima. Arriba, las
+cinco estrellas a la izquierda y la antigüedad a la derecha; debajo, el texto en
+`bodyMedium`.
+
+**Las cinco estrellas van dentro de una píldora ámbar, con los glifos en
+`onTertiaryContainer`.** Es la misma regla del distintivo de calificación: el
+ámbar llega a 1,96:1 contra una superficie clara, así que es relleno con
+contenido oscuro encima y nunca un icono pequeño suelto. Las estrellas vacías son
+el mismo glifo al 30 % de opacidad, no un contorno distinto.
+
+La píldora entera declara `cd_review_rating` y borra la semántica de sus hijos:
+cinco iconos anunciándose por separado convierten una calificación en cinco
+lecturas.
+
+**Una calificación sin palabras no deja la tarjeta en blanco.** El comentario es
+opcional en la base, y una tarjeta con la fecha y nada más se lee como un defecto;
+en su lugar va una línea en `onSurfaceVariant` que dice que calificó sin comentar.
+
 ### Selector de fecha
 
 Fila horizontal de días. El día seleccionado se marca con un círculo relleno en

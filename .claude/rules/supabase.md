@@ -59,6 +59,49 @@ Al cerrar un sprint que agregue tablas, verificar la cobertura consultando el
 catálogo del sistema: toda tabla del esquema público debe tener la seguridad
 habilitada y al menos una política.
 
+## Lo que se publica no es solo lo que se devuelve
+
+Redondear un valor antes de enviarlo acota **ese** canal y ningún otro. Si la
+función tiene un parámetro continuo que el llamante controla —una coordenada, un
+monto, una fecha—, la **respuesta binaria** ya es un canal: sondeando el
+parámetro se encuentra el borde donde la respuesta cambia, y ese borde habla del
+dato exacto que la condición usa por dentro.
+
+De modo que una función que publica una versión reducida de un dato tiene que
+**decidir con esa misma versión reducida**, no con el original. Si eso cuesta un
+índice, el camino es un prefiltro con holgura sobre la columna intacta y la
+condición exacta sobre el valor publicado después.
+
+En HU-11 se redondeó el marcador a la manzana, la distancia a la centena de metros
+y el radio pedido a la décima de kilómetro, y la base seguía siendo recuperable al
+metro con unas veinte llamadas, porque el origen era un parámetro libre. Ver
+`docs/decisions.md`, 2026-10-11.
+
+## Vistas que corren con los privilegios de su dueño
+
+Una vista con `security_invoker = false` existe para mostrar filas que las
+políticas de la tabla no dejarían ver, y su `where` **es** la regla. Eso vale para
+leer. Para escribir hay una trampa:
+
+**Si la vista es auto-actualizable, se puede escribir por ella, y esa escritura no
+enfrenta ninguna política.** Es auto-actualizable cuando sale de una sola tabla,
+sin `join`, sin agregados, sin `distinct` y sin `limit`; una subconsulta en el
+`where` no lo impide. Supabase concede todo a `authenticated` sobre un objeto
+nuevo, de modo que no quitárselo es concedérselo.
+
+Por eso toda vista de definidor se crea así, y el `revoke` nombra a
+`authenticated` y no solo a `anon`:
+
+```sql
+revoke all on public.<vista> from anon, authenticated;
+grant select on public.<vista> to authenticated;
+```
+
+Y **su prueba de política incluye un intento de escritura**, no solo lecturas. En
+HU-12 cuatro pruebas de lectura pasaron sobre una vista por la que un profesional
+podía reescribir las calificaciones que había recibido. Ver `docs/decisions.md`,
+2026-10-11.
+
 ## Consultas geoespaciales
 
 - La búsqueda por cercanía se resuelve **siempre** con PostGIS dentro de la base
