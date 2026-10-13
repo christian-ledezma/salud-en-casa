@@ -798,6 +798,83 @@ se revisaron además visualmente. Es la misma herramienta que usa la vista previ
 de Mermaid de GitHub por debajo, así que un diagrama que renderiza aquí renderiza
 ahí.
 
+### HT-19 · Identidad de marca: ícono y arranque `[~]` — 2026-10-13
+
+> Como **persona que abre la aplicación**, quiero **reconocer la marca desde el ícono
+> hasta la primera pantalla**, para **saber que estoy en Salud en Casa y no en una
+> plantilla**.
+
+**Origen.** Pedido del autor como Product Owner el 2026-10-13. No responde a un
+requisito funcional: retira el último resto de la plantilla, el robot verde del ícono,
+como HT-06 retiró su paleta. RNF-02 condiciona la duración del arranque. El
+razonamiento está en `docs/decisions.md`, en las dos entradas del 2026-10-13.
+
+**Diseño aprobado.** El autor entregó el logo como imagen. Se redibujó en vectores y se
+le presentaron dos variantes con la animación. Eligió la **B**, armonizada con el tema:
+casa y cruz en `primary`, corazón en verde menta. Aprobó también la duración del trazo y
+el latido del logo. Colores, medidas y tiempos están en `docs/design-system.md`,
+sección 9.
+
+- [x] El ícono de la plantilla se reemplaza por el dibujo del logo, sin el nombre ni la
+      leyenda: ícono adaptativo sobre blanco, más la versión monocroma para los íconos
+      temáticos de Android 13
+- [x] Se eliminan los diez `.webp` de la plantilla: con `minSdk = 26`, el ícono
+      adaptativo cubre todas las versiones
+- [x] Al tocar el ícono, la ventana muestra el logo centrado sobre el fondo de la
+      aplicación, en claro y en oscuro. En Android 12 o superior lo muestra el splash
+      del sistema; en Android 8 a 11, el fondo de la ventana
+- [x] La pantalla de arranque recoge el logo donde lo dejó el sistema, lo asienta y
+      muestra «Salud en Casa». La línea cardio se traza de izquierda a derecha y el logo
+      late cuando la línea cruza el pico
+- [x] Al abrir la aplicación, la navegación espera ese primer trazo (1,75 s). Al volver
+      del ingreso no se repite
+- [x] Con «quitar animaciones» activado se muestra el cuadro final y no se espera
+- [x] Si la carga dura más, la línea sigue barriendo como un monitor, y el error
+      conserva el botón para reintentar
+- [x] Ninguna leyenda ni texto visible escrito en el código: el nombre es una imagen con
+      `app_name` como descripción
+- [ ] `./gradlew build` y `./gradlew test` concluyen sin error
+- [ ] Las tres previsualizaciones del arranque —claro, oscuro y al 200 %— se abrieron y
+      se ven correctas
+- [ ] Recorrido en emulador con Android 12 o superior y con uno de 8 a 11:
+  - el logo no salta entre el splash y la animación;
+  - la aplicación llega a la pantalla que corresponde;
+  - al girar el teléfono en cualquier pantalla no asoma el logo
+
+**Por qué los tres últimos siguen abiertos.** La sesión del 2026-10-13 no pudo compilar.
+La política de red del entorno rechaza `dl.google.com`, donde vive el complemento de
+Android, y Maven Central respondió con límite de peticiones. Además, el entorno solo tiene
+Java 21 y el proceso de Gradle está fijado en 17. Para intentarlo, se cambió
+temporalmente `gradle/gradle-daemon-jvm.properties` a 21 y se agregó un
+`app/google-services.json` de relleno. **Los dos se restauraron**: el primero quedó igual
+byte a byte, y el segundo se eliminó. Ninguna prueba nueva se ejecutó todavía. El
+recorrido es obligatorio porque el arranque es parte del primer ingreso de HU-01, que
+figura como crítica en «Cuándo hace falta un dispositivo».
+
+**Pruebas.**
+
+| Prueba | Qué error atrapa |
+|---|---|
+| `HeartbeatMotionTest.everyPhaseHasSettledWhenTheIntroEnds` | Una fase que dura más que la animación queda cortada en el último cuadro: el logo a mitad del latido o el nombre a medio aparecer |
+| `HeartbeatMotionTest.theLogoBeatsAsTheTraceCrossesItsTallestPeak` | Mover el pico de la línea sin mover el latido, o al revés |
+| `HeartbeatMotionTest.theTraceHasNoJumpAtAnyPointItIsDrawnThrough` | El defecto de la primera versión: el pico R contado dos veces, dibujado al doble de su altura |
+| `StartupContentTest.aLaunchLeavesOnlyOnceTheHeartbeatHasBeenDrawn` | Salir a mitad del trazo, o no salir nunca |
+| `StartupContentTest.aReturnFromSignInDoesNotWaitForTheIntro` | Volver a cobrar la espera después del ingreso |
+| `StartupContentTest.withAnimationsRemovedALaunchDoesNotWait` | Hacer esperar un trazo que no se dibuja |
+| `StartupScreenLargeFontTest.theNameAndTheHeartbeatFitTheNarrowestScreen` | El nombre o la línea fuera de los 320 dp |
+| `StartupScreenLargeFontTest.theWayOutOfAFailedStartStaysReachable` | El botón para reintentar fuera de alcance al 200 % |
+
+**Archivos.**
+
+| Capa | Archivos |
+|---|---|
+| Ícono | `res/drawable/ic_launcher_{foreground, background, monochrome}.xml` · `res/mipmap-anydpi/ic_launcher{,_round}.xml` (modificados o nuevos) · `res/mipmap-{m,h,xh,xxh,xxxh}dpi/ic_launcher{,_round}.webp` (eliminados, con sus carpetas) |
+| Marca | `res/drawable/ic_brand_{mark, wordmark}.xml` · `res/drawable-night/ic_brand_{mark, wordmark}.xml` · `res/drawable/startup_window.xml` · `docs/design/brand/salud-en-casa-mark.svg` (nuevos) |
+| Tema y ventana | `res/values/{colors, themes}.xml` · `res/values-night/colors.xml` · `res/values-v31/themes.xml` (nuevos o modificados) · `res/values-night/themes.xml` (eliminado: el color de la ventana pasó a `values-night/colors.xml`) · `AndroidManifest.xml` · `MainActivity.kt` |
+| Interfaz | `ui/animations/{HeartbeatMotion, HeartbeatTrace}.kt` (nuevos) · `ui/theme/{Color, SaludEnCasaTheme, Spacing}.kt` · `features/auth/presentation/StartupScreen.kt` · `navigation/{Routes, SaludEnCasaNavHost}.kt` (modificados) |
+| Pruebas | `test/.../ui/animations/HeartbeatMotionTest.kt` · `test/.../auth/presentation/{StartupContentTest, StartupScreenLargeFontTest}.kt` (nuevos) |
+| Documentos | `docs/decisions.md` · `docs/design-system.md` (sección 9) · `.claude/rules/glosario.md` · `plan.md` (esta sección) |
+
 **El diagrama de autenticación se corrigió durante la propia verificación.** La
 primera versión mostraba a Supabase rechazando el token sin que Google
 respondiera nunca la verificación dentro de esa misma rama del diagrama —una

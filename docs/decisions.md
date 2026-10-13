@@ -4598,6 +4598,118 @@ la bandeja queda reservado para HU-17 (ofertar); HU-14 solo muestra.
 
 ---
 
+## 2026-10-13 · Identidad de marca: el logo se redibuja en vectores y se armoniza con el tema
+
+**Contexto.** La aplicación seguía con el ícono de la plantilla de Android, el robot
+verde: el último resto de la plantilla después de que HT-06 retirara su paleta y su
+tipografía. El autor entregó el logo como una imagen JPG de 1254 px, con el nombre, una
+línea cardio y la leyenda «conectando pacientes con profesionales de salud donde lo
+necesiten». Pidió el ícono con el dibujo solo y un arranque animado donde la línea cardio
+sea lo principal, sin la leyenda en ningún caso.
+
+**Decisión.** El dibujo se redibuja en vectores a partir de la imagen y se publica en
+la variante B, que el autor aprobó el 2026-10-13: casa y cruz en `#1A6F8F`, el `primary`
+del tema, y corazón en verde menta `#22A07E`. El nombre no se compone con una fuente:
+es un vector con los contornos de Inter Bold.
+
+**Razonamiento.**
+
+- **Redibujar y no vectorizar de forma automática.** El trazado automático de una imagen
+  JPG produce contornos con ruido, y un ícono se muestra a 48 dp. Se midieron las
+  posiciones sobre la imagen, se corrigió la simetría respecto del eje del techo y se dejó
+  un solo grosor de trazo. Superpuesto al original, coincide. El paso de azul a verde
+  donde el corazón se une con la base de la casa se conserva como un tramo corto con
+  degradado.
+- **Por qué la variante B y no la fiel.** El verde del original, `#34B98E`, tiene un
+  contraste de 2,48:1 sobre blanco, por debajo del 3:1 que pide un gráfico. El
+  `#22A07E` llega a 3,28:1. El azul se reemplazó por el `primary` del tema para que el
+  arranque y las pantallas se lean como una sola cosa. En oscuro, casa y corazón pasan a
+  `#7FC5DE` —el `primary` oscuro— y `#5FD3AE`, con 9,6:1 y 10:1 sobre `#0E1518`.
+- **El nombre como imagen y no como texto.** Por dos razones:
+  - Inter llega como fuente descargable, y en el arranque en frío puede no estar lista
+    en los primeros cuadros: el nombre aparecería en la fuente de reserva y cambiaría a
+    mitad de la animación.
+  - Un logotipo no crece con el tamaño de fuente del sistema. Compuesto como texto, al
+    200 % no cabe en 320 dp.
+
+  Los contornos se obtuvieron dando forma al texto con HarfBuzz sobre Inter Bold, con
+  su ajuste entre pares de letras. Inter tiene licencia SIL OFL, que permite convertir
+  los glifos en contornos. La imagen lleva `app_name` como descripción de contenido.
+- **El ícono adaptativo basta.** Con `minSdk = 26`, el ícono de `mipmap-anydpi` cubre
+  todas las versiones, así que los diez `.webp` de la plantilla se eliminan. La versión
+  monocroma sirve a los íconos temáticos de Android 13. El dibujo cabe en un círculo de
+  radio 32 sobre el lienzo de 108, dentro de la zona segura de 66 dp.
+
+**Consecuencia.** La fuente de verdad del dibujo es
+`docs/design/brand/salud-en-casa-mark.svg`. Los vectores de `res/drawable` se generan a
+partir de él: cambiar el logo es regenerarlos, no retocar rutas a mano. Los colores y las
+medidas de la marca quedan en `docs/design-system.md`, sección 9. El verde de la línea
+cardio entra al tema como `BrandColors.heartbeat`, porque ningún rol de Material 3 lo
+lleva.
+
+---
+
+## 2026-10-13 · La pantalla de arranque: el sistema muestra el logo y la aplicación lo anima
+
+**Contexto.** Desde Android 12, el sistema dibuja su propio splash al abrir una
+aplicación desde el lanzador. No se puede reemplazar ni desactivar: solo admite un ícono
+centrado sobre un color sólido, sin texto. El nombre y la línea cardio no pueden vivir
+ahí. El autor compartió cómo lo resolvió en WhosIn: el fondo de la ventana del mismo
+color que la primera pantalla, `windowDisablePreview` para que el sistema no dibuje nada,
+y la animación en Compose.
+
+**Decisión.** El sistema muestra el logo centrado sobre el fondo de la aplicación, y
+`StartupScreen` lo recoge en ese mismo lugar para animarlo:
+
+1. El logo se asienta.
+2. Aparece el nombre.
+3. La línea cardio se traza de izquierda a derecha.
+
+La navegación espera ese primer trazo solo al abrir la aplicación.
+
+**Razonamiento.**
+
+- **Sin `windowDisablePreview`.** Desde Android 12 el sistema la ignora cuando la
+  aplicación se abre desde el lanzador. En Android 8 a 11 sí se aplica, y deja el toque
+  sin respuesta hasta el primer cuadro: parece que la aplicación no abrió.
+- **Sin `androidx.core:core-splashscreen`.** Ningún requisito la exige, y lo que haría
+  se resuelve con recursos:
+  - El tema `Theme.SaludEnCasa.Starting` lleva el logo en el fondo de la ventana para
+    Android 8 a 11.
+  - En `values-v31` declara el mismo logo como ícono del splash del sistema.
+
+  `MainActivity` cambia a `Theme.SaludEnCasa` antes de su primer cuadro. Sin ese cambio,
+  el logo quedaría detrás de toda pantalla y asomaría cada vez que la actividad se recrea.
+- **El logo no salta.** El splash de Android 12 dibuja el ícono a 288 dp y lo centra en
+  la ventana. El fondo de la ventana de 8 a 11 usa la misma medida. La pantalla mide
+  cuánto dista el lugar del logo del centro de la ventana y lo arranca desde ahí.
+- **Que parezca un monitor.** La línea avanza a velocidad horizontal constante, no a lo
+  largo del trazo: el pico se dibuja casi de golpe, como en un electrocardiograma. Tiene
+  onda P, complejo QRS y onda T. Si la carga dura más que el primer trazo, el barrido
+  sigue y borra justo delante de lo que dibuja. El logo late dos veces seguidas cuando la
+  cabeza cruza el pico.
+- **Cómo se anima.** El trazo de entrada es una animación finita sobre un `Animatable`,
+  que el reloj de prueba maneja. El barrido repetido es `rememberInfiniteTransition`,
+  por la regla del 2026-10-09: una animación infinita escrita a mano colgaría las
+  pruebas de interfaz.
+- **RNF-02 y la espera.** RNF-02 mide el arranque en frío hasta el primer cuadro, y la
+  animación no lo retrasa. Lo que sí hace es retener la pantalla de arranque hasta
+  1,75 s cuando la sesión se resuelve antes: es el costo de que la línea se vea completa,
+  y el autor lo aprobó.
+  - La espera no se repite al volver del ingreso, porque `StartupRoute.playIntro` llega
+    en `false`.
+  - Desaparece con «quitar animaciones», donde esperar un trazo que no se dibuja sería
+    pura demora.
+
+**Consecuencia.** La pantalla de arranque deja de ser solo un indicador de carga: es la
+primera pantalla de marca. Hay tres cosas que una prueba unitaria no ve y que solo un
+recorrido en emulador puede confirmar:
+- que el logo no salta entre el splash y la animación;
+- que el fondo de la ventana de Android 8 a 11 se ve igual que el splash del sistema;
+- que la actividad recreada no muestra el logo.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

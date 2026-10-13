@@ -465,3 +465,55 @@ con las iniciales sobre `primaryContainer`, nunca una fotografía genérica.
 - [ ] La pantalla se ve correcta con el tamaño de fuente del sistema al 200 %.
 - [ ] Los cuatro estados están resueltos: cargando, vacío, con contenido y error.
 - [ ] Las previsualizaciones cubren esos cuatro estados en ambos esquemas.
+
+---
+
+## 9. Marca: logo, ícono y arranque
+
+El logo es una casa con un corazón y una cruz dentro. Se redibujó en vectores a partir
+de la imagen que entregó el autor. El original vive en
+`docs/design/brand/salud-en-casa-mark.svg`, y los vectores de `res/drawable` se
+generan a partir de él. La leyenda «conectando pacientes con profesionales de salud
+donde lo necesiten» no se usa en la aplicación. Ver `docs/decisions.md`, 2026-10-13.
+
+### Colores
+
+| Elemento | Claro | Oscuro | Contraste sobre el fondo |
+|---|---|---|---|
+| Casa y cruz | `#1A6F8F`, el `primary` | `#7FC5DE`, el `primary` oscuro | 5,65:1 sobre blanco · 9,6:1 sobre `#0E1518` |
+| Corazón | `#22A07E` | `#5FD3AE` | 3,28:1 sobre blanco · 10:1 sobre `#0E1518` |
+| «Salud» y «Casa» | `#1A6F8F` | `#7FC5DE` | Igual que la casa |
+| «en» y línea cardio | `#1C9474` | `#5FD3AE` | 3,79:1 sobre blanco |
+
+La línea cardio toma su color de `SaludEnCasaTheme.brandColors.heartbeat`. El logo y el
+nombre llevan los suyos en `drawable` y `drawable-night`, porque son imágenes.
+
+### Archivos
+
+| Recurso | Uso |
+|---|---|
+| `ic_launcher_foreground`, `ic_launcher_background`, `ic_launcher_monochrome` | Ícono adaptativo: el dibujo sobre blanco, y la versión de un color para los íconos temáticos de Android 13 |
+| `ic_brand_mark` | El dibujo solo, para el splash del sistema y la pantalla de arranque |
+| `ic_brand_wordmark` | «Salud en Casa» con los contornos de Inter Bold, con «en» en el verde del corazón |
+| `startup_window` | El fondo de la ventana de arranque en Android 8 a 11: el logo centrado sobre el fondo de la aplicación |
+
+### Medidas
+
+- **Ícono.** El dibujo cabe en un círculo de radio 32 sobre el lienzo de 108, dentro de
+  la zona segura de 66 dp que respeta cualquier máscara del lanzador.
+- **Logo en el arranque.** Empieza a 288 dp, la medida del ícono del splash de Android
+  12, y se asienta al 70 %, unos 202 dp.
+- **Nombre.** 260 dp de ancho. No crece con el tamaño de fuente, porque es un logotipo.
+- **Línea cardio.** Todo el ancho disponible, con un máximo de 300 dp, en proporción 4:1.
+
+### Animación de arranque
+
+| Tramo | Desde | Hasta |
+|---|---|---|
+| El logo sube y se achica | 150 ms | 600 ms |
+| Aparece el nombre | 260 ms | 680 ms |
+| La línea se traza de izquierda a derecha | 650 ms | 1750 ms |
+| El logo late dos veces, al cruzar el pico | 1200 ms | 1670 ms |
+
+Con «quitar animaciones» activado se muestra el cuadro final sin esperar. Si la carga
+dura más, el barrido sigue como en un monitor y borra justo delante de lo que dibuja.

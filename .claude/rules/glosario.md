@@ -69,6 +69,11 @@ que lo introduce.
 | Documentos marcados | `checkedTypes` | Los que el administrador seleccionó para un veredicto conjunto |
 | Visor a pantalla completa | `FullScreenDocumentImage` | El documento abierto sobre fondo oscuro, con zoom y arrastre |
 | Transformación de la imagen | `ImageTransform` | La escala y el desplazamiento del visor, con su recorte |
+| Marca | `brand` | El logo, el nombre dibujado y sus colores: `ic_brand_mark`, `ic_brand_wordmark`, `BrandColors` |
+| Animación de arranque | `intro` / `playIntro` | Se reproduce al abrir la aplicación, nunca al volver del ingreso |
+| Línea cardio | `HeartbeatTrace` | La línea que se traza bajo el nombre en el arranque, con sus ondas P, QRS y T |
+| Barrido | `Sweep` | Hasta dónde llegó la cabeza de la línea, y si es una pasada repetida |
+| Latido del logo | `beatScale` | El pulso doble del logo cuando la línea cruza el pico |
 | Expediente de revisión | `DocumentReviewDossier` | La persona revisada, sus documentos y su lista de requeridos |
 | Veredicto | `verdict` | Aprobación o rechazo de un documento por el administrador |
 | Revisado | `DocumentReviewSubject` | La persona cuyos documentos revisa el administrador |
