@@ -41,6 +41,7 @@ class AccountScreenLargeFontTest {
                 onOpenSearch = {},
                 onOpenCreateRequest = {},
                 onOpenMyRequests = {},
+                onOpenInbox = {},
                 onOpenAddress = {},
                 onOpenVerification = {},
                 onOpenDocumentReview = {},
