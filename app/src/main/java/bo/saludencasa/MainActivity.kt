@@ -13,6 +13,8 @@ import bo.saludencasa.ui.theme.SaludEnCasaTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // docs/decisions.md, 2026-10-13, the startup screen.
+        setTheme(R.style.Theme_SaludEnCasa)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {

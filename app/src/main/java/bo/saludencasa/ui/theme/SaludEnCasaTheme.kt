@@ -55,8 +55,10 @@ private val DarkColorScheme =
 
 private val LocalStatusColors = compositionLocalOf { LightStatusColors }
 
-// Exposes spacing, status colors, and shapes with no Material 3 slot the same
-// way MaterialTheme exposes colorScheme and typography.
+private val LocalBrandColors = compositionLocalOf { LightBrandColors }
+
+// Exposes spacing, status and brand colors, and shapes with no Material 3 slot
+// the same way MaterialTheme exposes colorScheme and typography.
 object SaludEnCasaTheme {
     val spacing: Spacing get() = Spacing
 
@@ -67,6 +69,11 @@ object SaludEnCasaTheme {
         @ReadOnlyComposable
         get() = LocalStatusColors.current
 
+    val brandColors: BrandColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalBrandColors.current
+
     @Composable
     operator fun invoke(
         darkTheme: Boolean = isSystemInDarkTheme(),
@@ -74,8 +81,12 @@ object SaludEnCasaTheme {
     ) {
         val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
         val statusColors = if (darkTheme) DarkStatusColors else LightStatusColors
+        val brandColors = if (darkTheme) DarkBrandColors else LightBrandColors
 
-        CompositionLocalProvider(LocalStatusColors provides statusColors) {
+        CompositionLocalProvider(
+            LocalStatusColors provides statusColors,
+            LocalBrandColors provides brandColors,
+        ) {
             MaterialTheme(
                 colorScheme = colorScheme,
                 typography = Typography,

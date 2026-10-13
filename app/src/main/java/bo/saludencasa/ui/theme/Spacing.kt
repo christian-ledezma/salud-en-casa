@@ -18,6 +18,12 @@ object Spacing {
     // written address on screen beside it.
     val mapHeight: Dp = 280.dp
 
+    // docs/design-system.md, section 9. The mark starts at the icon size of the
+    // Android 12 system splash, so the startup screen picks it up where the
+    // system left it.
+    val brandMarkSize: Dp = 288.dp
+    val brandTraceMaxWidth: Dp = 300.dp
+
     val scale4: Dp = 4.dp
     val scale8: Dp = 8.dp
     val scale12: Dp = 12.dp

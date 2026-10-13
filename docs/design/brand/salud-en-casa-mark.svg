@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="372 225 506 484" width="506" height="484">
+
+  <defs>
+    <linearGradient id="junction-master" gradientUnits="userSpaceOnUse" x1="548" y1="0" x2="628" y2="0">
+      <stop offset="0" stop-color="#1A6F8F"/><stop offset="1" stop-color="#22A07E"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-width="26" stroke-linejoin="round">
+    <path d="M398,437 L625,251 L852,437" stroke="#1A6F8F" stroke-linecap="round"/>
+    <path d="M736,342 V289 Q736,281 744,281 H768 Q776,281 776,289 V375 Z" fill="#1A6F8F" stroke="none"/>
+    <path d="M424,416 V613 A70,70 0 0 0 494,683 H548" stroke="#1A6F8F" stroke-linecap="butt"/>
+    <path d="M826,416 V613 A70,70 0 0 1 756,683 H695" stroke="#1A6F8F" stroke-linecap="round"/>
+    <path d="M530,683 H560 C597.80,683.00 641.77,663.07 680.07,633.87" stroke="url(#junction-master)" stroke-linecap="butt"/>
+    <g class="heart"><path d="M657.65,649.47 C720.55,609.74 775.00,542.12 775.00,488.00 C775.00,445.00 739.00,410.00 695.00,410.00 C665.00,410.00 645.00,428.00 625.00,446.00 C605.00,428.00 585.00,410.00 555.00,410.00 C511.00,410.00 475.00,445.00 475.00,488.00 C473.00,540.00 505.00,585.00 590.00,648.00" stroke="#22A07E" stroke-linecap="round"/></g>
+    <path d="M604,490 Q604,483 611,483 H639 Q646,483 646,490 V521 H677 Q684,521 684,528 V556 Q684,563 677,563 H646 V594 Q646,601 639,601 H611 Q604,601 604,594 V563 H573 Q566,563 566,556 V528 Q566,521 573,521 H604 Z" fill="#1A6F8F" stroke="none"/>
+  </g>
+</svg>

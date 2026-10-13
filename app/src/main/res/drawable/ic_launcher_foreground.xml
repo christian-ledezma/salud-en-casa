@@ -1,30 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
+    <path
+        android:pathData="M27.979,50.561 L54,29.24 L80.021,50.561"
+        android:strokeWidth="2.98"
+        android:strokeColor="#1A6F8F"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#1A6F8F"
+        android:pathData="M66.724,39.671 V33.596 Q66.724,32.679 67.641,32.679 H70.392 Q71.309,32.679 71.309,33.596 V43.454 Z" />
+    <path
+        android:pathData="M30.959,48.154 V70.736 A8.024,8.024 0 0 0 38.983,78.76 H45.173"
+        android:strokeWidth="2.98"
+        android:strokeColor="#1A6F8F"
+        android:strokeLineCap="butt"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M77.041,48.154 V70.736 A8.024,8.024 0 0 1 69.017,78.76 H62.024"
+        android:strokeWidth="2.98"
+        android:strokeColor="#1A6F8F"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M43.11,78.76 H46.549 C50.882,78.76 55.922,76.476 60.313,73.129"
+        android:strokeWidth="2.98"
+        android:strokeLineCap="butt"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
             <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
+                android:endX="54.344"
+                android:endY="0"
+                android:startX="45.173"
+                android:startY="0"
                 android:type="linear">
                 <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
+                    android:color="#1A6F8F"
+                    android:offset="0" />
                 <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
+                    android:color="#22A07E"
+                    android:offset="1" />
             </gradient>
         </aapt:attr>
     </path>
     <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+        android:pathData="M57.743,74.917 C64.953,70.362 71.195,62.611 71.195,56.407 C71.195,51.478 67.068,47.466 62.024,47.466 C58.585,47.466 56.293,49.529 54,51.593 C51.707,49.529 49.415,47.466 45.976,47.466 C40.932,47.466 36.805,51.478 36.805,56.407 C36.576,62.368 40.244,67.527 49.988,74.748"
+        android:strokeWidth="2.98"
+        android:strokeColor="#22A07E"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#1A6F8F"
+        android:pathData="M51.593,56.637 Q51.593,55.834 52.395,55.834 H55.605 Q56.407,55.834 56.407,56.637 V60.19 H59.961 Q60.763,60.19 60.763,60.993 V64.202 Q60.763,65.005 59.961,65.005 H56.407 V68.558 Q56.407,69.361 55.605,69.361 H52.395 Q51.593,69.361 51.593,68.558 V65.005 H48.039 Q47.237,65.005 47.237,64.202 V60.993 Q47.237,60.19 48.039,60.19 H51.593 Z" />
 </vector>

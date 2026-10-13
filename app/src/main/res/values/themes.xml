@@ -3,13 +3,20 @@
 
     <!--
       Neutral parent, not Theme.Material.Light.NoActionBar: that parent fixes
-      the light scheme regardless of system setting. The window background is
-      set explicitly instead of inherited, so the values-night counterpart of
-      this style is the only thing that needs to differ (plan.md, HT-06).
+      the light scheme regardless of system setting. The window background is a
+      color resource instead of an inherited value, so values-night/colors.xml
+      is the only thing that needs to differ (plan.md, HT-06).
       Compose owns every other color; this theme only covers the pre-Compose
       window frame.
     -->
     <style name="Theme.SaludEnCasa" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#F1F4F6</item>
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <!-- The launcher's starting window only. MainActivity switches to
+         Theme.SaludEnCasa before its first frame (docs/decisions.md, 2026-10-13,
+         the startup screen). -->
+    <style name="Theme.SaludEnCasa.Starting">
+        <item name="android:windowBackground">@drawable/startup_window</item>
     </style>
 </resources>

@@ -31,11 +31,12 @@ fun SaludEnCasaNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = StartupRoute,
+        startDestination = StartupRoute(),
         modifier = modifier,
     ) {
-        composable<StartupRoute> {
+        composable<StartupRoute> { entry ->
             StartupScreen(
+                playIntro = entry.toRoute<StartupRoute>().playIntro,
                 onSignIn = { navController.replaceCurrentWith(WelcomeRoute) },
                 onChooseRole = { navController.replaceCurrentWith(RoleSelectionRoute) },
                 onHome = { navController.replaceCurrentWith(AccountRoute) },
@@ -43,7 +44,7 @@ fun SaludEnCasaNavHost(
         }
 
         composable<WelcomeRoute> {
-            WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(StartupRoute) })
+            WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(StartupRoute(playIntro = false)) })
         }
 
         composable<RoleSelectionRoute> {

@@ -3,7 +3,9 @@ package bo.saludencasa.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object StartupRoute
+data class StartupRoute(
+    val playIntro: Boolean = true,
+)
 
 @Serializable
 data object WelcomeRoute
