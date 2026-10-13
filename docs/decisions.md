@@ -4494,6 +4494,65 @@ salida.
 
 ---
 
+## 2026-10-12 · HU-13: cómo nace, cómo expira y cómo se lee una solicitud inmediata
+
+**Contexto.** La tabla `service_requests`, el disparador que congela el snapshot
+de ubicación (INV-03) y el guard de ciclo de vida que ya permite la
+auto-cancelación (RF-07.6) existen desde el Sprint 0. Faltaba el mecanismo de
+expiración (RF-07.5) —nada poblaba ni barría `expires_at`, y no había `pg_cron`,
+ni tabla de configuración, ni Edge Functions—, un camino de creación que congelara
+el snapshot y fijara el vencimiento, y toda la capa de cliente.
+
+**Decisiones.**
+
+1. **El plazo vive en una tabla `platform_settings` de una sola fila**, no como
+   constante en una función. RF-07.5 lo llama «configurable»; la lectura honesta de
+   eso es un dato, no un número recompilado. La fila única la fija una clave
+   primaria booleana. La comisión del Sprint 8 agregará una columna aquí en vez de
+   inventar un segundo mecanismo. Valor inicial: 30 minutos.
+2. **La solicitud inmediata solo nace por `create_immediate_request`, una función
+   `security definer`.** Lee la dirección que el paciente eligió, congela de ella el
+   snapshot (ubicación, texto, ciudad, referencia) y fija `expires_at` desde el
+   plazo. Se endureció `service_requests_insert_own` a `modality <> 'IMMEDIATE'`:
+   como la función de definidor omite las políticas, eso no la bloquea, pero cierra
+   la inserción directa de una inmediata con una ubicación y un vencimiento que el
+   cliente podría falsear. Difiere del patrón de direcciones —inserción directa con
+   EWKT— porque allí la política basta para la integridad y aquí no: el snapshot y
+   el plazo son del servidor. Es el mismo molde que la aceptación atómica de RF-08.5
+   necesitará. El presupuesto viaja como **texto** y se castea adentro: PostgREST
+   mapea un número JSON a un argumento `numeric` a través de un `double`, y el dinero
+   leído de un `double` no es el que se tecleó.
+3. **La expiración la escribe un job de `pg_cron` cada minuto**, no una lectura
+   derivada. «Queda expirada» (RF-07.5) es una transición de estado real que el
+   paciente ve, no un estado calculado. El job corre sin `auth.uid()`, que
+   `guard_request_lifecycle` deja pasar por su primera rama. Solo toca las
+   `IMMEDIATE` + `PUBLISHED` vencidas **sin ofertas**: una que ya recibió una oferta
+   es una negociación, no una abandonada. Se descartó la expiración perezosa porque
+   no deja un `EXPIRED` real, y la Edge Function porque es más piezas que el job.
+4. **El inbox del profesional se endureció con `expires_at > now()`.** El barrido
+   corre una vez por minuto; sin el guard de tiempo una vencida seguiría en el inbox
+   hasta un minuto. El guard cierra esa ventana; el job sigue escribiendo el
+   `EXPIRED` real.
+5. **`my_service_requests` es una vista de definidor (`security_invoker = false`)
+   cuyo `where` es la regla**, como `professional_directory`. Una vista de invocador
+   aplicaría `service_types_select_all` al `join`, de modo que un tipo del catálogo
+   que un administrador desactivara haría **desaparecer la solicitud propia del
+   paciente** de su lista. El definidor lee el nombre del tipo por encima de esa
+   política; `auth.uid()` sigue devolviendo al llamante, así que el filtro de
+   propiedad es honesto. El `join` la hace no auto-actualizable, y el `revoke` nombra
+   a `authenticated`, no solo a `anon` (supabase.md).
+
+**Consecuencia.** El proyecto incorpora `pg_cron` por primera vez; si el proyecto
+remoto restringe `create extension`, habilitarlo queda como paso manual del autor,
+con el `cron.schedule` re-ejecutable aparte. `platform_settings` queda como el lugar
+de la configuración de plataforma, que el Sprint 8 reutilizará. La creación directa
+de una solicitud `IMMEDIATE` desde el cliente queda cerrada; la `SCHEDULED` sigue
+abierta para que HU-16 decida su camino. Las pruebas de política de esta historia
+—incluida la de escritura sobre la vista y el experimento del barrido— se corren
+contra el remoto y se anotan en `plan.md`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

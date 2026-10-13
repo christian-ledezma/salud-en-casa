@@ -4896,25 +4896,79 @@ profesional ve las solicitudes de su zona.
 
 **Puntos:** 24.
 
-### HU-13 · Solicitar atención inmediata `[ ]` — 8 puntos
+### HU-13 · Solicitar atención inmediata `[x]` — 8 puntos
 
 > Como **paciente con una necesidad urgente**, quiero **publicar una solicitud que
 > vean los profesionales cercanos**, para **recibir atención lo antes posible**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que necesito atención, cuando creo una solicitud inmediata, entonces
+- [x] Dado que necesito atención, cuando creo una solicitud inmediata, entonces
       indico tipo de servicio, dirección, descripción y presupuesto sugerido.
-- [ ] Dado que publico la solicitud, cuando consulto su estado, entonces figura
+- [x] Dado que publico la solicitud, cuando consulto su estado, entonces figura
       como publicada.
-- [ ] Dado que publico la solicitud, cuando la consultan los profesionales del
+- [x] Dado que publico la solicitud, cuando la consultan los profesionales del
       radio, entonces la ven.
-- [ ] Dado que nadie oferta en el plazo definido, cuando el plazo vence, entonces
+- [x] Dado que nadie oferta en el plazo definido, cuando el plazo vence, entonces
       la solicitud queda expirada.
-- [ ] Dado que la solicitud no fue aceptada, cuando la cancelo, entonces deja de
+- [x] Dado que la solicitud no fue aceptada, cuando la cancelo, entonces deja de
       estar publicada.
 
 **Requisitos:** RF-07.1, RF-07.2, RF-07.5, RF-07.6, INV-03.
+
+**Cerrada (2026-10-13).** Los cinco criterios están verificados de punta a punta.
+La migración se aplicó al remoto con `db push` (tras `--dry-run`); `pg_cron` 1.6.4
+estaba disponible y el job `expire_immediate_requests` quedó **activo, cada
+minuto**. Se confirmó en vivo que existen `platform_settings` (RLS, plazo 30),
+`my_service_requests` (`authenticated` con SELECT y sin UPDATE) y la función.
+
+- **Migración `20261012120000_immediate_requests.sql`** (aplicada 2026-10-13): tabla
+  `platform_settings` (una fila, plazo inicial 30 min, con RLS y política de
+  lectura), función `create_immediate_request` (definidor, snapshot + `expires_at`),
+  endurecimiento de `service_requests_insert_own` a `modality <> 'IMMEDIATE'`, vista
+  de definidor `my_service_requests`, guard de tiempo en el inbox del profesional y
+  el job de `pg_cron` que marca `EXPIRED`. Razonamiento en `docs/decisions.md`,
+  2026-10-12.
+- **Característica nueva `features/requests/`** (dominio, datos, presentación),
+  espejo de `features/search/`: casos de uso `CreateImmediateRequestUseCase`,
+  `GetMyRequestsUseCase`, `CancelRequestUseCase`; reutiliza
+  `GetServiceTypeCatalogUseCase` (catalog) y `GetMyAddressesUseCase` (location) por
+  sus casos de uso. Dos pantallas: «Solicitar atención» y «Mis solicitudes», con sus
+  cuatro estados y las tres previsualizaciones (claro, oscuro, 200 %), revisadas en
+  las capturas de `ScreenCatalog`: el nombre largo del servicio envuelve, nada se
+  recorta a 320 dp. Puntos de entrada en «Mi cuenta» con el rol activo `PATIENT`.
+- **Pruebas en verde (JVM):** objeto de valor `RequestDescription`; casos de uso;
+  mapeadores; modelos de vista (incluido «sin dirección», cancelación con recarga y
+  paginación); interfaz a 200 %/320 dp de ambas pantallas. `./gradlew test`,
+  `assembleDebug` y `ktlintCheck` concluyen sin error.
+- **Experimentos SQL de política/disparador — ejecutados el 2026-10-13 contra el
+  remoto y todos en verde.** Se corrieron con `supabase db query --linked -f`, cada
+  uno en una transacción que **crea los objetos de la migración y termina en
+  `rollback`**, de modo que verifican la lógica real sobre los datos reales sin
+  persistir nada (verificado después: cero residuo; `platform_settings` y la vista
+  no existen en el remoto). Cada rechazo se probó junto con el caso que sí pasa, y
+  todo objeto nuevo incluyó un intento de escritura (retro Sprint 5 #2):
+  - **a.** `create_immediate_request` como paciente A → `PUBLISHED`, `IMMEDIATE`,
+    snapshot de ubicación correcto, `expires_at` a 30 min, presupuesto `150.00`.
+  - **b.** A con la dirección de otro paciente → `address_not_owned`; con la propia
+    (a) sí pasa. Discrimina.
+  - **c.** inserción directa de una `IMMEDIATE` desde el cliente → *new row violates
+    row-level security policy*; una `SCHEDULED` directa sí pasa. Discrimina.
+  - **d.** el paciente cancela `PUBLISHED → CANCELLED` (pasa) pero no una `ACCEPTED`
+    → `request_status_change_requires_the_atomic_operation`. Discrimina (RF-07.6).
+  - **e.** el profesional verificado que cubre ve solo la `PUBLISHED` vigente de un
+    tipo que presta; no ve la vencida por tiempo (guard `expires_at > now()`) ni la
+    de un tipo que no presta.
+  - **f.** el `update` del barrido marcó `EXPIRED` solo la vencida sin oferta; dejó
+    `PUBLISHED` la no vencida y la que ya tenía una oferta.
+  - **g.** `my_service_requests`: para `authenticated`, `SELECT` sí, `UPDATE` y
+    `DELETE` no; un `update` por la vista → *cannot update view … not automatically
+    updatable*.
+  - **h.** `platform_settings` tiene RLS habilitada y una política (red de INV-02).
+- **Queda para el cierre del Sprint 5** (tarea de sprint, no de historia): confirmar
+  que `supabase db reset` en local reconstruye el esquema completo sin error, como
+  pide la Definición de Terminado para un sprint que toca el esquema. La migración
+  directa ya se aplicó limpia sobre el remoto.
 
 ### HU-14 · Ver las solicitudes de mi zona `[ ]` — 8 puntos
 
