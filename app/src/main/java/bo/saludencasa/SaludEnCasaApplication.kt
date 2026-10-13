@@ -6,6 +6,7 @@ import bo.saludencasa.di.catalogModule
 import bo.saludencasa.di.coreModule
 import bo.saludencasa.di.locationModule
 import bo.saludencasa.di.profileModule
+import bo.saludencasa.di.reviewModule
 import bo.saludencasa.di.searchModule
 import bo.saludencasa.di.verificationModule
 import org.koin.android.ext.koin.androidContext
@@ -27,6 +28,7 @@ class SaludEnCasaApplication : Application() {
                 verificationModule,
                 catalogModule,
                 searchModule,
+                reviewModule,
             )
         }
     }
