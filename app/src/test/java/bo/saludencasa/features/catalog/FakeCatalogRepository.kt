@@ -5,6 +5,7 @@ import bo.saludencasa.features.catalog.domain.model.CatalogError
 import bo.saludencasa.features.catalog.domain.model.DeclaredServices
 import bo.saludencasa.features.catalog.domain.model.DeclaredServicesResult
 import bo.saludencasa.features.catalog.domain.model.ProfessionalService
+import bo.saludencasa.features.catalog.domain.model.ProfessionalServicesResult
 import bo.saludencasa.features.catalog.domain.model.ServiceDeclarationResult
 import bo.saludencasa.features.catalog.domain.model.ServiceType
 import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
@@ -31,6 +32,7 @@ class FakeCatalogRepository(
     val declarations: MutableList<PricedAttempt> = mutableListOf()
     val repricings: MutableList<PricedAttempt> = mutableListOf()
     val removals: MutableList<String> = mutableListOf()
+    val servicesOfRequests: MutableList<String> = mutableListOf()
 
     private val stored = services.toMutableList()
 
@@ -47,6 +49,15 @@ class FakeCatalogRepository(
         return DeclaredServicesResult.Loaded(
             DeclaredServices(services = stored.sortedBy { it.type.name }, catalog = catalog),
         )
+    }
+
+    // The visitor's read of somebody else's services. It answers from the same
+    // stored rows, because what a professional declared is what a patient sees.
+    override suspend fun getServicesOf(professionalId: String): ProfessionalServicesResult {
+        servicesOfRequests += professionalId
+        readFailure?.let { return ProfessionalServicesResult.Failure(it) }
+
+        return ProfessionalServicesResult.Loaded(stored.sortedBy { it.type.name })
     }
 
     override suspend fun declareService(
