@@ -15,6 +15,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.ParameterizedRobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
 
@@ -37,6 +38,9 @@ class ScreenCatalog(
                 .forName(className)
                 .getDeclaredComposableMethod(methodName)
                 .also { it.asMethod().isAccessible = true }
+        // The brand drawables have night variants, and a preview's darkTheme flag
+        // does not switch resource qualifiers.
+        if (methodName.contains("Dark")) RuntimeEnvironment.setQualifiers("+night")
         lateinit var view: View
         composeRule.setContent {
             view = LocalView.current
