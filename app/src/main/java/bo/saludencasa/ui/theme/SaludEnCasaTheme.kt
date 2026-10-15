@@ -10,8 +10,9 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// docs/design-system.md, section 1. Only the roles the doc names are set;
-// every other role keeps the Material 3 baseline default.
+// docs/design-system.md, section 1. Every role a component of this app reads is
+// set: the Material 3 baseline fills the rest with violet (docs/decisions.md,
+// 2026-10-15, the search and profile screens).
 private val LightColorScheme =
     lightColorScheme(
         primary = Color(0xFF1A6F8F),
@@ -20,6 +21,8 @@ private val LightColorScheme =
         onPrimaryContainer = Color(0xFF08303F),
         secondary = Color(0xFF4A7C8F),
         onSecondary = Color(0xFFFFFFFF),
+        secondaryContainer = Color(0xFFD5E6ED),
+        onSecondaryContainer = Color(0xFF0B3A4C),
         tertiary = Color(0xFFB87400),
         tertiaryContainer = Color(0xFFFFA600),
         onTertiaryContainer = Color(0xFF3D2800),
@@ -30,7 +33,13 @@ private val LightColorScheme =
         onBackground = Color(0xFF0D0D0D),
         surface = Color(0xFFFFFFFF),
         onSurface = Color(0xFF0D0D0D),
+        surfaceVariant = Color(0xFFE3EBEF),
         onSurfaceVariant = Color(0xFF4C5B62),
+        surfaceContainerLowest = Color(0xFFFFFFFF),
+        surfaceContainerLow = Color(0xFFF7F9FA),
+        surfaceContainer = Color(0xFFEEF2F4),
+        surfaceContainerHigh = Color(0xFFE8EEF1),
+        surfaceContainerHighest = Color(0xFFE3EBEF),
         outline = Color(0xFFC2CCD1),
         outlineVariant = Color(0xFFDEE5E8),
     )
@@ -43,14 +52,27 @@ private val DarkColorScheme =
         onPrimary = Color(0xFF00344A),
         primaryContainer = Color(0xFF0F5570),
         onPrimaryContainer = Color(0xFFCFE8F2),
+        secondary = Color(0xFFA6CBDA),
+        onSecondary = Color(0xFF0B3A4C),
+        secondaryContainer = Color(0xFF1D4555),
+        onSecondaryContainer = Color(0xFFCFE8F2),
+        tertiary = Color(0xFFE0A83C),
+        onTertiary = Color(0xFF2B1C00),
         tertiaryContainer = Color(0xFFE0A83C),
         onTertiaryContainer = Color(0xFF2B1C00),
         background = Color(0xFF0E1518),
         onBackground = Color(0xFFE6EDF0),
         surface = Color(0xFF162025),
         onSurface = Color(0xFFE6EDF0),
+        surfaceVariant = Color(0xFF22313A),
         onSurfaceVariant = Color(0xFFA9BAC1),
+        surfaceContainerLowest = Color(0xFF0A1013),
+        surfaceContainerLow = Color(0xFF131B1F),
+        surfaceContainer = Color(0xFF182226),
+        surfaceContainerHigh = Color(0xFF1E2A30),
+        surfaceContainerHighest = Color(0xFF26343A),
         outline = Color(0xFF3B4A51),
+        outlineVariant = Color(0xFF26343A),
     )
 
 private val LocalStatusColors = compositionLocalOf { LightStatusColors }

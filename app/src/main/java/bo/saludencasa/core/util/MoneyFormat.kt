@@ -1,6 +1,7 @@
 package bo.saludencasa.core.util
 
 import java.math.BigDecimal
+import java.text.DecimalFormat
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
@@ -11,11 +12,21 @@ import java.util.Locale
 // locale decides where the symbol goes and which separators are used.
 private val BOLIVIANO: Currency = Currency.getInstance("BOB")
 
+// The symbol is the one Bolivia uses, whatever the device locale
+// (docs/decisions.md, 2026-10-15, the search and profile screens).
+private val BOLIVIA: Locale = Locale.Builder().setLanguage("es").setRegion("BO").build()
+
 fun formatBob(
     amount: BigDecimal,
     locale: Locale,
-): String =
-    NumberFormat
-        .getCurrencyInstance(locale)
-        .apply { currency = BOLIVIANO }
-        .format(amount)
+): String {
+    val format = NumberFormat.getCurrencyInstance(locale).apply { currency = BOLIVIANO }
+    (format as? DecimalFormat)?.let {
+        it.decimalFormatSymbols = it.decimalFormatSymbols.apply { currencySymbol = BOLIVIANO.getSymbol(BOLIVIA) }
+    }
+    if (amount.stripTrailingZeros().scale() <= 0) {
+        format.minimumFractionDigits = 0
+        format.maximumFractionDigits = 0
+    }
+    return format.format(amount)
+}

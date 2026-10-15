@@ -9,6 +9,8 @@ data class StatusColors(
     val pending: Color,
     val negative: Color,
     val availableNow: Color,
+    val positiveContainer: Color,
+    val onPositiveContainer: Color,
 )
 
 val LightStatusColors =
@@ -17,6 +19,8 @@ val LightStatusColors =
         pending = Color(0xFFB87400),
         negative = Color(0xFFB3261E),
         availableNow = Color(0xFF15782B),
+        positiveContainer = Color(0xFFD7EFDC),
+        onPositiveContainer = Color(0xFF0E4F1C),
     )
 
 val DarkStatusColors =
@@ -25,6 +29,8 @@ val DarkStatusColors =
         pending = Color(0xFFE0A83C),
         negative = Color(0xFFF2B8B5),
         availableNow = Color(0xFF6FD588),
+        positiveContainer = Color(0xFF163D22),
+        onPositiveContainer = Color(0xFFB6F0C3),
     )
 
 // docs/design-system.md, section 9: the mint of the logo's heart, which the
