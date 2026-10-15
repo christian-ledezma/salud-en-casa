@@ -392,6 +392,7 @@
     <string name="auth_account_open_create_request">Solicitar atención</string>
     <string name="auth_account_open_my_requests">Mis solicitudes</string>
     <string name="auth_account_open_inbox">Solicitudes de mi zona</string>
+    <string name="auth_account_open_availability">Mi disponibilidad</string>
 
     <string name="request_create_title">Solicitar atención</string>
     <string name="request_create_subtitle">Publica tu solicitud y los profesionales cercanos podrán ofertar.</string>
@@ -434,4 +435,23 @@
     <string name="error_request_service_type_unavailable">Ese tipo de atención ya no está disponible. Elige otro.</string>
     <string name="error_request_invalid_description">La descripción es demasiado larga. Acórtala e inténtalo de nuevo.</string>
     <string name="error_request_invalid_budget">Ingresa un monto válido, mayor a cero y con hasta dos decimales.</string>
+
+    <!-- HU-15 availability -->
+    <string name="availability_title">Mi disponibilidad</string>
+    <string name="availability_subtitle">Declara tus franjas semanales. Los pacientes solo podrán agendar dentro de ellas.</string>
+    <string name="availability_empty_title">Aún no tienes franjas</string>
+    <string name="availability_empty_hint">Elige un día y agrega la primera franja de atención.</string>
+    <string name="availability_add_slot">Agregar franja</string>
+    <string name="availability_remove_slot_cd">Eliminar franja</string>
+    <string name="availability_slot_range">%1$s – %2$s</string>
+    <string name="availability_add_dialog_title">Nueva franja</string>
+    <string name="availability_day_label">Día</string>
+    <string name="availability_start_label">Inicio</string>
+    <string name="availability_end_label">Fin</string>
+    <string name="availability_add_confirm">Guardar</string>
+    <string name="availability_remove_dialog_title">Eliminar franja</string>
+    <string name="availability_remove_dialog_message">¿Eliminar la franja de %1$s a %2$s?</string>
+    <string name="availability_remove_action">Eliminar</string>
+    <string name="availability_error_end_not_after_start">La hora de fin debe ser después de la de inicio.</string>
+    <string name="availability_error_overlap">Esta franja se cruza con otra que ya declaraste.</string>
 </resources>

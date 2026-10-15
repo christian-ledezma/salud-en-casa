@@ -1,0 +1,528 @@
+package bo.saludencasa.features.availability.presentation
+
+import android.text.format.DateFormat
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bo.saludencasa.R
+import bo.saludencasa.features.availability.domain.model.AvailabilityError
+import bo.saludencasa.features.availability.domain.model.AvailabilitySlot
+import bo.saludencasa.features.availability.domain.model.WeeklyAvailability
+import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.ScreenHeader
+import bo.saludencasa.ui.theme.SaludEnCasaTheme
+import bo.saludencasa.ui.theme.Spacing
+import org.koin.androidx.compose.koinViewModel
+import java.time.DayOfWeek
+import java.time.LocalTime
+
+@Composable
+fun AvailabilityScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: AvailabilityViewModel = koinViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    AvailabilityContent(
+        uiState = uiState,
+        onBack = onBack,
+        onRetry = viewModel::load,
+        onAddClick = viewModel::onAddClick,
+        onRemoveClick = viewModel::onRemoveClick,
+        onDraftDay = viewModel::onDraftDay,
+        onDraftStart = viewModel::onDraftStart,
+        onDraftEnd = viewModel::onDraftEnd,
+        onConfirmAdd = viewModel::onConfirmAdd,
+        onConfirmRemove = viewModel::onConfirmRemove,
+        onDismissDialog = viewModel::onDismissDialog,
+        modifier = modifier,
+    )
+}
+
+@Composable
+internal fun AvailabilityContent(
+    uiState: AvailabilityUiState,
+    onBack: () -> Unit,
+    onRetry: () -> Unit,
+    onAddClick: (DayOfWeek) -> Unit,
+    onRemoveClick: (AvailabilitySlot) -> Unit,
+    onDraftDay: (DayOfWeek) -> Unit,
+    onDraftStart: (LocalTime) -> Unit,
+    onDraftEnd: (LocalTime) -> Unit,
+    onConfirmAdd: () -> Unit,
+    onConfirmRemove: () -> Unit,
+    onDismissDialog: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val loadingDescription = stringResource(R.string.cd_loading)
+
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
+        verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
+    ) {
+        ScreenHeader(
+            title = stringResource(R.string.availability_title),
+            onBack = onBack,
+            subtitle = stringResource(R.string.availability_subtitle),
+        )
+
+        when (uiState) {
+            AvailabilityUiState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.semantics { contentDescription = loadingDescription },
+                    )
+                }
+            }
+
+            is AvailabilityUiState.Failed -> {
+                Text(
+                    text = stringForError(uiState.error),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                PrimaryButton(text = stringResource(R.string.common_retry), onClick = onRetry)
+            }
+
+            is AvailabilityUiState.Content -> {
+                WeekList(
+                    availability = uiState.availability,
+                    onAddClick = onAddClick,
+                    onRemoveClick = onRemoveClick,
+                )
+
+                when (val dialog = uiState.dialog) {
+                    is SlotDialog.Adding -> {
+                        AddSlotDialog(
+                            dialog = dialog,
+                            busy = uiState.busy,
+                            onDraftDay = onDraftDay,
+                            onDraftStart = onDraftStart,
+                            onDraftEnd = onDraftEnd,
+                            onConfirm = onConfirmAdd,
+                            onDismiss = onDismissDialog,
+                        )
+                    }
+
+                    is SlotDialog.Removing -> {
+                        RemoveSlotDialog(
+                            slot = dialog.slot,
+                            busy = uiState.busy,
+                            onConfirm = onConfirmRemove,
+                            onDismiss = onDismissDialog,
+                        )
+                    }
+
+                    null -> { /* no dialog */ }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekList(
+    availability: WeeklyAvailability,
+    onAddClick: (DayOfWeek) -> Unit,
+    onRemoveClick: (AvailabilitySlot) -> Unit,
+) {
+    val locale = LocalConfiguration.current.locales[0]
+    val allEmpty = availability.slotsByDay.values.all { it.isEmpty() }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
+        contentPadding = PaddingValues(bottom = Spacing.scale48),
+    ) {
+        if (allEmpty) {
+            item(key = "empty-hint") {
+                EmptyHint()
+            }
+        }
+
+        DayOfWeek.entries.forEach { day ->
+            val slots = availability.slotsByDay[day].orEmpty()
+            item(key = "header-${day.name}") {
+                DayHeader(dayName = day.longName(locale))
+            }
+            items(slots, key = AvailabilitySlot::id) { slot ->
+                SlotRow(slot = slot, onRemoveClick = { onRemoveClick(slot) })
+            }
+            item(key = "add-${day.name}") {
+                OutlinedButton(
+                    onClick = { onAddClick(day) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+                    Text(
+                        modifier = Modifier.padding(start = Spacing.scale8),
+                        text = stringResource(R.string.availability_add_slot),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyHint() {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(Spacing.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.DateRange,
+                contentDescription = null,
+                modifier = Modifier.size(Spacing.scale40),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(R.string.availability_empty_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(R.string.availability_empty_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DayHeader(dayName: String) {
+    Text(
+        text = dayName,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+@Composable
+private fun SlotRow(
+    slot: AvailabilitySlot,
+    onRemoveClick: () -> Unit,
+) {
+    val removeLabel = stringResource(R.string.availability_remove_slot_cd)
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.cardPadding, vertical = Spacing.scale8),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+        ) {
+            Text(
+                modifier = Modifier.weight(1f),
+                text =
+                    stringResource(
+                        R.string.availability_slot_range,
+                        formattedTime(slot.startTime),
+                        formattedTime(slot.endTime),
+                    ),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            IconButton(onClick = onRemoveClick) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = removeLabel,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddSlotDialog(
+    dialog: SlotDialog.Adding,
+    busy: Boolean,
+    onDraftDay: (DayOfWeek) -> Unit,
+    onDraftStart: (LocalTime) -> Unit,
+    onDraftEnd: (LocalTime) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val is24Hour = DateFormat.is24HourFormat(context)
+    val loadingDescription = stringResource(R.string.cd_loading)
+
+    val startState =
+        rememberTimePickerState(
+            initialHour = dialog.startTime.hour,
+            initialMinute = quantizeTo15(dialog.startTime.minute),
+            is24Hour = is24Hour,
+        )
+    val endState =
+        rememberTimePickerState(
+            initialHour = dialog.endTime.hour,
+            initialMinute = quantizeTo15(dialog.endTime.minute),
+            is24Hour = is24Hour,
+        )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.availability_add_dialog_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale12)) {
+                Text(
+                    text = stringResource(R.string.availability_day_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                WeekdayChips(
+                    selected = dialog.dayOfWeek,
+                    onSelected = onDraftDay,
+                )
+                Text(
+                    text = stringResource(R.string.availability_start_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TimePicker(state = startState)
+                Text(
+                    text = stringResource(R.string.availability_end_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TimePicker(state = endState)
+                dialog.error?.let { err ->
+                    Text(
+                        text = stringForError(err),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.semantics { contentDescription = loadingDescription },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !busy,
+                onClick = {
+                    onDraftStart(LocalTime.of(startState.hour, quantizeTo15(startState.minute)))
+                    onDraftEnd(LocalTime.of(endState.hour, quantizeTo15(endState.minute)))
+                    onConfirm()
+                },
+            ) {
+                Text(text = stringResource(R.string.availability_add_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !busy) {
+                Text(text = stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun WeekdayChips(
+    selected: DayOfWeek,
+    onSelected: (DayOfWeek) -> Unit,
+) {
+    val locale = LocalConfiguration.current.locales[0]
+
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+        items(DayOfWeek.entries.toList(), key = DayOfWeek::name) { day ->
+            val isSelected = day == selected
+            val background =
+                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+            val contentColor =
+                if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+            Box(
+                modifier =
+                    Modifier
+                        .size(Spacing.minTouchTarget)
+                        .clip(CircleShape)
+                        .background(background)
+                        .clickable { onSelected(day) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = day.shortName(locale),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = contentColor,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoveSlotDialog(
+    slot: AvailabilitySlot,
+    busy: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.availability_remove_dialog_title)) },
+        text = {
+            Text(
+                text =
+                    stringResource(
+                        R.string.availability_remove_dialog_message,
+                        formattedTime(slot.startTime),
+                        formattedTime(slot.endTime),
+                    ),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !busy) {
+                Text(text = stringResource(R.string.availability_remove_action))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !busy) {
+                Text(text = stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+// Rounds the selected minute down to the nearest 15, so a bump of the picker
+// never leaves a slot ending at :37.
+private fun quantizeTo15(minute: Int): Int = (minute / STEP_MIN) * STEP_MIN
+
+private const val STEP_MIN = 15
+
+@Preview(showBackground = true, name = "Disponibilidad con franjas (claro)")
+@Composable
+private fun AvailabilityContentPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        AvailabilityContent(
+            uiState =
+                AvailabilityUiState.Content(
+                    availability =
+                        WeeklyAvailability.from(
+                            listOf(
+                                AvailabilitySlot(
+                                    id = "1",
+                                    dayOfWeek = DayOfWeek.MONDAY,
+                                    startTime = LocalTime.of(9, 0),
+                                    endTime = LocalTime.of(12, 0),
+                                ),
+                                AvailabilitySlot(
+                                    id = "2",
+                                    dayOfWeek = DayOfWeek.MONDAY,
+                                    startTime = LocalTime.of(14, 0),
+                                    endTime = LocalTime.of(17, 0),
+                                ),
+                                AvailabilitySlot(
+                                    id = "3",
+                                    dayOfWeek = DayOfWeek.WEDNESDAY,
+                                    startTime = LocalTime.of(8, 30),
+                                    endTime = LocalTime.of(10, 0),
+                                ),
+                            ),
+                        ),
+                ),
+            onBack = {},
+            onRetry = {},
+            onAddClick = {},
+            onRemoveClick = {},
+            onDraftDay = {},
+            onDraftStart = {},
+            onDraftEnd = {},
+            onConfirmAdd = {},
+            onConfirmRemove = {},
+            onDismissDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Disponibilidad vacía (oscuro)")
+@Composable
+private fun AvailabilityEmptyDarkPreview() {
+    SaludEnCasaTheme(darkTheme = true) {
+        AvailabilityContent(
+            uiState = AvailabilityUiState.Content(availability = WeeklyAvailability.Empty),
+            onBack = {},
+            onRetry = {},
+            onAddClick = {},
+            onRemoveClick = {},
+            onDraftDay = {},
+            onDraftStart = {},
+            onDraftEnd = {},
+            onConfirmAdd = {},
+            onConfirmRemove = {},
+            onDismissDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Disponibilidad con error (fuente grande)", fontScale = 2f)
+@Composable
+private fun AvailabilityFailedLargeFontPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        AvailabilityContent(
+            uiState = AvailabilityUiState.Failed(AvailabilityError.NetworkUnavailable),
+            onBack = {},
+            onRetry = {},
+            onAddClick = {},
+            onRemoveClick = {},
+            onDraftDay = {},
+            onDraftStart = {},
+            onDraftEnd = {},
+            onConfirmAdd = {},
+            onConfirmRemove = {},
+            onDismissDialog = {},
+        )
+    }
+}

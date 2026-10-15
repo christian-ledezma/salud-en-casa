@@ -13,6 +13,7 @@ import androidx.navigation.toRoute
 import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
+import bo.saludencasa.features.availability.presentation.AvailabilityScreen
 import bo.saludencasa.features.catalog.presentation.MyServicesScreen
 import bo.saludencasa.features.location.presentation.AddressListScreen
 import bo.saludencasa.features.location.presentation.AddressScreen
@@ -73,6 +74,7 @@ fun SaludEnCasaNavHost(
                 onOpenCreateRequest = { navController.navigate(CreateRequestRoute) },
                 onOpenMyRequests = { navController.navigate(MyRequestsRoute) },
                 onOpenInbox = { navController.navigate(InboxRoute) },
+                onOpenAvailability = { navController.navigate(AvailabilityRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
                 onOpenVerification = { navController.navigate(VerificationRoute) },
                 onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
@@ -121,6 +123,10 @@ fun SaludEnCasaNavHost(
 
         composable<InboxRoute> {
             InboxScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable<AvailabilityRoute> {
+            AvailabilityScreen(onBack = { navController.popBackStack() })
         }
 
         composable<MyServicesRoute> {

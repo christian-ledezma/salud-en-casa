@@ -5259,21 +5259,67 @@ tablas nuevas, así que `everyTableHasRowLevelSecurityEnabledAndAtLeastOnePolicy
 cambia. Pendiente a nivel de sprint (no de historia): `supabase db reset` local al
 cierre del Sprint 5.
 
-### HU-15 · Declarar mi disponibilidad horaria `[ ]` — 3 puntos
+### HU-15 · Declarar mi disponibilidad horaria `[x]` — 3 puntos
 
 > Como **profesional**, quiero **indicar en qué franjas horarias atiendo**, para
 > **recibir solicitudes agendadas solo cuando puedo**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que abro mi disponibilidad, cuando agrego una franja, entonces indico
+- [x] Dado que abro mi disponibilidad, cuando agrego una franja, entonces indico
       día de la semana, hora de inicio y hora de fin.
-- [ ] Dado que la hora de fin es anterior a la de inicio, cuando guardo, entonces
+- [x] Dado que la hora de fin es anterior a la de inicio, cuando guardo, entonces
       se rechaza.
-- [ ] Dado que declaro mis franjas, cuando un paciente intenta agendar, entonces
+- [x] Dado que declaro mis franjas, cuando un paciente intenta agendar, entonces
       solo puede elegir dentro de ellas.
 
 **Requisitos:** RF-02.4.
+
+**Cerrada (2026-10-14).** Migración `20261014120000_availability_overlap_guard.sql`
+aplicada al remoto (`db push` tras `--dry-run` limpio). La tabla
+`availability_slots` ya existía desde el Sprint 1 con `end_time > start_time`
+y el único `(professional_id, day_of_week, start_time, end_time)`; HU-15 agrega
+el trigger `availability_slots_reject_overlap` que llama a
+`reject_overlapping_slot`, una función `security definer` con `search_path = ''`
+que rechaza por `OVERLAPS` sobre `time` toda franja que se cruce con otra del
+mismo profesional en el mismo día, lanzando `errcode = '23505'` para que el
+cliente reutilice el manejador de duplicado existente. El tercer criterio lo
+sostiene la política pública `availability_slots_select_public` que ya existía;
+HU-16 construirá la pantalla de agendamiento que la ejerce.
+
+Lado cliente: nueva característica `features/availability/` con dominio
+(`AvailabilitySlot`, `WeeklyAvailability` con las siete claves siempre
+pobladas, `AvailabilityError`, tres casos de uso), datos (DTO con `LocalTime`
+como `"HH:MM:SS"`, mapeo de mensaje a `OverlapsExistingSlot`, datasource con
+`select/insert/delete`, repositorio) y presentación (`AvailabilityScreen` con
+lista por día desplegable en `LazyColumn`, diálogo de alta con selector de
+chips circulares para día y dos `TimePicker` de Material 3 cuantizados a
+15 minutos, diálogo de confirmación para eliminar). Entrada en `AccountScreen`
+solo cuando el rol activo es `PROFESSIONAL`, junto a la bandeja de HU-14.
+`availabilityModule` registrado en Koin y `AvailabilityRoute` en el `NavHost`.
+
+Pruebas JVM (`AddAvailabilitySlotUseCaseTest` incluida con el rechazo local
+`EndNotAfterStart`, `GetMyAvailabilityUseCaseTest` sobre las siete claves,
+`AvailabilityMapperTest` con 23505 y transporte, `AvailabilityViewModelTest`
+con reload tras alta y error que mantiene el diálogo), `AvailabilityScreenLargeFontTest`
+(Robolectric 200%/320 dp), `ktlintCheck` y las tres previsualizaciones, todas
+en verde. Experimentos SQL contra el remoto (`begin…rollback`, 2026-10-14, todos
+en verde) antes del push:
+
+1. (overlap) Insertar `(pro, LUN, 10:00, 12:00)` y luego `(pro, LUN, 11:00, 13:00)`:
+   el segundo falla con `23505 availability_slot_overlaps`.
+2. (adyacente) Insertar `(pro, LUN, 10:00, 12:00)` y luego `(pro, LUN, 12:00, 13:00)`:
+   coexisten (ambas franjas visibles en el `SELECT` final).
+3. (end > start) Insertar `(pro, LUN, 12:00, 12:00)`: falla con
+   `23514 slot_ends_after_it_starts`.
+4. (lectura pública) Autenticado como paciente, un `SELECT` sobre las franjas
+   del profesional aprobado devuelve una fila: la política
+   `availability_slots_select_public` ya cumple el tercer criterio.
+
+Transversal: ninguna tabla del esquema público queda sin RLS o sin política.
+Verificación en vivo tras el push: la función y el trigger existen en el remoto.
+Pendiente a nivel de sprint (no de historia): `supabase db reset` local al
+cierre del Sprint 5.
 
 ### HU-16 · Agendar una cita `[ ]` — 5 puntos
 
