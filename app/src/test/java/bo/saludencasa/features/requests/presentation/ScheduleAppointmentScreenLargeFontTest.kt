@@ -197,7 +197,7 @@ class ScheduleAppointmentScreenLargeFontTest {
         show()
         bringIntoView(HOURS)
 
-        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.schedule_part_morning)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.common_part_morning)))
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(formatTime(LocalTime.of(9, 0), locale)))
     }
 

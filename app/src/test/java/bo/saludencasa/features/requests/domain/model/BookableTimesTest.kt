@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests.domain.model
 
+import bo.saludencasa.core.vo.PartOfDay
 import bo.saludencasa.features.requests.bookableStart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -67,13 +68,5 @@ class BookableTimesTest {
         val times = BookableTimes(listOf(bookableStart(monday, 15)))
 
         assertEquals(setOf(PartOfDay.AFTERNOON), times.on(monday).keys)
-    }
-
-    @Test
-    fun thePartsChangeExactlyAtNoonAndAtSixInTheEvening() {
-        assertEquals(PartOfDay.MORNING, PartOfDay.of(LocalTime.of(11, 59)))
-        assertEquals(PartOfDay.AFTERNOON, PartOfDay.of(LocalTime.NOON))
-        assertEquals(PartOfDay.AFTERNOON, PartOfDay.of(LocalTime.of(17, 59)))
-        assertEquals(PartOfDay.EVENING, PartOfDay.of(LocalTime.of(18, 0)))
     }
 }

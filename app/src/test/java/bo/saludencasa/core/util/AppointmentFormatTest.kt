@@ -36,4 +36,26 @@ class AppointmentFormatTest {
         assertTrue(text, text.contains("9:30"))
         assertFalse(text, text.contains("2026"))
     }
+
+    // A phone in English showed «2:00 PM» inside a screen that is in Spanish,
+    // and a Bolivian reads the clock from 0 to 24.
+    @Test
+    fun theHourIsTheTwentyFourHourOneWhateverTheDeviceLocale() {
+        listOf(Locale.US, spanish).forEach { locale ->
+            val afternoon = formatTime(LocalTime.of(14, 0), locale)
+            val midnight = formatTime(LocalTime.MIDNIGHT, locale)
+
+            assertTrue("$locale gave $afternoon", afternoon.contains("14"))
+            assertFalse("$locale gave $afternoon", afternoon.any(Char::isLetter))
+            assertFalse("$locale gave $midnight", midnight.any(Char::isLetter))
+        }
+    }
+
+    @Test
+    fun theAppointmentCarriesTheSameTwentyFourHourClock() {
+        val text = formatAppointment(LocalDate.of(2026, 10, 16), LocalTime.of(14, 0), Locale.US)
+
+        assertTrue(text, text.contains("14"))
+        assertFalse(text, text.contains("PM"))
+    }
 }

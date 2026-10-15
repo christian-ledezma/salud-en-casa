@@ -35,6 +35,9 @@ class AvailabilityViewModelTest {
             RemoveAvailabilitySlotUseCase(repository),
         )
 
+    private fun content(viewModel: AvailabilityViewModel): AvailabilityUiState.Content =
+        viewModel.uiState.value as AvailabilityUiState.Content
+
     @Test
     fun theInitialLoadReachesContentWithTheRepositoryData() =
         runTest {
@@ -43,7 +46,7 @@ class AvailabilityViewModelTest {
             val viewModel = viewModel()
             advanceUntilIdle()
 
-            val content = viewModel.uiState.value as AvailabilityUiState.Content
+            val content = content(viewModel)
             assertEquals(
                 "a",
                 content.availability.slotsByDay
@@ -51,7 +54,7 @@ class AvailabilityViewModelTest {
                     .single()
                     .id,
             )
-            assertNull(content.dialog)
+            assertNull(content.draft)
         }
 
     @Test
@@ -68,18 +71,47 @@ class AvailabilityViewModelTest {
             )
         }
 
+    // The editor belongs to the day whose button was pressed: there is no day
+    // picker left to correct a wrong one.
     @Test
-    fun theAddDialogOpensWithTheChosenDay() =
+    fun theEditorOpensOnTheChosenDay() =
         runTest {
             val viewModel = viewModel()
             advanceUntilIdle()
 
             viewModel.onAddClick(DayOfWeek.FRIDAY)
 
-            val dialog =
-                (viewModel.uiState.value as AvailabilityUiState.Content).dialog
-                    as SlotDialog.Adding
-            assertEquals(DayOfWeek.FRIDAY, dialog.dayOfWeek)
+            assertEquals(DayOfWeek.FRIDAY, content(viewModel).draft?.dayOfWeek)
+        }
+
+    // Without this the professional can leave the editor on an impossible
+    // range —ends before it starts— and only find out when the engine says no.
+    @Test
+    fun aStartMovedPastTheEndCarriesTheEndWithIt() =
+        runTest {
+            val viewModel = viewModel()
+            advanceUntilIdle()
+            viewModel.onAddClick(DayOfWeek.MONDAY)
+            viewModel.onDraftEnd(LocalTime.of(10, 0))
+
+            viewModel.onDraftStart(LocalTime.of(14, 0))
+
+            val draft = content(viewModel).draft
+            assertEquals(LocalTime.of(14, 0), draft?.startTime)
+            assertEquals(LocalTime.of(14, 30), draft?.endTime)
+        }
+
+    @Test
+    fun aStartMovedBeforeTheEndLeavesTheEndWhereItWas() =
+        runTest {
+            val viewModel = viewModel()
+            advanceUntilIdle()
+            viewModel.onAddClick(DayOfWeek.MONDAY)
+            viewModel.onDraftEnd(LocalTime.of(18, 0))
+
+            viewModel.onDraftStart(LocalTime.of(14, 0))
+
+            assertEquals(LocalTime.of(18, 0), content(viewModel).draft?.endTime)
         }
 
     // The point of this one: after a successful add the view model re-asks the
@@ -97,8 +129,8 @@ class AvailabilityViewModelTest {
             viewModel.onConfirmAdd()
             advanceUntilIdle()
 
-            val content = viewModel.uiState.value as AvailabilityUiState.Content
-            assertNull(content.dialog)
+            val content = content(viewModel)
+            assertNull(content.draft)
             assertEquals(
                 listOf(DayOfWeek.MONDAY to (LocalTime.of(9, 0) to LocalTime.of(10, 0))),
                 content.availability.slotsByDay.getValue(DayOfWeek.MONDAY).map {
@@ -107,10 +139,10 @@ class AvailabilityViewModelTest {
             )
         }
 
-    // The failed add keeps the dialog open with its error, so the user can
-    // correct the hours without re-opening and re-typing.
+    // The failed add keeps the editor open with its error, so the professional
+    // can correct the hours without opening it again.
     @Test
-    fun anOverlapKeepsTheDialogWithTheError() =
+    fun anOverlapKeepsTheEditorWithTheError() =
         runTest {
             repository.addResult =
                 SlotWriteResult.Failure(AvailabilityError.OverlapsExistingSlot)
@@ -124,10 +156,24 @@ class AvailabilityViewModelTest {
             viewModel.onConfirmAdd()
             advanceUntilIdle()
 
-            val content = viewModel.uiState.value as AvailabilityUiState.Content
-            val dialog = content.dialog as SlotDialog.Adding
-            assertEquals(AvailabilityError.OverlapsExistingSlot, dialog.error)
+            val content = content(viewModel)
+            assertEquals(AvailabilityError.OverlapsExistingSlot, content.draft?.error)
             assertEquals(false, content.busy)
+        }
+
+    @Test
+    fun cancellingTheEditorDiscardsTheDraftAndNothingIsWritten() =
+        runTest {
+            val viewModel = viewModel()
+            advanceUntilIdle()
+            viewModel.onAddClick(DayOfWeek.MONDAY)
+            viewModel.onDraftStart(LocalTime.of(9, 0))
+
+            viewModel.onCancelDraft()
+            advanceUntilIdle()
+
+            assertNull(content(viewModel).draft)
+            assertTrue(repository.addedSlots.isEmpty())
         }
 
     @Test
@@ -136,9 +182,9 @@ class AvailabilityViewModelTest {
             repository.seed(slot(id = "to-go", dayOfWeek = DayOfWeek.THURSDAY))
             val viewModel = viewModel()
             advanceUntilIdle()
-            val content = viewModel.uiState.value as AvailabilityUiState.Content
             val target =
-                content.availability.slotsByDay
+                content(viewModel)
+                    .availability.slotsByDay
                     .getValue(DayOfWeek.THURSDAY)
                     .single()
 
@@ -146,8 +192,8 @@ class AvailabilityViewModelTest {
             viewModel.onConfirmRemove()
             advanceUntilIdle()
 
-            val after = viewModel.uiState.value as AvailabilityUiState.Content
-            assertNull(after.dialog)
+            val after = content(viewModel)
+            assertNull(after.removal)
             assertTrue(
                 after.availability.slotsByDay
                     .getValue(DayOfWeek.THURSDAY)
