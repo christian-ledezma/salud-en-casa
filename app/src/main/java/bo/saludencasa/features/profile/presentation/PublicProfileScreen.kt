@@ -1,12 +1,17 @@
 package bo.saludencasa.features.profile.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,18 +28,23 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
@@ -51,6 +61,7 @@ import bo.saludencasa.features.reviews.domain.model.ProfessionalReview
 import bo.saludencasa.features.reviews.domain.model.ReviewError
 import bo.saludencasa.features.reviews.presentation.messageRes
 import bo.saludencasa.features.reviews.presentation.relativeAgeText
+import bo.saludencasa.ui.components.AvailabilityPill
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ProfileAvatar
 import bo.saludencasa.ui.components.RatingBadge
@@ -61,6 +72,7 @@ import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.math.BigDecimal
+import java.text.NumberFormat
 import java.time.Instant
 
 data class PublicProfileActions(
@@ -177,12 +189,15 @@ private fun PublishedProfile(
 
         profile.biography?.let { biography ->
             item(key = "biography") {
-                Text(
-                    text = biography,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+                    SectionTitle(text = stringResource(R.string.public_profile_about_title))
+                    Text(
+                        text = biography,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
 
@@ -211,41 +226,59 @@ private fun Identity(
     profile: PublicProfile,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        shape = ExtraShapes.featuredCard,
+        color = MaterialTheme.colorScheme.surface,
     ) {
-        ProfileAvatar(
-            photoUrl = profile.photoUrl,
-            contentDescription = stringResource(R.string.cd_professional_photo),
-        )
-
-        Text(
-            text = profile.fullName,
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-
-        VerifiedBadge()
-
-        profile.professionalType?.let { type ->
-            Text(
-                text = stringResource(type.labelRes()),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+        Column(
+            modifier = Modifier.padding(Spacing.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            ProfileAvatar(
+                photoUrl = profile.photoUrl,
+                contentDescription = stringResource(R.string.cd_professional_photo),
+                name = profile.fullName,
             )
-        }
 
-        profile.specialty?.let { specialty ->
-            Text(
-                text = specialty,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = profile.fullName,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+                occupationOf(profile)?.let { occupation ->
+                    Text(
+                        text = occupation,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
 
-        Reputation(rating = profile.averageRating, totalReviews = profile.totalReviews)
+            VerifiedBadge()
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Stats(profile = profile)
+        }
+    }
+}
+
+@Composable
+private fun occupationOf(profile: PublicProfile): String? {
+    val type = profile.professionalType?.let { stringResource(it.labelRes()) }
+    val specialty = profile.specialty
+    return if (type != null && specialty != null) {
+        stringResource(R.string.public_profile_type_and_specialty, type, specialty)
+    } else {
+        type ?: specialty
     }
 }
 
@@ -254,22 +287,133 @@ private fun VerifiedBadge(modifier: Modifier = Modifier) {
     val description = stringResource(R.string.cd_verified_badge)
 
     Row(
-        modifier = modifier.semantics(mergeDescendants = true) { contentDescription = description },
+        modifier =
+            modifier
+                .semantics(mergeDescendants = true) { contentDescription = description }
+                .clip(ExtraShapes.pill)
+                .background(SaludEnCasaTheme.statusColors.positiveContainer)
+                .padding(horizontal = Spacing.scale12, vertical = Spacing.scale4),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.scale4),
     ) {
         Icon(
             imageVector = Icons.Filled.Check,
             contentDescription = null,
-            tint = SaludEnCasaTheme.statusColors.positive,
+            tint = SaludEnCasaTheme.statusColors.onPositiveContainer,
             modifier = Modifier.size(Spacing.scale16),
         )
         Text(
             text = stringResource(R.string.profile_verified_badge),
             style = MaterialTheme.typography.labelLarge,
-            color = SaludEnCasaTheme.statusColors.positive,
+            color = SaludEnCasaTheme.statusColors.onPositiveContainer,
         )
     }
+}
+
+// Stacked at a large font scale (docs/decisions.md, 2026-10-15, the search and profile screens).
+@Composable
+private fun Stats(
+    profile: PublicProfile,
+    modifier: Modifier = Modifier,
+) {
+    val numbers = NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0])
+    val years = numbers.format(profile.yearsOfExperience.toLong())
+    val services = numbers.format(profile.totalServices.toLong())
+    val yearsLabel = pluralStringResource(R.plurals.public_profile_stat_years, profile.yearsOfExperience)
+    val servicesLabel = pluralStringResource(R.plurals.public_profile_stat_services, profile.totalServices)
+
+    if (LocalDensity.current.fontScale >= LARGE_FONT_SCALE) {
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
+        ) {
+            RatingStat(profile = profile, numbers = numbers, modifier = Modifier.fillMaxWidth())
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Stat(label = yearsLabel, modifier = Modifier.fillMaxWidth()) { StatNumber(text = years) }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Stat(label = servicesLabel, modifier = Modifier.fillMaxWidth()) { StatNumber(text = services) }
+        }
+    } else {
+        Row(modifier = modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            RatingStat(profile = profile, numbers = numbers, modifier = Modifier.weight(1f))
+            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Stat(label = yearsLabel, modifier = Modifier.weight(1f)) { StatNumber(text = years) }
+            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Stat(label = servicesLabel, modifier = Modifier.weight(1f)) { StatNumber(text = services) }
+        }
+    }
+}
+
+// An average of zero over no ratings is not a bad professional, it is a
+// professional nobody has rated. Drawing the badge anyway would read as one
+// star out of five.
+@Composable
+private fun RatingStat(
+    profile: PublicProfile,
+    numbers: NumberFormat,
+    modifier: Modifier = Modifier,
+) {
+    if (profile.totalReviews == 0) {
+        Stat(label = stringResource(R.string.public_profile_no_reviews), modifier = modifier) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = EMPTY_STAR_ALPHA),
+                modifier = Modifier.size(Spacing.scale24),
+            )
+        }
+        return
+    }
+
+    Stat(
+        label =
+            pluralStringResource(
+                R.plurals.public_profile_stat_reviews,
+                profile.totalReviews,
+                numbers.format(profile.totalReviews.toLong()),
+            ),
+        modifier = modifier,
+    ) {
+        RatingBadge(rating = profile.averageRating)
+    }
+}
+
+// The value sits in a box of one common height, so the labels of the three
+// columns start on the same line whether the value is a number or the badge.
+@Composable
+private fun Stat(
+    label: String,
+    modifier: Modifier = Modifier,
+    value: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(modifier = Modifier.heightIn(min = Spacing.scale32), contentAlignment = Alignment.Center) {
+            value()
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun StatNumber(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -279,55 +423,49 @@ private fun Facts(
 ) {
     val locale = LocalConfiguration.current.locales[0]
 
-    Column(
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text =
-                pluralStringResource(
-                    R.plurals.public_profile_years_of_experience,
-                    profile.yearsOfExperience,
-                    profile.yearsOfExperience,
-                ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (profile.availableNow) {
+            AvailabilityPill(text = stringResource(R.string.public_profile_available_now))
+        } else {
+            FactPill(
+                text = stringResource(R.string.public_profile_not_available_now),
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
-        Text(
+        FactPill(
             text =
                 profile.baseRateBob
                     ?.let { stringResource(R.string.public_profile_base_rate, formatBob(it, locale)) }
                     ?: stringResource(R.string.public_profile_base_rate_unset),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-
-        Text(
-            text =
-                stringResource(
-                    if (profile.availableNow) {
-                        R.string.public_profile_available_now
-                    } else {
-                        R.string.public_profile_not_available_now
-                    },
-                ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Text(
-            text =
-                pluralStringResource(
-                    R.plurals.public_profile_total_services,
-                    profile.totalServices,
-                    profile.totalServices,
-                ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         )
     }
+}
+
+@Composable
+private fun FactPill(
+    text: String,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = contentColor,
+        modifier =
+            modifier
+                .clip(ExtraShapes.pill)
+                .background(containerColor)
+                .padding(horizontal = Spacing.scale12, vertical = Spacing.scale4),
+    )
 }
 
 private fun LazyListScope.servicesSection(
@@ -359,35 +497,81 @@ private fun LazyListScope.servicesSection(
     }
 }
 
+// Stacked at a large font scale (docs/decisions.md, 2026-10-15, the search and profile screens).
 @Composable
 private fun ServiceRow(
     service: ProfessionalService,
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
+    val price = formatBob(service.referencePriceBob, locale)
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.scale4)) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        if (LocalDensity.current.fontScale >= LARGE_FONT_SCALE) {
+            Column(
+                modifier = Modifier.padding(Spacing.cardPadding),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
+            ) {
+                ServiceSummary(service = service)
+                ServicePrice(text = price)
+            }
+        } else {
+            Row(
+                modifier = Modifier.padding(Spacing.cardPadding),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.scale12),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ServiceSummary(service = service, modifier = Modifier.weight(1f))
+                ServicePrice(text = price)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServiceSummary(
+    service: ProfessionalService,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Spacing.scale4)) {
         Text(
             text = service.type.name,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = formatBob(service.referencePriceBob, locale),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text =
-                pluralStringResource(
-                    R.plurals.catalog_estimated_duration,
-                    service.type.estimatedDurationMin,
-                    service.type.estimatedDurationMin,
-                ),
-            style = MaterialTheme.typography.bodySmall,
+            text = durationText(service.type.estimatedDurationMin),
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun ServicePrice(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun durationText(minutes: Int): String {
+    val hours = minutes / MINUTES_IN_AN_HOUR
+    val remainder = minutes % MINUTES_IN_AN_HOUR
+    return when {
+        hours == 0 -> stringResource(R.string.public_profile_duration_minutes, minutes)
+        remainder == 0 -> stringResource(R.string.public_profile_duration_hours, hours)
+        else -> stringResource(R.string.public_profile_duration_hours_minutes, hours, remainder)
     }
 }
 
@@ -573,39 +757,6 @@ private fun CenteredProgress(modifier: Modifier = Modifier) {
     }
 }
 
-// An average of zero over no ratings is not a bad professional, it is a
-// professional nobody has rated. Drawing the badge anyway would read as one
-// star out of five.
-@Composable
-private fun Reputation(
-    rating: Double,
-    totalReviews: Int,
-    modifier: Modifier = Modifier,
-) {
-    if (totalReviews == 0) {
-        Text(
-            text = stringResource(R.string.public_profile_no_reviews),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = modifier,
-        )
-        return
-    }
-
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-    ) {
-        RatingBadge(rating = rating)
-        Text(
-            text = pluralStringResource(R.plurals.public_profile_total_reviews, totalReviews, totalReviews),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
 @Composable
 private fun CenteredMessage(
     modifier: Modifier = Modifier,
@@ -629,6 +780,8 @@ private fun CenteredMessage(
 
 private const val MAX_RATING = 5
 private const val EMPTY_STAR_ALPHA = 0.3f
+private const val MINUTES_IN_AN_HOUR = 60
+private const val LARGE_FONT_SCALE = 1.5f
 
 private val previewActions =
     PublicProfileActions(
@@ -642,6 +795,7 @@ private val previewActions =
 private fun previewProfile(
     baseRateBob: BigDecimal? = BigDecimal("120.00"),
     totalReviews: Int = 12,
+    availableNow: Boolean = true,
 ): PublicProfile =
     PublicProfile(
         professionalId = "fcab94c0-0000-4000-8000-000000000000",
@@ -655,7 +809,7 @@ private fun previewProfile(
         biography = "Diez años atendiendo a domicilio en La Paz.",
         yearsOfExperience = 10,
         baseRateBob = baseRateBob,
-        availableNow = true,
+        availableNow = availableNow,
     )
 
 private fun previewService(
@@ -749,7 +903,7 @@ private fun PublicProfileEmptySectionsPreview() {
             previewContent(
                 services = ServicesState.Empty,
                 reviews = ReviewsState.Empty,
-                profile = previewProfile(baseRateBob = null, totalReviews = 0),
+                profile = previewProfile(baseRateBob = null, totalReviews = 0, availableNow = false),
             ),
             previewActions,
         )

@@ -62,27 +62,34 @@
     <string name="profile_available_now_description">Actívalo cuando puedas salir a atender ahora mismo.</string>
     <string name="profile_open_public_profile">Ver mi perfil público</string>
 
-    <string name="public_profile_title">Perfil público</string>
+    <string name="public_profile_title">Perfil del profesional</string>
     <string name="public_profile_not_published_title">Este perfil todavía no está publicado</string>
     <string name="public_profile_not_published_description">Un profesional aparece ante los pacientes cuando su verificación está aprobada y su cuenta está activa.</string>
     <string name="public_profile_base_rate">Tarifa base %1$s</string>
     <string name="public_profile_base_rate_unset">Todavía sin tarifa base declarada</string>
-    <string name="public_profile_available_now">Disponible para atención inmediata</string>
-    <string name="public_profile_not_available_now">No disponible para atención inmediata en este momento</string>
+    <string name="public_profile_available_now">Disponible ahora</string>
+    <string name="public_profile_not_available_now">No disponible ahora</string>
     <string name="public_profile_no_reviews">Todavía sin calificaciones</string>
 
-    <plurals name="public_profile_years_of_experience">
-        <item quantity="one">%d año de experiencia</item>
-        <item quantity="other">%d años de experiencia</item>
+    <string name="public_profile_type_and_specialty">%1$s · %2$s</string>
+    <string name="public_profile_about_title">Presentación</string>
+
+    <plurals name="public_profile_stat_reviews">
+        <item quantity="one">%1$s calificación</item>
+        <item quantity="other">%1$s calificaciones</item>
     </plurals>
-    <plurals name="public_profile_total_reviews">
-        <item quantity="one">%d calificación</item>
-        <item quantity="other">%d calificaciones</item>
+    <plurals name="public_profile_stat_years">
+        <item quantity="one">año de experiencia</item>
+        <item quantity="other">años de experiencia</item>
     </plurals>
-    <plurals name="public_profile_total_services">
-        <item quantity="one">%d atención realizada</item>
-        <item quantity="other">%d atenciones realizadas</item>
+    <plurals name="public_profile_stat_services">
+        <item quantity="one">atención realizada</item>
+        <item quantity="other">atenciones realizadas</item>
     </plurals>
+
+    <string name="public_profile_duration_minutes">Alrededor de %1$d min</string>
+    <string name="public_profile_duration_hours">Alrededor de %1$d h</string>
+    <string name="public_profile_duration_hours_minutes">Alrededor de %1$d h %2$d min</string>
 
     <string name="relative_time_just_now">Hace unos minutos</string>
     <plurals name="relative_time_hours">

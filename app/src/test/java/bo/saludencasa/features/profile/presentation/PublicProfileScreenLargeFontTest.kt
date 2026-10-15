@@ -1,8 +1,10 @@
 package bo.saludencasa.features.profile.presentation
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
@@ -86,9 +88,21 @@ class PublicProfileScreenLargeFontTest {
         // rendered by the platform currency formatter, whose output depends on
         // the locale the test environment happens to carry. What this test is
         // about is that the row is composed, reachable and within the edges.
+        scrollTo(FACTS)
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText("Tarifa base", substring = true),
         )
+    }
+
+    // An average of zero over no ratings is not a bad professional, it is one
+    // nobody has rated: drawing the badge for it shows the worst possible score
+    // as if someone had given it (docs/decisions.md, 2026-10-09).
+    @Test
+    fun aProfessionalNobodyHasRatedShowsNoScoreInsteadOfAZero() {
+        show(profile = profile().copy(averageRating = 0.0, totalReviews = 0))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.public_profile_no_reviews)))
+        composeRule.onAllNodesWithText("0.0", substring = true).assertCountEquals(0)
     }
 
     @Test
@@ -249,6 +263,7 @@ private const val LONG_COMMENT =
 
 // The indices of the lazy list: header, identity, facts, biography, the two
 // section titles and what hangs under each.
+private const val FACTS = 2
 private const val SERVICES_TITLE = 4
 private const val FIRST_SERVICE = 5
 private const val REVIEWS_TITLE = 7
