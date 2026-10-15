@@ -15,6 +15,16 @@ sealed interface RequestError {
 
     data object InvalidBudget : RequestError
 
+    data object CannotScheduleWithYourself : RequestError
+
+    data object ProfessionalUnavailable : RequestError
+
+    data object ServiceNotOffered : RequestError
+
+    data object OutsideCoverage : RequestError
+
+    data object TimeNotBookable : RequestError
+
     data object NetworkUnavailable : RequestError
 
     data object Unexpected : RequestError

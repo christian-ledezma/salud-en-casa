@@ -9,6 +9,7 @@ import bo.saludencasa.features.catalog.domain.usecase.GetProfessionalServicesUse
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.PublicProfile
 import bo.saludencasa.features.profile.domain.model.PublicProfileResult
+import bo.saludencasa.features.profile.domain.usecase.CanScheduleAppointmentUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetPublicProfileUseCase
 import bo.saludencasa.features.reviews.domain.model.ProfessionalReview
 import bo.saludencasa.features.reviews.domain.model.ProfessionalReviewsPageResult
@@ -65,7 +66,11 @@ sealed interface PublicProfileUiState {
         val profile: PublicProfile,
         val services: ServicesState = ServicesState.Loading,
         val reviews: ReviewsState = ReviewsState.Loading,
-    ) : PublicProfileUiState
+        val canSchedule: Boolean = false,
+    ) : PublicProfileUiState {
+        val showsScheduleAction: Boolean
+            get() = canSchedule && services is ServicesState.Content
+    }
 
     data class Failed(
         val error: ProfileError,
@@ -77,6 +82,7 @@ class PublicProfileViewModel(
     private val getPublicProfile: GetPublicProfileUseCase,
     private val getProfessionalServices: GetProfessionalServicesUseCase,
     private val getProfessionalReviews: GetProfessionalReviewsUseCase,
+    private val canScheduleAppointment: CanScheduleAppointmentUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<PublicProfileUiState>(PublicProfileUiState.Loading)
 
@@ -110,6 +116,10 @@ class PublicProfileViewModel(
                 coroutineScope {
                     launch { loadServices() }
                     launch { loadFirstReviewsPage() }
+                    launch {
+                        val canSchedule = canScheduleAppointment(professionalId)
+                        updateContent { it.copy(canSchedule = canSchedule) }
+                    }
                 }
             }
         }

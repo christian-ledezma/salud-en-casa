@@ -17,6 +17,30 @@ data class CreateImmediateRequestParams(
     @SerialName("p_suggested_budget_bob") val suggestedBudgetBob: String?,
 )
 
+// The budget travels as text for the same reason as above.
+@Serializable
+data class CreateScheduledRequestParams(
+    @SerialName("p_professional_id") val professionalId: String,
+    @SerialName("p_address_id") val addressId: String,
+    @SerialName("p_service_type_id") val serviceTypeId: String,
+    @SerialName("p_scheduled_at") val scheduledAt: String,
+    @SerialName("p_description") val description: String?,
+    @SerialName("p_suggested_budget_bob") val suggestedBudgetBob: String?,
+)
+
+@Serializable
+data class BookableTimesParams(
+    @SerialName("p_professional_id") val professionalId: String,
+    @SerialName("p_service_type_id") val serviceTypeId: String,
+)
+
+@Serializable
+data class BookableStartDto(
+    @SerialName("start_at") val startAt: String,
+    @SerialName("local_date") val localDate: String,
+    @SerialName("local_time") val localTime: String,
+)
+
 // A row of my_service_requests. The budget and the timestamps arrive as text and
 // are parsed in the mapper: PostGIS hands numbers back as plain strings here,
 // and PostgREST writes the offset as +00:00, which Instant.parse does not take.
@@ -32,17 +56,19 @@ data class ServiceRequestDto(
     @SerialName("suggested_budget_bob") val suggestedBudgetBob: String? = null,
     @SerialName("expires_at") val expiresAt: String? = null,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("scheduled_at") val scheduledAt: String? = null,
+    @SerialName("professional_name") val professionalName: String? = null,
 )
 
-// The named arguments of immediate_inbox. A field equal to its default never
+// The named arguments of request_inbox. A field equal to its default never
 // leaves the client, so these carry no defaults.
 @Serializable
-data class ImmediateInboxParams(
+data class RequestInboxParams(
     @SerialName("p_limit") val limit: Int,
     @SerialName("p_offset") val offset: Int,
 )
 
-// A row of immediate_inbox. distance_m is a double, as the engine rounds and
+// A row of request_inbox. distance_m is a double, as the engine rounds and
 // returns it; the budget rides through BigDecimalSerializer, which reads the
 // numeric literal whether PostgREST quotes it or not. The exact location, the
 // address text and the patient's id are not here: the function never returns
@@ -58,4 +84,6 @@ data class InboxRequestDto(
     @SerialName("distance_m") val distanceM: Double = 0.0,
     val status: String,
     @SerialName("created_at") val createdAt: String,
+    val modality: String,
+    @SerialName("scheduled_at") val scheduledAt: String? = null,
 )

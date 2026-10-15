@@ -111,6 +111,7 @@
 
     <string name="public_profile_services_title">Servicios y tarifas</string>
     <string name="public_profile_services_empty">Este profesional todavía no declaró sus servicios.</string>
+    <string name="public_profile_schedule_action">Agendar cita</string>
     <string name="public_profile_reviews_title">Comentarios</string>
     <string name="public_profile_reviews_empty">Todavía no recibió comentarios.</string>
     <string name="public_profile_review_without_comment">Calificó sin dejar un comentario.</string>
@@ -237,6 +238,7 @@
     <string name="error_verification_document_frozen">Este documento ya pasó por revisión y no se puede reemplazar.</string>
 
     <string name="cd_loading">Cargando</string>
+    <string name="cd_day_without_times">Sin horarios disponibles</string>
     <string name="cd_profile_photo">Tu fotografía de perfil</string>
     <string name="cd_professional_photo">Fotografía del profesional</string>
     <string name="cd_verified_badge">Profesional con verificación aprobada</string>
@@ -435,6 +437,34 @@
     <string name="error_request_service_type_unavailable">Ese tipo de atención ya no está disponible. Elige otro.</string>
     <string name="error_request_invalid_description">La descripción es demasiado larga. Acórtala e inténtalo de nuevo.</string>
     <string name="error_request_invalid_budget">Ingresa un monto válido, mayor a cero y con hasta dos decimales.</string>
+    <string name="error_request_cannot_schedule_with_yourself">No puedes agendar una cita contigo. Elige a otro profesional.</string>
+    <string name="error_request_professional_unavailable">Este profesional ya no recibe citas. Busca a otro profesional cerca de ti.</string>
+    <string name="error_request_service_not_offered">El profesional ya no ofrece ese servicio. Elige otro.</string>
+    <string name="error_request_outside_coverage">El profesional no atiende en esa dirección. Elige otra o busca a un profesional más cerca.</string>
+    <string name="error_request_time_not_bookable">Esa hora ya no está disponible. Actualizamos los horarios: elige otra.</string>
+
+    <string name="schedule_title">Agendar una cita</string>
+    <string name="schedule_subtitle">Elige el servicio, el día y la hora. El profesional recibirá tu solicitud y podrá responder con una oferta.</string>
+    <string name="schedule_service_label">Servicio</string>
+    <string name="schedule_service_option">%1$s · %2$s</string>
+    <string name="schedule_day_label">Día</string>
+    <string name="schedule_time_label">Hora</string>
+    <string name="schedule_part_morning">Mañana</string>
+    <string name="schedule_part_afternoon">Tarde</string>
+    <string name="schedule_part_evening">Noche</string>
+    <string name="schedule_no_times_title">Sin horarios en las próximas dos semanas</string>
+    <string name="schedule_no_times_description">Prueba con otro servicio. Si necesitas atención pronto, publica una solicitud inmediata.</string>
+    <string name="schedule_address_label">Dónde será la atención</string>
+    <string name="schedule_budget_reference">Precio declarado por el profesional: %1$s</string>
+    <string name="schedule_submit_pick_time">Elige un día y una hora</string>
+    <string name="schedule_submit_at">Agendar · %1$s</string>
+    <string name="schedule_not_bookable_title">Este profesional no recibe citas ahora</string>
+    <string name="schedule_not_bookable_description">No tiene servicios publicados para agendar. Puedes buscar a otro profesional cerca de ti.</string>
+
+    <string name="request_modality_immediate">Inmediata</string>
+    <string name="request_modality_scheduled">Agendada</string>
+    <string name="request_scheduled_for">Cita: %1$s</string>
+    <string name="request_list_with_professional">Con %1$s</string>
 
     <!-- HU-15 availability -->
     <string name="availability_title">Mi disponibilidad</string>

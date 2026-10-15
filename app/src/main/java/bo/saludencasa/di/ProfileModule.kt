@@ -4,6 +4,7 @@ import bo.saludencasa.features.profile.data.datasource.SupabaseProfileDataSource
 import bo.saludencasa.features.profile.data.repository.ProfileRepository
 import bo.saludencasa.features.profile.domain.repository.IProfileRepository
 import bo.saludencasa.features.profile.domain.usecase.AddRoleUseCase
+import bo.saludencasa.features.profile.domain.usecase.CanScheduleAppointmentUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetPublicProfileUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetRolesUseCase
@@ -29,8 +30,9 @@ val profileModule =
         factory { SaveProfileUseCase(get()) }
         factory { SetAvailabilityUseCase(get()) }
         factory { GetPublicProfileUseCase(get()) }
+        factory { CanScheduleAppointmentUseCase(get()) }
 
         viewModel { RoleSelectionViewModel(get()) }
         viewModel { ProfileViewModel(get(), get(), get()) }
-        viewModel { (professionalId: String) -> PublicProfileViewModel(professionalId, get(), get(), get()) }
+        viewModel { (professionalId: String) -> PublicProfileViewModel(professionalId, get(), get(), get(), get()) }
     }

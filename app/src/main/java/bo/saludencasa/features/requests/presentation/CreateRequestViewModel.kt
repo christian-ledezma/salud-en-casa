@@ -2,12 +2,10 @@ package bo.saludencasa.features.requests.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import bo.saludencasa.features.catalog.domain.model.CatalogError
 import bo.saludencasa.features.catalog.domain.model.ServiceType
 import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
 import bo.saludencasa.features.catalog.domain.usecase.GetServiceTypeCatalogUseCase
 import bo.saludencasa.features.location.domain.model.Address
-import bo.saludencasa.features.location.domain.model.AddressError
 import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.requests.domain.model.RequestError
@@ -158,17 +156,3 @@ class CreateRequestViewModel(
 
     private fun currentContent(): CreateRequestUiState.Content? = state.value as? CreateRequestUiState.Content
 }
-
-private fun CatalogError.toRequestError(): RequestError =
-    when (this) {
-        CatalogError.NotSignedIn -> RequestError.NotSignedIn
-        CatalogError.NetworkUnavailable -> RequestError.NetworkUnavailable
-        else -> RequestError.Unexpected
-    }
-
-private fun AddressError.toRequestError(): RequestError =
-    when (this) {
-        AddressError.NotSignedIn -> RequestError.NotSignedIn
-        AddressError.NetworkUnavailable -> RequestError.NetworkUnavailable
-        else -> RequestError.Unexpected
-    }

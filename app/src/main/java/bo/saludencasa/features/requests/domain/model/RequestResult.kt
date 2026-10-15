@@ -1,6 +1,7 @@
 package bo.saludencasa.features.requests.domain.model
 
 import java.math.BigDecimal
+import java.time.Instant
 
 // What travels into the creation function: the identifiers the patient chose and
 // the two optional fields, already validated. The location snapshot and the
@@ -11,6 +12,25 @@ data class CreateImmediateRequestDraft(
     val description: String?,
     val suggestedBudgetBob: BigDecimal?,
 )
+
+data class CreateScheduledRequestDraft(
+    val professionalId: String,
+    val serviceTypeId: String,
+    val addressId: String,
+    val scheduledAt: Instant,
+    val description: String?,
+    val suggestedBudgetBob: BigDecimal?,
+)
+
+sealed interface BookableTimesResult {
+    data class Loaded(
+        val times: BookableTimes,
+    ) : BookableTimesResult
+
+    data class Failure(
+        val error: RequestError,
+    ) : BookableTimesResult
+}
 
 sealed interface RequestResult {
     data class Created(

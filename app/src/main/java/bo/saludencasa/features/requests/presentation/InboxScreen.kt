@@ -27,9 +27,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
+import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestError
+import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ScreenHeader
@@ -149,11 +151,19 @@ private fun InboxCard(request: InboxRequest) {
             modifier = Modifier.fillMaxWidth().padding(Spacing.cardPadding),
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         ) {
+            ModalityBadge(modality = request.modality)
             Text(
                 text = request.serviceTypeName,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            request.scheduledAt?.let { at ->
+                Text(
+                    text = stringResource(R.string.request_scheduled_for, formatAppointment(at, locale)),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
             Text(
                 text = inboxDistanceText(request.distanceM),
                 style = MaterialTheme.typography.labelLarge,
@@ -244,6 +254,7 @@ private fun previewRequest(
     id: String,
     distanceM: Int,
     budget: BigDecimal? = BigDecimal("150.00"),
+    scheduledAt: Instant? = null,
 ): InboxRequest =
     InboxRequest(
         id = id,
@@ -254,6 +265,8 @@ private fun previewRequest(
         distanceM = distanceM,
         status = RequestStatus.PUBLISHED,
         createdAt = Instant.parse("2026-10-13T12:00:00Z"),
+        modality = if (scheduledAt == null) RequestModality.IMMEDIATE else RequestModality.SCHEDULED,
+        scheduledAt = scheduledAt,
     )
 
 private fun previewContent(): InboxUiState.Content =
@@ -261,7 +274,12 @@ private fun previewContent(): InboxUiState.Content =
         requests =
             listOf(
                 previewRequest("r1", distanceM = 0),
-                previewRequest("r2", distanceM = 1200, budget = null),
+                previewRequest(
+                    "r2",
+                    distanceM = 1200,
+                    budget = null,
+                    scheduledAt = Instant.parse("2026-10-16T13:30:00Z"),
+                ),
                 previewRequest("r3", distanceM = 4800),
             ),
         loadingMore = false,

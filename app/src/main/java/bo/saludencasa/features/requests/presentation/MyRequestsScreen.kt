@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
+import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
@@ -170,11 +171,26 @@ private fun RequestCard(
             modifier = Modifier.fillMaxWidth().padding(Spacing.cardPadding),
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         ) {
+            ModalityBadge(modality = request.modality)
             Text(
                 text = request.serviceTypeName,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            request.scheduledAt?.let { at ->
+                Text(
+                    text = stringResource(R.string.request_scheduled_for, formatAppointment(at, locale)),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            request.professionalName?.let { name ->
+                Text(
+                    text = stringResource(R.string.request_list_with_professional, name),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = stringResource(request.status.labelRes()),
                 style = MaterialTheme.typography.labelLarge,
@@ -273,6 +289,7 @@ private fun previewRequest(
     id: String,
     status: RequestStatus,
     budget: BigDecimal? = BigDecimal("150.00"),
+    scheduledAt: Instant? = null,
 ): ServiceRequest =
     ServiceRequest(
         id = id,
@@ -280,11 +297,13 @@ private fun previewRequest(
         addressText = "Avenida América 1234, Cochabamba",
         city = "Cochabamba",
         status = status,
-        modality = RequestModality.IMMEDIATE,
+        modality = if (scheduledAt == null) RequestModality.IMMEDIATE else RequestModality.SCHEDULED,
         description = "Necesito atención para un familiar.",
         suggestedBudgetBob = budget,
-        expiresAt = Instant.parse("2026-10-12T13:00:00Z"),
+        expiresAt = scheduledAt ?: Instant.parse("2026-10-12T13:00:00Z"),
         createdAt = Instant.parse("2026-10-12T12:00:00Z"),
+        scheduledAt = scheduledAt,
+        professionalName = "Ana Quispe".takeIf { scheduledAt != null },
     )
 
 private fun previewContent(): MyRequestsUiState.Content =
@@ -292,6 +311,7 @@ private fun previewContent(): MyRequestsUiState.Content =
         requests =
             listOf(
                 previewRequest("r1", RequestStatus.PUBLISHED),
+                previewRequest("r3", RequestStatus.PUBLISHED, scheduledAt = Instant.parse("2026-10-16T13:30:00Z")),
                 previewRequest("r2", RequestStatus.EXPIRED, budget = null),
             ),
         loadingMore = false,

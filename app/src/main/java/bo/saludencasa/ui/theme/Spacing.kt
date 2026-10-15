@@ -27,6 +27,9 @@ object Spacing {
     val brandMarkSize: Dp = 288.dp
     val brandTraceMaxWidth: Dp = 300.dp
 
+    // docs/design-system.md, section 5, the date and time carousel.
+    val dayCardMinWidth: Dp = 64.dp
+
     val scale4: Dp = 4.dp
     val scale8: Dp = 8.dp
     val scale12: Dp = 12.dp

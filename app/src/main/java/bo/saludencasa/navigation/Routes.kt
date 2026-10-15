@@ -25,6 +25,11 @@ data class PublicProfileRoute(
 )
 
 @Serializable
+data class ScheduleAppointmentRoute(
+    val professionalId: String,
+)
+
+@Serializable
 data object ProfessionalSearchRoute
 
 @Serializable

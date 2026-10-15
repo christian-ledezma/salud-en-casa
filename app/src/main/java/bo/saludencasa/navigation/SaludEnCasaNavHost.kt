@@ -23,6 +23,7 @@ import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 import bo.saludencasa.features.requests.presentation.CreateRequestScreen
 import bo.saludencasa.features.requests.presentation.InboxScreen
 import bo.saludencasa.features.requests.presentation.MyRequestsScreen
+import bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewScreen
@@ -161,9 +162,24 @@ fun SaludEnCasaNavHost(
         }
 
         composable<PublicProfileRoute> { entry ->
+            val professionalId = entry.toRoute<PublicProfileRoute>().professionalId
             PublicProfileScreen(
-                professionalId = entry.toRoute<PublicProfileRoute>().professionalId,
+                professionalId = professionalId,
                 onBack = { navController.popBackStack() },
+                onSchedule = { navController.navigate(ScheduleAppointmentRoute(professionalId)) },
+            )
+        }
+
+        composable<ScheduleAppointmentRoute> { entry ->
+            ScheduleAppointmentScreen(
+                professionalId = entry.toRoute<ScheduleAppointmentRoute>().professionalId,
+                onBack = { navController.popBackStack() },
+                onCreated = {
+                    navController.navigate(MyRequestsRoute) {
+                        popUpTo<ScheduleAppointmentRoute> { inclusive = true }
+                    }
+                },
+                onRegisterAddress = { navController.navigate(AddressRoute()) },
             )
         }
 

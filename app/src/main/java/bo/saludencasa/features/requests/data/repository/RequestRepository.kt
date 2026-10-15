@@ -1,12 +1,18 @@
 package bo.saludencasa.features.requests.data.repository
 
 import bo.saludencasa.features.requests.data.datasource.SupabaseRequestDataSource
+import bo.saludencasa.features.requests.data.mapper.toBookableStart
 import bo.saludencasa.features.requests.data.mapper.toInboxRequest
 import bo.saludencasa.features.requests.data.mapper.toRequestError
 import bo.saludencasa.features.requests.data.mapper.toServiceRequest
+import bo.saludencasa.features.requests.data.model.BookableTimesParams
 import bo.saludencasa.features.requests.data.model.CreateImmediateRequestParams
+import bo.saludencasa.features.requests.data.model.CreateScheduledRequestParams
+import bo.saludencasa.features.requests.domain.model.BookableTimes
+import bo.saludencasa.features.requests.domain.model.BookableTimesResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.CreateImmediateRequestDraft
+import bo.saludencasa.features.requests.domain.model.CreateScheduledRequestDraft
 import bo.saludencasa.features.requests.domain.model.InboxResult
 import bo.saludencasa.features.requests.domain.model.MyRequestsResult
 import bo.saludencasa.features.requests.domain.model.RequestError
@@ -38,6 +44,55 @@ class RequestRepository(
             throw cancellation
         } catch (failure: Exception) {
             RequestResult.Failure(failure.toRequestError())
+        }
+    }
+
+    override suspend fun createScheduled(draft: CreateScheduledRequestDraft): RequestResult {
+        if (dataSource.currentUserId() == null) {
+            return RequestResult.Failure(RequestError.NotSignedIn)
+        }
+
+        return try {
+            val requestId =
+                dataSource.createScheduled(
+                    CreateScheduledRequestParams(
+                        professionalId = draft.professionalId,
+                        addressId = draft.addressId,
+                        serviceTypeId = draft.serviceTypeId,
+                        scheduledAt = draft.scheduledAt.toString(),
+                        description = draft.description,
+                        suggestedBudgetBob = draft.suggestedBudgetBob?.toPlainString(),
+                    ),
+                )
+            RequestResult.Created(requestId)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            RequestResult.Failure(failure.toRequestError())
+        }
+    }
+
+    override suspend fun getBookableTimes(
+        professionalId: String,
+        serviceTypeId: String,
+    ): BookableTimesResult {
+        if (dataSource.currentUserId() == null) {
+            return BookableTimesResult.Failure(RequestError.NotSignedIn)
+        }
+
+        return try {
+            val rows = dataSource.fetchBookableTimes(BookableTimesParams(professionalId, serviceTypeId))
+            val starts = rows.map { it.toBookableStart() }
+
+            if (starts.any { it == null }) {
+                BookableTimesResult.Failure(RequestError.Unexpected)
+            } else {
+                BookableTimesResult.Loaded(BookableTimes(starts.filterNotNull()))
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            BookableTimesResult.Failure(failure.toRequestError())
         }
     }
 

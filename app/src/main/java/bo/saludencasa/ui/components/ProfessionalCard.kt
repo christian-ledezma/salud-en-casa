@@ -158,7 +158,7 @@ fun ProfessionalCard(
 // serve as the placeholder while it loads and as the error state if it never
 // arrives, which .claude/rules/compose.md requires of every image.
 @Composable
-private fun CardAvatar(
+internal fun CardAvatar(
     name: String,
     photoUrl: String?,
 ) {

@@ -62,6 +62,7 @@ import bo.saludencasa.features.reviews.domain.model.ReviewError
 import bo.saludencasa.features.reviews.presentation.messageRes
 import bo.saludencasa.features.reviews.presentation.relativeAgeText
 import bo.saludencasa.ui.components.AvailabilityPill
+import bo.saludencasa.ui.components.BottomActionBar
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ProfileAvatar
 import bo.saludencasa.ui.components.RatingBadge
@@ -81,12 +82,14 @@ data class PublicProfileActions(
     val onRetryServices: () -> Unit,
     val onRetryReviews: () -> Unit,
     val onReachedEnd: () -> Unit,
+    val onSchedule: () -> Unit,
 )
 
 @Composable
 fun PublicProfileScreen(
     professionalId: String,
     onBack: () -> Unit,
+    onSchedule: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PublicProfileViewModel = koinViewModel { parametersOf(professionalId) },
 ) {
@@ -101,6 +104,7 @@ fun PublicProfileScreen(
                 onRetryServices = viewModel::onRetryServices,
                 onRetryReviews = viewModel::onRetryReviews,
                 onReachedEnd = viewModel::onReachedEnd,
+                onSchedule = onSchedule,
             ),
         modifier = modifier,
     )
@@ -173,8 +177,29 @@ private fun PublishedProfile(
 ) {
     val profile = uiState.profile
 
+    Column(modifier = modifier.fillMaxSize()) {
+        ProfileList(uiState = uiState, profile = profile, actions = actions, modifier = Modifier.weight(1f))
+
+        if (uiState.showsScheduleAction) {
+            BottomActionBar {
+                PrimaryButton(
+                    text = stringResource(R.string.public_profile_schedule_action),
+                    onClick = actions.onSchedule,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileList(
+    uiState: PublicProfileUiState.Content,
+    profile: PublicProfile,
+    actions: PublicProfileActions,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxWidth(),
         contentPadding =
             PaddingValues(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
         verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
@@ -790,6 +815,7 @@ private val previewActions =
         onRetryServices = {},
         onRetryReviews = {},
         onReachedEnd = {},
+        onSchedule = {},
     )
 
 private fun previewProfile(
@@ -863,7 +889,8 @@ private fun previewContent(
     reviews: ReviewsState =
         ReviewsState.Content(previewReviews(), loadingMore = false, endReached = true, notice = null),
     profile: PublicProfile = previewProfile(),
-): PublicProfileUiState.Content = PublicProfileUiState.Content(profile, services, reviews)
+    canSchedule: Boolean = true,
+): PublicProfileUiState.Content = PublicProfileUiState.Content(profile, services, reviews, canSchedule)
 
 @Preview(showBackground = true, heightDp = 1500, name = "Perfil publico, claro")
 @Composable

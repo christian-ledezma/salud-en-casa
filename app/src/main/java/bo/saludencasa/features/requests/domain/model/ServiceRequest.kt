@@ -17,4 +17,7 @@ data class ServiceRequest(
     val suggestedBudgetBob: BigDecimal?,
     val expiresAt: Instant?,
     val createdAt: Instant,
+    // Present exactly when the request is scheduled; the mapper enforces it.
+    val scheduledAt: Instant?,
+    val professionalName: String?,
 )

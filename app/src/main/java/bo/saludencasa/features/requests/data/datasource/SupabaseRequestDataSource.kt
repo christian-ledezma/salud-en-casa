@@ -1,8 +1,11 @@
 package bo.saludencasa.features.requests.data.datasource
 
+import bo.saludencasa.features.requests.data.model.BookableStartDto
+import bo.saludencasa.features.requests.data.model.BookableTimesParams
 import bo.saludencasa.features.requests.data.model.CreateImmediateRequestParams
-import bo.saludencasa.features.requests.data.model.ImmediateInboxParams
+import bo.saludencasa.features.requests.data.model.CreateScheduledRequestParams
 import bo.saludencasa.features.requests.data.model.InboxRequestDto
+import bo.saludencasa.features.requests.data.model.RequestInboxParams
 import bo.saludencasa.features.requests.data.model.ServiceRequestDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -32,8 +35,19 @@ class SupabaseRequestDataSource(
             .rpc(CREATE_IMMEDIATE, params)
             .decodeAs<String>()
 
-    // my_service_requests is security_invoker, so service_requests_select_own
-    // decides which rows come back; no patient filter is added on this side.
+    suspend fun createScheduled(params: CreateScheduledRequestParams): String =
+        supabase.postgrest
+            .rpc(CREATE_SCHEDULED, params)
+            .decodeAs<String>()
+
+    // Not paged: fourteen days at most by construction (RNF-08).
+    suspend fun fetchBookableTimes(params: BookableTimesParams): List<BookableStartDto> =
+        supabase.postgrest
+            .rpc(BOOKABLE_START_TIMES, params)
+            .decodeList<BookableStartDto>()
+
+    // my_service_requests is a definer view whose WHERE pins every row to the
+    // caller, so no patient filter is added on this side.
     suspend fun findMyRequests(
         offset: Int,
         limit: Int,
@@ -60,16 +74,16 @@ class SupabaseRequestDataSource(
             }
     }
 
-    // HU-14: the inbox projection. immediate_inbox is security definer and folds
-    // in the coverage, the type, the status and the time guards, so the client
-    // adds no filter; it sends the page bounds and reads back the rounded
-    // distance without any of the patient's location.
+    // HU-14 and HU-16: the inbox projection. request_inbox is security definer
+    // and folds in the coverage, the addressee, the type, the status and the
+    // time guards, so the client adds no filter; it sends the page bounds and
+    // reads back the rounded distance without any of the patient's location.
     suspend fun fetchInbox(
         offset: Int,
         limit: Int,
     ): List<InboxRequestDto> =
         supabase.postgrest
-            .rpc(IMMEDIATE_INBOX, ImmediateInboxParams(limit = limit, offset = offset))
+            .rpc(REQUEST_INBOX, RequestInboxParams(limit = limit, offset = offset))
             .decodeList<InboxRequestDto>()
 
     // A private broadcast channel: the notify_immediate_inbox trigger sends an
@@ -93,7 +107,9 @@ class SupabaseRequestDataSource(
 
     private companion object {
         const val CREATE_IMMEDIATE = "create_immediate_request"
-        const val IMMEDIATE_INBOX = "immediate_inbox"
+        const val CREATE_SCHEDULED = "create_scheduled_request"
+        const val BOOKABLE_START_TIMES = "bookable_start_times"
+        const val REQUEST_INBOX = "request_inbox"
         const val MY_SERVICE_REQUESTS = "my_service_requests"
         const val SERVICE_REQUESTS = "service_requests"
         const val INBOX_TOPIC = "immediate_inbox"
@@ -111,6 +127,8 @@ class SupabaseRequestDataSource(
                 "suggested_budget_bob",
                 "expires_at",
                 "created_at",
+                "scheduled_at",
+                "professional_name",
             )
     }
 }

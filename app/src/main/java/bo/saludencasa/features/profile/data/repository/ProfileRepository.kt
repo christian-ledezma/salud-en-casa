@@ -23,6 +23,8 @@ import kotlinx.coroutines.CancellationException
 class ProfileRepository(
     private val dataSource: SupabaseProfileDataSource,
 ) : IProfileRepository {
+    override fun currentUserId(): String? = dataSource.currentUserId()
+
     override suspend fun getRoles(): RoleResult {
         val userId = dataSource.currentUserId() ?: return RoleResult.Failure(ProfileError.NotSignedIn)
 

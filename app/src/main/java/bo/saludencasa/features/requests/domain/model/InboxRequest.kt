@@ -19,4 +19,7 @@ data class InboxRequest(
     val distanceM: Int,
     val status: RequestStatus,
     val createdAt: Instant,
+    val modality: RequestModality,
+    // Present exactly when the request is scheduled; the mapper enforces it.
+    val scheduledAt: Instant?,
 )

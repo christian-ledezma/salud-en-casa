@@ -11,6 +11,8 @@ import bo.saludencasa.features.profile.domain.model.SwitchRoleResult
 import bo.saludencasa.features.profile.domain.model.UserRole
 
 interface IProfileRepository {
+    fun currentUserId(): String?
+
     suspend fun getRoles(): RoleResult
 
     suspend fun addRole(role: AssignableRole): AddRoleResult
