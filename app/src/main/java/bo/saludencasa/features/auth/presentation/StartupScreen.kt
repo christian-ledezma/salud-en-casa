@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.findRootCoordinates
@@ -47,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.core.util.rememberAnimationsEnabled
@@ -58,6 +60,7 @@ import bo.saludencasa.ui.animations.SETTLED_MARK_SCALE
 import bo.saludencasa.ui.animations.SWEEP_MILLIS
 import bo.saludencasa.ui.animations.SWEEP_START_MILLIS
 import bo.saludencasa.ui.animations.Sweep
+import bo.saludencasa.ui.animations.TRACE_ASPECT_RATIO
 import bo.saludencasa.ui.animations.beatScale
 import bo.saludencasa.ui.animations.firstSweep
 import bo.saludencasa.ui.animations.markSettle
@@ -66,6 +69,8 @@ import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
+import kotlin.math.max
+import kotlin.math.min
 
 @Composable
 fun StartupScreen(
@@ -191,6 +196,38 @@ internal fun StartupContent(
             }
         }
     }
+}
+
+internal data class BrandPart(
+    val center: Offset,
+    val width: Float,
+)
+
+internal data class SettledStartupBrand(
+    val mark: BrandPart,
+    val wordmark: BrandPart,
+    val trace: BrandPart,
+)
+
+// Where the settled frame of StartupContent leaves each part of the brand, from
+// the top left of the screen area. WelcomeContent starts its entrance here, and
+// StartupBrandGeometryTest holds this to the layout above.
+internal fun Density.settledStartupBrand(
+    container: Size,
+    wordmark: Size,
+): SettledStartupBrand {
+    val mark = (Spacing.brandMarkSize * SETTLED_MARK_SCALE).toPx()
+    val traceWidth = min(Spacing.brandTraceMaxWidth.toPx(), container.width - 2 * Spacing.screenMargin.toPx())
+    val traceHeight = traceWidth / TRACE_ASPECT_RATIO
+    val gap = Spacing.scale8.toPx()
+    val height = mark + wordmark.height + gap + traceHeight
+    val top = max((container.height - height) / 2, Spacing.sectionGap.toPx())
+    val x = container.width / 2
+    return SettledStartupBrand(
+        mark = BrandPart(Offset(x, top + mark / 2), mark),
+        wordmark = BrandPart(Offset(x, top + mark + wordmark.height / 2), wordmark.width),
+        trace = BrandPart(Offset(x, top + mark + wordmark.height + gap + traceHeight / 2), traceWidth),
+    )
 }
 
 // Picks up the mark where the system splash left it, at the center of the window.

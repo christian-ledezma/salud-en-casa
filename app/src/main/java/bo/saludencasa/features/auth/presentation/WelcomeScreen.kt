@@ -1,41 +1,57 @@
 package bo.saludencasa.features.auth.presentation
 
+import android.content.res.Configuration
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -43,22 +59,43 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
+import bo.saludencasa.core.util.rememberAnimationsEnabled
 import bo.saludencasa.features.auth.domain.model.AuthError
-import bo.saludencasa.ui.components.AvailabilityDot
+import bo.saludencasa.ui.animations.HeartbeatTrace
+import bo.saludencasa.ui.animations.SETTLED_MARK_SCALE
+import bo.saludencasa.ui.animations.Sweep
 import bo.saludencasa.ui.components.PrimaryButton
-import bo.saludencasa.ui.components.PulsingHeartIcon
-import bo.saludencasa.ui.theme.ExtraShapes
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import kotlin.math.pow
+
+// The brand on this screen is the startup's settled brand at this scale, so the
+// entrance only has to shrink it and move it.
+internal const val WELCOME_BRAND_SCALE = 0.82f
+
+private const val BRAND_MOVE_MILLIS = 600
+private const val CONTENT_REVEAL_START_MILLIS = 350
+private const val CONTENT_REVEAL_MILLIS = 500
+private const val ENTRANCE_MILLIS = CONTENT_REVEAL_START_MILLIS + CONTENT_REVEAL_MILLIS
+
+// The ink of the mark spans 49 % of its canvas height; the rest is the safe zone
+// the launcher and the system splash need, and here it would only push the
+// name away.
+private const val MARK_ROW_HEIGHT = 0.56f
+
+private const val LARGE_FONT_SCALE = 1.5f
 
 @Composable
 fun WelcomeScreen(
     onSignedIn: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenTerms: () -> Unit = {},
+    onOpenPrivacy: () -> Unit = {},
     viewModel: WelcomeViewModel = koinViewModel(),
     credentialClient: GoogleCredentialClient = koinInject(),
 ) {
@@ -72,264 +109,231 @@ fun WelcomeScreen(
     WelcomeContent(
         uiState = uiState,
         onSignInClick = { viewModel.signIn { credentialClient.requestIdToken(context) } },
+        onTermsClick = onOpenTerms,
+        onPrivacyClick = onOpenPrivacy,
         modifier = modifier,
     )
 }
 
 @Composable
-private fun WelcomeContent(
+internal fun WelcomeContent(
     uiState: WelcomeUiState,
     onSignInClick: () -> Unit,
+    onTermsClick: () -> Unit,
+    onPrivacyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-        ) {
-            WelcomeHero()
-            WelcomeHighlights(modifier = Modifier.padding(horizontal = Spacing.screenMargin))
+    val animate = rememberAnimationsEnabled() && !LocalInspectionMode.current
+    var entranceDone by rememberSaveable { mutableStateOf(false) }
+    val entrance = remember { Animatable(if (animate && !entranceDone) 0f else ENTRANCE_MILLIS.toFloat()) }
+    LaunchedEffect(entrance) {
+        if (entrance.value < ENTRANCE_MILLIS) {
+            entrance.animateTo(
+                targetValue = ENTRANCE_MILLIS.toFloat(),
+                animationSpec = tween(durationMillis = ENTRANCE_MILLIS, easing = LinearEasing),
+            )
         }
-
-        SignInSection(
-            uiState = uiState,
-            onSignInClick = onSignInClick,
-            modifier = Modifier.padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
-        )
+        entranceDone = true
     }
-}
+    val brandProgress = { easeInOut(entrance.value / BRAND_MOVE_MILLIS) }
+    val contentReveal = { easeOut((entrance.value - CONTENT_REVEAL_START_MILLIS) / CONTENT_REVEAL_MILLIS) }
 
-// docs/design-system.md, section 5: header with gradient. The document's rule
-// -no more than a third of the screen- describes the size at rest; this header
-// does not force a fixed height because, at the system's 200% font size or on
-// a narrow screen, a fixed height ended up wedging the decorative circle
-// against the rating badge. The content decides its own height and breathes
-// with spacing, never with overlapping absolute positions.
-@Composable
-private fun WelcomeHero(modifier: Modifier = Modifier) {
+    val density = LocalDensity.current
+    val wordmark = painterResource(R.drawable.ic_brand_wordmark)
+    val startupWordmark = wordmark.intrinsicSize
+    val container = remember { mutableStateOf(Rect.Zero) }
+    val markBounds = remember { mutableStateOf(Rect.Zero) }
+    val wordmarkBounds = remember { mutableStateOf(Rect.Zero) }
+    val traceBounds = remember { mutableStateOf(Rect.Zero) }
+    val startup = {
+        with(density) { settledStartupBrand(container.value.size, startupWordmark) }
+    }
+
     Box(
         modifier =
             modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors =
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.background,
-                            ),
-                    ),
-                ),
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .onPlaced { container.value = it.unclippedBounds() },
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.screenMargin, vertical = Spacing.scale20),
-            verticalArrangement = Arrangement.spacedBy(Spacing.scale24),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale12)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.scale12),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                }
-
-                RatingHighlight()
-            }
-
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                PulsingHeartIcon()
-            }
-
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                AvailabilityHighlight()
-            }
-        }
-    }
-}
-
-// Decorative badge: the figure is fixed marketing copy, not a value read from
-// the database. No story backs an aggregate rating yet, so it is never
-// presented as if it were one.
-@Composable
-private fun RatingHighlight(modifier: Modifier = Modifier) {
-    Row(
-        modifier =
-            modifier
-                .clip(ExtraShapes.featuredCard)
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = Spacing.scale12, vertical = Spacing.scale8),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.tertiaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Star,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-        Column {
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.scale4)) {
-                Text(
-                    text = stringResource(R.string.auth_welcome_rating_score),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
+            val markSize = Spacing.brandMarkSize * SETTLED_MARK_SCALE * WELCOME_BRAND_SCALE
+            Box(
+                modifier =
+                    Modifier
+                        .size(width = markSize, height = markSize * MARK_ROW_HEIGHT)
+                        .onPlaced { markBounds.value = it.unclippedBounds() }
+                        .entranceFrom(markBounds, container, brandProgress) { startup().mark },
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_brand_mark),
+                    contentDescription = null,
+                    modifier = Modifier.requiredSize(markSize),
                 )
+            }
+            Spacer(Modifier.height(Spacing.scale4))
+            Image(
+                painter = wordmark,
+                contentDescription = stringResource(R.string.app_name),
+                modifier =
+                    Modifier
+                        .width(with(density) { startupWordmark.width.toDp() } * WELCOME_BRAND_SCALE)
+                        .onPlaced { wordmarkBounds.value = it.unclippedBounds() }
+                        .entranceFrom(wordmarkBounds, container, brandProgress) { startup().wordmark },
+            )
+            HeartbeatTrace(
+                sweep = { Sweep(head = 1f, repeated = false) },
+                modifier =
+                    Modifier
+                        .width(Spacing.brandTraceMaxWidth * WELCOME_BRAND_SCALE)
+                        .onPlaced { traceBounds.value = it.unclippedBounds() }
+                        .entranceFrom(traceBounds, container, brandProgress) { startup().trace },
+            )
+
+            Column(
+                modifier = Modifier.reveal(contentReveal),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 Text(
-                    text = stringResource(R.string.auth_welcome_rating_label),
-                    style = MaterialTheme.typography.labelMedium,
+                    text = stringResource(R.string.auth_welcome_slogan),
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(Spacing.scale20))
+                WelcomeValues()
+                Spacer(Modifier.height(Spacing.sectionGap))
+                SignInSection(
+                    uiState = uiState,
+                    onSignInClick = onSignInClick,
+                    onTermsClick = onTermsClick,
+                    onPrivacyClick = onPrivacyClick,
                 )
             }
-            Text(
-                text = stringResource(R.string.auth_welcome_rating_caption),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
 
-// Same caveat as RatingHighlight: the figure is marketing copy. The dot
-// blinks with AvailabilityDot, the same component meant for a professional's
-// real "available now" indicator once that story exists.
-@Composable
-private fun AvailabilityHighlight(modifier: Modifier = Modifier) {
-    Row(
-        modifier =
-            modifier
-                .clip(ExtraShapes.featuredCard)
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = Spacing.scale12, vertical = Spacing.scale8),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AvailabilityDot()
-        Column {
-            Text(
-                text = stringResource(R.string.auth_welcome_availability_count),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(R.string.auth_welcome_availability_caption),
-                style = MaterialTheme.typography.labelSmall,
-                color = SaludEnCasaTheme.statusColors.availableNow,
-            )
-        }
+// Moves a part of the brand from where the settled startup frame left it to its
+// own place on this screen (docs/decisions.md, 2026-10-14, the welcome screen).
+private fun Modifier.entranceFrom(
+    bounds: MutableState<Rect>,
+    container: MutableState<Rect>,
+    progress: () -> Float,
+    start: () -> BrandPart,
+): Modifier =
+    graphicsLayer {
+        val remaining = 1f - progress()
+        val own = bounds.value
+        if (remaining == 0f || own.isEmpty || container.value.isEmpty) return@graphicsLayer
+        val from = start()
+        val here = own.center - container.value.topLeft
+        translationX = (from.center.x - here.x) * remaining
+        translationY = (from.center.y - here.y) * remaining
+        val scale = 1f + (from.width / own.width - 1f) * remaining
+        scaleX = scale
+        scaleY = scale
     }
-}
+
+// Not boundsInRoot: that one is clipped by the scrolling column.
+private fun LayoutCoordinates.unclippedBounds(): Rect = Rect(positionInRoot(), size.toSize())
+
+private fun Modifier.reveal(progress: () -> Float): Modifier =
+    graphicsLayer {
+        val shown = progress()
+        alpha = shown
+        translationY = (1f - shown) * Spacing.scale16.toPx()
+    }
 
 @Composable
-private fun WelcomeHighlights(modifier: Modifier = Modifier) {
+private fun WelcomeValues(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
-    ) {
-        Spacer(modifier = Modifier.height(Spacing.scale8))
-
-        Text(
-            text = stringResource(R.string.auth_welcome_title),
-            style = MaterialTheme.typography.displaySmall,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = stringResource(R.string.auth_welcome_subtitle),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Justify,
-        )
-
-        FeatureRow(
-            icon = Icons.Filled.Check,
-            title = stringResource(R.string.auth_welcome_feature_home_care_title),
-            description = stringResource(R.string.auth_welcome_feature_home_care_description),
-        )
-        FeatureRow(
-            icon = Icons.Filled.Place,
-            title = stringResource(R.string.auth_welcome_feature_geolocation_title),
-            description = stringResource(R.string.auth_welcome_feature_geolocation_description),
-        )
-    }
-}
-
-@Composable
-private fun FeatureRow(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(Spacing.cardPadding),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.scale12),
-        verticalAlignment = Alignment.Top,
+                .background(MaterialTheme.colorScheme.surface),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(18.dp),
-            )
+        ValueRow(
+            icon = painterResource(R.drawable.ic_verified_user),
+            title = stringResource(R.string.auth_welcome_value_verified_title),
+            description = stringResource(R.string.auth_welcome_value_verified_description),
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        ValueRow(
+            icon = rememberVectorPainter(Icons.Filled.Place),
+            title = stringResource(R.string.auth_welcome_value_nearby_title),
+            description = stringResource(R.string.auth_welcome_value_nearby_description),
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        ValueRow(
+            icon = painterResource(R.drawable.ic_group),
+            title = stringResource(R.string.auth_welcome_value_roles_title),
+            description = stringResource(R.string.auth_welcome_value_roles_description),
+        )
+    }
+}
+
+// At a large font the icon goes above the text: beside it, a title such as
+// «Profesionales verificados» is left a third of the width and breaks mid-word.
+@Composable
+private fun ValueRow(
+    icon: Painter,
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier,
+) {
+    val badge =
+        @Composable {
+            Box(
+                modifier =
+                    Modifier
+                        .size(Spacing.scale40)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(Spacing.scale20),
+                )
+            }
         }
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Justify,
-            )
+    val text =
+        @Composable {
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    val rowModifier = modifier.fillMaxWidth().padding(Spacing.cardPadding)
+    if (LocalDensity.current.fontScale >= LARGE_FONT_SCALE) {
+        Column(modifier = rowModifier, verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+            badge()
+            text()
+        }
+    } else {
+        Row(modifier = rowModifier, horizontalArrangement = Arrangement.spacedBy(Spacing.scale12)) {
+            badge()
+            text()
         }
     }
 }
@@ -338,13 +342,15 @@ private fun FeatureRow(
 private fun SignInSection(
     uiState: WelcomeUiState,
     onSignInClick: () -> Unit,
+    onTermsClick: () -> Unit,
+    onPrivacyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
+        verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (uiState is WelcomeUiState.Error) {
@@ -352,6 +358,7 @@ private fun SignInSection(
                 text = stringResource(uiState.error.messageRes()),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
             )
         }
 
@@ -368,11 +375,6 @@ private fun SignInSection(
             }
 
             WelcomeUiState.Idle, is WelcomeUiState.Error -> {
-                Text(
-                    text = stringResource(R.string.auth_welcome_access_hint),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 PrimaryButton(
                     text =
                         if (uiState is WelcomeUiState.Error) {
@@ -381,77 +383,119 @@ private fun SignInSection(
                             stringResource(R.string.auth_welcome_sign_in_with_google)
                         },
                     onClick = onSignInClick,
-                    leadingIcon = {
-                        // The multi-color G is a fixed Google brand asset, drawn for a
-                        // light background regardless of app theme, hence the literal white.
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_google_logo),
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    },
+                    leadingIcon = { GoogleMark() },
+                    containerColor = SaludEnCasaTheme.brandColors.button,
+                    contentColor = SaludEnCasaTheme.brandColors.onButton,
                 )
-                Text(
-                    text = stringResource(R.string.auth_welcome_no_password_notice),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                WelcomeLegalFooter()
+            }
+        }
+
+        Text(
+            text = stringResource(R.string.auth_welcome_no_password_notice),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = stringResource(R.string.auth_welcome_legal_notice),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        // No destination yet: the legal screens are their own story
+        // (docs/decisions.md, 2026-10-14, the welcome screen).
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.scale8, Alignment.CenterHorizontally),
+        ) {
+            TextButton(onClick = onTermsClick) {
+                Text(text = stringResource(R.string.auth_welcome_terms), textAlign = TextAlign.Center)
+            }
+            TextButton(onClick = onPrivacyClick) {
+                Text(text = stringResource(R.string.auth_welcome_privacy), textAlign = TextAlign.Center)
             }
         }
     }
 }
 
-// Decorative links: there is no destination screen yet, so they do not react
-// to touch. Once that story exists, they stop being Text and become real
-// controls, as .claude/rules/compose.md requires.
+// The multi-color G is a fixed Google brand asset, drawn for a light background
+// regardless of app theme, hence the literal white. requiredSize keeps the circle
+// round when a large font squeezes the row it sits in.
 @Composable
-private fun WelcomeLegalFooter(modifier: Modifier = Modifier) {
-    Text(
-        text = stringResource(R.string.auth_welcome_legal_footer),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier,
-    )
+private fun GoogleMark() {
+    Box(
+        modifier =
+            Modifier
+                .requiredSize(24.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.ic_google_logo),
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+        )
+    }
 }
 
-@Preview(showBackground = true, name = "Bienvenida en reposo, claro")
+private fun easeOut(fraction: Float): Float = 1f - (1f - fraction.coerceIn(0f, 1f)).pow(3)
+
+private fun easeInOut(fraction: Float): Float {
+    val t = fraction.coerceIn(0f, 1f)
+    return if (t < 0.5f) 4f * t * t * t else 1f - (-2f * t + 2f).pow(3) / 2f
+}
+
+@Preview(showBackground = true, heightDp = 900, name = "Bienvenida en reposo, claro")
 @Composable
 private fun WelcomeIdleLightPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        WelcomeContent(uiState = WelcomeUiState.Idle, onSignInClick = {})
+        WelcomeContent(uiState = WelcomeUiState.Idle, onSignInClick = {}, onTermsClick = {}, onPrivacyClick = {})
     }
 }
 
-@Preview(showBackground = true, name = "Bienvenida en reposo, oscuro")
+@Preview(
+    showBackground = true,
+    heightDp = 900,
+    name = "Bienvenida en reposo, oscuro",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
 @Composable
 private fun WelcomeIdleDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        WelcomeContent(uiState = WelcomeUiState.Idle, onSignInClick = {})
+        WelcomeContent(uiState = WelcomeUiState.Idle, onSignInClick = {}, onTermsClick = {}, onPrivacyClick = {})
     }
 }
 
-@Preview(showBackground = true, name = "Bienvenida ingresando")
+@Preview(showBackground = true, widthDp = 320, heightDp = 1800, fontScale = 2f, name = "Bienvenida al 200 %")
+@Composable
+private fun WelcomeIdleLargeFontPreview() {
+    SaludEnCasaTheme(darkTheme = false) {
+        WelcomeContent(uiState = WelcomeUiState.Idle, onSignInClick = {}, onTermsClick = {}, onPrivacyClick = {})
+    }
+}
+
+@Preview(showBackground = true, heightDp = 900, name = "Bienvenida ingresando")
 @Composable
 private fun WelcomeSigningInPreview() {
     SaludEnCasaTheme(darkTheme = false) {
-        WelcomeContent(uiState = WelcomeUiState.SigningIn, onSignInClick = {})
+        WelcomeContent(uiState = WelcomeUiState.SigningIn, onSignInClick = {}, onTermsClick = {}, onPrivacyClick = {})
     }
 }
 
-@Preview(showBackground = true, name = "Bienvenida con error")
+@Preview(
+    showBackground = true,
+    heightDp = 900,
+    name = "Bienvenida con error, oscuro",
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
 @Composable
-private fun WelcomeErrorPreview() {
+private fun WelcomeErrorDarkPreview() {
     SaludEnCasaTheme(darkTheme = true) {
-        WelcomeContent(uiState = WelcomeUiState.Error(AuthError.NoGoogleAccount), onSignInClick = {})
+        WelcomeContent(
+            uiState = WelcomeUiState.Error(AuthError.NoGoogleAccount),
+            onSignInClick = {},
+            onTermsClick = {},
+            onPrivacyClick = {},
+        )
     }
 }

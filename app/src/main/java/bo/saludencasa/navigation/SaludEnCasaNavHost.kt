@@ -1,7 +1,10 @@
 package bo.saludencasa.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,7 +37,12 @@ fun SaludEnCasaNavHost(
         startDestination = StartupRoute(),
         modifier = modifier,
     ) {
-        composable<StartupRoute> { entry ->
+        // docs/decisions.md, 2026-10-14, the welcome screen.
+        composable<StartupRoute>(
+            exitTransition = {
+                if (targetState.destination.hasRoute<WelcomeRoute>()) ExitTransition.None else null
+            },
+        ) { entry ->
             StartupScreen(
                 playIntro = entry.toRoute<StartupRoute>().playIntro,
                 onSignIn = { navController.replaceCurrentWith(WelcomeRoute) },
@@ -43,7 +51,11 @@ fun SaludEnCasaNavHost(
             )
         }
 
-        composable<WelcomeRoute> {
+        composable<WelcomeRoute>(
+            enterTransition = {
+                if (initialState.destination.hasRoute<StartupRoute>()) EnterTransition.None else null
+            },
+        ) {
             WelcomeScreen(onSignedIn = { navController.replaceCurrentWith(StartupRoute(playIntro = false)) })
         }
 

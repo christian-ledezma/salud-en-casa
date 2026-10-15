@@ -28,11 +28,24 @@ val DarkStatusColors =
     )
 
 // docs/design-system.md, section 9: the mint of the logo's heart, which the
-// heartbeat trace under the wordmark is drawn in. No Material 3 role carries it.
+// heartbeat trace under the wordmark is drawn in, and the brand teal of the
+// sign-in button, the same in both schemes. No Material 3 role carries either.
 data class BrandColors(
     val heartbeat: Color,
+    val button: Color,
+    val onButton: Color,
 )
 
-val LightBrandColors = BrandColors(heartbeat = Color(0xFF1C9474))
+val LightBrandColors =
+    BrandColors(
+        heartbeat = Color(0xFF1C9474),
+        button = Color(0xFF1A6F8F),
+        onButton = Color(0xFFFFFFFF),
+    )
 
-val DarkBrandColors = BrandColors(heartbeat = Color(0xFF5FD3AE))
+val DarkBrandColors =
+    BrandColors(
+        heartbeat = Color(0xFF5FD3AE),
+        button = Color(0xFF1A6F8F),
+        onButton = Color(0xFFFFFFFF),
+    )
