@@ -14,7 +14,7 @@ private val BOLIVIANO: Currency = Currency.getInstance("BOB")
 
 // The symbol is the one Bolivia uses, whatever the device locale
 // (docs/decisions.md, 2026-10-15, the search and profile screens).
-private val BOLIVIA: Locale = Locale.Builder().setLanguage("es").setRegion("BO").build()
+private val BOLIVIA: Locale = Locale.forLanguageTag("es-BO")
 
 fun formatBob(
     amount: BigDecimal,

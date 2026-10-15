@@ -36,5 +36,5 @@ class MoneyFormatTest {
     }
 }
 
-private val SPAIN: Locale = Locale.Builder().setLanguage("es").setRegion("ES").build()
-private val BOLIVIA: Locale = Locale.Builder().setLanguage("es").setRegion("BO").build()
+private val SPAIN: Locale = Locale.forLanguageTag("es-ES")
+private val BOLIVIA: Locale = Locale.forLanguageTag("es-BO")
