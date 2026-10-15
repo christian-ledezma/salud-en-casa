@@ -10,6 +10,11 @@
     <string name="common_nav_requests">Solicitudes</string>
     <string name="common_nav_profile">Perfil</string>
 
+    <!-- Parts of the day, shared by the appointment carousel and the availability editor -->
+    <string name="common_part_morning">Mañana</string>
+    <string name="common_part_afternoon">Tarde</string>
+    <string name="common_part_evening">Noche</string>
+
     <string name="auth_welcome_slogan">Conectando pacientes con profesionales de salud donde lo necesiten</string>
     <string name="auth_welcome_value_verified_title">Profesionales verificados</string>
     <string name="auth_welcome_value_verified_description">Revisamos su identidad y su título antes de que aparezcan.</string>
@@ -449,9 +454,6 @@
     <string name="schedule_service_option">%1$s · %2$s</string>
     <string name="schedule_day_label">Día</string>
     <string name="schedule_time_label">Hora</string>
-    <string name="schedule_part_morning">Mañana</string>
-    <string name="schedule_part_afternoon">Tarde</string>
-    <string name="schedule_part_evening">Noche</string>
     <string name="schedule_no_times_title">Sin horarios en las próximas dos semanas</string>
     <string name="schedule_no_times_description">Prueba con otro servicio. Si necesitas atención pronto, publica una solicitud inmediata.</string>
     <string name="schedule_address_label">Dónde será la atención</string>
@@ -474,11 +476,16 @@
     <string name="availability_add_slot">Agregar franja</string>
     <string name="availability_remove_slot_cd">Eliminar franja</string>
     <string name="availability_slot_range">%1$s – %2$s</string>
-    <string name="availability_add_dialog_title">Nueva franja</string>
-    <string name="availability_day_label">Día</string>
-    <string name="availability_start_label">Inicio</string>
-    <string name="availability_end_label">Fin</string>
-    <string name="availability_add_confirm">Guardar</string>
+    <string name="availability_day_monday">Lunes</string>
+    <string name="availability_day_tuesday">Martes</string>
+    <string name="availability_day_wednesday">Miércoles</string>
+    <string name="availability_day_thursday">Jueves</string>
+    <string name="availability_day_friday">Viernes</string>
+    <string name="availability_day_saturday">Sábado</string>
+    <string name="availability_day_sunday">Domingo</string>
+    <string name="availability_start_label">Desde</string>
+    <string name="availability_end_label">Hasta</string>
+    <string name="availability_add_confirm">Guardar franja</string>
     <string name="availability_remove_dialog_title">Eliminar franja</string>
     <string name="availability_remove_dialog_message">¿Eliminar la franja de %1$s a %2$s?</string>
     <string name="availability_remove_action">Eliminar</string>

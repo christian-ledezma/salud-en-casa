@@ -6,7 +6,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatKilometres
-import bo.saludencasa.features.requests.domain.model.PartOfDay
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -45,14 +44,6 @@ internal fun RequestModality.labelRes(): Int =
     when (this) {
         RequestModality.IMMEDIATE -> R.string.request_modality_immediate
         RequestModality.SCHEDULED -> R.string.request_modality_scheduled
-    }
-
-@StringRes
-internal fun PartOfDay.labelRes(): Int =
-    when (this) {
-        PartOfDay.MORNING -> R.string.schedule_part_morning
-        PartOfDay.AFTERNOON -> R.string.schedule_part_afternoon
-        PartOfDay.EVENING -> R.string.schedule_part_evening
     }
 
 // The distance the engine already rounded to the hundred metres, so "cerca"

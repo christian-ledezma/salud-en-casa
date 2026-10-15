@@ -1,7 +1,5 @@
 package bo.saludencasa.features.requests.presentation
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,14 +7,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
-import bo.saludencasa.core.util.formatTime
 import bo.saludencasa.core.vo.Coordinate
 import bo.saludencasa.features.catalog.domain.model.ProfessionalService
 import bo.saludencasa.features.catalog.domain.model.ServiceType
@@ -60,7 +51,7 @@ import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.RadioOptionGroup
 import bo.saludencasa.ui.components.RatingBadge
 import bo.saludencasa.ui.components.ScreenHeader
-import bo.saludencasa.ui.theme.ExtraShapes
+import bo.saludencasa.ui.components.TimeChipRow
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -401,66 +392,17 @@ private fun TimeCarousel(
     selected: BookableStart?,
     onSelected: (BookableStart) -> Unit,
 ) {
-    val locale = LocalConfiguration.current.locales[0]
     val state = rememberLazyListState()
     LaunchedEffect(date) { state.scrollToItem(0) }
+    val starts = times.on(date).values.flatten()
 
-    LazyRow(
+    TimeChipRow(
+        times = starts.map(BookableStart::time),
+        selected = selected?.time?.takeIf { selected.date == date },
+        onSelected = { time -> starts.first { it.time == time }.let(onSelected) },
         state = state,
-        flingBehavior = rememberSnapFlingBehavior(lazyListState = state),
-        modifier = Modifier.selectableGroup(),
         contentPadding = PaddingValues(horizontal = Spacing.screenMargin),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        times.on(date).entries.forEachIndexed { index, (part, starts) ->
-            item(key = "part-" + part.name) {
-                Text(
-                    text = stringResource(part.labelRes()),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = if (index == 0) Modifier else Modifier.padding(start = Spacing.scale8),
-                )
-            }
-            items(starts, key = { "start-" + it.startAt.epochSecond }) { start ->
-                TimeChip(
-                    text = formatTime(start.time, locale),
-                    selected = start.startAt == selected?.startAt,
-                    onClick = { onSelected(start) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TimeChip(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    val colors = MaterialTheme.colorScheme
-
-    Surface(
-        modifier =
-            Modifier
-                .heightIn(min = Spacing.minTouchTarget)
-                .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
-        shape = ExtraShapes.pill,
-        color = if (selected) colors.primary else colors.surface,
-        border = if (selected) null else BorderStroke(Spacing.borderWidth, colors.outline),
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = Spacing.scale16, vertical = Spacing.scale12),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (selected) colors.onPrimary else colors.onSurface,
-            )
-        }
-    }
+    )
 }
 
 @Composable

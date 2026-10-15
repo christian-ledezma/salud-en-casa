@@ -23,7 +23,8 @@ sealed interface AvailabilityUiState {
 
     data class Content(
         val availability: WeeklyAvailability,
-        val dialog: SlotDialog? = null,
+        val draft: SlotDraft? = null,
+        val removal: AvailabilitySlot? = null,
         val busy: Boolean = false,
     ) : AvailabilityUiState
 
@@ -32,18 +33,12 @@ sealed interface AvailabilityUiState {
     ) : AvailabilityUiState
 }
 
-sealed interface SlotDialog {
-    data class Adding(
-        val dayOfWeek: DayOfWeek,
-        val startTime: LocalTime,
-        val endTime: LocalTime,
-        val error: AvailabilityError? = null,
-    ) : SlotDialog
-
-    data class Removing(
-        val slot: AvailabilitySlot,
-    ) : SlotDialog
-}
+data class SlotDraft(
+    val dayOfWeek: DayOfWeek,
+    val startTime: LocalTime,
+    val endTime: LocalTime,
+    val error: AvailabilityError? = null,
+)
 
 class AvailabilityViewModel(
     private val getMyAvailability: GetMyAvailabilityUseCase,
@@ -71,8 +66,8 @@ class AvailabilityViewModel(
         val content = state.value as? AvailabilityUiState.Content ?: return
         state.value =
             content.copy(
-                dialog =
-                    SlotDialog.Adding(
+                draft =
+                    SlotDraft(
                         dayOfWeek = day,
                         startTime = DEFAULT_START,
                         endTime = DEFAULT_END,
@@ -80,28 +75,32 @@ class AvailabilityViewModel(
             )
     }
 
+    fun onCancelDraft() {
+        val content = state.value as? AvailabilityUiState.Content ?: return
+        state.value = content.copy(draft = null)
+    }
+
+    fun onDraftStart(time: LocalTime) =
+        updateDraft { it.copy(startTime = time, endTime = SlotTimes.endAfter(time, it.endTime), error = null) }
+
+    fun onDraftEnd(time: LocalTime) = updateDraft { it.copy(endTime = time, error = null) }
+
     fun onRemoveClick(slot: AvailabilitySlot) {
         val content = state.value as? AvailabilityUiState.Content ?: return
-        state.value = content.copy(dialog = SlotDialog.Removing(slot))
+        state.value = content.copy(removal = slot)
     }
 
-    fun onDismissDialog() {
+    fun onDismissRemoval() {
         val content = state.value as? AvailabilityUiState.Content ?: return
-        state.value = content.copy(dialog = null)
+        state.value = content.copy(removal = null)
     }
-
-    fun onDraftStart(time: LocalTime) = updateAdding { it.copy(startTime = time, error = null) }
-
-    fun onDraftEnd(time: LocalTime) = updateAdding { it.copy(endTime = time, error = null) }
-
-    fun onDraftDay(day: DayOfWeek) = updateAdding { it.copy(dayOfWeek = day, error = null) }
 
     fun onConfirmAdd() {
         val content = state.value as? AvailabilityUiState.Content ?: return
-        val adding = content.dialog as? SlotDialog.Adding ?: return
+        val draft = content.draft ?: return
         state.value = content.copy(busy = true)
         viewModelScope.launch {
-            when (val result = addSlot(adding.dayOfWeek, adding.startTime, adding.endTime)) {
+            when (val result = addSlot(draft.dayOfWeek, draft.startTime, draft.endTime)) {
                 SlotWriteResult.Success -> {
                     reload()
                 }
@@ -109,7 +108,7 @@ class AvailabilityViewModel(
                 is SlotWriteResult.Failure -> {
                     state.value =
                         content.copy(
-                            dialog = adding.copy(error = result.error),
+                            draft = draft.copy(error = result.error),
                             busy = false,
                         )
                 }
@@ -119,10 +118,10 @@ class AvailabilityViewModel(
 
     fun onConfirmRemove() {
         val content = state.value as? AvailabilityUiState.Content ?: return
-        val removing = content.dialog as? SlotDialog.Removing ?: return
+        val removal = content.removal ?: return
         state.value = content.copy(busy = true)
         viewModelScope.launch {
-            when (val result = removeSlot(removing.slot.id)) {
+            when (removeSlot(removal.id)) {
                 SlotWriteResult.Success -> {
                     reload()
                 }
@@ -130,7 +129,7 @@ class AvailabilityViewModel(
                 // A failed removal keeps the slot by reloading the page, and
                 // surfaces the error without replacing the whole screen.
                 is SlotWriteResult.Failure -> {
-                    state.value = content.copy(busy = false, dialog = null)
+                    state.value = content.copy(busy = false, removal = null)
                     reload()
                 }
             }
@@ -149,11 +148,11 @@ class AvailabilityViewModel(
         }
     }
 
-    private inline fun updateAdding(crossinline transform: (SlotDialog.Adding) -> SlotDialog.Adding) {
+    private inline fun updateDraft(crossinline transform: (SlotDraft) -> SlotDraft) {
         state.update { current ->
             if (current !is AvailabilityUiState.Content) return@update current
-            val adding = current.dialog as? SlotDialog.Adding ?: return@update current
-            current.copy(dialog = transform(adding))
+            val draft = current.draft ?: return@update current
+            current.copy(draft = transform(draft))
         }
     }
 

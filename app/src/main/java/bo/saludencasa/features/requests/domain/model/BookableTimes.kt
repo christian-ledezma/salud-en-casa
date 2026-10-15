@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests.domain.model
 
+import bo.saludencasa.core.vo.PartOfDay
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -9,25 +10,6 @@ data class BookableStart(
     val date: LocalDate,
     val time: LocalTime,
 )
-
-enum class PartOfDay {
-    MORNING,
-    AFTERNOON,
-    EVENING,
-    ;
-
-    companion object {
-        private val NOON: LocalTime = LocalTime.NOON
-        private val SIX_PM: LocalTime = LocalTime.of(18, 0)
-
-        fun of(time: LocalTime): PartOfDay =
-            when {
-                time < NOON -> MORNING
-                time < SIX_PM -> AFTERNOON
-                else -> EVENING
-            }
-    }
-}
 
 data class BookableTimes(
     val starts: List<BookableStart>,
