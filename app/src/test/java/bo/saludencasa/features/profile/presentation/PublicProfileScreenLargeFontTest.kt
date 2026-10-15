@@ -18,6 +18,7 @@ import bo.saludencasa.features.profile.domain.model.PublicProfile
 import bo.saludencasa.features.reviews.domain.model.ProfessionalReview
 import bo.saludencasa.features.reviews.domain.model.ReviewError
 import bo.saludencasa.ui.assertFitsTheScreen
+import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
 import org.junit.Assert.assertTrue
@@ -45,11 +46,12 @@ class PublicProfileScreenLargeFontTest {
         services: ServicesState = ServicesState.Content(listOf(service(venousLine), service(vaccination))),
         reviews: ReviewsState = reviewsContent(),
         profile: PublicProfile = profile(),
+        canSchedule: Boolean = false,
     ) {
         composeRule.setContentAtDoubleFontScale {
             PublicProfileContent(
-                uiState = PublicProfileUiState.Content(profile, services, reviews),
-                actions = PublicProfileActions({}, {}, {}, {}, {}),
+                uiState = PublicProfileUiState.Content(profile, services, reviews, canSchedule),
+                actions = PublicProfileActions({}, {}, {}, {}, {}, {}),
             )
         }
     }
@@ -68,6 +70,24 @@ class PublicProfileScreenLargeFontTest {
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithContentDescription(string(R.string.cd_back_button)),
         )
+    }
+
+    // HU-16: the action is fixed to the foot, outside the list, so it is on
+    // screen before anything is scrolled, at a doubled font as at the default.
+    @Test
+    fun theScheduleActionIsOnScreenWithoutScrolling() {
+        show(canSchedule = true)
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.public_profile_schedule_action)),
+        )
+    }
+
+    @Test
+    fun theScheduleActionIsAbsentWhenSchedulingIsNotOffered() {
+        show(canSchedule = false)
+
+        composeRule.onNodeWithText(string(R.string.public_profile_schedule_action)).assertDoesNotExist()
     }
 
     @Test

@@ -71,7 +71,7 @@ class PublicProfileReviewsFooterTest {
                                     notice = notice,
                                 ),
                         ),
-                    actions = PublicProfileActions({}, {}, {}, {}, onReachedEnd),
+                    actions = PublicProfileActions({}, {}, {}, {}, onReachedEnd, {}),
                 )
             }
         }

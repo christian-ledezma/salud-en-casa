@@ -1,12 +1,15 @@
 package bo.saludencasa.features.requests.presentation
 
+import android.content.Context
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
+import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
@@ -18,6 +21,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.math.BigDecimal
 import java.time.Instant
+import java.util.Locale
 
 @RunWith(AndroidJUnit4::class)
 class MyRequestsScreenLargeFontTest {
@@ -27,6 +31,7 @@ class MyRequestsScreenLargeFontTest {
     private fun request(
         id: String,
         status: RequestStatus,
+        scheduledAt: Instant? = null,
     ): ServiceRequest =
         ServiceRequest(
             id = id,
@@ -34,11 +39,13 @@ class MyRequestsScreenLargeFontTest {
             addressText = "Avenida América 1234, Cochabamba",
             city = "Cochabamba",
             status = status,
-            modality = RequestModality.IMMEDIATE,
+            modality = if (scheduledAt == null) RequestModality.IMMEDIATE else RequestModality.SCHEDULED,
             description = null,
             suggestedBudgetBob = BigDecimal("150.00"),
-            expiresAt = Instant.parse("2026-10-12T13:00:00Z"),
+            expiresAt = scheduledAt ?: Instant.parse("2026-10-12T13:00:00Z"),
             createdAt = Instant.parse("2026-10-12T12:00:00Z"),
+            scheduledAt = scheduledAt,
+            professionalName = "Ana Quispe Mamani de la Fuente".takeIf { scheduledAt != null },
         )
 
     private fun show(
@@ -100,6 +107,30 @@ class MyRequestsScreenLargeFontTest {
             composeRule.onNodeWithText(string(R.string.request_list_cancel_action)),
         )
     }
+
+    // HU-16: the patient reads when and with whom; the professional's name is
+    // a long one on purpose.
+    @Test
+    fun aScheduledCardKeepsItsAppointmentAndProfessionalOnScreen() {
+        val at = Instant.parse("2026-10-16T13:30:00Z")
+        show(listOf(request("r1", RequestStatus.PUBLISHED, scheduledAt = at)))
+        scrollTo(1)
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.request_scheduled_for, formatAppointment(at, deviceLocale()))),
+        )
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(R.string.request_list_with_professional, "Ana Quispe Mamani de la Fuente"),
+            ),
+        )
+    }
+
+    // The locale the card formats the appointment with.
+    private fun deviceLocale(): Locale =
+        ApplicationProvider
+            .getApplicationContext<Context>()
+            .resources.configuration.locales[0]
 
     @Test
     fun theLoadMoreFooterStaysOnScreen() {

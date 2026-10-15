@@ -11,7 +11,11 @@ import bo.saludencasa.features.catalog.venousLine
 import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.PublicProfileResult
+import bo.saludencasa.features.profile.domain.model.RoleResult
+import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.profile.domain.usecase.CanScheduleAppointmentUseCase
 import bo.saludencasa.features.profile.domain.usecase.GetPublicProfileUseCase
+import bo.saludencasa.features.profile.loadedRoles
 import bo.saludencasa.features.profile.publicProfile
 import bo.saludencasa.features.reviews.FakeReviewRepository
 import bo.saludencasa.features.reviews.domain.model.ReviewError
@@ -277,6 +281,88 @@ class PublicProfileViewModelTest {
             assertEquals(2, repository.requests.size)
         }
 
+    // HU-16. The action belongs to someone looking for care. A person holding
+    // both roles who is acting as a professional is not booking anyone.
+    @Test
+    fun `scheduling is offered to an active patient viewing a professional who declares services`() =
+        runTest {
+            val viewModel =
+                viewModel(
+                    profiles = FakeProfileRepository(roleResult = loadedRoles()),
+                    catalog = FakeCatalogRepository(services = listOf(professionalService(type = venousLine))),
+                )
+            advanceUntilIdle()
+
+            assertTrue(content(viewModel).showsScheduleAction)
+        }
+
+    @Test
+    fun `scheduling is not offered while the active role is professional`() =
+        runTest {
+            val profiles =
+                FakeProfileRepository(
+                    roleResult =
+                        loadedRoles(
+                            held = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL),
+                            active = UserRole.PROFESSIONAL,
+                        ),
+                )
+            val viewModel =
+                viewModel(
+                    profiles = profiles,
+                    catalog = FakeCatalogRepository(services = listOf(professionalService(type = venousLine))),
+                )
+            advanceUntilIdle()
+
+            assertFalse(content(viewModel).showsScheduleAction)
+        }
+
+    // INV-16: the professional opening their own profile from "Mi cuenta" while
+    // acting as a patient must not be offered to book themselves.
+    @Test
+    fun `scheduling is not offered on the caller's own profile`() =
+        runTest {
+            val viewModel =
+                viewModel(
+                    profiles = FakeProfileRepository(roleResult = loadedRoles(), signedInUserId = PROFESSIONAL),
+                    catalog = FakeCatalogRepository(services = listOf(professionalService(type = venousLine))),
+                )
+            advanceUntilIdle()
+
+            assertFalse(content(viewModel).showsScheduleAction)
+        }
+
+    @Test
+    fun `scheduling is not offered by a professional who declares no services`() =
+        runTest {
+            val viewModel =
+                viewModel(
+                    profiles = FakeProfileRepository(roleResult = loadedRoles()),
+                    catalog = FakeCatalogRepository(services = emptyList()),
+                )
+            advanceUntilIdle()
+
+            assertEquals(ServicesState.Empty, content(viewModel).services)
+            assertFalse(content(viewModel).showsScheduleAction)
+        }
+
+    // The roles failing to read hides the action and nothing else: the profile
+    // reads perfectly well without it.
+    @Test
+    fun `roles that cannot be read hide the action and leave the profile standing`() =
+        runTest {
+            val viewModel =
+                viewModel(
+                    profiles = FakeProfileRepository(roleResult = RoleResult.Failure(ProfileError.NetworkUnavailable)),
+                    catalog = FakeCatalogRepository(services = listOf(professionalService(type = venousLine))),
+                )
+            advanceUntilIdle()
+
+            val content = content(viewModel)
+            assertFalse(content.showsScheduleAction)
+            assertTrue(content.services is ServicesState.Content)
+        }
+
     @Test
     fun `the end of the comments is not asked for again`() =
         runTest {
@@ -306,4 +392,5 @@ private fun viewModel(
         getPublicProfile = GetPublicProfileUseCase(profiles),
         getProfessionalServices = GetProfessionalServicesUseCase(catalog),
         getProfessionalReviews = GetProfessionalReviewsUseCase(reviews),
+        canScheduleAppointment = CanScheduleAppointmentUseCase(profiles),
     )

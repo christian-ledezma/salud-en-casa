@@ -28,6 +28,7 @@ class FakeProfileRepository(
     var saveResult: ProfileResult? = null,
     var availabilityResult: AvailabilityResult? = null,
     var publicProfileResult: PublicProfileResult = PublicProfileResult.Success(publicProfile()),
+    var signedInUserId: String? = "08ddb28f-0000-4000-8000-000000000000",
 ) : IProfileRepository {
     var roleReads: Int = 0
         private set
@@ -51,6 +52,8 @@ class FakeProfileRepository(
         private set
     var lastRequestedProfessionalId: String? = null
         private set
+
+    override fun currentUserId(): String? = signedInUserId
 
     override suspend fun getRoles(): RoleResult {
         roleReads++

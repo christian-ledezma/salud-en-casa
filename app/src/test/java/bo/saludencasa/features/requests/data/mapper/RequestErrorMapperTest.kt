@@ -20,6 +20,25 @@ class RequestErrorMapperTest {
         assertEquals(RequestError.ServiceTypeUnavailable, error)
     }
 
+    // HU-16: one label per refusal of create_scheduled_request. None is a
+    // substring of another, which the matching by contains depends on.
+    @Test
+    fun readsEachRefusalOfTheScheduledCreationFromTheBody() {
+        val expected =
+            mapOf(
+                "cannot_schedule_with_yourself" to RequestError.CannotScheduleWithYourself,
+                "professional_unavailable" to RequestError.ProfessionalUnavailable,
+                "service_not_offered" to RequestError.ServiceNotOffered,
+                "outside_coverage" to RequestError.OutsideCoverage,
+                "time_not_bookable" to RequestError.TimeNotBookable,
+                "service_type_unavailable" to RequestError.ServiceTypeUnavailable,
+            )
+
+        expected.forEach { (label, error) ->
+            assertEquals(label, error, RuntimeException("""{"message":"$label"}""").toRequestError())
+        }
+    }
+
     @Test
     fun mapsAConnectionFailureToNetworkUnavailable() {
         assertEquals(RequestError.NetworkUnavailable, IOException("boom").toRequestError())

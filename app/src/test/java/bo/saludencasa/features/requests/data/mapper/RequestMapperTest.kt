@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests.data.mapper
 
+import bo.saludencasa.features.requests.data.model.BookableStartDto
 import bo.saludencasa.features.requests.data.model.InboxRequestDto
 import bo.saludencasa.features.requests.data.model.ServiceRequestDto
 import bo.saludencasa.features.requests.domain.model.RequestModality
@@ -8,6 +9,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.math.BigDecimal
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 
 class RequestMapperTest {
     @Test
@@ -71,12 +75,74 @@ class RequestMapperTest {
         assertNull(inboxDto(status = "ARCHIVED").toInboxRequest())
     }
 
+    // HU-16. The constraint scheduled_request_is_complete keeps this from the
+    // database, so a scheduled row without its time is a broken reply, and
+    // drawing it would show an appointment with no date.
+    @Test
+    fun aScheduledRequestWithoutItsTimeIsRejected() {
+        assertNull(dto(modality = "SCHEDULED", scheduledAt = null).toServiceRequest())
+        assertNull(inboxDto(modality = "SCHEDULED", scheduledAt = null).toInboxRequest())
+    }
+
+    @Test
+    fun aScheduledRequestCarriesItsTimeAndItsProfessional() {
+        val request =
+            dto(
+                modality = "SCHEDULED",
+                scheduledAt = "2026-10-19T14:00:00+00:00",
+                professionalName = "Ana Quispe",
+            ).toServiceRequest()!!
+
+        assertEquals(Instant.parse("2026-10-19T14:00:00Z"), request.scheduledAt)
+        assertEquals("Ana Quispe", request.professionalName)
+    }
+
+    @Test
+    fun theInboxTellsAScheduledRequestFromAnImmediateOne() {
+        val scheduled =
+            inboxDto(modality = "SCHEDULED", scheduledAt = "2026-10-19T14:00:00+00:00").toInboxRequest()!!
+        val immediate = inboxDto().toInboxRequest()!!
+
+        assertEquals(RequestModality.SCHEDULED, scheduled.modality)
+        assertEquals(Instant.parse("2026-10-19T14:00:00Z"), scheduled.scheduledAt)
+        assertEquals(RequestModality.IMMEDIATE, immediate.modality)
+        assertNull(immediate.scheduledAt)
+    }
+
+    @Test
+    fun anUnknownModalityInTheInboxIsRejected() {
+        assertNull(inboxDto(modality = "LATER").toInboxRequest())
+    }
+
+    // The engine computes the wall-clock date and time in La Paz; the mapper
+    // takes them as they come and never derives them from the instant.
+    @Test
+    fun aBookableStartKeepsTheEnginesInstantDateAndTime() {
+        val start =
+            BookableStartDto(
+                startAt = "2026-10-20T01:30:00+00:00",
+                localDate = "2026-10-19",
+                localTime = "21:30:00",
+            ).toBookableStart()!!
+
+        assertEquals(Instant.parse("2026-10-20T01:30:00Z"), start.startAt)
+        assertEquals(LocalDate.of(2026, 10, 19), start.date)
+        assertEquals(LocalTime.of(21, 30), start.time)
+    }
+
+    @Test
+    fun aBookableStartWithAnUnreadableTimeIsRejected() {
+        assertNull(BookableStartDto("2026-10-20T01:30:00+00:00", "2026-10-19", "half past nine").toBookableStart())
+    }
+
     private fun dto(
         status: String = "PUBLISHED",
         modality: String = "IMMEDIATE",
         createdAt: String = "2026-10-12T12:00:00+00:00",
         suggestedBudgetBob: String? = "150.00",
         description: String? = "Fiebre alta",
+        scheduledAt: String? = null,
+        professionalName: String? = null,
     ): ServiceRequestDto =
         ServiceRequestDto(
             id = "r1",
@@ -89,12 +155,16 @@ class RequestMapperTest {
             suggestedBudgetBob = suggestedBudgetBob,
             expiresAt = "2026-10-12T13:00:00+00:00",
             createdAt = createdAt,
+            scheduledAt = scheduledAt,
+            professionalName = professionalName,
         )
 
     private fun inboxDto(
         status: String = "PUBLISHED",
         createdAt: String = "2026-10-13T12:00:00+00:00",
         distanceM: Double = 1200.0,
+        modality: String = "IMMEDIATE",
+        scheduledAt: String? = null,
     ): InboxRequestDto =
         InboxRequestDto(
             id = "r1",
@@ -105,5 +175,7 @@ class RequestMapperTest {
             distanceM = distanceM,
             status = status,
             createdAt = createdAt,
+            modality = modality,
+            scheduledAt = scheduledAt,
         )
 }

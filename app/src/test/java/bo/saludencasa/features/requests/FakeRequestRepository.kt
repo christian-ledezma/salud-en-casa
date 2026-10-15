@@ -1,7 +1,11 @@
 package bo.saludencasa.features.requests
 
+import bo.saludencasa.features.requests.domain.model.BookableStart
+import bo.saludencasa.features.requests.domain.model.BookableTimes
+import bo.saludencasa.features.requests.domain.model.BookableTimesResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.CreateImmediateRequestDraft
+import bo.saludencasa.features.requests.domain.model.CreateScheduledRequestDraft
 import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.InboxResult
 import bo.saludencasa.features.requests.domain.model.MyRequestsResult
@@ -10,19 +14,31 @@ import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
 import bo.saludencasa.features.requests.domain.repository.IRequestRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneOffset
 
 class FakeRequestRepository : IRequestRepository {
     val createdDrafts = mutableListOf<CreateImmediateRequestDraft>()
+    val scheduledDrafts = mutableListOf<CreateScheduledRequestDraft>()
+    val bookableTimesRequests = mutableListOf<Pair<String, String>>()
     val cancelledIds = mutableListOf<String>()
     val pageRequests = mutableListOf<Pair<Int, Int>>()
     val inboxPageRequests = mutableListOf<Pair<Int, Int>>()
 
     var createResult: RequestResult = RequestResult.Created("request-1")
     var cancelResult: CancelRequestResult = CancelRequestResult.Success
+    var scheduleResult: RequestResult = RequestResult.Created("request-1")
+
+    // Answers per service type, so a test can tell which service an answer was
+    // for; a gate lets a test hold one answer back while another lands.
+    var bookableTimes: Map<String, BookableTimesResult> = emptyMap()
+    var bookableTimesGates: Map<String, CompletableDeferred<Unit>> = emptyMap()
 
     // A responder so a test can answer differently per page (pagination), and a
     // single default for the simple cases.
@@ -39,6 +55,20 @@ class FakeRequestRepository : IRequestRepository {
     override suspend fun createImmediate(draft: CreateImmediateRequestDraft): RequestResult {
         createdDrafts += draft
         return createResult
+    }
+
+    override suspend fun createScheduled(draft: CreateScheduledRequestDraft): RequestResult {
+        scheduledDrafts += draft
+        return scheduleResult
+    }
+
+    override suspend fun getBookableTimes(
+        professionalId: String,
+        serviceTypeId: String,
+    ): BookableTimesResult {
+        bookableTimesRequests += professionalId to serviceTypeId
+        bookableTimesGates[serviceTypeId]?.await()
+        return bookableTimes[serviceTypeId] ?: BookableTimesResult.Loaded(BookableTimes(emptyList()))
     }
 
     override suspend fun getMyRequests(
@@ -83,6 +113,8 @@ fun serviceRequest(
         suggestedBudgetBob = suggestedBudgetBob,
         expiresAt = Instant.parse("2026-10-12T13:00:00Z"),
         createdAt = Instant.parse("2026-10-12T12:00:00Z"),
+        scheduledAt = null,
+        professionalName = null,
     )
 
 fun inboxRequest(
@@ -100,4 +132,20 @@ fun inboxRequest(
         distanceM = distanceM,
         status = RequestStatus.PUBLISHED,
         createdAt = Instant.parse("2026-10-13T12:00:00Z"),
+        modality = RequestModality.IMMEDIATE,
+        scheduledAt = null,
     )
+
+// A start as bookable_start_times returns it. La Paz is UTC-4 all year, so the
+// instant is the wall-clock time plus four hours.
+fun bookableStart(
+    date: LocalDate = LocalDate.of(2026, 10, 19),
+    hour: Int = 10,
+    minute: Int = 0,
+): BookableStart {
+    val time = LocalTime.of(hour, minute)
+    return BookableStart(startAt = date.atTime(time).toInstant(ZoneOffset.ofHours(-4)), date = date, time = time)
+}
+
+fun loadedTimes(vararg starts: BookableStart): BookableTimesResult =
+    BookableTimesResult.Loaded(BookableTimes(starts.toList()))
