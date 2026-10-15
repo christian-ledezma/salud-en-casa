@@ -337,6 +337,12 @@ Mañana, Tarde o Noche desplazándose junto con sus horas. La hora elegida va en
 los carruseles de Material 3, que encogen y recortan los elementos de los
 costados porque están pensados para imágenes (HU-16).
 
+`TimeChipRow` (`ui/components/`) es esa fila: recibe horas y devuelve la elegida,
+agrupa ella misma por parte del día y se desplaza hasta la hora que se le pide.
+La usan la pantalla de agendar y el editor de franjas de «Mi disponibilidad», que
+declara el desde y el hasta con dos de estas filas y ningún selector de reloj
+(2026-10-15).
+
 ### Control segmentado
 
 Dos o tres opciones excluyentes en una píldora. La activa se rellena en `primary`.

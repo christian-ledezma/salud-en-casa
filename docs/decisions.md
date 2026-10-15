@@ -4781,8 +4781,9 @@ columna desplazable. La marca entra desde donde la dejó el arranque.
   anteriores y del pie legal.
 - **Sistema de diseño:** la sección 5 de `docs/design-system.md` describe la
   pantalla nueva.
-- **Pendiente:** el recorrido en emulador del paso del arranque a la bienvenida
-  sigue siendo necesario, porque una prueba de límites no ve el salto de la marca.
+- **Recorrido en emulador:** era necesario, porque una prueba de límites no ve el
+  salto de la marca entre el arranque y la bienvenida. El autor lo hizo y lo
+  confirmó el 2026-10-15: la marca no salta y el ingreso lleva donde debe.
 
 ---
 
@@ -4909,9 +4910,10 @@ cifras, píldoras y servicios en tarjetas.
 - **Textos:** se retiran las tres pluralizaciones de la ficha que decían la cifra y
   su etiqueta en una sola frase; las cifras nuevas separan el número de la
   etiqueta.
-- **Pendiente:** las previsualizaciones de las dos pantallas en claro, en oscuro y
-  al 200 % hay que abrirlas y mirarlas. El recorte dentro de una píldora o de una
-  columna de cifras no lo ve ninguna prueba.
+- **Previsualizaciones:** las de las dos pantallas en claro, en oscuro y al 200 %
+  las abrió el autor y se ven correctas; lo confirmó el 2026-10-15. El recorte
+  dentro de una píldora o de una columna de cifras no lo ve ninguna prueba, así
+  que mirarlas era la única vía.
 
 ---
 
@@ -5007,6 +5009,116 @@ acepta una hora solo si esa misma función la lista.
   disponibilidad» mezclaba las franjas de todo profesional aprobado. La revisión del
   pull request #7 lo señaló y se descartó por error. Ahora el filtro va explícito.
   Es la misma trampa que el catálogo documenta para `professional_services`.
+
+## 2026-10-15 · La franja horaria se declara en la pantalla, y el día se lee en español
+
+**Contexto.** El autor usó «Mi disponibilidad» y encontró dos cosas. La primera: el
+alta de una franja abría un diálogo con **dos** `TimePicker` de Material 3, uno
+para el inicio y otro para el fin, apilados dentro del mismo cuadro. Dos relojes
+de esfera superpuestos en una ventana modal es la forma menos amable de decir
+«de nueve a doce», y son además dos controles que el propio producto ya había
+resuelto de otra manera en HU-16. La segunda: los nombres de los días salían en
+inglés.
+
+**Decisión.** El diálogo de alta desaparece. Cada día del listado lleva su propio
+editor, que se abre en el mismo sitio donde está el botón «Agregar franja» de ese
+día, y las dos horas se eligen con la fila de píldoras que el sistema de diseño ya
+define para el carrusel de fecha y hora. El nombre del día pasa a ser un recurso
+de cadenas.
+
+**Razonamiento.**
+
+- **El día deja de ser un dato que se elige.** En el diálogo había que volver a
+  elegirlo con una fila de fichas circulares, aunque se hubiera llegado ahí desde
+  el botón de un día concreto. El editor pertenece al día bajo el que aparece, de
+  modo que el dato no se puede equivocar y la pantalla pierde un control entero.
+- **Las horas se eligen con el control que el producto ya aprobó.** HU-16 presenta
+  las horas agendables como píldoras en una fila que se detiene en cada una, con el
+  rótulo Mañana, Tarde o Noche desplazándose junto a ellas; el autor aprobó esa
+  forma. Un `TimePicker` de esfera es más preciso de lo que el dominio necesita:
+  una franja se declara en medias horas, que es además el paso con el que
+  `bookable_start_times` recorre la franja. La fila comparte componente con la
+  pantalla de agendar —`TimeChipRow` en `ui/components/`— para que las dos no se
+  separen, y `PartOfDay` baja a `core/vo/` porque ya no es de la característica de
+  solicitudes.
+- **El fin sigue al inicio en vez de esperar al rechazo.** La fila de «Hasta» solo
+  ofrece horas posteriores al inicio elegido, y mover el inicio más allá del fin
+  arrastra el fin media hora por delante. La regla `end_time > start_time` sigue
+  estando en el motor y en el caso de uso; lo que cambia es que la pantalla ya no
+  deja componer el error. `SlotTimesTest` y
+  `aStartMovedPastTheEndCarriesTheEndWithIt` lo fijan.
+- **El día se lee de los recursos y no del calendario de la plataforma.** La
+  aplicación está en español cualquiera sea el idioma del teléfono: `values/` es
+  español y `values-es/` también. `DayOfWeek.getDisplayName` sigue al teléfono, así
+  que en un teléfono en inglés los siete títulos salían «Monday», «Tuesday», dentro
+  de una pantalla por lo demás en español. Un día de la semana es el valor de un
+  enumerado, y `.claude/rules/i18n.md` dice que la presentación de un enumerado se
+  traduce con una clave de recurso. La prueba
+  `theDayNameIsTheSpanishOneFromTheResources` lo sostiene: Robolectric corre en
+  inglés, de modo que volver al calendario de la plataforma la pone en rojo.
+- **El diálogo de eliminar se queda.** Borrar una franja es destructivo y el icono
+  de la papelera está a un toque de distancia en cada fila. Confirmarlo cuesta un
+  toque y evita perder una franja declarada; no es el caso del alta, donde el
+  diálogo solo estorbaba.
+
+**Consecuencia.**
+- `AvailabilityUiState.Content` deja de llevar un `SlotDialog` con dos variantes y
+  pasa a llevar un `SlotDraft` y la franja por eliminar, que son dos cosas
+  independientes y pueden describirse por separado.
+- Se retiran las claves `availability_add_dialog_title` y `availability_day_label`;
+  `schedule_part_*` pasa a `common_part_*`, porque las tres las usan ahora dos
+  pantallas.
+- **La hora sigue siendo de la plataforma, pero de 0 a 24.** Se le presentó al autor
+  que en un teléfono en inglés se leía «9:00 AM» dentro de una pantalla en español.
+  Eligió conservar el formateador de la plataforma con la configuración regional
+  activa y fijar el reloj de 24 horas; ver la entrada siguiente.
+- La pantalla pinta su propio fondo, como la bienvenida (2026-10-14), de modo que
+  su previsualización oscura se ve como el teléfono.
+
+---
+
+## 2026-10-15 · La hora se lee de 0 a 24, aunque el teléfono prefiera AM/PM
+
+**Contexto.** Al corregir «Mi disponibilidad» quedó a la vista que las horas
+siguen el idioma del teléfono: en uno en inglés, una franja se leía «9:00 AM –
+12:00 PM» dentro de una pantalla que por lo demás está en español, y lo mismo
+pasaba con la hora de una cita en la pantalla de agendar. Se le presentaron al
+autor las dos salidas: dejarlo como manda `.claude/rules/i18n.md` —el formateador
+de la plataforma con la configuración regional activa— o fijar todo a `es-BO`,
+como ya se hizo con el símbolo del boliviano el 2026-10-15.
+
+**Decisión.** Se conserva el formateador de la plataforma y la configuración
+regional del teléfono, que es lo que decide el separador y el orden, y se fija
+solo el **ciclo del reloj**: la hora va de 0 a 24 siempre.
+
+**Razonamiento.**
+
+- **Lo que estorbaba no era la región, era el ciclo.** El orden y los separadores
+  de una hora apenas cambian entre configuraciones regionales; lo que cambia, y lo
+  que se leía mal, es el «AM/PM». Fijar la configuración regional entera a `es-BO`
+  habría resuelto el síntoma arrastrando una decisión mucho mayor, y habría
+  contradicho la regla de i18n en todas las fechas, no solo en las horas.
+- **El cambio es de una letra, y es la que ICU reserva para esto.** El esqueleto
+  pasa de `j` —«la hora que prefiera esta configuración regional»— a `H`, que es la
+  de 0 a 24. El patrón lo sigue generando `DateFormat.getBestDateTimePattern`, así
+  que el separador y el orden los sigue poniendo la plataforma.
+- **Es lo que se lee en Bolivia**, y el público de la aplicación incluye adultos
+  mayores: «14:00» no se confunde con «2:00», y una franja de atención declarada
+  con AM/PM es un error caro para el profesional que la publica.
+- **Alcance.** Toca `formatTime` y `formatAppointment`, de modo que cae sobre las
+  franjas de disponibilidad, el carrusel de horas agendables y la hora de la cita
+  en la bandeja y en el historial de solicitudes. Las fechas no cambian.
+
+**Consecuencia.**
+- `.claude/rules/i18n.md` anota la excepción en su tabla de formatos: la hora lleva
+  `H` y nunca `j`.
+- `AppointmentFormatTest.theHourIsTheTwentyFourHourOneWhateverTheDeviceLocale` y
+  `theAppointmentCarriesTheSameTwentyFourHourClock` lo sostienen en inglés y en
+  español; volver a `j` las pone en rojo, y se comprobó mutando el código.
+- Las pruebas de interfaz comparan contra `formatTime`, así que siguen valiendo sin
+  tocarlas: afirman lo que la pantalla muestre, no un texto escrito a mano.
+
+---
 
 ---
 

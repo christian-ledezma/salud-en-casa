@@ -35,6 +35,8 @@ que lo introduce.
 | Tipos por declarar | `undeclaredTypes` | Los tipos del catálogo que el profesional todavía no ofrece. No se le ofrecen dos veces |
 | Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
 | Disponibilidad semanal | `WeeklyAvailability` | La vista agrupada por día que la pantalla de disponibilidad maneja: las siete claves siempre vienen pobladas aun sin franjas |
+| Borrador de franja | `SlotDraft` / `SlotEditor` | La franja que se está declarando y el editor que la muestra, dentro del día al que pertenece. Sin diálogo y sin selector de reloj: el día lo fija el botón desde el que se abrió (`docs/decisions.md`, 2026-10-15) |
+| Rejilla de medias horas | `SlotTimes` | Las horas que el editor ofrece: cada 30 minutos, y las de «Hasta» siempre posteriores al inicio elegido |
 | Error de disponibilidad | `AvailabilityError` | `EndNotAfterStart`, `OverlapsExistingSlot`, `NetworkUnavailable`, `Unexpected`. El solapamiento y el duplicado exacto llegan por el mismo errcode 23505 y presentan igual |
 | Guarda contra solapamientos | `reject_overlapping_slot` | Función del motor que, en un `BEFORE INSERT/UPDATE`, usa `OVERLAPS` sobre `time` para rechazar una franja que cruce otra del mismo profesional en el mismo día |
 | Dirección | `Address` | Domicilio georreferenciado |
@@ -63,11 +65,12 @@ que lo introduce.
 | Bandeja de solicitudes | `request_inbox` / `InboxRequest` | Las solicitudes inmediatas publicadas dentro del radio del profesional y las agendadas dirigidas a él, leídas por la RPC de definidor. Cada fila lleva tipo, ciudad, presupuesto, modalidad, la hora de la cita si la hay y la distancia redondeada, nunca la ubicación exacta ni la identidad del paciente. Reemplazó a `immediate_inbox` en HU-16 |
 | Cita agendada | `RequestModality.SCHEDULED` / `create_scheduled_request` | Solicitud dirigida a un profesional para una fecha y hora. Solo nace por la función de servidor, que valida la hora contra `bookable_start_times` |
 | Horarios reservables | `bookable_start_times` / `BookableTimes` / `BookableStart` | Las horas de inicio que un profesional ofrece para un servicio en los próximos 14 días: cada 30 minutos desde el inicio de la franja, con 2 horas de anticipación y la atención completa dentro de una franja. Cada inicio trae el instante y su fecha y hora en La Paz |
-| Parte del día | `PartOfDay` | `MORNING` antes de las 12:00, `AFTERNOON` hasta las 18:00, `EVENING` desde las 18:00. Agrupa las horas del carrusel |
+| Parte del día | `PartOfDay` | `MORNING` antes de las 12:00, `AFTERNOON` hasta las 18:00, `EVENING` desde las 18:00. Agrupa las horas del carrusel. Vive en `core/vo/`: lo usan agendar y disponibilidad |
 | Agendar una cita | `ScheduleAppointment` | La pantalla y su modelo de vista; se abre desde la ficha del profesional |
 | Zona de la cita | `AppointmentZone` | `America/La_Paz`. Solo para mostrar una `scheduled_at` guardada; el cálculo vive en el motor |
 | Puede agendar | `CanScheduleAppointmentUseCase` / `showsScheduleAction` | Si la ficha ofrece «Agendar cita»: rol activo paciente, ficha ajena y profesional con servicios declarados |
 | Carrusel de días | `DayCarousel` | Fila de tarjetas de día que se detiene en cada una al deslizar; reemplazó a `DatePickerRow` |
+| Fila de horas | `TimeChipRow` | Fila de píldoras de hora, agrupadas por parte del día, que se detiene en cada una al deslizar. La comparten la pantalla de agendar y el editor de franjas |
 | Barra de acción al pie | `BottomActionBar` | El botón principal fijo al pie, fuera del contenido que se desplaza |
 | Aviso de la bandeja | `inboxSignals` / `notify_immediate_inbox` | El Broadcast sin datos que dispara un trigger al tema `immediate_inbox` para que el cliente re-consulte. No transporta la fila |
 | Cola de revisión | `PendingReviewSubject` | Persona con trabajo pendiente del administrador: documentos por revisar, la verificación por conceder, o las dos |

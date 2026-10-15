@@ -186,18 +186,24 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 
 | # | Sprint | Objetivo específico | Puntos | Estado |
 |---|---|---|---|---|
-| 0 | Fundación técnica | 1 · Arquitectura | — | `[~]` |
+| 0 | Fundación técnica | 1 · Arquitectura | — | `[x]` |
 | 1 | Ingreso e identidad | 2 · Perfiles | 21 | `[x]` |
 | 2 | Perfiles y ubicación | 2 · Perfiles | 21 | `[x]` |
 | 2.5 | Rol múltiple con rol activo | 2 · Perfiles | 23 | `[x]` |
 | 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[x]` |
-| 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[ ]` |
-| 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[ ]` |
+| 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
+| 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
 | 6 | Negociación de tarifas | 3 · Coordinación | 26 | `[ ]` |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 23 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` |
+
+**El Sprint 0 cerró el 2026-10-15** con sus doce historias técnicas terminadas.
+Fue el sprint que recibió el trabajo de fundación que apareció más tarde —HT-19,
+HT-20 y HT-21 entraron ahí en octubre—; cerrado el sprint, una historia técnica
+nueva entra en el sprint en curso y con sus puntos, que es lo que pide la
+retrospectiva del Sprint 5.
 
 **Primer incremento demostrable:** Sprint 1. **Ciclo completo de negocio de punta a
 punta:** Sprint 8. **Sistema completo:** Sprint 9.
@@ -274,7 +280,11 @@ Ya acordadas. Su razonamiento completo está en `docs/decisions.md`.
 
 # Sprint 0 — Fundación técnica
 
-**Estado:** `[~]` en curso.
+**Estado:** `[x]` cerrado el **2026-10-15**, con sus doce historias técnicas
+terminadas: HT-01 a HT-09, y HT-19, HT-20 y HT-21. HT-04 cerró su último criterio
+el 2026-10-09, en HU-11, al medir el plan de ejecución con quinientos
+profesionales cargados. Sin puntos: un sprint de fundación no estima historias de
+usuario, de modo que no entra en la medición de velocidad.
 
 **Objetivo del sprint.** Infraestructura operativa y estructura del proyecto
 definitiva, verificadas por una prueba de humo de autenticación.
@@ -440,7 +450,7 @@ Composable` vive ahí, junto al estilo de código y la longitud máxima de líne
 > cosas se corrigen aquí: una API en desarrollo puede cambiar entre sprints y el
 > proyecto se defiende dentro de varios meses.
 
-### HT-04 · Esquema de base de datos `[ ]`
+### HT-04 · Esquema de base de datos `[x]` — último criterio cerrado el 2026-10-09
 
 Ocho migraciones versionadas, en este orden. Cada una crea sus tablas **junto con
 sus políticas de seguridad**.
@@ -458,11 +468,14 @@ sus políticas de seguridad**.
 
 - [x] Las quince tablas existen con seguridad a nivel de fila habilitada y al
       menos una política cada una
-- [ ] Los índices espaciales aparecen en el plan de ejecución de la consulta de
+- [x] Los índices espaciales aparecen en el plan de ejecución de la consulta de
       cercanía — **solo verificable con datos.** Con las tablas vacías el
       planificador elige recorrido secuencial por ser más barato, así que el
-      plan no prueba nada. Se verifica en HU-11, cuyo criterio ya exige medir con
-      quinientos profesionales cargados
+      plan no prueba nada. **Se cumplió en HU-11, el 2026-10-09**, con el
+      experimento 6: `Index Scan using idx_addresses_location` con
+      `Index Cond: location && _st_expand(...)`, ni un recorrido secuencial en el
+      plan, y 64 ms sobre 500 profesionales sintéticos. No hizo falta
+      `enable_seqscan = off`
 - [x] Las ocho migraciones se aplican sobre el proyecto remoto con
       `npx supabase db push`, previo `--dry-run`
 - [x] `supabase db reset` reconstruye la base completa sin errores. **Estuvo
@@ -722,11 +735,12 @@ Etapas del flujo, en `.github/workflows/ci.yml`:
 | Pruebas | `./gradlew test` | `Unit tests` |
 | Compilación | `./gradlew assembleDebug` | `Debug build` |
 
-- [x] Las cinco etapas concluyen correctamente en un envío de prueba —
-      **pendiente del autor.** El flujo está escrito y sus comandos se verificaron
-      uno por uno en local, pero la primera ejecución real exige cargar los cuatro
-      secretos del repositorio y hacer un envío. El procedimiento está en el
-      `README.md`
+- [x] Las cinco etapas concluyen correctamente en un envío de prueba. El flujo se
+      escribió y se verificó comando por comando en local; la primera ejecución
+      real llegó con HT-19 el 2026-10-13 (ejecución 54) y desde entonces corre en
+      cada envío sobre `master`: ejecuciones 59 (HT-20) y 62 (HT-21), las tres con
+      análisis estático, `./gradlew test` y `assembleDebug` en verde. El
+      procedimiento para cargar los cuatro secretos está en el `README.md`
 - [x] El análisis estático incluye las reglas de arquitectura: `domain/` sin
       importaciones de plataforma, `presentation/` sin importaciones de `data/`
 - [x] El análisis estático incluye la regla de texto escrito en el código
@@ -937,11 +951,13 @@ Aprobó los textos y el retiro de las cifras fijas.
 - [x] Recorrido en emulador: del arranque a la bienvenida la marca no salta, y el
       ingreso con Google sigue llevando a la pantalla que corresponde
 
-**Por qué los dos últimos siguen abiertos.** La sesión del 2026-10-14 sigue sin
-poder compilar: la política de red del entorno rechaza `dl.google.com`, así que
-la primera compilación fue la de la integración continua, que no abre una
-previsualización. El recorrido es obligatorio porque la bienvenida es el primer ingreso de HU-01, que
-figura como crítica en «Cuándo hace falta un dispositivo».
+**Por qué los dos últimos los cerró el autor.** La sesión del 2026-10-14 no pudo
+compilar: la política de red del entorno rechaza `dl.google.com`, así que la
+primera compilación fue la de la integración continua, que no abre una
+previsualización. El recorrido era obligatorio porque la bienvenida es el primer
+ingreso de HU-01, que figura como crítica en «Cuándo hace falta un dispositivo»;
+el autor abrió las tres previsualizaciones y recorrió el emulador, y dio los dos
+puntos por cumplidos.
 
 **Pruebas.**
 
@@ -1004,12 +1020,12 @@ una sola línea, `Locale.Builder()...build()`, en `MoneyFormat.kt` y en su prueb
 código ya compilaba. Se reemplazó por `Locale.forLanguageTag("es-BO")`, como en el
 resto del proyecto.
 
-**Por qué el último sigue abierto.** La sesión del 2026-10-15 sigue sin poder
+**Por qué el último lo cerró el autor.** La sesión del 2026-10-15 no pudo
 compilar: la política de red del entorno rechaza `dl.google.com`, y la integración
 continua no abre una previsualización. Ninguna de las dos pantallas figura como
 crítica en «Cuándo hace falta un dispositivo», así que no exigen recorrido; las
 previsualizaciones sí, porque el recorte dentro de una píldora o de una columna de
-cifras no lo ve ninguna prueba.
+cifras no lo ve ninguna prueba, y el autor las abrió y las dio por correctas.
 
 **Pruebas.**
 
@@ -1117,13 +1133,14 @@ una pantalla de búsqueda de personas aparte.
   desplazamiento rompe cuatro pruebas de `ImageTransformTest`.
 - **63 suites, 363 pruebas, 0 fallos, 0 omitidas.** `ktlintCheck`, `staticAnalysis` y
   `assembleDebug` concluyen sin error.
-- **Previsualizaciones: pendientes de mirar.** Son **veinte**: ocho en la cola, ocho en el
+- **Previsualizaciones: miradas y correctas.** Son **veinte**: ocho en la cola, ocho en el
   detalle, dos del componente `ScreenHeader` y dos del visor. Las tres obligatorias
   —claro, oscuro y `fontScale = 2f`— están en las dos pantallas, y hay tres nuevas que no
   existían: la cola sin coincidencias, el detalle con tres documentos marcados y el visor.
-  Compilar no es mirar, y el cierre del 06/10 ya dio por cumplido ese punto antes de que
-  nadie las abriera. **El zoom y el arrastre solo se comprueban de verdad con los dedos:**
-  la aritmética tiene pruebas, el gesto que la alimenta no.
+  El cierre del 06/10 dio por cumplido ese punto antes de que nadie las abriera; el autor
+  las abrió el 2026-10-08 y las dio por correctas, y lo confirmó el 2026-10-15. **El zoom y
+  el arrastre solo se comprueban de verdad con los dedos:** la aritmética tiene pruebas, el
+  gesto que la alimenta no.
 
 ### El hueco del 09/10, y por qué ninguna prueba lo vio
 
@@ -1203,7 +1220,13 @@ elimina en HU-01.
 
 ## Retrospectiva
 
-_Completar al cerrar el sprint._
+**Se cierra en blanco, por decisión del autor el 2026-10-15.** Este sprint no
+tuvo un tramo de fechas ni una fecha de corte: empezó con el proyecto y recibió
+trabajo de fundación durante meses, hasta HT-21. Una retrospectiva escrita hoy
+sobre ese tramo no diría qué cambiar en el siguiente, que es para lo que sirve.
+Lo que cada historia técnica aprendió está en su propia sección, y las
+retrospectivas que sí miden —Sprint 1 en adelante— llevan su tramo de fechas y su
+velocidad.
 
 ---
 
@@ -5261,8 +5284,9 @@ en verde):
 Verificación en vivo tras el push: RPC, función y dos triggers presentes, política
 del inbox con ambos guards y política de `realtime.messages` creadas. No se crearon
 tablas nuevas, así que `everyTableHasRowLevelSecurityEnabledAndAtLeastOnePolicy` no
-cambia. Pendiente a nivel de sprint (no de historia): `supabase db reset` local al
-cierre del Sprint 5.
+cambia. El `supabase db reset` local que quedaba a nivel de sprint se corrió al
+cerrar el Sprint 5: las 38 migraciones reconstruyen el esquema sin deriva contra
+el remoto.
 
 ### HU-15 · Declarar mi disponibilidad horaria `[x]` — 3 puntos
 
@@ -5297,16 +5321,16 @@ Lado cliente: nueva característica `features/availability/` con dominio
 pobladas, `AvailabilityError`, tres casos de uso), datos (DTO con `LocalTime`
 como `"HH:MM:SS"`, mapeo de mensaje a `OverlapsExistingSlot`, datasource con
 `select/insert/delete`, repositorio) y presentación (`AvailabilityScreen` con
-lista por día desplegable en `LazyColumn`, diálogo de alta con selector de
-chips circulares para día y dos `TimePicker` de Material 3 cuantizados a
-15 minutos, diálogo de confirmación para eliminar). Entrada en `AccountScreen`
-solo cuando el rol activo es `PROFESSIONAL`, junto a la bandeja de HU-14.
-`availabilityModule` registrado en Koin y `AvailabilityRoute` en el `NavHost`.
+lista por día en `LazyColumn`, editor de franja dentro del día y diálogo de
+confirmación para eliminar; ver la corrección del 2026-10-15 más abajo).
+Entrada en `AccountScreen` solo cuando el rol activo es `PROFESSIONAL`, junto a
+la bandeja de HU-14. `availabilityModule` registrado en Koin y
+`AvailabilityRoute` en el `NavHost`.
 
 Pruebas JVM (`AddAvailabilitySlotUseCaseTest` incluida con el rechazo local
 `EndNotAfterStart`, `GetMyAvailabilityUseCaseTest` sobre las siete claves,
 `AvailabilityMapperTest` con 23505 y transporte, `AvailabilityViewModelTest`
-con reload tras alta y error que mantiene el diálogo), `AvailabilityScreenLargeFontTest`
+con reload tras alta y error que mantiene el editor abierto), `AvailabilityScreenLargeFontTest`
 (Robolectric 200%/320 dp), `ktlintCheck` y las tres previsualizaciones, todas
 en verde. Experimentos SQL contra el remoto (`begin…rollback`, 2026-10-14, todos
 en verde) antes del push:
@@ -5323,8 +5347,50 @@ en verde) antes del push:
 
 Transversal: ninguna tabla del esquema público queda sin RLS o sin política.
 Verificación en vivo tras el push: la función y el trigger existen en el remoto.
-Pendiente a nivel de sprint (no de historia): `supabase db reset` local al
-cierre del Sprint 5.
+El `supabase db reset` local que quedaba a nivel de sprint se corrió al cerrar el
+Sprint 5, con las 38 migraciones y sin deriva.
+
+#### Corrección del 2026-10-15: fuera el diálogo, fuera los dos relojes, días en español
+
+**Qué encontró el autor al usar la pantalla.** El alta abría un diálogo con **dos**
+`TimePicker` de Material 3, uno encima del otro, y una fila de fichas circulares
+para volver a elegir el día al que ya se había entrado. Y los siete títulos salían
+en inglés: el nombre venía de `DayOfWeek.getDisplayName`, que sigue al idioma del
+teléfono, dentro de una aplicación que está en español cualquiera sea ese idioma.
+
+**Qué quedó.** El diálogo de alta desaparece. «Agregar franja» abre un editor
+**dentro del día**, con dos filas de píldoras de hora —`TimeChipRow`, el mismo
+control que HU-16 usa para las horas agendables— en pasos de 30 minutos, el botón
+«Guardar franja» y «Cancelar». El día ya no se elige: lo fija el botón desde el que
+se abrió el editor. Las horas de «Hasta» son siempre posteriores al inicio, y mover
+el inicio más allá del fin arrastra el fin, de modo que la pantalla no deja componer
+el rango que el motor rechaza. El nombre del día pasa a siete claves de recurso. El
+diálogo de eliminar se conserva: borrar es destructivo y la papelera está a un toque.
+Razonamiento en `docs/decisions.md`, 2026-10-15.
+
+**Lo verificado.** 663 pruebas en 114 suites, 0 fallos, 0 omitidas; `ktlintCheck`,
+`staticAnalysis` y `./gradlew build` —con Android lint— en verde. Las seis
+previsualizaciones de la pantalla se renderizaron con el capturador de
+`ScreenCatalog` y **se miraron**, y se volvieron a mirar después de fijar el reloj
+de 24 horas: contenido en claro, contenido al 200 %, editor en
+claro, editor al 200 % en oscuro con el error de solapamiento, vacía en oscuro y
+error al 200 %. Tres mutaciones, cada una con su resultado:
+
+| Mutación | Resultado |
+|---|---|
+| El nombre del día vuelve al calendario de la plataforma | **Falla** `theDayNameIsTheSpanishOneFromTheResources`, y solo esa |
+| La página deja de desplazar (`userScrollEnabled = false`) | **Fallan 7 de 9** pruebas de disposición; las dos que no dependen del desplazamiento —el botón de volver y el diálogo— siguen pasando |
+| El fin deja de seguir al inicio, y «Hasta» vuelve a ofrecer la hora del inicio | **Fallan** `aStartMovedPastTheEndCarriesTheEndWithIt` y tres de `SlotTimesTest` |
+
+**Dos cosas que la pantalla dejó a la vista.** La **hora** se leía «9:00 AM» en un
+teléfono en inglés. Se le presentó al autor, que el mismo 2026-10-15 decidió
+conservar el formateador de la plataforma y fijar el reloj de 0 a 24: el esqueleto
+pasa de `j` a `H` en `formatTime` y en `formatAppointment`, de modo que el cambio
+alcanza también a las horas agendables y a la hora de la cita. Dos pruebas nuevas
+en `AppointmentFormatTest` lo sostienen, y volver a `j` las pone en rojo. Lo
+segundo no se tocó: en las previsualizaciones la flecha de volver se dibuja oscura
+sobre fondo oscuro, porque `IconButton` toma el color de contenido del `Scaffold` y
+la previsualización no tiene ninguno; en el teléfono es correcta.
 
 ### HU-16 · Agendar una cita `[x]` — 5 puntos
 
@@ -5602,9 +5668,10 @@ De los seis cambios que pedía la retrospectiva del Sprint 4:
   retrospectiva seguida con este mismo apunte. La lista de archivos sale de lo que
   uno mismo escribió, no del repositorio.
 - **Tres pedidos sin medir dentro del sprint.** HT-19, HT-20 y HT-21 eran trabajo
-  real, pero sin puntos ni lugar en el plan. Dos siguen en `[~]`, esperando que el
-  autor mire las previsualizaciones y recorra el arranque en el emulador. El trabajo
-  no planificado es lo que vuelve a dejar la velocidad sin significado.
+  real, pero sin puntos ni lugar en el plan. Las tres quedaron cerradas —el autor
+  miró las previsualizaciones y recorrió el emulador—, y aun así el trabajo no
+  planificado es lo que vuelve a dejar la velocidad sin significado: se hizo, pero
+  no se contó.
 - **Defectos anteriores que siguen abiertos.** El capturador de previsualizaciones
   todavía no dibuja las tres pantallas con diálogo. Ahora consta además que la
   bandeja de HU-14 tampoco pinta su fondo en la previsualización oscura. Ninguno
