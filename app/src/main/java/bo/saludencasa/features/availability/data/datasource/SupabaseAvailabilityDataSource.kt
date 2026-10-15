@@ -13,13 +13,12 @@ class SupabaseAvailabilityDataSource(
 ) {
     fun currentUserId(): String? = supabase.auth.currentUserOrNull()?.id
 
-    // availability_slots_select_own already filters to the caller: the client
-    // adds no professional_id predicate on top. Ordering here only shapes the
-    // response for the view model, which groups and re-orders anyway.
-    suspend fun findMySlots(): List<AvailabilitySlotDto> =
+    // docs/decisions.md, 2026-10-15, HU-16, correction of HU-15.
+    suspend fun findSlotsOf(professionalId: String): List<AvailabilitySlotDto> =
         supabase
             .from(AVAILABILITY_SLOTS)
             .select(COLUMNS) {
+                filter { eq("professional_id", professionalId) }
                 order("day_of_week", Order.ASCENDING)
                 order("start_time", Order.ASCENDING)
                 limit(MAX_SLOTS)

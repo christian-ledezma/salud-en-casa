@@ -16,13 +16,15 @@ import java.time.LocalTime
 class AvailabilityRepository(
     private val dataSource: SupabaseAvailabilityDataSource,
 ) : IAvailabilityRepository {
-    override suspend fun getMySlots(): AvailabilityResult =
-        runCatching {
-            dataSource.findMySlots().map { it.toDomain() }
+    override suspend fun getMySlots(): AvailabilityResult {
+        val userId = dataSource.currentUserId() ?: return AvailabilityResult.Failure(AvailabilityError.Unexpected)
+        return runCatching {
+            dataSource.findSlotsOf(userId).map { it.toDomain() }
         }.fold(
             onSuccess = { AvailabilityResult.Loaded(WeeklyAvailability.from(it)) },
             onFailure = { AvailabilityResult.Failure(it.toAvailabilityError()) },
         )
+    }
 
     override suspend fun addSlot(
         dayOfWeek: DayOfWeek,
