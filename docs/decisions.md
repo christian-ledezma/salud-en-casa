@@ -4915,6 +4915,101 @@ cifras, píldoras y servicios en tarjetas.
 
 ---
 
+## 2026-10-15 · HU-16: las horas que se pueden agendar las calcula una sola función del motor
+
+**Contexto.** RF-07.3 pide una solicitud agendada «dentro de la disponibilidad
+declarada». Esta validación quedó como deuda el 2026-09-12, porque comparar un
+horario semanal con una fecha concreta exige decidir la zona horaria y qué
+significa «dentro». Hasta hoy el cliente podía insertar una solicitud `SCHEDULED`
+directamente, y la política solo comprobaba quién era el paciente. El autor
+decidió en la planificación:
+- crear la solicitud por una función de servidor;
+- que la atención completa, con su duración estimada, quepa en una franja;
+- no reservar el horario al solicitar;
+- exigir que la dirección esté dentro de la cobertura del profesional;
+- ofrecer hasta 14 días, en pasos de 30 minutos, con 2 horas de anticipación
+  mínima;
+- ofrecer solo los servicios que el profesional declaró;
+- vencer la solicitud a la hora de la cita;
+- usar una sola bandeja, con una insignia para la agendada.
+
+**Decisión.** `bookable_start_times(profesional, servicio)` es el único lugar donde
+vive la regla. La pantalla dibuja lo que devuelve, y `create_scheduled_request`
+acepta una hora solo si esa misma función la lista.
+
+**Razonamiento.**
+
+- **Una regla, una copia.** Se comparó con calcular las horas en Kotlin a partir de
+  las franjas y repetir la regla en SQL. Esa variante daba pruebas JVM de los bordes,
+  pero a cambio de dos copias que hay que mantener alineadas, y además de depender
+  del reloj del teléfono. Con la función, el servidor decide con su propio reloj y
+  la pantalla no puede ofrecer algo que la creación rechace salvo que el tiempo pase
+  entre las dos. Los bordes (las 2 h, el día 14, la grilla desde las 9:15, el final
+  de la franja) se prueban con experimentos SQL contra el remoto, anotados en
+  `plan.md`.
+- **La zona es siempre `America/La_Paz`.** Las franjas son horas de reloj sin zona,
+  declaradas por alguien que atiende en Bolivia. Bolivia no tiene horario de verano.
+  Usar la zona del teléfono correría la cita de día en un emulador en UTC o en un
+  teléfono configurado en otro país. El cliente solo usa la zona para mostrar una
+  `scheduled_at` ya guardada; la función le entrega también la fecha y la hora
+  locales de cada inicio, así que la pantalla no convierte nada.
+- **La atención completa cabe en una sola franja.** Una franja de 9:00 a 12:00 y un
+  servicio de 60 minutos dan como última hora las 11:00. Dos franjas contiguas no se
+  suman: es una limitación del producto, no un defecto, y se resuelve declarando una
+  sola franja.
+- **Pedir no es reservar.** Dos pacientes pueden pedir la misma hora. Ocultarla
+  exigiría leer solicitudes de terceros y permitiría bloquear la agenda de un
+  profesional con pedidos que no se concretan. El choque se resuelve al aceptar una
+  oferta, en HU-19.
+- **La cobertura se decide contra la base redondeada.** El paciente elige la
+  dirección y puede guardarla en cualquier punto. Si «fuera de cobertura» se
+  decidiera contra la base exacta, esa respuesta sería el canal de bisección que el
+  2026-10-11 se cerró en la búsqueda. Se decide contra el punto que el mapa ya
+  publica. El experimento lo distingue con dos direcciones a menos de 31 m de
+  diferencia.
+- **Ninguna solicitud se escribe directo.** Con las dos modalidades creadas por
+  función, se elimina `service_requests_insert_own`.
+- **Ninguna solicitud se reescribe después de creada, salvo para cancelarla.**
+  `service_requests_update_own` dejaba cambiar `scheduled_at` después de crear la
+  solicitud, lo que anulaba toda la validación, y el mismo hueco existía para
+  `expires_at` en las inmediatas. Se revoca `UPDATE` sobre la tabla y se concede
+  solo sobre `status`, como se hizo con `messages` el 2026-09-12.
+- **Vence a la hora de la cita.** `expires_at` es la propia `scheduled_at`, y el
+  barrido la marca `EXPIRED` aunque tenga ofertas: una negociación que pasó la hora
+  ya no tiene nada que acordar.
+- **Una sola bandeja.** `immediate_inbox` se reemplaza por `request_inbox`, porque
+  su tipo de retorno crece y su nombre ya no describe lo que devuelve. La rama
+  agendada se elige por destinatario y no por cobertura, con la misma proyección:
+  sin la ubicación exacta ni la identidad del paciente.
+
+**Consecuencia.**
+- **Exposición conocida.** `service_requests_select_addressee` sigue dejando al
+  profesional destinatario leer la fila completa por la API, incluida la dirección
+  exacta, antes de que se acepte nada. No se retira ahora porque
+  `request_offers_insert_participants` la necesita para encontrar la fila. HU-17
+  debe llevar esa lectura a una función de definidor y retirar la política.
+- **Para HU-17.** La política de ofertas exige `professional_covers` también para
+  la agendada, que se decide contra la base exacta. Entre la base exacta y la
+  redondeada caben unos 80 m en los que una solicitud creada podría no admitir
+  oferta. HU-17 debe decidir la rama agendada por `professional_id`.
+- **Para HU-19.** La aceptación debe rechazar un choque de horario con otra atención
+  ya acordada del mismo profesional, y cerrar las ofertas `PROPOSED` de una
+  solicitud que venció.
+- **Nombres desfasados.** El tema `immediate_inbox`, la función
+  `notify_immediate_inbox` y el job `expire_immediate_requests` ahora también
+  cubren las agendadas. Renombrarlos toca el cliente y el job, y se deja para cuando
+  haga falta tocarlos por otra razón.
+- **Aviso compartido.** Una solicitud agendada avisa a todos los profesionales
+  aprobados, aunque va dirigida a uno. El aviso no lleva datos, así que solo cuesta
+  una consulta. Si algún día pesa, el remedio es un tema por profesional.
+- **Corrección de HU-15.** `findMySlots` no filtraba por `professional_id`. Las dos
+  políticas de lectura de `availability_slots` se suman, así que «Mi
+  disponibilidad» mezclaba las franjas de todo profesional aprobado. La revisión del
+  pull request #7 lo señaló y se descartó por error. Ahora el filtro va explícito.
+  Es la misma trampa que el catálogo documenta para `professional_services`.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

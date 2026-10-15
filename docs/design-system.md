@@ -320,11 +320,22 @@ lecturas.
 opcional en la base, y una tarjeta con la fecha y nada más se lee como un defecto;
 en su lugar va una línea en `onSurfaceVariant` que dice que calificó sin comentar.
 
-### Selector de fecha
+### Carrusel de fecha y hora
 
-Fila horizontal de días. El día seleccionado se marca con un círculo relleno en
-`primary` y el número en `onPrimary`. Los días no disponibles aparecen atenuados y
-no responden al toque.
+`DayCarousel`: una fila de tarjetas de día que se detiene en cada tarjeta al
+deslizar. Cada tarjeta apila el día de la semana, el número y el mes, con forma
+`shapes.medium` y un ancho mínimo de `Spacing.dayCardMinWidth`. Al 200 % la
+tarjeta crece en vez de recortar. El día elegido se rellena en `primary` con el
+texto en `onPrimary`; uno disponible va en `surface` con borde `outlineVariant`, y
+uno sin horarios se atenúa, no responde al toque y lo anuncia el lector de
+pantalla. La fila llega al borde de la pantalla: el margen se pasa como
+`contentPadding`.
+
+Las horas del día elegido van en una segunda fila de píldoras, con el rótulo
+Mañana, Tarde o Noche desplazándose junto con sus horas. La hora elegida va en
+`primary`; las demás en `surface` con borde `outline`. Se eligió esta forma y no
+los carruseles de Material 3, que encogen y recortan los elementos de los
+costados porque están pensados para imágenes (HU-16).
 
 ### Control segmentado
 
@@ -441,7 +452,10 @@ con radio de 12 dp. El error se muestra debajo, en `error`, y explica qué corre
 ### Botón principal
 
 Ancho completo, alto de 56 dp, radio de 16 dp, relleno en `primary` con texto en
-`onPrimary`. Fijo al pie de la pantalla en los flujos de varios pasos. Admite un
+`onPrimary`. Fijo al pie de la pantalla en los flujos de varios pasos, dentro de
+`BottomActionBar`: superficie `surface` con un divisor `outlineVariant` arriba, y
+el contenido desplazable en un contenedor con peso encima. Así lo usan la ficha
+del profesional («Agendar cita») y la pantalla de agendar. Admite un
 icono inicial opcional (`leadingIcon`), como el logotipo de Google en el botón de
 ingreso: sin ese parámetro se comporta exactamente igual que antes.
 

@@ -896,7 +896,7 @@ Se verificaron de todos modos con los archivos sonda de HT-08 antes de dar esta
 historia por cerrada, no dando por sentado que documentar la regla bastaba para
 demostrar que la prueba automática la sostiene.
 
-### HT-20 · La bienvenida con la marca `[~]` — 2026-10-14
+### HT-20 · La bienvenida con la marca `[x]` — 2026-10-14
 
 > Como **persona que abre la aplicación por primera vez**, quiero **una bienvenida
 > que continúe la marca del arranque y me diga qué ofrece la aplicación**, para
@@ -932,9 +932,9 @@ Aprobó los textos y el retiro de las cifras fijas.
       en el teléfono
 - [x] La integración continua pasó el 2026-10-15 (ejecución 59, sobre `master`):
       análisis estático, `./gradlew test` y `assembleDebug`
-- [ ] Las previsualizaciones de la bienvenida —claro, oscuro y al 200 %— se
+- [x] Las previsualizaciones de la bienvenida —claro, oscuro y al 200 %— se
       abrieron y se ven correctas
-- [ ] Recorrido en emulador: del arranque a la bienvenida la marca no salta, y el
+- [x] Recorrido en emulador: del arranque a la bienvenida la marca no salta, y el
       ingreso con Google sigue llevando a la pantalla que corresponde
 
 **Por qué los dos últimos siguen abiertos.** La sesión del 2026-10-14 sigue sin
@@ -961,7 +961,7 @@ figura como crítica en «Cuándo hace falta un dispositivo».
 | Pruebas | `test/.../auth/presentation/{StartupBrandGeometryTest, WelcomeScreenLargeFontTest}.kt` (nuevos) · `test/.../ui/ScreenCatalog.kt` (las vistas previas con «Dark» en el nombre se dibujan con los recursos nocturnos, que es donde viven los colores oscuros de la marca) |
 | Documentos | `docs/decisions.md` · `docs/design-system.md` (secciones 5 y 9) · `.claude/rules/glosario.md` · `plan.md` (esta sección) |
 
-### HT-21 · La búsqueda y la ficha del profesional `[~]` — 2026-10-15
+### HT-21 · La búsqueda y la ficha del profesional `[x]` — 2026-10-15
 
 > Como **paciente que busca atención**, quiero **comparar a los profesionales
 > cercanos de un vistazo y leer su ficha sin esfuerzo**, para **elegir a quién
@@ -996,7 +996,7 @@ cada una queda disponible si el autor la prefiere.
       apilan
 - [x] La integración continua pasó el 2026-10-15 (ejecución 62): análisis
       estático, `./gradlew test` y `assembleDebug`
-- [ ] Las previsualizaciones de las dos pantallas —claro, oscuro y al 200 %— se
+- [x] Las previsualizaciones de las dos pantallas —claro, oscuro y al 200 %— se
       abrieron y se ven correctas
 
 **La primera ejecución, la 61, falló en ktlint.** Una cadena de cuatro llamadas en
@@ -5118,6 +5118,11 @@ De los siete cambios que pedía la retrospectiva del Sprint 3:
 
 # Sprint 5 — Solicitudes de atención
 
+**Estado:** `[x]` cerrado el **2026-10-15**. Las cuatro historias terminadas
+—HU-13, HU-14, HU-15 y HU-16— y los 24 puntos planificados entregados. Ninguna se
+trasladó. Cuatro migraciones aplicadas; las 38 del proyecto reconstruyen el esquema
+en local y no hay deriva contra el remoto.
+
 **Objetivo del sprint.** El paciente solicita atención en las dos modalidades y el
 profesional ve las solicitudes de su zona.
 
@@ -5321,32 +5326,310 @@ Verificación en vivo tras el push: la función y el trigger existen en el remot
 Pendiente a nivel de sprint (no de historia): `supabase db reset` local al
 cierre del Sprint 5.
 
-### HU-16 · Agendar una cita `[ ]` — 5 puntos
+### HU-16 · Agendar una cita `[x]` — 5 puntos
 
 > Como **paciente que no tiene urgencia**, quiero **agendar una atención con un
 > profesional específico**, para **coordinar con anticipación**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que abro la ficha de un profesional, cuando elijo agendar, entonces veo
+- [x] Dado que abro la ficha de un profesional, cuando elijo agendar, entonces veo
       sus franjas disponibles.
-- [ ] Dado que elijo fecha y hora, cuando confirmo, entonces se crea una solicitud
+- [x] Dado que elijo fecha y hora, cuando confirmo, entonces se crea una solicitud
       agendada dirigida a ese profesional.
-- [ ] Dado que elijo un horario fuera de su disponibilidad, cuando confirmo,
+- [x] Dado que elijo un horario fuera de su disponibilidad, cuando confirmo,
       entonces se rechaza.
-- [ ] Dado que creo la solicitud, cuando el profesional abre su bandeja, entonces
+- [x] Dado que creo la solicitud, cuando el profesional abre su bandeja, entonces
       la ve identificada como agendada.
 
 **Requisitos:** RF-07.3.
+
+**Cerrada (2026-10-15).** El autor decidió en la planificación todas las reglas,
+registradas en `docs/decisions.md` el 2026-10-15:
+- creación por función de servidor;
+- la atención completa dentro de una franja, en hora de `America/La_Paz`;
+- pedir no reserva;
+- cobertura exigida;
+- 14 días, pasos de 30 minutos y 2 horas de anticipación mínima;
+- solo los servicios declarados;
+- vence a la hora de la cita;
+- una sola bandeja con insignia;
+- dos carruseles, una pantalla con botón fijo al pie y «Agendar cita» fijo al pie de
+  la ficha.
+
+Entre dos planos, uno con la regla en el servidor y otro con la regla en el
+cliente, se eligió el del servidor: las horas las calcula una sola función.
+
+- **Migración `20261015120000_scheduled_requests.sql`.** Se verificó con
+  `begin…rollback` contra el remoto y se aplicó con `db push` el 2026-10-15, tras un
+  `--dry-run` limpio. Contiene:
+  - `bookable_start_times` y `create_scheduled_request`, ambas de definidor;
+  - retiro de `service_requests_insert_own`;
+  - `UPDATE` sobre `service_requests` limitado a la columna `status`;
+  - `scheduled_at` y el nombre del profesional en `my_service_requests`;
+  - `request_inbox` en lugar de `immediate_inbox`;
+  - aviso en tiempo real y barrido de `pg_cron` extendidos a las agendadas.
+- **Cliente:**
+  - en `features/requests`: dominio (`BookableTimes`, `PartOfDay`, dos casos de uso
+    y la validación de campos opcionales compartida con la inmediata), datos y la
+    pantalla «Agendar una cita»;
+  - en la ficha: `CanScheduleAppointmentUseCase` y la barra fija;
+  - componentes nuevos: `DayCarousel`, que reemplaza a `DatePickerRow`, y
+    `BottomActionBar`;
+  - en la bandeja y en «Mis solicitudes»: insignia de modalidad, hora de la cita y,
+    para el paciente, el nombre del profesional.
+- **Corrección de HU-15:** `findMySlots` pasó a `findSlotsOf(professionalId)`. Sin
+  el filtro, «Mi disponibilidad» mezclaba las franjas de todo profesional aprobado
+  (lo prueba e36 abajo). No tiene prueba JVM: ninguna fuente de datos del proyecto
+  se prueba sin un simulador HTTP, que no se agregó.
+
+**Pruebas JVM, todas en verde (640 en la suite).** Más `ktlintCheck` y
+`assembleDebug`. Las nuevas:
+- `BookableTimesTest`;
+- `CreateScheduledRequestUseCaseTest`;
+- casos nuevos en `RequestMapperTest` y `RequestErrorMapperTest`;
+- `AppointmentFormatTest`: 02:00 UTC del sábado es viernes 22:00 en La Paz;
+- `ScheduleAppointmentViewModelTest`, con el caso de la respuesta tardía de un
+  servicio abandonado;
+- cinco casos de la ficha en `PublicProfileViewModelTest`;
+- `ScheduleAppointmentScreenLargeFontTest` y casos agendados en las pruebas al
+  200 % de la bandeja, de «Mis solicitudes» y de la ficha.
+
+Cinco aserciones nuevas se **mutaron** y las cinco fallaron con la mutación. Una
+sexta sobrevivió: la respuesta tardía se descartaba por dos mecanismos a la vez.
+Se retiró el redundante y la prueba mata la mutación del que queda.
+
+**Revisión de cierre.** Dos revisores, uno de correctitud y seguridad y otro de
+convenciones, no encontraron defectos nuevos. A partir de la revisión:
+- se recortaron los comentarios nuevos que repetían razonamientos o describían
+  el código;
+- se agregaron a la prueba al 200 % los cuatro estados que faltaban;
+- se agregó el `distinct` de e37;
+- las dos deudas de privacidad y cobertura pasaron a HU-17.
+
+Quedan como deuda: la solicitud repetida (mismo paciente, profesional y hora), para
+HU-19, y que la pantalla no se refresca al volver de registrar una dirección, igual
+que la inmediata.
+
+**Previsualizaciones abiertas y miradas** en el catálogo: claro, oscuro, 200 %, sin
+horarios, hora vencida, no agendable, sin dirección, error y cargando. En oscuro la
+pantalla no pintaba su fondo; se corrigió envolviéndola en un `Surface` del tema.
+La bandeja de HU-14 tiene el mismo defecto en su vista previa oscura y queda
+anotado, sin tocar.
+
+**Experimentos SQL contra el remoto (2026-10-15, `begin…rollback`, todos en
+verde).** Fixture: franjas lunes 9:00–12:00, martes 9:15–12:00 y jueves
+8:00–20:00 del único profesional aprobado; tres direcciones de prueba del paciente.
+
+1. **e01 · Grilla.** El lunes, con 60 min, ofrece 9:00 a 11:00, sin 11:30. El
+   martes ofrece 9:15, 9:45, 10:15 y 10:45.
+2. **e02 · Ventana.** La primera hora de hoy está a 2 h 16 min (12:30 queda
+   fuera). La última es el 29/10 a las 10:30, a 13 min del borde de 14 días.
+3. **e03–e05 · Filtros de `bookable_start_times`.** Cero filas para:
+   - un servicio no declarado;
+   - un profesional pendiente;
+   - el propio profesional;
+   - un perfil inactivo.
+4. **e06 · Creación aceptada.** `SCHEDULED`, `PUBLISHED`, `expires_at =
+   scheduled_at`, instantánea igual a la dirección y presupuesto `150.00`.
+5. **e07–e19 · Rechazos, cada uno con su etiqueta:**
+   - `time_not_bookable`: excede la franja, desalineada, día sin franja, menos de
+     2 h y más de 14 días;
+   - `address_not_owned`;
+   - `professional_unavailable`;
+   - `service_not_offered`;
+   - `service_type_unavailable`;
+   - `outside_coverage`;
+   - `cannot_schedule_with_yourself`.
+6. **e18 y e19 · Cobertura contra la base redondeada.** Una dirección a 7.990 m de
+   la base exacta se rechaza y una a 8.005 m se acepta.
+7. **e20–e25 · Escrituras directas.**
+   - La inserción directa de las dos modalidades da 42501.
+   - Reescribir `scheduled_at`, `expires_at` o `modality` da permiso denegado.
+   - Cancelar sigue funcionando.
+8. **e26–e29 · Bandeja.**
+   - El destinatario ve la agendada y la inmediata, con modalidad, hora y
+     distancia.
+   - El profesional pendiente y el paciente no ven nada.
+   - Una agendada vencida desaparece.
+   - La firma de `request_inbox` no tiene ubicación ni paciente, y `immediate_inbox`
+     ya no existe.
+9. **e30–e32 · Vista.** El dueño ve `scheduled_at` y el nombre del profesional, otro
+   paciente no ve nada, y escribir por la vista da *cannot update view*.
+10. **e34 · Barrido.** Ejecutando el comando del job ya reprogramado, la cita pasada
+    queda `EXPIRED` y la futura queda `PUBLISHED`.
+11. **e35 · Triggers.** Ninguno de los dos triggers de aviso filtra por modalidad.
+12. **e36 · HU-15.** Un profesional que lee `availability_slots` sin filtro recibe
+    las 3 franjas de otro profesional.
+13. **e37 · Franjas solapadas.** Con dos franjas solapadas forzadas, la guarda de
+    HU-15 no toma un lock y dos inserciones concurrentes pueden pasarla. Aun así,
+    `bookable_start_times` devuelve 5 horas distintas. Sin el `distinct` devuelve 8
+    filas para esas 5 horas, y una clave repetida tira el carrusel. El experimento
+    discrimina.
+
+No se crearon tablas, así que la transversal de RLS no cambia.
+
+**Verificación en vivo tras el push:**
+- existen `bookable_start_times`, `create_scheduled_request` y `request_inbox`, y
+  `immediate_inbox` ya no existe;
+- no queda `service_requests_insert_own`;
+- `authenticated` puede actualizar `status` y no `scheduled_at`;
+- `anon` no puede ejecutar `bookable_start_times`;
+- `my_service_requests` no admite `UPDATE`;
+- ningún trigger de aviso filtra por modalidad;
+- ninguna tabla pública queda sin RLS o sin política.
+
+La aplicación instalada antes de esta versión llama a `immediate_inbox`, así que su
+bandeja deja de funcionar hasta instalar la nueva.
 
 ## Incremento del sprint
 
 Un paciente publica una solicitud inmediata y el profesional la ve aparecer en su
 bandeja sin recargar. Otro paciente agenda una cita para el jueves.
 
+> **Cumplido, con una precisión.** Las dos mitades están verificadas de punta a
+> punta contra el remoto: la inmediata con los experimentos de HU-13 y HU-14, la
+> agendada con los 37 de HU-16. Lo que todavía no se recorrió en el emulador es la
+> agendada, porque su migración se aplicó el mismo día del cierre y la aplicación
+> instalada llama todavía a `immediate_inbox`. Ninguna de las cuatro historias
+> figura en «Cuándo hace falta un dispositivo», así que no es una deuda de la
+> Definición de Terminado. Es lo primero que conviene mirar al instalar la versión
+> nueva.
+
 ## Retrospectiva
 
-_Completar al cerrar el sprint._
+**La aplicación ya conecta a dos personas.** Hasta el Sprint 4 cada pantalla
+servía a quien la abría. Desde este sprint, lo que hace un paciente aparece en la
+pantalla de un profesional: la solicitud inmediata llega a la bandeja sin recargar
+y la cita agendada llega a quien va dirigida. Es la primera mitad de la cadena que
+termina en la calificación del Sprint 9.
+
+### Velocidad medida: 24 puntos, los 24 planificados
+
+HU-13 (8) + HU-14 (8) + HU-15 (3) + HU-16 (5) = 24. Las cuatro cumplen la
+Definición de Terminado y ninguna se trasladó. **Cuatro migraciones** aplicadas,
+**111 suites y 645 pruebas** en verde al cierre (eran 83 suites y 491 pruebas al
+cerrar el Sprint 4) y **54 experimentos SQL** contra el remoto: 8 de HU-13, 5 de
+HU-14, 4 de HU-15 y 37 de HU-16.
+
+> El Sprint 5 se ejecutó del **12/10/2026** al **15/10/2026**.
+
+**Cuatro días, y la sexta medición seguida que no mide capacidad.** Los 24 puntos
+cupieron, y además cupieron tres tareas que no estaban planificadas: la marca y el
+arranque (HT-19), la bienvenida (HT-20) y el rediseño de la búsqueda y la ficha
+(HT-21). Las pidió el autor como Product Owner en medio del sprint y ninguna tiene
+puntos. Así que la capacidad real de estos cuatro días fue **mayor** que 24, y el
+número no lo dice.
+
+La retrospectiva del Sprint 4 pedía planificar más alcance del que se cree que
+cabe y dejar que el corte muerda. No se hizo: el sprint pasó de 23 a 24 puntos y
+ni siquiera llevó escrita su fecha de corte, que el Sprint 4 sí tenía. La serie
+completa es: 21 en 4 días, 21 en 2, 23 en 4, 21 en 2, 23 en 3 y 24 en 4. **Ningún
+sprint agotó su plazo.**
+
+### Qué se cumplió de lo propuesto para el Sprint 5
+
+De los seis cambios que pedía la retrospectiva del Sprint 4:
+
+1. **Planificar más alcance del que cabe: no.** Ver arriba. Las tareas que el autor
+   agregó en el camino demuestran que había espacio, pero entraron como trabajo sin
+   medir y no como alcance planificado.
+2. **Toda prueba de política incluye un intento de escritura: sí, en las cuatro
+   historias.** HU-13 intentó escribir por `my_service_requests`. HU-16 lo hizo
+   sobre la tabla, las dos inserciones directas, tres columnas reescritas y la
+   vista, y comprobó en vivo `has_table_privilege` y `has_column_privilege`.
+3. **Mutar la aserción nueva antes de darla por buena: sí en HU-16, sin registro en
+   las otras tres.** En HU-16 se mutaron seis aserciones y una sobrevivió. Al
+   mirar por qué, apareció un mecanismo duplicado en el modelo de vista, que se
+   retiró. En `plan.md` no consta que HU-13, HU-14 y HU-15 lo hicieran.
+4. **Enumerar los escritores también cuando no son una columna: sí, y pagó.** Al
+   planificar HU-16 se listó quién puede escribir en `service_requests`, y apareció
+   que `service_requests_update_own` dejaba reescribir `scheduled_at` después de
+   crear la solicitud. Eso habría anulado toda la validación de la historia. La
+   lista de INV-09 e INV-11 sigue siendo trabajo del Sprint 8 y del 9.
+5. **Programar HT-17: no.** Cuarta retrospectiva que lo pide. Sigue sin bloquear.
+6. **Anotar en HU-29 la verificación pendiente de HU-12: sí.** Está en la historia.
+
+### Qué funcionó
+
+- **Preguntar antes de diseñar.** HU-16 se planificó con tres rondas de preguntas
+  al autor, cada una con su recomendación. Fueron once decisiones de producto y de
+  regla: cuándo una hora cae dentro de la disponibilidad, si pedir reserva, la
+  cobertura, el horizonte, el vencimiento, la bandeja y la forma de la pantalla.
+  Ninguna hubo que revisarla después, y cada una quedó escrita en `decisions.md`
+  antes del código.
+- **Comparar dos planos antes de elegir uno.** Se diseñaron en paralelo la regla en
+  el servidor y la regla en el cliente. Los dos coincidieron en casi todo, y cada
+  uno encontró algo que el otro no vio: el primero, el canal de bisección de la
+  cobertura; el segundo, la reescritura de `scheduled_at` y la fuga de franjas de
+  HU-15. Las tres correcciones entraron en la historia con el visto bueno del
+  autor.
+- **Una sola copia de la regla.** Las horas reservables las calcula una función
+  del motor, que la pantalla dibuja y la creación vuelve a consultar. Sus bordes se
+  probaron uno por uno contra el remoto: la grilla desde las 9:15, la última hora
+  de la franja, las dos horas de anticipación, el día catorce y la cobertura
+  decidida a 31 m de diferencia.
+- **Los experimentos siguen siendo la herramienta más barata.** Cincuenta y cuatro
+  en el sprint, todos dentro de `rollback` y sin residuo. Los de HU-16 corrieron
+  sobre la migración sin aplicar, de modo que el `db push` llegó después de que
+  todo hubiera pasado.
+- **Mirar las previsualizaciones encontró un defecto real otra vez.** En oscuro la
+  pantalla de agendar no pintaba su fondo, y el título y las opciones quedaban
+  ilegibles. Ninguna prueba lo habría visto.
+- **La revisión de cierre con dos revisores** encontró cuatro cosas concretas: los
+  comentarios fuera de regla, cuatro estados sin prueba al 200 %, la hora repetida
+  que podía tumbar el carrusel, y dos deudas que convenía fijar en HU-17. Las
+  cuatro se corrigieron antes de cerrar.
+
+### Qué no funcionó
+
+- **Descarté por error dos observaciones correctas en la revisión del pull request
+  de HU-15, y el defecto llegó a `master`.** Copilot señaló que la consulta de
+  franjas exponía las de otros profesionales. Lo di por falso positivo razonando
+  sobre una política, sin probarla: las dos políticas de lectura se suman, y «Mi
+  disponibilidad» mezclaba las franjas de todo profesional aprobado. Además afirmé
+  que el disparador de solapamientos serializaba las inserciones concurrentes, y
+  no es así. Las dos cosas se vieron en HU-16 y se corrigieron ahí. Es el error más
+  serio del sprint y es mío. La regla que queda: una observación de revisión se
+  descarta con un experimento, no con un razonamiento.
+- **La primera versión de HU-16 no cumplía la regla de comentarios.** Muchos
+  comentarios repetían el razonamiento que ya estaba en `decisions.md`, o
+  describían lo que el código hace. Lo encontró la revisión, no yo al escribirlos.
+- **La prueba al 200 % llegó incompleta a la revisión.** Le faltaban cuatro estados
+  de la pantalla nueva. La regla de `testing.md` dice «cada control», y la prueba
+  cubría los del estado principal.
+- **Ejecuté `git status` otra vez**, en HU-16, para listar archivos. Es la segunda
+  retrospectiva seguida con este mismo apunte. La lista de archivos sale de lo que
+  uno mismo escribió, no del repositorio.
+- **Tres pedidos sin medir dentro del sprint.** HT-19, HT-20 y HT-21 eran trabajo
+  real, pero sin puntos ni lugar en el plan. Dos siguen en `[~]`, esperando que el
+  autor mire las previsualizaciones y recorra el arranque en el emulador. El trabajo
+  no planificado es lo que vuelve a dejar la velocidad sin significado.
+- **Defectos anteriores que siguen abiertos.** El capturador de previsualizaciones
+  todavía no dibuja las tres pantallas con diálogo. Ahora consta además que la
+  bandeja de HU-14 tampoco pinta su fondo en la previsualización oscura. Ninguno
+  afecta a la aplicación instalada, pero los dos restan valor al control que
+  sustituye al recorrido de cada pantalla.
+
+### Qué cambiar en el Sprint 6
+
+1. **Escribir la fecha de corte en el encabezado del sprint antes de empezar, y
+   planificar por encima de lo que cabe.** El Sprint 6 tiene 26 puntos. Si las
+   cuatro historias se cierran antes del corte, se toma la siguiente del Sprint 7
+   en lugar de cerrar.
+2. **Lo que el autor pida en medio del sprint entra con puntos.** Así la velocidad
+   cuenta todo lo que se hizo, y no solo lo que se planificó.
+3. **Una observación de revisión se descarta con un experimento.** Si se dice
+   «falso positivo», va con la consulta o la prueba que lo demuestra.
+4. **HU-17 empieza por lo que HU-16 le dejó.** Retirar
+   `service_requests_select_addressee` tras llevar su lectura a una función de
+   definidor, y decidir la rama agendada de la política de ofertas por
+   `professional_id`. Las dos están escritas en la historia y no se cierra sin
+   ellas.
+5. **Repasar los comentarios nuevos antes de entregar**, contra la regla de
+   `CLAUDE.md`, y la prueba al 200 % contra cada estado de la pantalla, no solo el
+   principal.
+6. **Programar HT-17.** Quinta retrospectiva que lo pide.
 
 ---
 
@@ -5376,6 +5659,20 @@ contraofertas, y el acuerdo genera el servicio.
 - [ ] Dado que emití una oferta, cuando intento editarla, entonces no es posible.
 
 **Requisitos:** RF-08.1, RN-01, RN-04, RN-05, INV-06.
+
+**Heredado de HU-16 (`docs/decisions.md`, 2026-10-15). No se cierra sin esto:**
+
+- `service_requests_select_addressee` deja al profesional destinatario de una
+  solicitud agendada leer por la API la fila completa: ubicación exacta, dirección,
+  referencia y `patient_id`, antes de que se acepte nada. Hay que llevar a una
+  función de definidor la lectura que hace `request_offers_insert_participants` y
+  después retirar la política. Revocar el `SELECT` de columnas no sirve, porque la
+  política de ofertas lee `location`.
+- La rama agendada de la política de ofertas tiene que decidirse por
+  `professional_id`, no por `professional_covers`. La creación decide la cobertura
+  contra la base redondeada y la oferta contra la exacta, así que una dirección a
+  menos de ~80 m del borde crea una solicitud sobre la que el profesional no puede
+  ofertar.
 
 ### HU-18 · Contraofertar `[ ]` — 8 puntos
 

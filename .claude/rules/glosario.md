@@ -60,7 +60,15 @@ que lo introduce.
 | Radio de búsqueda | `SearchRadius` | Las tres opciones que el paciente puede pedir: 2, 5 y 10 km |
 | Modo de resultados | `ResultsMode` | `MAP` o `LIST`, las dos formas de ver el mismo resultado |
 | Punto aproximado de la base | `basePoint` / `base_latitude`, `base_longitude` | Dónde se dibuja el marcador: la base profesional redondeada a la manzana. Nunca la coordenada exacta |
-| Bandeja de solicitudes | `immediate_inbox` / `InboxRequest` | Las solicitudes inmediatas publicadas dentro del radio del profesional, leídas por la RPC de definidor. Cada fila lleva tipo, ciudad, presupuesto y la distancia redondeada, nunca la ubicación exacta ni la identidad del paciente |
+| Bandeja de solicitudes | `request_inbox` / `InboxRequest` | Las solicitudes inmediatas publicadas dentro del radio del profesional y las agendadas dirigidas a él, leídas por la RPC de definidor. Cada fila lleva tipo, ciudad, presupuesto, modalidad, la hora de la cita si la hay y la distancia redondeada, nunca la ubicación exacta ni la identidad del paciente. Reemplazó a `immediate_inbox` en HU-16 |
+| Cita agendada | `RequestModality.SCHEDULED` / `create_scheduled_request` | Solicitud dirigida a un profesional para una fecha y hora. Solo nace por la función de servidor, que valida la hora contra `bookable_start_times` |
+| Horarios reservables | `bookable_start_times` / `BookableTimes` / `BookableStart` | Las horas de inicio que un profesional ofrece para un servicio en los próximos 14 días: cada 30 minutos desde el inicio de la franja, con 2 horas de anticipación y la atención completa dentro de una franja. Cada inicio trae el instante y su fecha y hora en La Paz |
+| Parte del día | `PartOfDay` | `MORNING` antes de las 12:00, `AFTERNOON` hasta las 18:00, `EVENING` desde las 18:00. Agrupa las horas del carrusel |
+| Agendar una cita | `ScheduleAppointment` | La pantalla y su modelo de vista; se abre desde la ficha del profesional |
+| Zona de la cita | `AppointmentZone` | `America/La_Paz`. Solo para mostrar una `scheduled_at` guardada; el cálculo vive en el motor |
+| Puede agendar | `CanScheduleAppointmentUseCase` / `showsScheduleAction` | Si la ficha ofrece «Agendar cita»: rol activo paciente, ficha ajena y profesional con servicios declarados |
+| Carrusel de días | `DayCarousel` | Fila de tarjetas de día que se detiene en cada una al deslizar; reemplazó a `DatePickerRow` |
+| Barra de acción al pie | `BottomActionBar` | El botón principal fijo al pie, fuera del contenido que se desplaza |
 | Aviso de la bandeja | `inboxSignals` / `notify_immediate_inbox` | El Broadcast sin datos que dispara un trigger al tema `immediate_inbox` para que el cliente re-consulte. No transporta la fila |
 | Cola de revisión | `PendingReviewSubject` | Persona con trabajo pendiente del administrador: documentos por revisar, la verificación por conceder, o las dos |
 | Listo para verificar | `awaitingVerification` / `awaiting_verification` | Profesional con todos sus requeridos aprobados que todavía no es `APPROVED` |
