@@ -74,6 +74,10 @@ que lo introduce.
 | Línea cardio | `HeartbeatTrace` | La línea que se traza bajo el nombre en el arranque, con sus ondas P, QRS y T |
 | Barrido | `Sweep` | Hasta dónde llegó la cabeza de la línea, y si es una pasada repetida |
 | Latido del logo | `beatScale` | El pulso doble del logo cuando la línea cruza el pico |
+| Entrada de la bienvenida | `entrance` / `entranceFrom` | La marca va desde donde la dejó el arranque hasta su lugar en la bienvenida |
+| Marca asentada del arranque | `SettledStartupBrand` / `settledStartupBrand` | Dónde deja el cuadro final del arranque el logo, el nombre y la línea |
+| Puntos de valor | `WelcomeValues` | Lo que la bienvenida promete y la aplicación ya cumple: verificación, cercanía y rol doble |
+| Botón de marca | `BrandColors.button` | El turquesa del botón de ingreso, el mismo en claro y en oscuro |
 | Expediente de revisión | `DocumentReviewDossier` | La persona revisada, sus documentos y su lista de requeridos |
 | Veredicto | `verdict` | Aprobación o rechazo de un documento por el administrador |
 | Revisado | `DocumentReviewSubject` | La persona cuyos documentos revisa el administrador |

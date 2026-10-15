@@ -4710,6 +4710,82 @@ recorrido en emulador puede confirmar:
 
 ---
 
+## 2026-10-14 · La pantalla de bienvenida: continúa el arranque y solo dice lo que es cierto
+
+**Contexto.** Con la marca terminada en HT-19, la bienvenida del 2026-09-15 quedó
+desfasada:
+- un «+» como ícono provisional;
+- el nombre escrito dos veces;
+- dos insignias con cifras fijas, «4.9 Valoración» y «40+ profesionales disponibles
+  en tu zona», que el propio código anotaba como texto publicitario;
+- texto justificado;
+- un pie legal que parecía un enlace y no respondía.
+
+En oscuro la pantalla no pintaba su fondo, así que la vista previa y el catálogo
+la mostraban con el título casi invisible. Se presentaron tres propuestas
+visuales. El autor eligió la A, con cuatro observaciones:
+- el botón de Google con el mismo color en los dos modos;
+- el círculo de la G simétrico a cualquier tamaño de fuente;
+- botones de Términos y condiciones y de Política de privacidad;
+- nada anclado al pie.
+
+**Decisión.** La bienvenida muestra la marca del arranque, el eslogan, tres
+puntos de valor que la aplicación cumple y el ingreso. Todo va en una sola
+columna desplazable. La marca entra desde donde la dejó el arranque.
+
+**Razonamiento.**
+
+- **Sin cifras inventadas.** En una aplicación de salud, mostrar a quien entra
+  por primera vez una calificación y una disponibilidad que no salen de ningún
+  dato resta la confianza que el producto necesita. Los tres puntos que las
+  reemplazan describen lo que ya existe:
+  - la verificación documental (HU-07 a HU-09);
+  - la búsqueda por cercanía (HU-11);
+  - el rol doble (Sprint 2.5).
+- **La entrada empieza donde terminó el arranque.**
+  - **Geometría.** `settledStartupBrand` dice dónde deja el cuadro final del
+    arranque cada parte de la marca. La bienvenida mide dónde quedan las suyas y
+    anima la diferencia. La función vive junto a `StartupContent`, y
+    `StartupBrandGeometryTest` la compara con el diseño real: si alguien mueve la
+    marca del arranque sin moverla ahí, la prueba falla antes de que la marca dé
+    un salto.
+  - **Sin fundido.** Entre el arranque y la bienvenida se quita el fundido de la
+    navegación, porque mostraría la marca dos veces.
+  - **Tamaño.** La marca de la bienvenida es la del arranque al 82 %, de modo que
+    la entrada solo la achica y la mueve.
+- **El botón de Google en turquesa de marca en los dos modos.** El `primary`
+  oscuro, `#7FC5DE`, es un celeste que desentona con la marca. `#1A6F8F` sobre
+  `#0E1518` tiene 3,26:1, suficiente para un control, y el texto blanco sobre el
+  botón, 5,65:1. Vive en `BrandColors` porque ningún rol de Material 3 se mantiene
+  igual en los dos esquemas con ese tono.
+- **`PrimaryButton` crece con su etiqueta.** Medía exactamente 56 dp. Al 200 %,
+  «Continuar con Google» pasa a dos líneas, y la segunda quedaba cortada dentro
+  del botón, la clase de recorte que ninguna prueba de límites ve. Ahora 56 dp es
+  el mínimo. La prueba exige más de 56 dp, que es lo único que un botón de alto
+  fijo no puede medir.
+- **Nada anclado.** Lo pidió el autor. Con la columna centrada cuando cabe, en un
+  teléfono habitual el botón queda a la vista sin desplazar. Al 200 % se llega a
+  él desplazando, como a todo lo demás.
+- **Términos y Privacidad son botones sin destino.** El autor los quiere en la
+  pantalla aunque sus páginas todavía no existan. Quedan conectados a funciones
+  vacías desde `WelcomeScreen`. Cuando la historia de esas páginas exista, solo
+  falta pasarles la navegación.
+- **Con la fuente al 150 % o más, el ícono de cada punto pasa arriba del texto.**
+  Al costado, a 320 dp, «Profesionales» no cabe en el tercio de ancho que queda y
+  se parte a mitad de palabra.
+
+**Consecuencia.**
+- **Componentes:** `PulsingHeartIcon` queda sin uso y se elimina.
+  `AvailabilityDot` sigue vivo en la búsqueda.
+- **Textos:** se retiran las claves de las insignias, de los dos puntos
+  anteriores y del pie legal.
+- **Sistema de diseño:** la sección 5 de `docs/design-system.md` describe la
+  pantalla nueva.
+- **Pendiente:** el recorrido en emulador del paso del arranque a la bienvenida
+  sigue siendo necesario, porque una prueba de límites no ve el salto de la marca.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

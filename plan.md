@@ -896,6 +896,70 @@ Se verificaron de todos modos con los archivos sonda de HT-08 antes de dar esta
 historia por cerrada, no dando por sentado que documentar la regla bastaba para
 demostrar que la prueba automática la sostiene.
 
+### HT-20 · La bienvenida con la marca `[~]` — 2026-10-14
+
+> Como **persona que abre la aplicación por primera vez**, quiero **una bienvenida
+> que continúe la marca del arranque y me diga qué ofrece la aplicación**, para
+> **decidir con confianza si ingreso**.
+
+**Origen.** Pedido del autor como Product Owner el 2026-10-14, sobre la marca de
+HT-19. Rehace la pantalla de HU-01 sin cambiar su comportamiento: el ingreso con
+Google es el mismo. El razonamiento está en `docs/decisions.md`, 2026-10-14.
+
+**Diseño aprobado.** Se presentaron tres propuestas y el autor eligió la **A,
+continuidad con el arranque**. Pidió cuatro ajustes:
+- el botón de Google con el mismo color en los dos modos;
+- el círculo de la G simétrico;
+- botones de Términos y condiciones y de Política de privacidad;
+- nada anclado al pie.
+
+Aprobó los textos y el retiro de las cifras fijas.
+
+- [x] La marca del arranque —logo, nombre dibujado y línea cardio— reemplaza al
+      ícono provisional y al nombre repetido
+- [x] El eslogan acompaña a la marca, sin texto justificado en ningún lugar de la
+      pantalla
+- [x] Se retiran «4.9 Valoración» y «40+ profesionales»; tres puntos de valor que
+      la aplicación ya cumple ocupan su lugar
+- [x] El botón de Google usa el turquesa de la marca en claro y en oscuro, y el
+      círculo de la G mantiene su forma con cualquier tamaño de fuente
+- [x] Términos y condiciones y Política de privacidad son botones, todavía sin
+      destino
+- [x] Nada queda anclado: el ingreso se desplaza con el resto del contenido
+- [x] La marca entra desde donde la dejó el arranque, sin fundido entre las dos
+      pantallas; con «quitar animaciones» aparece quieta
+- [x] La pantalla pinta su propio fondo, así que la vista previa oscura se ve como
+      en el teléfono
+- [ ] La integración continua pasa: análisis estático, `./gradlew test` y
+      `assembleDebug`
+- [ ] Las previsualizaciones de la bienvenida —claro, oscuro y al 200 %— se
+      abrieron y se ven correctas
+- [ ] Recorrido en emulador: del arranque a la bienvenida la marca no salta, y el
+      ingreso con Google sigue llevando a la pantalla que corresponde
+
+**Por qué los tres últimos siguen abiertos.** La sesión del 2026-10-14 sigue sin
+poder compilar: la política de red del entorno rechaza `dl.google.com`. El
+recorrido es obligatorio porque la bienvenida es el primer ingreso de HU-01, que
+figura como crítica en «Cuándo hace falta un dispositivo».
+
+**Pruebas.**
+
+| Prueba | Qué error atrapa |
+|---|---|
+| `StartupBrandGeometryTest.theWelcomeEntranceStartsWhereTheStartupLeavesTheBrand` | La marca del arranque se mueve y la entrada de la bienvenida sigue partiendo del lugar viejo: la marca da un salto |
+| `WelcomeScreenLargeFontTest.theWayInStaysReachable` | Sin el pie anclado, el botón de ingreso queda fuera de alcance al 200 % |
+| `WelcomeScreenLargeFontTest.theTermsAndThePrivacyPolicyStayReachable` | Los botones legales quedan fuera de la pantalla al 200 % |
+| `WelcomeScreenLargeFontTest.theSignInButtonGrowsWithItsLabelInsteadOfCuttingIt` | `PrimaryButton` vuelve a un alto fijo y corta la segunda línea de su etiqueta |
+
+**Archivos.**
+
+| Capa | Archivos |
+|---|---|
+| Interfaz | `features/auth/presentation/{WelcomeScreen, StartupScreen}.kt` · `navigation/SaludEnCasaNavHost.kt` · `ui/components/PrimaryButton.kt` · `ui/theme/Color.kt` (modificados) · `ui/components/PulsingHeartIcon.kt` (eliminado) |
+| Recursos | `res/drawable/{ic_verified_user, ic_group}.xml` (nuevos) · `res/values/strings.xml` · `res/values-es/strings.xml` (claves nuevas de la bienvenida; se retiran las de las insignias, los puntos anteriores y el pie legal) |
+| Pruebas | `test/.../auth/presentation/{StartupBrandGeometryTest, WelcomeScreenLargeFontTest}.kt` (nuevos) · `test/.../ui/ScreenCatalog.kt` (las vistas previas con «Dark» en el nombre se dibujan con los recursos nocturnos, que es donde viven los colores oscuros de la marca) |
+| Documentos | `docs/decisions.md` · `docs/design-system.md` (secciones 5 y 9) · `.claude/rules/glosario.md` · `plan.md` (esta sección) |
+
 ### Rediseño de las dos pantallas de revisión, 2026-10-08
 
 Pedido del autor después del cierre: la cola «se hace muy larga» porque listaba una

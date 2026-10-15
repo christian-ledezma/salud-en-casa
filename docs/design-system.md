@@ -350,8 +350,8 @@ desfasados un tercio de ciclo. Sobre el mapa se dibujan como círculos del propi
 mapa, de modo que quedan anclados al suelo y escalan con el zoom; fuera del mapa,
 en un `Canvas`, hacen de indicador de carga.
 
-El ciclo es el doble de `LIVE_INDICATOR_CYCLE_MILLIS`, el mismo latido que
-comparten el punto de disponibilidad y el corazón de la bienvenida. **En reposo
+El ciclo es el doble de `LIVE_INDICATOR_CYCLE_MILLIS`, el mismo latido del
+punto de disponibilidad. **En reposo
 los anillos quedan quietos**, no desaparecen: con el movimiento reducido la
 figura sigue leyéndose como un radar.
 
@@ -387,45 +387,54 @@ ingreso: sin ese parámetro se comporta exactamente igual que antes.
 El logotipo de Google, cuando aparece como `leadingIcon`, va sobre un círculo
 blanco fijo de 24 dp, nunca sobre `MaterialTheme.colorScheme.surface`: la marca
 multicolor de Google está diseñada para fondo claro sin importar el tema de
-quien la aloja, y sin ese círculo se pierde contra el relleno `primary` del
-botón, tanto en claro como en oscuro.
+quien la aloja, y sin ese círculo se pierde contra el relleno del botón, tanto
+en claro como en oscuro. El círculo lleva `requiredSize` y no `size`, para que
+una fila apretada por una fuente grande no lo convierta en un óvalo.
 
-### Cabecera de bienvenida con degradado
+### Pantalla de bienvenida
 
-Introducida en la pantalla de bienvenida (2026-09-15) y pensada para
-reutilizarse en otras pantallas de entrada al producto. Tres bloques en
-secuencia vertical dentro de la cabecera con degradado de la sección 1:
+Rediseñada el 2026-10-14 sobre la marca de la sección 9. Sustituye a la cabecera
+con degradado del 2026-09-15, con su ícono provisional, sus insignias de cifras
+fijas y su corazón decorativo. Ver `docs/decisions.md`, 2026-10-14.
 
-1. Encabezado: icono de marca en una caja de 36 dp sobre `onPrimary` al 20 % de
-   opacidad, y el nombre de la aplicación en `titleLarge`.
-2. Una o más insignias flotantes (`ExtraShapes.featuredCard`, 24 dp de radio,
-   fondo `surface`) con un icono o punto a la izquierda y dos líneas de texto a
-   la derecha: la cifra en `labelLarge` sobre `onSurface`, la aclaración en
-   `labelSmall` sobre `onSurfaceVariant` o sobre el color de estado que
-   corresponda.
-3. Un círculo decorativo centrado, con un icono de Material Symbols sobre
-   `onPrimary` al 15 % de opacidad —**nunca una fotografía**, por la razón de la
-   sección 7— que sugiere el tema de la pantalla sin representar a nadie en
-   particular. Puede llevar una animación de pulso suave (`PulsingHeartIcon`,
-   `ui/components/`) en vez de quedar estático, para reforzar el tema de salud
-   sin caer en el parpadeo genérico de una carga.
+Todo vive en una sola columna desplazable, centrada en la pantalla cuando cabe.
+**Nada queda anclado al pie**, ni siquiera el botón de ingreso:
 
-**Nunca se fija la altura de la cabecera con un valor en `dp` calculado a partir
-del alto de pantalla.** La primera versión de esta cabecera lo hacía y, con el
-tamaño de fuente del sistema al 200 % o en una pantalla angosta, el texto de la
-insignia crecía más de lo previsto y terminaba encajado contra el círculo
-decorativo. La cabecera deja que `Column` mida su propio contenido con
-espaciado (`Arrangement.spacedBy`), nunca con posiciones absolutas
-superpuestas calculadas para el tamaño de reposo: así crece con el contenido en
-vez de recortarlo o de solaparlo. Verificado en el emulador a 200 % de fuente y
-en un ancho de 360 dp.
+1. **La marca.** Es la misma del arranque al 82 % (`WELCOME_BRAND_SCALE`): el
+   logo, el nombre dibujado y la línea cardio completa y quieta.
+2. **El eslogan**, en `bodyLarge` sobre `onSurfaceVariant`, centrado.
+3. **Tres puntos de valor** en una sola tarjeta (`surface`, radio de 20 dp),
+   separados por un divisor en `outlineVariant`:
+   - profesionales verificados;
+   - atención cerca de tu casa;
+   - una cuenta con dos roles.
 
-Una insignia puede llevar un punto de disponibilidad parpadeante en vez de un
-icono fijo: es el componente `AvailabilityDot` (`ui/components/`), que se
-apaga (queda fijo en vez de parpadear) cuando el sistema tiene activada la
-opción de accesibilidad «Quitar animaciones». Pensado para la insignia de
-mercadeo de esta pantalla y también para el indicador real de «disponible
-ahora» de un profesional, el día que esa historia lo necesite.
+   Cada uno lleva un ícono sobre un círculo de 40 dp en `primaryContainer`, un
+   título en `titleMedium` y una línea en `bodyMedium`. **Con la fuente al 150 % o
+   más, el ícono pasa arriba del texto**: al costado, el título se queda con un
+   tercio del ancho y se parte a mitad de palabra.
+4. **El ingreso:**
+   - el botón de Google, en el turquesa de marca en los dos esquemas
+     (`BrandColors.button`);
+   - el aviso de que no hay contraseñas;
+   - el aviso legal;
+   - los botones «Términos y condiciones» y «Política de privacidad».
+
+**Ningún texto va justificado**: abre huecos entre palabras que cuestan más leer.
+**Ninguna cifra que no salga de los datos**: la pantalla no muestra calificaciones
+ni cantidades de profesionales inventadas.
+
+**La entrada desde el arranque.** La marca empieza exactamente donde la dejó el
+cuadro final del arranque y sube a su lugar en 600 ms. El resto aparece desde los
+350 ms. Entre las dos pantallas no hay fundido. Con «quitar animaciones» activado,
+la pantalla aparece completa.
+
+### Punto de disponibilidad
+
+`AvailabilityDot` (`ui/components/`) es un punto que parpadea, y queda fijo
+cuando el sistema tiene activada la opción de accesibilidad «Quitar animaciones».
+Nació para una insignia de la bienvenida que ya no existe. Hoy marca a los
+profesionales disponibles en la búsqueda.
 
 ---
 
@@ -505,6 +514,12 @@ nombre llevan los suyos en `drawable` y `drawable-night`, porque son imágenes.
   12, y se asienta al 70 %, unos 202 dp.
 - **Nombre.** 260 dp de ancho. No crece con el tamaño de fuente, porque es un logotipo.
 - **Línea cardio.** Todo el ancho disponible, con un máximo de 300 dp, en proporción 4:1.
+- **En la bienvenida.** Todo lo anterior al 82 %. El logo se dibuja a unos 165 dp,
+  pero su fila mide el 56 % de esa altura: el resto del lienzo es zona segura del
+  ícono y alejaría el nombre.
+- **Botón de ingreso.** `#1A6F8F` con texto blanco en los dos esquemas. En oscuro
+  tiene un contraste de 3,26:1 con el fondo, suficiente para un control, y el
+  texto, 5,65:1 sobre el botón.
 
 ### Animación de arranque
 
