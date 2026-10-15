@@ -2,6 +2,7 @@ package bo.saludencasa
 
 import android.app.Application
 import bo.saludencasa.di.authModule
+import bo.saludencasa.di.availabilityModule
 import bo.saludencasa.di.catalogModule
 import bo.saludencasa.di.coreModule
 import bo.saludencasa.di.locationModule
@@ -31,6 +32,7 @@ class SaludEnCasaApplication : Application() {
                 searchModule,
                 reviewModule,
                 requestsModule,
+                availabilityModule,
             )
         }
     }
