@@ -34,6 +34,9 @@ que lo introduce.
 | Servicios declarados | `DeclaredServices` | Lo que el profesional presta hoy junto con el catálogo que le queda por declarar |
 | Tipos por declarar | `undeclaredTypes` | Los tipos del catálogo que el profesional todavía no ofrece. No se le ofrecen dos veces |
 | Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
+| Disponibilidad semanal | `WeeklyAvailability` | La vista agrupada por día que la pantalla de disponibilidad maneja: las siete claves siempre vienen pobladas aun sin franjas |
+| Error de disponibilidad | `AvailabilityError` | `EndNotAfterStart`, `OverlapsExistingSlot`, `NetworkUnavailable`, `Unexpected`. El solapamiento y el duplicado exacto llegan por el mismo errcode 23505 y presentan igual |
+| Guarda contra solapamientos | `reject_overlapping_slot` | Función del motor que, en un `BEFORE INSERT/UPDATE`, usa `OVERLAPS` sobre `time` para rechazar una franja que cruce otra del mismo profesional en el mismo día |
 | Dirección | `Address` | Domicilio georreferenciado |
 | Documento de verificación | `VerificationDocument` | Respaldo de identidad o título |
 | Documento adicional | `DocumentType.OTHER` | Adjunto opcional por persona, con leyenda obligatoria |

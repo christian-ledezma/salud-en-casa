@@ -4786,6 +4786,49 @@ columna desplazable. La marca entra desde donde la dejó el arranque.
 
 ---
 
+## 2026-10-14 · HU-15: el solapamiento de franjas lo rechaza un trigger con OVERLAPS, no una restricción EXCLUDE
+
+**Contexto.** La tabla `availability_slots` existe desde el Sprint 1 con
+`end_time > start_time` y un único por `(professional_id, day_of_week,
+start_time, end_time)`. Lo que no cubre es un cruce parcial —por ejemplo,
+`10:00-12:00` y `11:00-13:00` del mismo profesional el mismo día—, que
+contradice el horario declarado. HU-15 necesita que esa contradicción no
+pueda persistir.
+
+**Decisión.** Un trigger `BEFORE INSERT OR UPDATE` sobre
+`availability_slots` llama a `reject_overlapping_slot()`, que usa el
+operador nativo `OVERLAPS` sobre `time` y lanza `errcode = '23505'` con el
+mensaje `availability_slot_overlaps`. No se agrega la extensión
+`btree_gist`.
+
+**Razonamiento.** La alternativa canónica es una restricción `EXCLUDE
+USING GIST (professional_id with =, day_of_week with =, timerange with
+&&)`, pero PostgreSQL no trae un `timerange` nativo y los operadores de
+igualdad sobre `uuid` y `smallint` combinados con `&&` sobre un rango
+exigen `btree_gist`. Agregar una extensión y crear un tipo de rango de
+hora para prevenir un cruce de intervalos sencillos es un camino largo
+para un problema corto: el trigger son diez líneas, usa `OVERLAPS` que ya
+existe para `time`, y el código del error `23505` deja que el mapeador
+del cliente —que ya traducía el único existente a la misma clase de
+error— reciba ambos por el mismo canal sin que la interfaz tenga que
+distinguir «duplicado exacto» de «cruce parcial». La función es
+`security definer` con `search_path = ''` porque el trigger la ejecuta
+en el contexto del llamante autenticado, y restringir el `search_path`
+evita que una tabla con nombre colisionado en otro esquema entre al
+`exists` por accidente. La verificación de ambos lados —el adyacente
+`12:00-13:00` sí entra, el `11:00-13:00` sobre `10:00-12:00` no—
+discrimina en lugar de solo denegar, como lo pide el proceso del
+proyecto.
+
+**Consecuencia.** La característica de disponibilidad del profesional
+termina sin agregar extensiones nuevas al esquema. Si en el futuro
+`availability_slots` necesita franjas que crucen la medianoche, el
+operador `OVERLAPS` sobre `time` seguirá siendo insuficiente (una franja
+sería dos tramos) y conviene reabrir la decisión. Por ahora el ISO de día
+semanal 1-7 impone que una franja termina el mismo día.
+
+---
+
 ## 2026-10-15 · Las pantallas de búsqueda y perfil: el tema completo, la tarjeta que se toca entera y el boliviano con su símbolo
 
 **Contexto.** El autor pidió mejorar «Profesionales cerca» y «Perfil público» en
