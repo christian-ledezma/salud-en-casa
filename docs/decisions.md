@@ -4786,6 +4786,92 @@ columna desplazable. La marca entra desde donde la dejó el arranque.
 
 ---
 
+## 2026-10-15 · Las pantallas de búsqueda y perfil: el tema completo, la tarjeta que se toca entera y el boliviano con su símbolo
+
+**Contexto.** El autor pidió mejorar «Profesionales cerca» y «Perfil público» en
+sus dos modos, con propuestas antes del código. Se le presentaron dos por pantalla
+y una corrección común al tema, y pidió aplicar las mejoras directamente sobre
+`master`. Se aplicaron las recomendadas, la A de cada pantalla. Las capturas
+mostraban cuatro problemas:
+- tonos lilas en fichas seleccionadas y en el avatar sin foto, en una aplicación
+  sin violeta;
+- los montos como «BOB 120.00», con el código ISO y decimales que nadie escribe;
+- en la búsqueda, la disponibilidad como una línea suelta entre dos tarjetas, y
+  un solo botón pequeño como forma de abrir la ficha;
+- en la ficha, nueve líneas centradas una debajo de otra, con las cifras dentro
+  de frases.
+
+**Decisión.** El tema define todo rol que lee un componente. `formatBob` usa el
+símbolo «Bs» y omite los decimales de un monto entero. La tarjeta de profesional se
+toca entera y lleva la disponibilidad dentro. La ficha tiene una cabecera con
+cifras, píldoras y servicios en tarjetas.
+
+**Razonamiento.**
+
+- **El lila venía del tema, no de las pantallas.** `lightColorScheme` y
+  `darkColorScheme` completan cada rol que no se les pasa con la paleta de base de
+  Material 3, que es violeta. `FilterChip` seleccionado lee `secondaryContainer`,
+  los menús leen `surfaceContainer` y el avatar leía `surfaceVariant`, y ninguno
+  estaba definido. Corregir cada pantalla habría dejado el defecto esperando al
+  próximo componente; se definen los roles, en los dos esquemas, derivados del
+  turquesa.
+- **El símbolo de Bolivia, sea cual sea el idioma del teléfono.** El formateador de
+  la plataforma muestra el símbolo que la configuración regional conoce para la
+  moneda, y fuera de `es-BO` esa es «BOB». Se conserva el formateador, que decide
+  el orden y los separadores (`.claude/rules/i18n.md`), y solo se le cambia el
+  símbolo por el que Bolivia usa, «Bs», que se toma de `Currency` con `es-BO` y no
+  se escribe a mano.
+- **Sin decimales cuando el monto es entero.** Las tarifas son montos redondos, y
+  «,00» en cada tarjeta es ruido. Un monto con centavos los conserva, porque
+  quitárselos sería mostrar otro precio. Lo fija `MoneyFormatTest`.
+- **La tarjeta se toca entera.** El único punto de entrada era un botón de 48 dp en
+  la esquina, y el lugar natural donde tocar es el nombre. El chevrón queda como
+  señal y lleva la descripción de contenido. La consecuencia en las pruebas es que
+  la tarjeta pasa a ser un solo botón y su semántica se fusiona: una prueba que mide
+  un texto de la tarjeta tiene que buscarlo en el árbol sin fusionar, o mide la
+  tarjeta.
+- **La disponibilidad dentro de la tarjeta.** Esto deroga la regla de
+  `docs/design-system.md` que la quería «debajo de la tarjeta, y nunca dentro».
+  Esa regla venía de una tarjeta con la foto a sangre, en la que no había lugar;
+  fuera, la línea quedaba a la misma distancia de la tarjeta de arriba que de la de
+  abajo.
+- **La foto pasa a un avatar a la izquierda.** La columna de la foto a sangre
+  usaba `fillMaxHeight` dentro de una lista perezosa, que no le da un alto que
+  llenar: la columna medía lo que medían las iniciales y no el alto de la tarjeta,
+  así que no llegaba a sangrar por el borde. El avatar con iniciales tiene tamaño
+  propio y sirve de marcador de posición mientras la foto carga.
+- **La ficha con cifras y sin cero.** La calificación, los años y las atenciones
+  pasan a tres cifras en la cabecera, donde se comparan de un vistazo. Sin
+  calificaciones no se dibuja el distintivo: un promedio de cero sobre ninguna
+  calificación no es un mal profesional (2026-10-09). La prueba
+  `aProfessionalNobodyHasRatedShowsNoScoreInsteadOfAZero` lo fija también en la
+  ficha, donde hasta hoy no tenía prueba.
+- **Con la fuente al 150 % o más, lo que va lado a lado se apila.** Las cifras y el
+  precio de cada servicio. Es el mismo umbral de la bienvenida (2026-10-14), y por
+  la misma razón: a 320 dp un tercio del ancho no sostiene una etiqueta de dos
+  palabras al 200 %.
+- **Textos.** El título pasa a «Perfil del profesional», porque quien lo lee es el
+  paciente y «público» habla desde el punto de vista del dueño. «Disponible para
+  atención inmediata» pasa a «Disponible ahora», el mismo texto de la búsqueda. La
+  duración se dice en horas cuando pasa de 60 minutos.
+
+**Consecuencia.**
+- **Tema:** todo rol nuevo que lea un componente se define en los dos esquemas en
+  `SaludEnCasaTheme.kt`, y su contraste se anota en `docs/design-system.md`,
+  sección 1. `StatusColors` gana el contenedor positivo y su texto.
+- **Componentes:** `ProfessionalCard` cambia su firma: `onClick` para la tarjeta,
+  `availableNowText` y `openContentDescription`, y deja de recibir un icono de
+  acción. `AvailabilityPill` es nuevo. `ProfileAvatar` acepta un nombre para
+  dibujar las iniciales.
+- **Textos:** se retiran las tres pluralizaciones de la ficha que decían la cifra y
+  su etiqueta en una sola frase; las cifras nuevas separan el número de la
+  etiqueta.
+- **Pendiente:** las previsualizaciones de las dos pantallas en claro, en oscuro y
+  al 200 % hay que abrirlas y mirarlas. El recorte dentro de una píldora o de una
+  columna de cifras no lo ve ninguna prueba.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

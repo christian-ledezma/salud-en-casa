@@ -63,6 +63,8 @@ aquí: parte de los usuarios serán adultos mayores.
 | `onPrimaryContainer` | `#08303F` | Texto sobre el contenedor primario |
 | `secondary` | `#4A7C8F` | Elementos de apoyo, iconos secundarios |
 | `onSecondary` | `#FFFFFF` | Texto sobre el secundario |
+| `secondaryContainer` | `#D5E6ED` | Fondo de una ficha de filtro seleccionada |
+| `onSecondaryContainer` | `#0B3A4C` | Texto sobre el contenedor secundario |
 | `tertiary` | `#B87400` | Ámbar ajustado, para texto que deba ser ámbar |
 | `tertiaryContainer` | `#FFA600` | Relleno ámbar de la referencia |
 | `onTertiaryContainer` | `#3D2800` | Texto sobre relleno ámbar |
@@ -73,9 +75,20 @@ aquí: parte de los usuarios serán adultos mayores.
 | `onBackground` | `#0D0D0D` | Texto sobre el fondo |
 | `surface` | `#FFFFFF` | Tarjetas y hojas |
 | `onSurface` | `#0D0D0D` | Texto principal |
+| `surfaceVariant` | `#E3EBEF` | Fondo del avatar sin nombre, píldora neutra |
 | `onSurfaceVariant` | `#4C5B62` | Texto secundario y etiquetas |
+| `surfaceContainerLowest` | `#FFFFFF` | Contenedores de Material 3, de menor a mayor énfasis |
+| `surfaceContainerLow` | `#F7F9FA` | |
+| `surfaceContainer` | `#EEF2F4` | |
+| `surfaceContainerHigh` | `#E8EEF1` | Menús y diálogos |
+| `surfaceContainerHighest` | `#E3EBEF` | |
 | `outline` | `#C2CCD1` | Bordes de campos y separadores |
 | `outlineVariant` | `#DEE5E8` | Separadores tenues |
+
+**Todo rol que lee un componente de la aplicación está definido, en los dos
+esquemas.** Material 3 completa los que faltan con su paleta de base, que es
+violeta: una ficha de filtro seleccionada, un menú o un avatar sin foto aparecían
+en lila sin que ninguna pantalla lo pidiera. Ver `docs/decisions.md`, 2026-10-15.
 
 ### Esquema oscuro
 
@@ -88,14 +101,35 @@ sobre fondo oscuro.
 | `onPrimary` | `#00344A` |
 | `primaryContainer` | `#0F5570` |
 | `onPrimaryContainer` | `#CFE8F2` |
+| `secondary` | `#A6CBDA` |
+| `onSecondary` | `#0B3A4C` |
+| `secondaryContainer` | `#1D4555` |
+| `onSecondaryContainer` | `#CFE8F2` |
+| `tertiary` | `#E0A83C` |
+| `onTertiary` | `#2B1C00` |
 | `tertiaryContainer` | `#E0A83C` |
 | `onTertiaryContainer` | `#2B1C00` |
 | `background` | `#0E1518` |
 | `onBackground` | `#E6EDF0` |
 | `surface` | `#162025` |
 | `onSurface` | `#E6EDF0` |
+| `surfaceVariant` | `#22313A` |
 | `onSurfaceVariant` | `#A9BAC1` |
+| `surfaceContainerLowest` | `#0A1013` |
+| `surfaceContainerLow` | `#131B1F` |
+| `surfaceContainer` | `#182226` |
+| `surfaceContainerHigh` | `#1E2A30` |
+| `surfaceContainerHighest` | `#26343A` |
 | `outline` | `#3B4A51` |
+| `outlineVariant` | `#26343A` |
+
+Contrastes de los pares nuevos, medidos el 2026-10-15:
+
+| Par | Claro | Oscuro |
+|---|---|---|
+| `onSecondaryContainer` sobre `secondaryContainer` | 9,50:1 | 8,10:1 |
+| `onSurfaceVariant` sobre `surfaceVariant` | 5,84:1 | 6,68:1 |
+| `primary` sobre `surface`, para la profesión y el precio | 5,65:1 | 8,63:1 |
 
 ### Colores semánticos de estado
 
@@ -108,6 +142,11 @@ valores sueltos en las pantallas.
 | En curso, pendiente | `#B87400` | `#E0A83C` | Solicitud en negociación, pago pendiente |
 | Cancelado, rechazado, disputa | `#B3261E` | `#F2B8B5` | Estados negativos |
 | Disponible ahora | `#15782B` | `#6FD588` | Indicador de disponibilidad del profesional |
+| Contenedor positivo | `#D7EFDC` | `#163D22` | Fondo de la píldora de disponibilidad y del distintivo de verificado |
+| Texto sobre el contenedor positivo | `#0E4F1C` | `#B6F0C3` | 8,02:1 en claro y 9,42:1 en oscuro |
+
+El punto de disponibilidad sobre el contenedor positivo llega a 4,60:1 en claro y
+6,70:1 en oscuro.
 
 ### Degradado del encabezado
 
@@ -179,6 +218,10 @@ Escala de 4 dp. Valores permitidos: 4, 8, 12, 16, 20, 24, 32, 40, 48.
 | Altura mínima de elemento tocable | 48 dp |
 | Altura del mapa de dirección | 280 dp |
 
+El borde de un control que se lee como campo, como el filtro de tipo de servicio
+plegado, mide 1 dp (`Spacing.borderWidth`). Es un grosor de trazo, no un
+espaciado, y por eso no sigue la escala.
+
 El espaciado entre elementos hermanos se resuelve con `Arrangement.spacedBy`,
 nunca con márgenes individuales que se dupliquen o se colapsen.
 
@@ -204,9 +247,11 @@ Elemento tocable de 48 dp incluso cuando el círculo visible mide menos.
 
 ### Tarjeta de profesional
 
-Fotografía a sangre por el borde derecho, información a la izquierda. Contiene, en
-este orden: nombre, especialidad, calificación con estrella, distancia y tarifa
-base. El botón de acción va abajo a la derecha.
+**La tarjeta entera abre la ficha.** Arriba, el avatar circular de 48 dp a la
+izquierda, con las iniciales sobre `primaryContainer` y la foto encima cuando
+existe; al centro, nombre, especialidad, calificación y distancia; a la derecha,
+un chevrón. Un separador tenue y, al pie, la tarifa base y la píldora de
+disponibilidad. Rediseñada el 2026-10-15: ver `docs/decisions.md`, esa fecha.
 
 Adaptación al producto: **la distancia es información obligatoria**, porque la
 cercanía es el criterio principal de selección. En la referencia no aparece.
@@ -214,8 +259,15 @@ cercanía es el criterio principal de selección. En la referencia no aparece.
 La calificación es opcional, por la razón del distintivo de calificación, y quien
 usa la tarjeta entrega la etiqueta que ocupa su lugar: el componente no llama a
 los recursos de cadenas para nada, ni para la distancia, ni para la tarifa, ni
-para la descripción de contenido de su acción. Debajo de la tarjeta, y nunca
-dentro, va la línea de «disponible ahora» con `AvailabilityDot`.
+para la disponibilidad, ni para la descripción de contenido del chevrón.
+
+**La disponibilidad va dentro de la tarjeta**, en su pie, y ya no debajo. Fuera
+de ella quedaba como una línea suelta entre dos tarjetas, y no se sabía a cuál de
+las dos pertenecía.
+
+La calificación y la distancia comparten una `FlowRow`: sin calificación, la
+frase que ocupa el lugar del distintivo es larga, y en una fila simple la
+distancia se quedaba sin ancho al 200 %.
 
 ### Distintivo de calificación
 
@@ -231,9 +283,11 @@ en `docs/decisions.md`, 2026-10-09.
 
 ### Distintivo de verificado
 
-Icono de comprobación y la palabra «Verificado», los dos en el verde de estado
-`#15782B` en claro y `#6FD588` en oscuro. Nunca en ámbar: el verde es el color
-semántico de lo aprobado en este sistema.
+Píldora en el contenedor positivo con el icono de comprobación y la palabra
+«Verificado», los dos en el texto sobre el contenedor positivo: `#0E4F1C` sobre
+`#D7EFDC` en claro y `#B6F0C3` sobre `#163D22` en oscuro. Nunca en ámbar: el verde
+es el color semántico de lo aprobado en este sistema. Hasta el 2026-10-15 era
+texto verde suelto, sin fondo.
 
 **No lleva un campo que lo encienda.** `professional_directory` solo contiene
 profesionales aprobados y activos, de modo que una ficha publicada es una ficha
@@ -363,6 +417,13 @@ etiqueta solo envuelve dentro de un ancho acotado, y en una fila que desplaza de
 lado el ancho es infinito: sin el tope, el tipo de servicio más largo del catálogo
 mide 470 dp en una pantalla de 320. Ver `docs/decisions.md`, 2026-10-09.
 
+En la búsqueda, desde el 2026-10-15, la ficha de radio seleccionada lleva la marca
+de comprobación, de modo que la selección no depende solo del color, y la de
+«disponible ahora» lleva siempre el punto verde. El filtro de tipo de servicio
+plegado tiene borde en `outline` y la forma `small` de un campo, porque se abre
+como uno. La línea del total de resultados lleva el escudo de verificado en
+`primary`: es la que dice que todo lo listado está verificado (RF-06.5).
+
 ### Visor de documento
 
 Muestra la imagen de un documento de verificación dentro de una caja de proporción
@@ -433,8 +494,48 @@ la pantalla aparece completa.
 
 `AvailabilityDot` (`ui/components/`) es un punto que parpadea, y queda fijo
 cuando el sistema tiene activada la opción de accesibilidad «Quitar animaciones».
-Nació para una insignia de la bienvenida que ya no existe. Hoy marca a los
-profesionales disponibles en la búsqueda.
+Nació para una insignia de la bienvenida que ya no existe. Hoy vive dentro de la
+píldora de disponibilidad.
+
+### Píldora de disponibilidad
+
+`AvailabilityPill` (`ui/components/`): el punto y «Disponible ahora» en
+`labelMedium`, sobre el contenedor positivo, con la forma `pill`. La usan la
+tarjeta de profesional y la ficha. Quien no está disponible no lleva la píldora en
+la búsqueda; en la ficha lleva una píldora neutra en `surfaceVariant` que lo dice.
+
+### Ficha del profesional
+
+La pantalla que un paciente abre desde la búsqueda, «Perfil del profesional».
+
+- **Cabecera.** Una superficie con la forma `featuredCard` reúne el avatar de
+  96 dp con las iniciales, el nombre en `headlineMedium`, la profesión y la
+  especialidad en una sola línea en `primary`, el distintivo de verificado y las
+  cifras.
+- **Cifras.** Tres columnas separadas por divisores verticales: la calificación
+  con su distintivo y la cantidad de calificaciones, los años de experiencia y las
+  atenciones realizadas. Los números salen del formateador de la configuración
+  regional. Con la fuente al 150 % o más las tres se apilan, porque un tercio de
+  un teléfono de 320 dp no sostiene «años de experiencia» al 200 %.
+- **Sin calificaciones no hay cero.** En lugar del distintivo va la estrella al
+  30 % de opacidad, la misma de las estrellas vacías del comentario, y la frase
+  «Todavía sin calificaciones». Es la regla del distintivo de calificación.
+- **Píldoras.** Debajo de la cabecera, centradas: la disponibilidad y la tarifa
+  base, esta en `primaryContainer`.
+- **Presentación.** La biografía lleva su título, como los servicios y los
+  comentarios.
+- **Servicios.** Cada uno es una tarjeta con el nombre y la duración a la
+  izquierda y el precio a la derecha, en `primary`. La duración se dice en horas
+  cuando pasa de 60 minutos: «Alrededor de 4 h», no «240 minutos». Con la fuente
+  al 150 % o más el precio baja debajo del nombre, o al nombre le quedaría una
+  franja de la fila para envolver.
+
+### Monto en bolivianos
+
+Todo monto sale de `formatBob`, que usa el formateador de moneda de la
+configuración regional del dispositivo **con el símbolo de Bolivia**, «Bs», y sin
+decimales cuando el monto es entero: «Bs120» y no «BOB 120.00». Un monto con
+centavos los conserva. Ver `docs/decisions.md`, 2026-10-15.
 
 ---
 

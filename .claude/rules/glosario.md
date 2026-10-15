@@ -78,6 +78,10 @@ que lo introduce.
 | Marca asentada del arranque | `SettledStartupBrand` / `settledStartupBrand` | Dónde deja el cuadro final del arranque el logo, el nombre y la línea |
 | Puntos de valor | `WelcomeValues` | Lo que la bienvenida promete y la aplicación ya cumple: verificación, cercanía y rol doble |
 | Botón de marca | `BrandColors.button` | El turquesa del botón de ingreso, el mismo en claro y en oscuro |
+| Píldora de disponibilidad | `AvailabilityPill` | El punto y «Disponible ahora» sobre el contenedor positivo, en la tarjeta y en la ficha |
+| Contenedor positivo | `positiveContainer` / `onPositiveContainer` | El fondo verde suave de lo disponible y lo verificado, y el texto que va encima |
+| Cifras de la ficha | `Stats` / `Stat` | Calificación, años de experiencia y atenciones realizadas en la cabecera de la ficha |
+| Profesión y especialidad | `occupation` | La línea que une el tipo de profesional y su especialidad bajo el nombre |
 | Expediente de revisión | `DocumentReviewDossier` | La persona revisada, sus documentos y su lista de requeridos |
 | Veredicto | `verdict` | Aprobación o rechazo de un documento por el administrador |
 | Revisado | `DocumentReviewSubject` | La persona cuyos documentos revisa el administrador |
@@ -121,6 +125,7 @@ que lo introduce.
 | Revisado en | `reviewedAt` / `reviewed_at` |
 | Motivo de rechazo | `rejectionReason` / `rejection_reason` |
 | Tope de ancho de una ficha | `filterChipMaxWidth` | Medida de `Spacing`: sin ella una etiqueta del catálogo no tiene ancho dentro del que envolver |
+| Grosor del borde | `borderWidth` | Medida de `Spacing`: el trazo de un control que se lee como campo |
 | Precio de referencia | `referencePriceBob` / `reference_price_bob` |
 | Duración estimada | `estimatedDurationMin` / `estimated_duration_min` |
 | Día de la semana | `dayOfWeek` / `day_of_week` |

@@ -930,16 +930,17 @@ Aprobó los textos y el retiro de las cifras fijas.
       pantallas; con «quitar animaciones» aparece quieta
 - [x] La pantalla pinta su propio fondo, así que la vista previa oscura se ve como
       en el teléfono
-- [ ] La integración continua pasa: análisis estático, `./gradlew test` y
-      `assembleDebug`
+- [x] La integración continua pasó el 2026-10-15 (ejecución 59, sobre `master`):
+      análisis estático, `./gradlew test` y `assembleDebug`
 - [ ] Las previsualizaciones de la bienvenida —claro, oscuro y al 200 %— se
       abrieron y se ven correctas
 - [ ] Recorrido en emulador: del arranque a la bienvenida la marca no salta, y el
       ingreso con Google sigue llevando a la pantalla que corresponde
 
-**Por qué los tres últimos siguen abiertos.** La sesión del 2026-10-14 sigue sin
-poder compilar: la política de red del entorno rechaza `dl.google.com`. El
-recorrido es obligatorio porque la bienvenida es el primer ingreso de HU-01, que
+**Por qué los dos últimos siguen abiertos.** La sesión del 2026-10-14 sigue sin
+poder compilar: la política de red del entorno rechaza `dl.google.com`, así que
+la primera compilación fue la de la integración continua, que no abre una
+previsualización. El recorrido es obligatorio porque la bienvenida es el primer ingreso de HU-01, que
 figura como crítica en «Cuándo hace falta un dispositivo».
 
 **Pruebas.**
@@ -959,6 +960,81 @@ figura como crítica en «Cuándo hace falta un dispositivo».
 | Recursos | `res/drawable/{ic_verified_user, ic_group}.xml` (nuevos) · `res/values/strings.xml` · `res/values-es/strings.xml` (claves nuevas de la bienvenida; se retiran las de las insignias, los puntos anteriores y el pie legal) |
 | Pruebas | `test/.../auth/presentation/{StartupBrandGeometryTest, WelcomeScreenLargeFontTest}.kt` (nuevos) · `test/.../ui/ScreenCatalog.kt` (las vistas previas con «Dark» en el nombre se dibujan con los recursos nocturnos, que es donde viven los colores oscuros de la marca) |
 | Documentos | `docs/decisions.md` · `docs/design-system.md` (secciones 5 y 9) · `.claude/rules/glosario.md` · `plan.md` (esta sección) |
+
+### HT-21 · La búsqueda y la ficha del profesional `[~]` — 2026-10-15
+
+> Como **paciente que busca atención**, quiero **comparar a los profesionales
+> cercanos de un vistazo y leer su ficha sin esfuerzo**, para **elegir a quién
+> llamar**.
+
+**Origen.** Pedido del autor como Product Owner el 2026-10-15, después de HT-20.
+Rehace las pantallas de HU-11 y HU-12 sin cambiar su comportamiento: la búsqueda,
+sus criterios y lo que la ficha publica son los mismos. El razonamiento está en
+`docs/decisions.md`, 2026-10-15.
+
+**Diseño aplicado.** Se presentaron dos propuestas por pantalla y una corrección
+común al tema. El autor pidió aplicar las mejoras directamente sobre `master`, y se
+aplicaron las recomendadas: la **A** de la búsqueda y la **A** de la ficha. La B de
+cada una queda disponible si el autor la prefiere.
+
+- [x] El tema define todo rol que leen los componentes, en claro y en oscuro: ningún
+      lila de la paleta de base de Material 3
+- [x] Todo monto se muestra con el símbolo «Bs» y sin decimales cuando es entero,
+      sea cual sea el idioma del teléfono; un monto con centavos los conserva
+- [x] La tarjeta de profesional se toca entera, con avatar de iniciales a la
+      izquierda, chevrón a la derecha y la disponibilidad dentro de la tarjeta
+- [x] La ficha de radio seleccionada lleva la marca de comprobación, la de
+      disponibilidad el punto verde, y el filtro de tipo plegado se dibuja como un
+      campo
+- [x] La ficha se titula «Perfil del profesional» y abre con una cabecera: avatar,
+      nombre, profesión y especialidad, distintivo de verificado y tres cifras
+- [x] Sin calificaciones, la ficha no muestra un cero: muestra que todavía no las
+      tiene
+- [x] Disponibilidad y tarifa base van en píldoras; la biografía lleva título; cada
+      servicio es una tarjeta con su precio y su duración en horas o minutos
+- [x] Con la fuente al 150 % o más, las cifras y el precio de cada servicio se
+      apilan
+- [ ] La integración continua pasa: análisis estático, `./gradlew test` y
+      `assembleDebug`
+- [ ] Las previsualizaciones de las dos pantallas —claro, oscuro y al 200 %— se
+      abrieron y se ven correctas
+
+**Por qué los dos últimos siguen abiertos.** La sesión del 2026-10-15 sigue sin
+poder compilar: la política de red del entorno rechaza `dl.google.com`. Ninguna de
+las dos pantallas figura como crítica en «Cuándo hace falta un dispositivo», así
+que no exigen recorrido; las previsualizaciones sí, porque el recorte dentro de
+una píldora o de una columna de cifras no lo ve ninguna prueba.
+
+**Pruebas.**
+
+| Prueba | Qué error atrapa |
+|---|---|
+| `MoneyFormatTest.theSymbolIsTheBolivianOneWhateverTheDeviceLocale` | Un teléfono en inglés o en español de otro país vuelve a mostrar «BOB» |
+| `MoneyFormatTest.aWholeAmountShowsNoDecimals` | Los «,00» vuelven a cada tarifa |
+| `MoneyFormatTest.anAmountWithCentsKeepsBothDecimals` | Quitar los decimales a todo monto, y mostrar otro precio |
+| `PublicProfileScreenLargeFontTest.aProfessionalNobodyHasRatedShowsNoScoreInsteadOfAZero` | La cifra de la ficha dibuja el distintivo con el promedio cero de quien no tiene calificaciones |
+
+Dos pruebas existentes se ajustaron a la forma nueva, sin cambiar lo que afirman:
+
+- `ProfessionalSearchScreenLargeFontTest.theDistanceOfAnUnratedProfessionalIsNotSqueezedOutOfItsRow`
+  busca los textos en el árbol sin fusionar. La tarjeta entera es ahora un botón, y
+  en el árbol fusionado un texto responde con los límites de su tarjeta.
+- `PublicProfileScreenLargeFontTest.theNameAndTheRateFitTheScreen` mueve la lista
+  hasta las píldoras antes de buscar la tarifa. La cabecera creció, y al 200 % la
+  fila de la tarifa puede quedar por debajo del pliegue, donde la lista perezosa no
+  la compone.
+
+**Archivos.**
+
+| Capa | Archivos |
+|---|---|
+| Tema | `ui/theme/{SaludEnCasaTheme, Color, Spacing}.kt` (modificados) |
+| Utilidades | `core/util/MoneyFormat.kt` (modificado) |
+| Componentes | `ui/components/{ProfessionalCard, ProfileAvatar}.kt` (modificados) · `ui/components/AvailabilityPill.kt` (nuevo) |
+| Interfaz | `features/search/presentation/ProfessionalSearchScreen.kt` · `features/profile/presentation/PublicProfileScreen.kt` (modificados) |
+| Recursos | `res/values/strings.xml` · `res/values-es/strings.xml` (claves nuevas de la ficha; se retiran tres pluralizaciones que ya no se usan) |
+| Pruebas | `test/.../core/util/MoneyFormatTest.kt` (nuevo) · `test/.../search/presentation/ProfessionalSearchScreenLargeFontTest.kt` · `test/.../profile/presentation/PublicProfileScreenLargeFontTest.kt` (modificados) |
+| Documentos | `docs/decisions.md` · `docs/design-system.md` (secciones 1, 4 y 5) · `.claude/rules/glosario.md` · `plan.md` (esta sección) |
 
 ### Rediseño de las dos pantallas de revisión, 2026-10-08
 
