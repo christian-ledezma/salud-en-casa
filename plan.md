@@ -994,16 +994,22 @@ cada una queda disponible si el autor la prefiere.
       servicio es una tarjeta con su precio y su duración en horas o minutos
 - [x] Con la fuente al 150 % o más, las cifras y el precio de cada servicio se
       apilan
-- [ ] La integración continua pasa: análisis estático, `./gradlew test` y
-      `assembleDebug`
+- [x] La integración continua pasó el 2026-10-15 (ejecución 62): análisis
+      estático, `./gradlew test` y `assembleDebug`
 - [ ] Las previsualizaciones de las dos pantallas —claro, oscuro y al 200 %— se
       abrieron y se ven correctas
 
-**Por qué los dos últimos siguen abiertos.** La sesión del 2026-10-15 sigue sin
-poder compilar: la política de red del entorno rechaza `dl.google.com`. Ninguna de
-las dos pantallas figura como crítica en «Cuándo hace falta un dispositivo», así
-que no exigen recorrido; las previsualizaciones sí, porque el recorte dentro de
-una píldora o de una columna de cifras no lo ve ninguna prueba.
+**La primera ejecución, la 61, falló en ktlint.** Una cadena de cuatro llamadas en
+una sola línea, `Locale.Builder()...build()`, en `MoneyFormat.kt` y en su prueba. El
+código ya compilaba. Se reemplazó por `Locale.forLanguageTag("es-BO")`, como en el
+resto del proyecto.
+
+**Por qué el último sigue abierto.** La sesión del 2026-10-15 sigue sin poder
+compilar: la política de red del entorno rechaza `dl.google.com`, y la integración
+continua no abre una previsualización. Ninguna de las dos pantallas figura como
+crítica en «Cuándo hace falta un dispositivo», así que no exigen recorrido; las
+previsualizaciones sí, porque el recorte dentro de una píldora o de una columna de
+cifras no lo ve ninguna prueba.
 
 **Pruebas.**
 
