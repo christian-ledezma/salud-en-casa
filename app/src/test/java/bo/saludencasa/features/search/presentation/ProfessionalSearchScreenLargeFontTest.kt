@@ -286,8 +286,10 @@ class ProfessionalSearchScreenLargeFontTest {
         }
         scrollTo(6)
 
-        val withBadge = composeRule.onNodeWithText(string(R.string.search_distance_near))
-        val withLabel = composeRule.onNodeWithText(string(R.string.search_distance_m, 900))
+        // The unmerged tree: the whole card is one button, so in the merged one
+        // a text answers with the bounds of its card and not its own.
+        val withBadge = composeRule.onNodeWithText(string(R.string.search_distance_near), useUnmergedTree = true)
+        val withLabel = composeRule.onNodeWithText(string(R.string.search_distance_m, 900), useUnmergedTree = true)
         composeRule.assertFitsTheScreen(withLabel)
 
         val rated = withBadge.getUnclippedBoundsInRoot()

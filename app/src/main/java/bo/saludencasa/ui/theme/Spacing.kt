@@ -13,6 +13,9 @@ object Spacing {
     val sectionGap: Dp = 24.dp
     val minTouchTarget: Dp = 48.dp
 
+    // The outline of a control that reads as a form field.
+    val borderWidth: Dp = 1.dp
+
     // docs/design-system.md, section 5: the map of the address screen. Tall
     // enough to tell one block from the next and short enough to leave the
     // written address on screen beside it.

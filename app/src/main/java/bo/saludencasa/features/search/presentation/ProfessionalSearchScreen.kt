@@ -2,6 +2,7 @@ package bo.saludencasa.features.search.presentation
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,12 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -37,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -57,7 +61,6 @@ import bo.saludencasa.features.search.domain.model.SearchError
 import bo.saludencasa.features.search.domain.model.SearchOrigin
 import bo.saludencasa.features.search.domain.model.SearchRadius
 import bo.saludencasa.ui.animations.RadarPulse
-import bo.saludencasa.ui.components.AvailabilityDot
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ProfessionalCard
 import bo.saludencasa.ui.components.RadioOptionGroup
@@ -253,6 +256,7 @@ private fun OriginBadge(
     Row(
         modifier =
             Modifier
+                .fillMaxWidth()
                 .clip(ExtraShapes.featuredCard)
                 .background(MaterialTheme.colorScheme.primaryContainer)
                 .padding(horizontal = Spacing.scale12, vertical = Spacing.scale8),
@@ -297,16 +301,38 @@ private fun SearchCriteriaPanel(
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         ) {
             SearchRadius.entries.forEach { radius ->
+                val selected = uiState.criteria.radius == radius
                 FilterChip(
-                    selected = uiState.criteria.radius == radius,
+                    selected = selected,
                     onClick = { actions.onRadiusChange(radius) },
                     label = { Text(text = stringResource(R.string.search_radius_option, radius.km)) },
+                    leadingIcon =
+                        if (selected) {
+                            {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                )
+                            }
+                        } else {
+                            null
+                        },
                 )
             }
             FilterChip(
                 selected = uiState.criteria.availableNowOnly,
                 onClick = { actions.onAvailabilityChange(!uiState.criteria.availableNowOnly) },
                 label = { Text(text = stringResource(R.string.search_available_now_filter)) },
+                leadingIcon = {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(Spacing.scale8)
+                                .clip(CircleShape)
+                                .background(SaludEnCasaTheme.statusColors.availableNow),
+                    )
+                },
             )
         }
     }
@@ -330,8 +356,10 @@ private fun ServiceTypeFilter(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = Spacing.minTouchTarget)
+                    .clip(MaterialTheme.shapes.small)
+                    .border(Spacing.borderWidth, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
                     .clickable(onClick = actions.onTypeFilterToggle)
-                    .padding(vertical = Spacing.scale4),
+                    .padding(horizontal = Spacing.scale12, vertical = Spacing.scale4),
             horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -423,48 +451,43 @@ private fun ResultCard(
             ?: professional.professionalType?.let { stringResource(it.labelRes()) }
             ?: ""
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Spacing.scale4)) {
-        ProfessionalCard(
-            name = professional.fullName,
-            specialty = supporting,
-            // The badge only when votes hold it up: an average of zero and no
-            // average at all are the same number (docs/decisions.md, 2026-10-09).
-            rating = professional.averageRating.takeIf { professional.totalReviews > 0 },
-            noRatingLabel = stringResource(R.string.search_no_rating_yet),
-            distanceText = distanceText(professional.distanceM),
-            rateText = stringResource(R.string.public_profile_base_rate, formatBob(professional.baseRateBob, locale)),
-            photoUrl = professional.photoUrl,
-            actionIcon = Icons.AutoMirrored.Filled.ArrowForward,
-            actionContentDescription =
-                stringResource(R.string.cd_open_professional_profile, professional.fullName),
-            onActionClick = onClick,
-        )
-
-        if (professional.availableNow) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AvailabilityDot()
-                Text(
-                    text = stringResource(R.string.search_available_now_badge),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = SaludEnCasaTheme.statusColors.availableNow,
-                )
-            }
-        }
-    }
+    ProfessionalCard(
+        name = professional.fullName,
+        specialty = supporting,
+        // The badge only when votes hold it up: an average of zero and no
+        // average at all are the same number (docs/decisions.md, 2026-10-09).
+        rating = professional.averageRating.takeIf { professional.totalReviews > 0 },
+        noRatingLabel = stringResource(R.string.search_no_rating_yet),
+        distanceText = distanceText(professional.distanceM),
+        rateText = stringResource(R.string.public_profile_base_rate, formatBob(professional.baseRateBob, locale)),
+        availableNowText = stringResource(R.string.search_available_now_badge).takeIf { professional.availableNow },
+        photoUrl = professional.photoUrl,
+        openContentDescription = stringResource(R.string.cd_open_professional_profile, professional.fullName),
+        onClick = onClick,
+        modifier = modifier,
+    )
 }
 
 // RF-06.5 made visible without a badge per professional: nothing that is not
 // approved and active can reach this list, so the count is the place to say it.
 @Composable
 private fun ResultCountLine(count: Int) {
-    Text(
-        text = pluralStringResource(R.plurals.search_results_count, count, count),
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurface,
-    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_verified_user),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(Spacing.scale20),
+        )
+        Text(
+            text = pluralStringResource(R.plurals.search_results_count, count, count),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
 }
 
 @Composable
