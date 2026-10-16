@@ -121,7 +121,10 @@ Solo lo que un emulador **no puede representar con fidelidad**:
 
 - Cámara real y compresión de la imagen capturada (HU-07).
 - Ubicación por GPS en exteriores y su precisión (HU-05, HU-11).
-- Entrega efectiva de notificaciones push (HU-20).
+- Entrega efectiva de notificaciones push (HU-20). Solo HU-20: las historias
+  que después agregan un evento al mismo canal —HU-17, HU-18, HU-19, HU-21, HU-23,
+  HU-24, HU-25, HU-26, HU-28 y HU-37— verifican destinatarios y contenido con
+  experimentos SQL y pruebas, y no repiten la demostración en el teléfono.
 - La validación con usuarios reales del Sprint 10, que por definición ocurre ahí.
 
 Nada más entra aquí. Si la duda es «¿se ve bien?», no es criticidad alta.
@@ -193,8 +196,8 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[x]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
-| 6 | Negociación de tarifas | 3 · Coordinación | 26 | `[ ]` |
-| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 23 | `[ ]` |
+| 6 | Avisos y negociación de tarifas | 3 · Coordinación | 29 | `[ ]` |
+| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 26 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` |
@@ -5700,14 +5703,113 @@ De los seis cambios que pedía la retrospectiva del Sprint 4:
 
 ---
 
-# Sprint 6 — Negociación de tarifas
+# Sprint 6 — Avisos y negociación de tarifas
 
-**Objetivo del sprint.** Las partes acuerdan el precio mediante ofertas y
-contraofertas, y el acuerdo genera el servicio.
+**Objetivo del sprint.** Las partes se enteran de lo que les toca sin tener la
+aplicación abierta, acuerdan el precio mediante ofertas y contraofertas, y el
+acuerdo genera el servicio.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 26.
+**Puntos:** 29. Eran 26 al cerrar el Sprint 5; el 2026-10-15 se replanificaron las
+notificaciones push, HU-20 pasó de 5 a 8 puntos y el sprint cambió de nombre. Ver
+`docs/decisions.md`, 2026-10-15, «Notificaciones push».
+
+**Orden de ejecución: HU-20, HU-17, HU-18, HU-19.** HU-20 va primero, aunque su
+número sea mayor, porque construye el canal por el que HU-17, HU-18 y HU-19 avisan
+a la contraparte; cada una de ellas tiene un criterio de notificación que sin ese
+canal no se puede cumplir. Lo que HU-16 le dejó a HU-17 sigue siendo lo primero de
+HU-17.
+
+**Los criterios de notificación agregados a historias ya estimadas no cambian sus
+puntos.** Cada uno conecta un evento más al canal de HU-20 y no construye nada
+propio. Si la medición del sprint dice otra cosa, la retrospectiva lo corrige.
+
+### HU-20 · Recibir avisos de solicitudes `[ ]` — 8 puntos
+
+> Como **profesional**, quiero **recibir una notificación cuando se publique una
+> solicitud cerca de mí o cuando un paciente me agende una cita**, para **no perder
+> oportunidades por no estar mirando la aplicación**. Y como **paciente**, quiero
+> **saber cuándo mi solicitud venció sin acuerdo**, para **volver a pedir atención
+> sin quedarme esperando**.
+
+**Criterios de aceptación**
+
+*Solicitudes, para el profesional:*
+
+- [ ] Dado que se publica una solicitud inmediata dentro de mi radio y de un tipo
+      que presto, cuando ocurre, entonces recibo una notificación con el tipo de
+      servicio y la distancia.
+- [ ] Dado que un paciente me agenda una cita, cuando se crea, entonces recibo una
+      notificación con el tipo de servicio y la fecha y hora de la cita.
+- [ ] Dado que el paciente cancela la cita que me había agendado, cuando la
+      cancela, entonces recibo una notificación.
+- [ ] Dado que toco la notificación, cuando se abre la aplicación, entonces voy
+      directo a esa solicitud en mi bandeja.
+- [ ] Dado que no estoy verificado o no estoy disponible, cuando se publica una
+      solicitud inmediata, entonces no me llega notificación.
+- [ ] Dado que tengo ambos roles y publico una solicitud como paciente, cuando se
+      publica, entonces no me llega a mí como profesional (INV-16).
+
+*Solicitudes, para el paciente:*
+
+- [ ] Dado que mi solicitud vence sin acuerdo, inmediata o agendada, cuando el
+      barrido la marca vencida, entonces recibo una notificación que me lleva a
+      «Mis solicitudes».
+
+*El canal, para los dos:*
+
+- [ ] Dado que tengo ambos roles y el activo es paciente, cuando llega un aviso de
+      profesional y lo toco, entonces la aplicación activa el rol profesional y abre
+      la solicitud.
+- [ ] Ninguna notificación muestra la descripción de la solicitud, la dirección ni
+      la identidad del paciente: solo el tipo de evento y lo necesario para abrirlo.
+- [ ] Dado que cambio de dispositivo, cuando ingreso, entonces las notificaciones
+      llegan al nuevo.
+- [ ] Dado que cierro sesión, cuando ocurre un evento mío, entonces no llega a ese
+      dispositivo.
+- [ ] Dado que otra persona ingresa con su cuenta en el mismo teléfono, cuando
+      ocurre un evento mío, entonces no le llega a ella.
+- [ ] Dado que es la primera vez que la aplicación necesita el permiso de
+      notificaciones, cuando lo pide, entonces antes explica para qué sirve; y si lo
+      niego, la bandeja y «Mis solicitudes» siguen funcionando.
+
+**Requisitos:** RF-09.4, RF-09.8, RF-09.10, RF-09.11, RF-09.12, RF-09.13, RN-01,
+RN-13, INV-07, INV-08, INV-16.
+
+**Tareas técnicas.**
+
+- Dependencia de Cloud Messaging en el catálogo de versiones. Firebase ya está
+  configurado desde HT-02, con Cloud Messaging habilitado y `google-services.json`
+  presente; hoy el cliente solo usa Crashlytics.
+- Registro y renovación del identificador de dispositivo, y su retiro al cerrar
+  sesión. **El registro va por una función de definidor**: `device_tokens.token` es
+  único y la política solo deja ver las filas propias, de modo que, en un teléfono
+  compartido, la segunda cuenta choca contra la fila invisible de la primera. La
+  función reasigna el identificador a quien acaba de ingresar.
+- **Los destinatarios los decide el motor, con la misma regla que `request_inbox`**
+  —verificado, activo, en radio, con el tipo declarado y nunca sobre su propia
+  solicitud—, más `available_now` para las inmediatas. La de una cita va solo a su
+  destinatario. La función de servidor no calcula distancias ni filtra (INV-08):
+  recibe la lista ya decidida. Una sola copia de la regla, como en HU-16.
+- **La primera función de servidor del proyecto.** Envía por la API HTTP v1 de
+  Cloud Messaging. La cuenta de servicio de Firebase vive en los secretos de
+  Supabase, igual que la clave de servicio (INV-14): nunca en el cliente, el
+  repositorio ni un registro. El mecanismo de disparo desde el motor se decide al
+  planificar la historia y se registra en `docs/decisions.md`.
+- **Mensajes de datos, no de notificación**: el servidor envía el tipo de evento y
+  los identificadores, y el dispositivo compone el texto desde los recursos de
+  cadenas, en el idioma del teléfono (RF-09.10, `.claude/rules/i18n.md`).
+- Canales de notificación de Android por categoría —solicitudes, negociación,
+  mensajes, atención y pago, verificación—, con sus nombres en recursos de cadenas,
+  para que la persona silencie cada uno desde el sistema. Las notificaciones de una
+  misma solicitud se agrupan.
+- Apertura del evento al tocar la notificación, con cambio de rol activo si hace
+  falta (RF-09.11), por las rutas tipadas de `navigation/`.
+
+> **Esta historia es de criticidad alta**: la entrega efectiva se demuestra en un
+> dispositivo físico, con la aplicación cerrada. Ver «Cuándo hace falta un
+> dispositivo».
 
 ### HU-17 · Ofertar por una solicitud `[ ]` — 5 puntos
 
@@ -5724,8 +5826,11 @@ contraofertas, y el acuerdo genera el servicio.
       rechaza.
 - [ ] Dado que no estoy verificado, cuando intento ofertar, entonces se rechaza.
 - [ ] Dado que emití una oferta, cuando intento editarla, entonces no es posible.
+- [ ] Dado que emito una oferta, cuando el paciente no tiene la aplicación abierta,
+      entonces le llega una notificación con el tipo de servicio y el monto, que lo
+      lleva a la negociación.
 
-**Requisitos:** RF-08.1, RN-01, RN-04, RN-05, INV-06.
+**Requisitos:** RF-08.1, RF-09.5, RF-09.10, RN-01, RN-04, RN-05, INV-06.
 
 **Heredado de HU-16 (`docs/decisions.md`, 2026-10-15). No se cierra sin esto:**
 
@@ -5756,8 +5861,11 @@ contraofertas, y el acuerdo genera el servicio.
       la respuesta sin recargar.
 - [ ] Dado que rechazo una oferta, cuando confirmo, entonces la solicitud sigue
       publicada para otros profesionales.
+- [ ] Dado que la contraparte responde con una contraoferta, cuando no tengo la
+      aplicación abierta, entonces me llega una notificación con el monto nuevo,
+      sea yo el paciente o el profesional.
 
-**Requisitos:** RF-08.2, RF-08.3, RF-08.4.
+**Requisitos:** RF-08.2, RF-08.3, RF-08.4, RF-09.5, RF-09.10.
 
 **Tareas técnicas.** Suscripción en tiempo real de la tabla de ofertas expuesta
 como flujo · reconstrucción del hilo mediante la referencia al padre.
@@ -5779,39 +5887,24 @@ como flujo · reconstrucción del hilo mediante la referencia al padre.
       congelado coincide con el aceptado.
 - [ ] Dado que la tarifa base del profesional cambia después, cuando consulto el
       servicio, entonces el monto no cambia.
+- [ ] Dado que la contraparte acepta mi oferta, cuando se cierra el acuerdo,
+      entonces me llega una notificación que me lleva a la atención.
+- [ ] Dado que la aceptación falla a la mitad, cuando la transacción se revierte,
+      entonces no sale ninguna notificación: el aviso se emite solo si la
+      transacción se confirma.
 
-**Requisitos:** RF-08.5, RF-08.6, RN-06, RN-07, INV-04.
+**Requisitos:** RF-08.5, RF-08.6, RF-09.5, RF-09.10, RN-06, RN-07, INV-04.
 
 **Tareas técnicas.** Función de servidor que ejecute la aceptación en una sola
 transacción · prueba de atomicidad.
 
-### HU-20 · Recibir aviso de una solicitud cercana `[ ]` — 5 puntos
-
-> Como **profesional**, quiero **recibir una notificación cuando se publique una
-> solicitud cerca de mí**, para **no perder oportunidades por no estar mirando la
-> aplicación**.
-
-**Criterios de aceptación**
-
-- [ ] Dado que se publica una solicitud dentro de mi radio y de un tipo que presto,
-      cuando ocurre, entonces recibo una notificación con la distancia.
-- [ ] Dado que toco la notificación, cuando se abre la aplicación, entonces voy
-      directo a esa solicitud.
-- [ ] Dado que no estoy verificado o no estoy disponible, cuando se publica una
-      solicitud, entonces no me llega notificación.
-- [ ] Dado que cambio de dispositivo, cuando ingreso, entonces las notificaciones
-      llegan al nuevo.
-
-**Requisitos:** RF-09.4, RF-09.5.
-
-**Tareas técnicas.** Registro y renovación de identificadores de dispositivo ·
-función de servidor que localice destinatarios y envíe la notificación.
-
 ## Incremento del sprint
 
-Una solicitud publicada dispara una notificación a los profesionales cercanos;
-uno oferta, el paciente contraoferta, el profesional acepta y el servicio queda
-creado con su pago pendiente. **El mecanismo distintivo del producto está completo.**
+Una solicitud publicada dispara una notificación a los profesionales cercanos, y
+una cita agendada, a su destinatario; uno oferta y al paciente le llega el aviso,
+el paciente contraoferta y al profesional le llega el suyo, el profesional acepta
+y el servicio queda creado con su pago pendiente. Nadie tuvo que estar mirando la
+aplicación. **El mecanismo distintivo del producto está completo.**
 
 ## Retrospectiva
 
@@ -5826,7 +5919,9 @@ realizado y la atención se completa.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 23.
+**Puntos:** 26. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
+como FA-11. Va al final del sprint: es la de menor prioridad y la primera que se
+traslada si el corte muerde.
 
 ### HU-21 · Conversar sobre la atención `[ ]` — 10 puntos
 
@@ -5841,12 +5936,20 @@ realizado y la atención se completa.
       entonces lo veo aparecer sin recargar.
 - [ ] Dado que leo un mensaje, cuando la contraparte consulta, entonces ve que fue leído.
 - [ ] Dado que no estoy en la aplicación, cuando recibo un mensaje, entonces me
-      llega una notificación.
+      llega una notificación con el nombre de quien escribe y **sin el contenido
+      del mensaje**, que me lleva a la conversación.
+- [ ] Dado que tengo la conversación abierta, cuando llega un mensaje, entonces no
+      me llega además la notificación.
 - [ ] Dado que soy administrador, cuando intento leer una conversación, entonces
       el acceso se deniega.
 - [ ] La conversación se carga paginada, del mensaje más reciente hacia atrás.
 
-**Requisitos:** RF-09.1, RF-09.2, RF-09.5, RN-11, INV-12, RNF-08.
+**Requisitos:** RF-09.1, RF-09.2, RF-09.6, RF-09.10, RN-11, INV-12, RNF-08.
+
+> **Por qué la notificación no lleva el mensaje.** La conversación guarda el
+> detalle de la atención (RF-09.3), que es información de salud. Un aviso pasa por
+> los servidores de Google y se lee en la pantalla bloqueada de un teléfono que
+> puede ser compartido. Ver `docs/decisions.md`, 2026-10-15, «Notificaciones push».
 
 ### HU-22 · Registrar lo realizado en la atención `[ ]` — 3 puntos
 
@@ -5884,8 +5987,13 @@ realizado y la atención se completa.
       entonces se rechaza.
 - [ ] Dado que la atención se completó, cuando consulto sus tiempos, entonces
       figuran el inicio y el fin.
+- [ ] Dado que el profesional marca su llegada, cuando ocurre, entonces al
+      paciente le llega una notificación.
+- [ ] Dado que el profesional marca la atención completada, cuando ocurre,
+      entonces al paciente le llega una notificación que lo lleva a confirmar el
+      pago.
 
-**Requisitos:** RF-10.1, RF-10.2, RF-10.4.
+**Requisitos:** RF-10.1, RF-10.2, RF-10.4, RF-09.6, RF-09.10.
 
 **Tareas técnicas.** Máquina de estados modelada como jerarquía sellada · prueba
 de las transiciones válidas e inválidas.
@@ -5902,13 +6010,43 @@ de las transiciones válidas e inválidas.
 - [ ] Dado que cancelo, cuando la contraparte consulta, entonces ve el estado y el motivo.
 - [ ] Dado que cancelo, cuando consulto el pago asociado, entonces no queda pendiente.
 - [ ] Dado que la atención ya se completó, cuando intento cancelar, entonces se rechaza.
+- [ ] Dado que la contraparte cancela, cuando ocurre, entonces me llega una
+      notificación **sin el motivo**, que me lleva a la atención, donde sí lo veo.
 
-**Requisitos:** RF-10.3, INV-05.
+**Requisitos:** RF-10.3, RF-09.6, RF-09.10, INV-05.
+
+### HU-37 · Enterarme del veredicto de mi verificación `[ ]` — 3 puntos
+
+> Como **paciente o profesional que subió sus documentos**, quiero **saber cuándo
+> el administrador los revisó**, para **corregir un rechazo a tiempo o empezar a
+> recibir solicitudes en cuanto me verifiquen**.
+
+**Criterios de aceptación**
+
+- [ ] Dado que el administrador aprueba o rechaza uno de mis documentos, cuando
+      registra el veredicto, entonces me llega una notificación que me lleva a mi
+      pantalla de verificación.
+- [ ] Dado que el documento fue rechazado, cuando llega la notificación, entonces
+      **no muestra el motivo**: lo veo al abrir la pantalla, como hasta ahora.
+- [ ] Dado que el administrador da un veredicto conjunto sobre varios documentos,
+      cuando lo registra, entonces me llega una sola notificación, no una por
+      documento.
+- [ ] Dado que soy profesional, cuando el administrador me verifica, entonces me
+      llega una notificación de que ya aparezco en las búsquedas.
+
+**Requisitos:** RF-09.9, RF-09.10, RF-04.5.
+
+**Antes:** FA-11, fuera de alcance desde el Sprint 3. Se incorporó el 2026-10-15 al
+replanificar las notificaciones: el veredicto es la espera más larga de toda la
+aplicación, la decide un tercero y hoy solo se descubre volviendo a abrir la
+pantalla. Reutiliza el canal de HU-20 y no exige dispositivo.
 
 ## Incremento del sprint
 
 Las partes conversan, el profesional registra lo realizado, marca llegada y
-finalización, y la atención queda lista para el pago.
+finalización, y la atención queda lista para el pago. Cada paso le llega a la
+contraparte como notificación, y el veredicto de cada documento le llega a quien
+lo subió.
 
 ## Retrospectiva
 
@@ -5938,8 +6076,10 @@ ambas partes y la comisión queda controlada.
 - [ ] Dado que confirmé, cuando el profesional aún no confirma, entonces el pago
       figura pendiente de la otra parte.
 - [ ] Dado que la atención no se completó, cuando intento confirmar, entonces se rechaza.
+- [ ] Dado que confirmo el pago, cuando se registra, entonces al profesional le
+      llega una notificación que lo lleva a confirmar el cobro.
 
-**Requisitos:** RF-11.2, RF-11.4, INV-09.
+**Requisitos:** RF-11.2, RF-11.4, RF-09.7, RF-09.10, INV-09.
 
 ### HU-26 · Confirmar que cobré `[ ]` — 8 puntos
 
@@ -5956,8 +6096,10 @@ ambas partes y la comisión queda controlada.
       total siempre iguala la suma de comisión más monto del profesional.
 - [ ] Dado que el paciente declara haber pagado y yo declaro no haber recibido,
       cuando ambos registramos, entonces el pago queda en disputa.
+- [ ] Dado que el pago queda en disputa, cuando ocurre, entonces al paciente le
+      llega una notificación de que el administrador lo revisará.
 
-**Requisitos:** RF-11.1, RF-11.3, RF-11.4, RF-11.5, RN-08, RN-09, INV-09, INV-10.
+**Requisitos:** RF-11.1, RF-11.3, RF-11.4, RF-11.5, RF-09.7, RF-09.10, RN-08, RN-09, INV-09, INV-10.
 
 **Tareas técnicas.** Cálculo de comisión como caso de uso con pruebas de valores
 límite · restricción de cuadre en el motor · estado de disputa.
@@ -5992,8 +6134,10 @@ límite · restricción de cuadre en el motor · estado de disputa.
       en cualquiera de los dos sentidos, dejando registro.
 - [ ] Dado que soy administrador, cuando abro la conciliación, entonces veo montos,
       estados y participantes, pero nunca el contenido de las conversaciones.
+- [ ] Dado que resuelvo una disputa, cuando registro la resolución, entonces al
+      paciente y al profesional les llega una notificación que los lleva al pago.
 
-**Requisitos:** RF-11.5, RF-11.7, RN-11, INV-12.
+**Requisitos:** RF-11.5, RF-11.7, RF-09.7, RF-09.10, RN-11, INV-12.
 
 ## Incremento del sprint
 

@@ -240,6 +240,29 @@ Roles múltiples, desde el Sprint 2.5:
 - `messageIsDeliveredToTheOtherPartyInRealTime`
 - `readReceiptIsVisibleToTheSender`
 
+### Notificaciones
+
+Desde el 2026-10-15 (`docs/decisions.md`, «Notificaciones push»). Los destinatarios
+los decide el motor, así que las de destinatarios son experimentos SQL, igual que
+las de política.
+
+- **Obligatoria:** `nearbyRequestIsNotifiedExactlyToThoseWhoSeeItInTheirInbox` —
+  verificado, activo, disponible, en radio y con el tipo declarado. El experimento
+  incluye a uno de cada lado de cada condición: comprobar que llega no basta, hay
+  que comprobar que discrimina
+- **Obligatoria:** `aDualRoleUserIsNeverNotifiedOfTheirOwnRequest`
+- **Obligatoria:** `notificationPayloadCarriesNoTextWrittenByAUser` — ni el
+  mensaje, ni la descripción, ni un motivo, ni la dirección
+- **Obligatoria:** `aDeviceTokenBelongsOnlyToTheLastAccountThatSignedInOnIt` — el
+  teléfono compartido: la segunda cuenta se queda el identificador y la primera
+  deja de recibir
+- `signingOutStopsNotificationsOnThatDevice`
+- `scheduledRequestIsNotifiedOnlyToItsAddressee`
+- `failedAcceptanceSendsNoNotification`
+- `tappingANotificationOfTheOtherRoleActivatesThatRoleBeforeOpeningIt`
+- `everyNotificationEventHasItsTextInAllLocales` — el texto lo compone el
+  dispositivo, de modo que un evento sin su cadena llega vacío
+
 ### Ciclo del servicio
 
 - **Obligatoria:** `serviceStateTransitionsRejectInvalidJumps`
