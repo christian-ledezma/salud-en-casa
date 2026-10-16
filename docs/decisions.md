@@ -5120,6 +5120,110 @@ solo el **ciclo del reloj**: la hora va de 0 a 24 siempre.
 
 ---
 
+## 2026-10-15 · Notificaciones push: a quién, con qué y cuándo
+
+**Contexto.** Al cerrar el Sprint 5 el autor preguntó si las notificaciones push
+para el profesional debían haber llegado con HU-13 y HU-16. No: el plan las tenía
+en HU-20, en el Sprint 6, y el Sprint 5 cumplió lo que pedía, que es el tiempo real
+**con la bandeja abierta**. Pero la revisión encontró dos huecos en el plan:
+
+- **La cita agendada no avisaba a nadie.** RF-09.4 hablaba solo de la solicitud
+  inmediata, y la lista de RF-09.5 no incluía la cita. El profesional se enteraba de
+  una cita dirigida a él únicamente abriendo la bandeja.
+- **HU-20 declaraba RF-09.5 sin ningún criterio que lo cubriera.** Al cerrarla, el
+  requisito habría quedado como cumplido sin estarlo, y tres de sus cuatro eventos
+  ni siquiera existen hasta el Sprint 7.
+
+El autor pidió además notificaciones push donde convenga, para el paciente y para
+el profesional.
+
+**Decisión.** Las notificaciones se reparten por evento, cada una en la historia
+donde nace ese evento, y HU-20 construye el canal y va primero en el Sprint 6.
+RF-09 pasa de cinco a trece requisitos. FA-11 entra en el alcance como HU-37.
+
+| Evento | Recibe | Historia |
+|---|---|---|
+| Solicitud inmediata en radio | Profesional | HU-20 |
+| Cita agendada | Profesional destinatario | HU-20 |
+| Cita cancelada por el paciente | Profesional destinatario | HU-20 |
+| Solicitud vencida sin acuerdo | Paciente | HU-20 |
+| Oferta recibida | Paciente | HU-17 |
+| Contraoferta recibida | La contraparte | HU-18 |
+| Oferta aceptada | La contraparte | HU-19 |
+| Mensaje nuevo | La contraparte | HU-21 |
+| Llegada y atención completada | Paciente | HU-23 |
+| Atención cancelada | La contraparte | HU-24 |
+| Paciente confirmó el pago | Profesional | HU-25 |
+| Pago en disputa | Paciente | HU-26 |
+| Disputa resuelta | Ambos | HU-28 |
+| Veredicto de un documento | Quien lo subió | HU-37 |
+| Profesional verificado | Profesional | HU-37 |
+
+**Razonamiento.**
+
+- **Por qué estos eventos y no otros.** Se notifica lo que exige que la persona
+  actúe o lo que cambia algo ya acordado con ella. Por eso entra la cancelación de
+  una cita (el profesional había reservado ese tiempo), y por eso no entran una
+  calificación recibida ni una oferta ajena aceptada sobre la misma solicitud: la
+  primera no pide nada y la segunda ya desaparece de la bandeja. El recordatorio
+  previo a una cita sí sería útil, pero exige decidir la anticipación y un trabajo
+  programado, así que queda como FA-14.
+- **Cada aviso, en la historia de su evento.** Un evento que no existe no se puede
+  notificar. Concentrar los quince en HU-20 la habría obligado a esperar al
+  Sprint 8, o a cerrarla con criterios imposibles de verificar, que es exactamente
+  lo que le pasaba a RF-09.5.
+- **Ningún texto escrito por un usuario en la notificación (RF-09.10).** La
+  conversación guarda el detalle de la atención (RF-09.3) y la descripción de una
+  solicitud suele decir qué le pasa al paciente. Un aviso pasa por los servidores
+  de Google y se lee en la pantalla bloqueada de un teléfono que en muchas casas es
+  compartido. INV-12 impide al administrador leer los mensajes, y sería
+  incoherente mostrárselos a quien tenga el teléfono en la mano. La misma regla
+  alcanza a los motivos de cancelación y de rechazo: también son texto libre.
+- **Mensajes de datos, no de notificación.** Si el servidor escribiera el texto,
+  tendría que elegir un idioma, y la regla de i18n exige que todo texto visible
+  salga de los recursos. El servidor envía el tipo de evento y los
+  identificadores, y el teléfono compone el texto en su idioma. De paso, eso hace
+  cumplir RF-09.10 por construcción: no hay campo de texto libre que llenar.
+- **Por rol que se tiene, no por rol activo (RF-09.11).** Es lo que dice INV-15:
+  nada decide por el rol activo. Y el propósito de HU-20 es no perder
+  oportunidades por no estar mirando, lo que incluye estar mirando como paciente.
+  Quien no quiere avisos de profesional apaga su disponibilidad inmediata, o el
+  canal en el sistema. Al tocar el aviso se activa el rol que corresponde, porque
+  la pantalla de destino solo existe en ese rol.
+- **Los destinatarios los decide el motor, con la regla de la bandeja.** Si la
+  función de servidor calculara a quién avisar, habría dos copias de la regla de
+  `request_inbox`, y la segunda podría avisar a quien no puede ver la solicitud, o
+  al propio paciente con doble rol (INV-16). Además, INV-08 prohíbe filtrar
+  distancias fuera del motor.
+- **El identificador de dispositivo se registra por función de definidor.**
+  `device_tokens.token` es único y la política solo deja ver las filas propias. En
+  un teléfono compartido, la segunda cuenta chocaría contra la fila invisible de la
+  primera y los avisos de la primera seguirían llegando a ese teléfono.
+- **Costo.** Cloud Messaging no cobra por mensaje, y el plan gratuito de funciones
+  de servidor de Supabase cubre con holgura el volumen de la validación del
+  Sprint 10. RNF-10 no cambia.
+
+**Consecuencia.**
+
+- `docs/requirements.md`: RF-09.4 y RF-09.5 reescritos, RF-09.6 a RF-09.13
+  nuevos; FA-11 incorporado; FA-14 y FA-15 nuevos.
+- `plan.md`: HU-20 pasa de 5 a 8 puntos, va primero en el Sprint 6 y el sprint
+  sube de 26 a 29 puntos. HU-37 (3 puntos) entra al final del Sprint 7, que sube de
+  23 a 26. HU-17, HU-18, HU-19, HU-21, HU-23, HU-24, HU-25, HU-26 y HU-28 ganan un
+  criterio cada una, sin cambiar sus puntos: conectan un evento al canal y no
+  construyen nada propio. La retrospectiva del Sprint 6 dirá si esa estimación
+  aguanta.
+- HU-20 es la primera función de servidor del proyecto. La cuenta de servicio de
+  Firebase recibe el mismo trato que la clave de servicio de Supabase (INV-14).
+- Solo HU-20 exige dispositivo físico. Las historias que después suman un evento
+  verifican destinatarios y contenido con experimentos y pruebas.
+- `.claude/rules/testing.md` gana la sección «Notificaciones», con cuatro pruebas
+  obligatorias.
+- El mecanismo concreto de disparo desde el motor hacia la función de servidor no
+  se decide aquí: se decide al planificar HU-20 y se registra en su propia entrada.
+
+---
+
 ---
 
 ## Plantilla para entradas nuevas

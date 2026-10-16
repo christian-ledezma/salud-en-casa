@@ -139,8 +139,16 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | RF-09.1 | Las partes intercambian mensajes en una conversación vinculada a la solicitud. |
 | RF-09.2 | Los mensajes se reciben en tiempo real y se marcan como leídos. |
 | RF-09.3 | El detalle de lo realizado durante la atención se registra en esta conversación. |
-| RF-09.4 | El sistema notifica a los profesionales cercanos cuando se publica una solicitud inmediata compatible con sus servicios. |
-| RF-09.5 | El sistema notifica los eventos relevantes: oferta recibida, oferta aceptada, mensaje nuevo, servicio finalizado. |
+| RF-09.4 | El sistema notifica a los profesionales cercanos cuando se publica una solicitud inmediata compatible con sus servicios, y al profesional destinatario cuando un paciente le agenda una cita. |
+| RF-09.5 | El sistema notifica a cada parte los eventos de la negociación que le tocan: oferta recibida, contraoferta recibida y oferta aceptada. |
+| RF-09.6 | El sistema notifica a cada parte los eventos de la atención que le tocan: mensaje nuevo, llegada del profesional, servicio finalizado y cancelación por la contraparte. |
+| RF-09.7 | El sistema notifica los eventos del pago: al profesional, que el paciente confirmó haber pagado; a ambas partes, que el pago quedó en disputa y cómo se resolvió. |
+| RF-09.8 | El sistema notifica al paciente que su solicitud venció sin acuerdo, y al profesional que el paciente canceló la cita que le había agendado. |
+| RF-09.9 | El sistema notifica a cada usuario el veredicto sobre cada documento de verificación y, al profesional, que su verificación fue aprobada. |
+| RF-09.10 | Una notificación transporta solo el tipo de evento y lo necesario para abrirlo, nunca texto escrito por un usuario: ni el contenido de un mensaje, ni la descripción de una solicitud, ni un motivo de cancelación o de rechazo, ni la dirección exacta. Su texto se compone en el dispositivo, en el idioma del usuario. |
+| RF-09.11 | Las notificaciones llegan por los roles que la persona tiene, no por el rol activo. Al tocar una de un rol distinto del activo, la aplicación activa ese rol y abre el evento. |
+| RF-09.12 | Las notificaciones llegan solo al dispositivo de la última cuenta que ingresó en él, dejan de llegar al cerrar sesión y llegan al dispositivo nuevo cuando la persona cambia de teléfono. |
+| RF-09.13 | El sistema solicita el permiso de notificaciones explicando antes para qué se usa, y funciona sin ellas si se deniega. |
 
 ### RF-10 · Ciclo de vida del servicio
 
@@ -275,6 +283,8 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-08 | Operación sin conexión y caché local | Ningún requisito la exige en esta fase. Se agregaría con una base de datos local y su historia propia. |
 | FA-09 | Renuncia a un rol ya activado | Ninguna parte interesada la pidió. `profile_roles` es de solo agregar, igual que `request_offers`. Quien ya no quiere ejercer como profesional apaga su disponibilidad inmediata (RF-02.5); dar de baja el rol exigiría decidir qué pasa con sus servicios y calificaciones históricos, que INV-05 prohíbe sobrescribir. Se incorporaría con una política de baja en `profile_roles` y su propia historia. |
 | FA-10 | Reputación y verificación por tipo de profesional | Hoy la verificación y la reputación son del rol profesional completo. Distinguir, por ejemplo, la reputación como fisioterapeuta de la reputación como enfermera exigiría asociarlas a `professional_services` y no al rol. |
-| FA-11 | Notificar al usuario el veredicto de un documento | Hoy lo ve al abrir su pantalla de verificación, que es lo que piden los criterios de HU-09. Se haría con `device_tokens` y una función de servidor que notifique. |
+| FA-11 | ~~Notificar al usuario el veredicto de un documento~~ | **Incorporado al alcance el 2026-10-15** como RF-09.9, en HU-37. El código se conserva para que las referencias anteriores sigan siendo legibles. |
 | FA-12 | Rechazar la postulación profesional completa | Hoy se rechaza documento por documento y `professionals.verification_status` solo llega a `APPROVED` por la función de promoción. Un estado `REJECTED` del perfil exigiría decidir qué ve esa persona y cómo vuelve a postular. |
 | FA-13 | Historial de veredictos de un documento reabierto | Al reabrirse, la fila se sobrescribe y el veredicto anterior no se conserva. Conservarlo exigiría una tabla de solo agregar vinculada al documento. |
+| FA-14 | Recordatorio previo a una cita agendada | Ningún requisito lo pide todavía. Exige decidir con cuánta anticipación se avisa y a quién. Se haría con un trabajo de `pg_cron` sobre los servicios agendados que emita un evento más por el canal de RF-09. |
+| FA-15 | Bandeja de notificaciones dentro de la aplicación y preferencias propias | Los canales de notificación de Android ya permiten silenciar cada categoría desde el sistema. Una bandeja con historial exigiría una tabla de solo agregar de eventos por destinatario. |
