@@ -21,11 +21,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class ResultsMode {
-    MAP,
-    LIST,
-}
-
 sealed interface SearchResultsState {
     data object Searching : SearchResultsState
 
@@ -48,15 +43,14 @@ sealed interface SearchResultsState {
     ) : SearchResultsState
 }
 
-// The criteria and the mode live beside the results and not inside each case,
-// the shape DocumentReviewQueueUiState established: the chips stay on screen
-// while the search runs, comes back empty or fails.
+// The criteria live beside the results and not inside each case, the shape
+// DocumentReviewQueueUiState established: the chips stay on screen while the
+// search runs, comes back empty or fails. docs/decisions.md, 2026-10-23, HT-23:
+// this is the list to schedule from; the map moved to «Atención ahora».
 data class ProfessionalSearchUiState(
     val criteria: SearchCriteria = SearchCriteria(),
-    val mode: ResultsMode = ResultsMode.MAP,
     val origin: SearchOrigin? = null,
     val serviceTypes: List<ServiceType> = emptyList(),
-    val selectedId: String? = null,
     // The twelve service types are a list that opens, not a row of chips: a
     // chip cannot show a name of thirty-four characters at a 200 % font scale
     // (docs/decisions.md, 2026-10-09). It lives in the state so the preview and
@@ -107,7 +101,6 @@ class ProfessionalSearchViewModel(
                         state.update {
                             it.copy(
                                 origin = null,
-                                selectedId = null,
                                 results =
                                     if (result.error == SearchError.NoPrimaryAddress) {
                                         SearchResultsState.NoPrimaryAddress
@@ -136,11 +129,6 @@ class ProfessionalSearchViewModel(
         updateCriteria { it.copy(serviceTypeId = serviceTypeId) }
     }
 
-    fun onAvailabilityChange(availableNowOnly: Boolean) {
-        if (state.value.criteria.availableNowOnly == availableNowOnly) return
-        updateCriteria { it.copy(availableNowOnly = availableNowOnly) }
-    }
-
     fun onClearFilters() {
         updateCriteria { SearchCriteria(radius = it.radius) }
     }
@@ -149,17 +137,6 @@ class ProfessionalSearchViewModel(
         val wider =
             SearchRadius.entries.firstOrNull { it.km > state.value.criteria.radius.km } ?: return
         onRadiusChange(wider)
-    }
-
-    // The one criterion that must not search again: both modes draw the same
-    // results, so reloading here would spend a request and blink the list for
-    // nothing.
-    fun onModeChange(mode: ResultsMode) {
-        state.update { it.copy(mode = mode) }
-    }
-
-    fun onProfessionalSelected(professionalId: String?) {
-        state.update { it.copy(selectedId = professionalId) }
     }
 
     fun onRetry() {
@@ -240,7 +217,7 @@ class ProfessionalSearchViewModel(
     private suspend fun runSearch(reset: Boolean) {
         val origin = state.value.origin ?: return
         if (reset) {
-            state.update { it.copy(selectedId = null, results = SearchResultsState.Searching) }
+            state.update { it.copy(results = SearchResultsState.Searching) }
         }
 
         val criteria = state.value.criteria

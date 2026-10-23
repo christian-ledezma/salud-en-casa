@@ -64,11 +64,12 @@ import java.time.ZoneOffset
 @Composable
 fun ScheduleAppointmentScreen(
     professionalId: String,
+    serviceTypeId: String?,
     onBack: () -> Unit,
     onCreated: () -> Unit,
     onRegisterAddress: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ScheduleAppointmentViewModel = koinViewModel { parametersOf(professionalId) },
+    viewModel: ScheduleAppointmentViewModel = koinViewModel { parametersOf(professionalId, serviceTypeId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

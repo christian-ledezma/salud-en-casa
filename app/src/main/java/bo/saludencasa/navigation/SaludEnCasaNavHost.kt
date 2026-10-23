@@ -22,7 +22,7 @@ import bo.saludencasa.features.notifications.presentation.OpenNotificationViewMo
 import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
-import bo.saludencasa.features.requests.presentation.CreateRequestScreen
+import bo.saludencasa.features.requests.presentation.ImmediateCareScreen
 import bo.saludencasa.features.requests.presentation.InboxScreen
 import bo.saludencasa.features.requests.presentation.MyRequestsScreen
 import bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreen
@@ -84,8 +84,8 @@ fun SaludEnCasaNavHost(
             AccountScreen(
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
                 onOpenProfile = { navController.navigate(ProfileRoute) },
-                onOpenSearch = { navController.navigate(ProfessionalSearchRoute) },
-                onOpenCreateRequest = { navController.navigate(CreateRequestRoute) },
+                onOpenImmediateCare = { navController.navigate(ImmediateCareRoute) },
+                onOpenScheduling = { navController.navigate(ProfessionalSearchRoute) },
                 onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
                 onOpenInbox = { navController.navigate(InboxRoute()) },
                 onOpenAvailability = { navController.navigate(AvailabilityRoute) },
@@ -109,21 +109,20 @@ fun SaludEnCasaNavHost(
                 onOpenProfessional = { professionalId ->
                     navController.navigate(PublicProfileRoute(professionalId))
                 },
+                onSchedule = { professionalId, serviceTypeId ->
+                    navController.navigate(ScheduleAppointmentRoute(professionalId, serviceTypeId))
+                },
                 onRegisterAddress = { navController.navigate(AddressRoute()) },
             )
         }
 
-        composable<CreateRequestRoute> {
-            CreateRequestScreen(
+        // docs/decisions.md, 2026-10-23: publishing stays on this screen, which
+        // turns into the wait for offers.
+        composable<ImmediateCareRoute> {
+            ImmediateCareScreen(
                 onBack = { navController.popBackStack() },
-                // The published request lands on the list that shows it, and the
-                // create screen is torn off the back stack so returning does not
-                // reopen a spent form.
-                onCreated = {
-                    navController.navigate(MyRequestsRoute(justCreated = true)) {
-                        popUpTo(CreateRequestRoute) { inclusive = true }
-                    }
-                },
+                onOpenProfessional = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
+                onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
                 onRegisterAddress = { navController.navigate(AddressRoute()) },
             )
         }
@@ -132,7 +131,7 @@ fun SaludEnCasaNavHost(
             MyRequestsScreen(
                 justCreated = entry.toRoute<MyRequestsRoute>().justCreated,
                 onBack = { navController.popBackStack() },
-                onCreateRequest = { navController.navigate(CreateRequestRoute) },
+                onCreateRequest = { navController.navigate(ImmediateCareRoute) },
             )
         }
 
@@ -188,8 +187,10 @@ fun SaludEnCasaNavHost(
         }
 
         composable<ScheduleAppointmentRoute> { entry ->
+            val route = entry.toRoute<ScheduleAppointmentRoute>()
             ScheduleAppointmentScreen(
-                professionalId = entry.toRoute<ScheduleAppointmentRoute>().professionalId,
+                professionalId = route.professionalId,
+                serviceTypeId = route.serviceTypeId,
                 onBack = { navController.popBackStack() },
                 onCreated = {
                     navController.navigate(MyRequestsRoute(justCreated = true)) {

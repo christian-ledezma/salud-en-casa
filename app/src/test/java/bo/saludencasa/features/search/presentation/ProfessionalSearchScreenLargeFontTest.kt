@@ -1,14 +1,11 @@
 package bo.saludencasa.features.search.presentation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
@@ -22,6 +19,8 @@ import bo.saludencasa.features.search.nearbyProfessional
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -53,7 +52,6 @@ class ProfessionalSearchScreenLargeFontTest {
 
     private fun show(
         results: SearchResultsState,
-        mode: ResultsMode = ResultsMode.LIST,
         criteria: SearchCriteria = SearchCriteria(),
         withOrigin: Boolean = true,
         typeFilterExpanded: Boolean = false,
@@ -63,16 +61,13 @@ class ProfessionalSearchScreenLargeFontTest {
                 uiState =
                     ProfessionalSearchUiState(
                         criteria = criteria,
-                        mode = mode,
                         origin = if (withOrigin) origin else null,
                         serviceTypes = listOf(venousLine, vaccination),
-                        selectedId = null,
                         typeFilterExpanded = typeFilterExpanded,
                         results = results,
                     ),
                 onBack = {},
                 actions = SearchActions(),
-                map = { _, modifier -> Box(modifier = modifier.testTag(MAP_TAG)) },
             )
         }
     }
@@ -94,12 +89,8 @@ class ProfessionalSearchScreenLargeFontTest {
 
     // A LazyColumn composes nothing below the fold, so a row the criteria pushed
     // out of sight is absent from the semantics tree and cannot be reached by
-    // its text. The list is moved to its index first.
-    //
-    // The first of the matching nodes and not the only one: the chip row of the
-    // service types is a LazyRow, so it answers to the same selector, and asking
-    // for a single match finds two and refuses to choose. The page is the outer
-    // one, which is the first in tree order.
+    // its text. The list is moved to its index first; the page is the outer
+    // scrollable, the first in tree order.
     private fun scrollTo(index: Int) {
         composeRule.onAllNodes(hasScrollToIndexAction())[0].performScrollToIndex(index)
     }
@@ -113,38 +104,26 @@ class ProfessionalSearchScreenLargeFontTest {
         )
     }
 
+    // RF-06.1. Three chips sharing the width of a 320 dp phone at a 200 % font
+    // scale is where a segmented control would have clipped them, which is why
+    // they are a FlowRow.
     @Test
-    fun bothModesOfTheToggleStayOnScreen() {
+    fun everyRadiusOptionStaysOnScreen() {
         show(content(1200))
         scrollTo(2)
-
-        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.search_mode_map)))
-        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.search_mode_list)))
-    }
-
-    // RF-06.1 and RF-06.2 in one row. Four chips sharing the width of a 320 dp
-    // phone at a 200 % font scale is where a segmented control would have
-    // clipped them, which is why they are a FlowRow.
-    @Test
-    fun everyRadiusOptionAndTheAvailabilityFilterStayOnScreen() {
-        show(content(1200))
-        scrollTo(3)
 
         SearchRadius.entries.forEach { radius ->
             composeRule.assertFitsTheScreen(
                 composeRule.onNodeWithText(string(R.string.search_radius_option, radius.km)),
             )
         }
-        composeRule.assertFitsTheScreen(
-            composeRule.onNodeWithText(string(R.string.search_available_now_filter)),
-        )
     }
 
     // Folded, the filter says what it is filtering by and nothing else.
     @Test
     fun theFoldedTypeFilterSaysWhatIsSelected() {
         show(content(1200))
-        scrollTo(3)
+        scrollTo(2)
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.search_type_all)))
         composeRule.assertFitsTheScreen(
@@ -158,7 +137,7 @@ class ProfessionalSearchScreenLargeFontTest {
     @Test
     fun theLongestServiceTypeFitsTheScreenWhenTheListIsOpen() {
         show(content(1200), typeFilterExpanded = true)
-        scrollTo(3)
+        scrollTo(2)
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(venousLine.name))
     }
@@ -173,7 +152,7 @@ class ProfessionalSearchScreenLargeFontTest {
     @Test
     fun theLongestServiceTypeWrapsInsteadOfHidingItsTail() {
         show(content(1200), typeFilterExpanded = true)
-        scrollTo(3)
+        scrollTo(2)
 
         val shortRow = composeRule.onNodeWithText(vaccination.name).getUnclippedBoundsInRoot()
         val longRow = composeRule.onNodeWithText(venousLine.name).getUnclippedBoundsInRoot()
@@ -187,11 +166,12 @@ class ProfessionalSearchScreenLargeFontTest {
     }
 
     // The second criterion of HU-11: distance, base rate and reputation, on the
-    // card of the longest name the fixtures have.
+    // card of the longest name the fixtures have. And the action that saves the
+    // trip through the profile (docs/decisions.md, 2026-10-23).
     @Test
-    fun aResultCardKeepsItsNameDistanceRateAndActionOnScreen() {
+    fun aResultCardKeepsItsNameDistanceRateAndActionsOnScreen() {
         show(content(0))
-        scrollTo(5)
+        scrollTo(4)
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Carla Villarroel Antezana"))
         composeRule.assertFitsTheScreen(
@@ -203,6 +183,32 @@ class ProfessionalSearchScreenLargeFontTest {
                 string(R.string.cd_open_professional_profile, "Carla Villarroel Antezana"),
             ),
         )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.search_schedule_action)))
+    }
+
+    // The button books the professional of its own card, not whichever card
+    // the profile tap belongs to.
+    @Test
+    fun theScheduleActionNamesTheProfessionalOfItsCard() {
+        var scheduled: String? = null
+        var opened: String? = null
+        composeRule.setContentAtDoubleFontScale {
+            ProfessionalSearchContent(
+                uiState =
+                    ProfessionalSearchUiState(
+                        origin = origin,
+                        results = content(400),
+                    ),
+                onBack = {},
+                actions = SearchActions(onSchedule = { scheduled = it }, onOpenProfessional = { opened = it }),
+            )
+        }
+        scrollTo(4)
+
+        composeRule.onNodeWithText(string(R.string.search_schedule_action)).performClick()
+
+        assertEquals("p0", scheduled)
+        assertNull(opened)
     }
 
     // An average of zero and no average at all are the same number, and the
@@ -215,7 +221,6 @@ class ProfessionalSearchScreenLargeFontTest {
                 uiState =
                     ProfessionalSearchUiState(
                         origin = origin,
-                        mode = ResultsMode.LIST,
                         results =
                             SearchResultsState.Content(
                                 professionals =
@@ -233,10 +238,9 @@ class ProfessionalSearchScreenLargeFontTest {
                     ),
                 onBack = {},
                 actions = SearchActions(),
-                map = { _, modifier -> Box(modifier = modifier.testTag(MAP_TAG)) },
             )
         }
-        scrollTo(5)
+        scrollTo(4)
 
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(string(R.string.search_no_rating_yet)),
@@ -260,7 +264,6 @@ class ProfessionalSearchScreenLargeFontTest {
                 uiState =
                     ProfessionalSearchUiState(
                         origin = origin,
-                        mode = ResultsMode.LIST,
                         results =
                             SearchResultsState.Content(
                                 professionals =
@@ -281,10 +284,9 @@ class ProfessionalSearchScreenLargeFontTest {
                     ),
                 onBack = {},
                 actions = SearchActions(),
-                map = { _, modifier -> Box(modifier = modifier.testTag(MAP_TAG)) },
             )
         }
-        scrollTo(6)
+        scrollTo(5)
 
         // The unmerged tree: the whole card is one button, so in the merged one
         // a text answers with the bounds of its card and not its own.
@@ -301,16 +303,6 @@ class ProfessionalSearchScreenLargeFontTest {
             "The shorter distance is $unratedHeight tall against $ratedHeight for a longer one: it was crushed.",
             unratedHeight <= ratedHeight,
         )
-    }
-
-    // The map keeps a place of its own on the page. Giving it the leftover
-    // height would have squeezed it to nothing once the criteria grew.
-    @Test
-    fun theMapKeepsItsPlaceOnThePageWhenTheFontDoubles() {
-        show(content(1200), mode = ResultsMode.MAP)
-        scrollTo(4)
-
-        composeRule.assertFitsTheScreen(composeRule.onNodeWithTag(MAP_TAG))
     }
 
     // Someone whose first visit is this screen has to be able to leave it: the
@@ -336,7 +328,7 @@ class ProfessionalSearchScreenLargeFontTest {
             SearchResultsState.Empty,
             criteria = SearchCriteria(radius = SearchRadius.KM_2, serviceTypeId = venousLine.id),
         )
-        scrollTo(4)
+        scrollTo(3)
 
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(string(R.string.search_clear_filters)),
@@ -359,7 +351,7 @@ class ProfessionalSearchScreenLargeFontTest {
                 notice = SearchError.NetworkUnavailable,
             ),
         )
-        scrollTo(6)
+        scrollTo(5)
 
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(string(R.string.error_network_unavailable)),
@@ -370,12 +362,8 @@ class ProfessionalSearchScreenLargeFontTest {
     @Test
     fun aFailedSearchKeepsItsRetryOnScreen() {
         show(SearchResultsState.Failed(SearchError.NetworkUnavailable))
-        scrollTo(4)
+        scrollTo(3)
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.common_retry)))
-    }
-
-    private companion object {
-        const val MAP_TAG = "search_map"
     }
 }

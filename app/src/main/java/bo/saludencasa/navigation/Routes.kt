@@ -27,13 +27,14 @@ data class PublicProfileRoute(
 @Serializable
 data class ScheduleAppointmentRoute(
     val professionalId: String,
+    val serviceTypeId: String? = null,
 )
 
 @Serializable
 data object ProfessionalSearchRoute
 
 @Serializable
-data object CreateRequestRoute
+data object ImmediateCareRoute
 
 @Serializable
 data class MyRequestsRoute(

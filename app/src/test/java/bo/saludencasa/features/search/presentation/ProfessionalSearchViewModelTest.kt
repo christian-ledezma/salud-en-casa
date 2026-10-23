@@ -192,22 +192,6 @@ class ProfessionalSearchViewModelTest {
             assertEquals(SearchNearbyProfessionalsUseCase.PAGE_SIZE + 1, retried.professionals.size)
         }
 
-    // Both modes draw the same results, so a request here is a request too many
-    // and a blink nobody asked for.
-    @Test
-    fun switchingBetweenTheMapAndTheListDoesNotSearchAgain() =
-        runTest {
-            search.professionals = page(2)
-            val viewModel = opened()
-
-            viewModel.onModeChange(ResultsMode.LIST)
-            advanceUntilIdle()
-
-            assertEquals(1, search.requests.size)
-            assertEquals(ResultsMode.LIST, viewModel.uiState.value.mode)
-            assertEquals(2, content(viewModel).professionals.size)
-        }
-
     // The chip row is a filter, not a precondition. Taking the screen down
     // because the catalog failed would deny the search over a row of chips.
     @Test
@@ -225,20 +209,21 @@ class ProfessionalSearchViewModelTest {
             assertEquals(1, content(viewModel).professionals.size)
         }
 
+    // docs/decisions.md, 2026-10-23: the list is for scheduling, so who is
+    // available this minute is not a criterion here. A list that silently kept
+    // asking for it would hide everyone who is off right now but bookable.
     @Test
-    fun choosingATypeAndAvailabilityNarrowsWhatIsAsked() =
+    fun choosingATypeNarrowsWhatIsAskedAndNeverAsksForAvailability() =
         runTest {
             search.professionals = page(1)
             val viewModel = opened()
 
             viewModel.onServiceTypeChange(physiotherapy.id)
             advanceUntilIdle()
-            viewModel.onAvailabilityChange(true)
-            advanceUntilIdle()
 
             val last = search.requests.last()
             assertEquals(physiotherapy.id, last.criteria.serviceTypeId)
-            assertTrue(last.criteria.availableNowOnly)
+            assertTrue(search.requests.none { it.criteria.availableNowOnly })
             assertTrue(viewModel.uiState.value.criteria.isNarrowed)
         }
 
@@ -249,7 +234,6 @@ class ProfessionalSearchViewModelTest {
             val viewModel = opened()
             viewModel.onRadiusChange(SearchRadius.KM_10)
             viewModel.onServiceTypeChange(physiotherapy.id)
-            viewModel.onAvailabilityChange(true)
             advanceUntilIdle()
 
             viewModel.onClearFilters()
@@ -258,7 +242,6 @@ class ProfessionalSearchViewModelTest {
             val criteria = viewModel.uiState.value.criteria
             assertEquals(SearchRadius.KM_10, criteria.radius)
             assertNull(criteria.serviceTypeId)
-            assertFalse(criteria.availableNowOnly)
         }
 
     // The way out of an empty result, and it has to stop: offering an eleventh
@@ -282,21 +265,6 @@ class ProfessionalSearchViewModelTest {
             advanceUntilIdle()
             assertEquals(SearchRadius.KM_10, viewModel.uiState.value.criteria.radius)
             assertEquals(before, search.requests.size)
-        }
-
-    // A card left open for a professional who is no longer in the results is a
-    // card about nobody.
-    @Test
-    fun theSelectionIsClearedWhenTheResultsAreReplaced() =
-        runTest {
-            search.professionals = page(2)
-            val viewModel = opened()
-            viewModel.onProfessionalSelected("p1")
-
-            viewModel.onRadiusChange(SearchRadius.KM_2)
-            advanceUntilIdle()
-
-            assertNull(viewModel.uiState.value.selectedId)
         }
 
     // Coming back after registering an address has to search again; coming back

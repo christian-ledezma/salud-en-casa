@@ -1,9 +1,6 @@
 package bo.saludencasa.features.search.presentation
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,16 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,8 +31,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -50,22 +41,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
-import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.core.vo.Coordinate
 import bo.saludencasa.features.catalog.domain.model.ServiceType
 import bo.saludencasa.features.profile.domain.model.ProfessionalType
-import bo.saludencasa.features.profile.presentation.labelRes
 import bo.saludencasa.features.search.domain.model.NearbyProfessional
 import bo.saludencasa.features.search.domain.model.SearchCriteria
 import bo.saludencasa.features.search.domain.model.SearchError
 import bo.saludencasa.features.search.domain.model.SearchOrigin
 import bo.saludencasa.features.search.domain.model.SearchRadius
-import bo.saludencasa.ui.animations.RadarPulse
+import bo.saludencasa.ui.components.ExpandableOptionPicker
 import bo.saludencasa.ui.components.PrimaryButton
-import bo.saludencasa.ui.components.ProfessionalCard
-import bo.saludencasa.ui.components.RadioOptionGroup
 import bo.saludencasa.ui.components.ScreenHeader
-import bo.saludencasa.ui.components.SegmentedControl
 import bo.saludencasa.ui.theme.ExtraShapes
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
@@ -76,6 +62,7 @@ import java.math.BigDecimal
 fun ProfessionalSearchScreen(
     onBack: () -> Unit,
     onOpenProfessional: (String) -> Unit,
+    onSchedule: (professionalId: String, serviceTypeId: String?) -> Unit,
     onRegisterAddress: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProfessionalSearchViewModel = koinViewModel(),
@@ -95,40 +82,31 @@ fun ProfessionalSearchScreen(
         onBack = onBack,
         actions =
             SearchActions(
-                onModeChange = viewModel::onModeChange,
                 onRadiusChange = viewModel::onRadiusChange,
                 onServiceTypeChange = viewModel::onServiceTypeChange,
                 onTypeFilterToggle = viewModel::onTypeFilterToggle,
-                onAvailabilityChange = viewModel::onAvailabilityChange,
                 onClearFilters = viewModel::onClearFilters,
                 onWidenRadius = viewModel::onWidenRadius,
-                onProfessionalSelected = viewModel::onProfessionalSelected,
                 onOpenProfessional = onOpenProfessional,
+                // The type the list is filtered by is the service the patient
+                // came for, so the booking screen opens on it.
+                onSchedule = { professionalId -> onSchedule(professionalId, uiState.criteria.serviceTypeId) },
                 onRegisterAddress = onRegisterAddress,
                 onRetry = viewModel::onRetry,
                 onReachedEnd = viewModel::onReachedEnd,
             ),
-        map = { model, mapModifier ->
-            ProfessionalSearchMap(
-                model = model,
-                onProfessionalClick = viewModel::onProfessionalSelected,
-                modifier = mapModifier,
-            )
-        },
         modifier = modifier,
     )
 }
 
 internal data class SearchActions(
-    val onModeChange: (ResultsMode) -> Unit = {},
     val onRadiusChange: (SearchRadius) -> Unit = {},
     val onServiceTypeChange: (String?) -> Unit = {},
     val onTypeFilterToggle: () -> Unit = {},
-    val onAvailabilityChange: (Boolean) -> Unit = {},
     val onClearFilters: () -> Unit = {},
     val onWidenRadius: () -> Unit = {},
-    val onProfessionalSelected: (String?) -> Unit = {},
     val onOpenProfessional: (String) -> Unit = {},
+    val onSchedule: (String) -> Unit = {},
     val onRegisterAddress: () -> Unit = {},
     val onRetry: () -> Unit = {},
     val onReachedEnd: () -> Unit = {},
@@ -139,21 +117,22 @@ internal fun ProfessionalSearchContent(
     uiState: ProfessionalSearchUiState,
     onBack: () -> Unit,
     actions: SearchActions,
-    map: @Composable (SearchMapModel, Modifier) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val origin = uiState.origin
     val results = uiState.results
 
-    // docs/decisions.md, 2026-10-09, the map is a card of the page and not the
-    // background of the screen.
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(Spacing.screenMargin),
         verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
     ) {
         item(key = "header") {
-            ScreenHeader(title = stringResource(R.string.search_title), onBack = onBack)
+            ScreenHeader(
+                title = stringResource(R.string.search_title),
+                onBack = onBack,
+                subtitle = stringResource(R.string.search_subtitle),
+            )
         }
 
         origin?.let {
@@ -163,27 +142,7 @@ internal fun ProfessionalSearchContent(
         }
 
         if (results !is SearchResultsState.NoPrimaryAddress) {
-            item(key = "mode") { ModeToggle(mode = uiState.mode, onModeChange = actions.onModeChange) }
             item(key = "criteria") { SearchCriteriaPanel(uiState = uiState, actions = actions) }
-        }
-
-        if (uiState.mode == ResultsMode.MAP && origin != null) {
-            item(key = "map") {
-                map(
-                    SearchMapModel(
-                        origin = origin.coordinate,
-                        radius = uiState.criteria.radius,
-                        professionals = results.professionals(),
-                        searching = results is SearchResultsState.Searching,
-                        selectedId = uiState.selectedId,
-                    ),
-                    Modifier
-                        .fillMaxWidth()
-                        .height(Spacing.mapHeight)
-                        .clip(MaterialTheme.shapes.large)
-                        .animateItem(),
-                )
-            }
         }
 
         when (results) {
@@ -207,42 +166,10 @@ internal fun ProfessionalSearchContent(
 
             is SearchResultsState.Content -> {
                 item(key = "count") { ResultCountLine(count = results.professionals.size) }
-
-                if (uiState.mode == ResultsMode.MAP) {
-                    // Over the map the results are the pins, and a tap on one
-                    // brings up its card here.
-                    uiState.selected(results)?.let { selected ->
-                        item(key = "selected") {
-                            ResultCard(
-                                professional = selected,
-                                onClick = { actions.onOpenProfessional(selected.professionalId) },
-                                modifier = Modifier.animateItem(),
-                            )
-                        }
-                    }
-                } else {
-                    resultRows(results = results, actions = actions)
-                }
+                resultRows(results = results, actions = actions)
             }
         }
     }
-}
-
-@Composable
-private fun ModeToggle(
-    mode: ResultsMode,
-    onModeChange: (ResultsMode) -> Unit,
-) {
-    // The labels are read before the control, because its optionLabel is a
-    // plain lambda and not a composable one.
-    val labels = ResultsMode.entries.associateWith { stringResource(it.labelRes()) }
-
-    SegmentedControl(
-        options = ResultsMode.entries,
-        selected = mode,
-        onSelectedChange = onModeChange,
-        optionLabel = { labels.getValue(it) },
-    )
 }
 
 // The floating badge of the welcome header, reused: it is where the screen says
@@ -320,26 +247,10 @@ private fun SearchCriteriaPanel(
                         },
                 )
             }
-            FilterChip(
-                selected = uiState.criteria.availableNowOnly,
-                onClick = { actions.onAvailabilityChange(!uiState.criteria.availableNowOnly) },
-                label = { Text(text = stringResource(R.string.search_available_now_filter)) },
-                leadingIcon = {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(Spacing.scale8)
-                                .clip(CircleShape)
-                                .background(SaludEnCasaTheme.statusColors.availableNow),
-                    )
-                },
-            )
         }
     }
 }
 
-// docs/decisions.md, 2026-10-09, a Material chip cannot carry the name of a
-// service type.
 @Composable
 private fun ServiceTypeFilter(
     uiState: ProfessionalSearchUiState,
@@ -350,48 +261,17 @@ private fun ServiceTypeFilter(
     val options: List<ServiceType?> = listOf(null) + uiState.serviceTypes
     val labels = options.associateWith { type -> type?.name ?: all }
 
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale4)) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = Spacing.minTouchTarget)
-                    .clip(MaterialTheme.shapes.small)
-                    .border(Spacing.borderWidth, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small)
-                    .clickable(onClick = actions.onTypeFilterToggle)
-                    .padding(horizontal = Spacing.scale12, vertical = Spacing.scale4),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                CriteriaLabel(text = stringResource(R.string.search_type_filter_label))
-                Text(
-                    text = selected?.name ?: all,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            // One icon turned over rather than two: the core icon set is the
-            // only one this project ships, because RNF-03 caps the package at
-            // 25 MB, and it has no arrow pointing up.
-            Icon(
-                imageVector = Icons.Filled.ArrowDropDown,
-                contentDescription = stringResource(R.string.cd_open_type_filter),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.rotate(if (uiState.typeFilterExpanded) 180f else 0f),
-            )
-        }
-
-        if (uiState.typeFilterExpanded) {
-            RadioOptionGroup(
-                label = stringResource(R.string.search_type_filter_label),
-                options = options,
-                selected = selected,
-                onSelectedChange = { type -> actions.onServiceTypeChange(type?.id) },
-                optionLabel = { type -> labels.getValue(type) },
-            )
-        }
-    }
+    ExpandableOptionPicker(
+        label = stringResource(R.string.search_type_filter_label),
+        selectedLabel = selected?.name ?: all,
+        toggleDescription = stringResource(R.string.cd_open_type_filter),
+        expanded = uiState.typeFilterExpanded,
+        onToggle = actions.onTypeFilterToggle,
+        options = options,
+        selected = selected,
+        onSelectedChange = { type -> actions.onServiceTypeChange(type?.id) },
+        optionLabel = { type -> labels.getValue(type) },
+    )
 }
 
 @Composable
@@ -408,10 +288,12 @@ private fun LazyListScope.resultRows(
     actions: SearchActions,
 ) {
     items(results.professionals, key = NearbyProfessional::professionalId) { professional ->
-        ResultCard(
+        NearbyProfessionalCard(
             professional = professional,
             onClick = { actions.onOpenProfessional(professional.professionalId) },
             modifier = Modifier.animateItem(),
+            actionText = stringResource(R.string.search_schedule_action),
+            onAction = { actions.onSchedule(professional.professionalId) },
         )
     }
 
@@ -437,35 +319,6 @@ private fun LazyListScope.resultRows(
             }
         }
     }
-}
-
-@Composable
-private fun ResultCard(
-    professional: NearbyProfessional,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val locale = LocalConfiguration.current.locales[0]
-    val supporting =
-        professional.specialty
-            ?: professional.professionalType?.let { stringResource(it.labelRes()) }
-            ?: ""
-
-    ProfessionalCard(
-        name = professional.fullName,
-        specialty = supporting,
-        // The badge only when votes hold it up: an average of zero and no
-        // average at all are the same number (docs/decisions.md, 2026-10-09).
-        rating = professional.averageRating.takeIf { professional.totalReviews > 0 },
-        noRatingLabel = stringResource(R.string.search_no_rating_yet),
-        distanceText = distanceText(professional.distanceM),
-        rateText = stringResource(R.string.public_profile_base_rate, formatBob(professional.baseRateBob, locale)),
-        availableNowText = stringResource(R.string.search_available_now_badge).takeIf { professional.availableNow },
-        photoUrl = professional.photoUrl,
-        openContentDescription = stringResource(R.string.cd_open_professional_profile, professional.fullName),
-        onClick = onClick,
-        modifier = modifier,
-    )
 }
 
 // RF-06.5 made visible without a badge per professional: nothing that is not
@@ -499,7 +352,8 @@ private fun SearchingBlock() {
         horizontalArrangement = Arrangement.spacedBy(Spacing.scale12),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadarPulse(modifier = Modifier.size(Spacing.scale40))
+        // The radar belongs to «Atención ahora» (docs/decisions.md, 2026-10-23).
+        CircularProgressIndicator(modifier = Modifier.size(Spacing.scale24))
         Text(
             text = stringResource(R.string.search_searching),
             style = MaterialTheme.typography.bodyMedium,
@@ -593,30 +447,6 @@ private fun CenteredProgress() {
     }
 }
 
-@StringRes
-private fun ResultsMode.labelRes(): Int =
-    when (this) {
-        ResultsMode.MAP -> R.string.search_mode_map
-        ResultsMode.LIST -> R.string.search_mode_list
-    }
-
-private fun SearchResultsState.professionals(): List<NearbyProfessional> =
-    (this as? SearchResultsState.Content)?.professionals ?: emptyList()
-
-private fun ProfessionalSearchUiState.selected(results: SearchResultsState.Content): NearbyProfessional? =
-    results.professionals.firstOrNull { it.professionalId == selectedId }
-
-// The map never reaches a preview or a test: without a key and Play Services the
-// SDK draws a blank grid, and the slot is what keeps it out (the AddressScreen
-// precedent, HU-05).
-@Composable
-private fun PreviewMap(
-    model: SearchMapModel,
-    modifier: Modifier,
-) {
-    Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
-}
-
 private fun previewOrigin() =
     SearchOrigin(
         addressId = "home",
@@ -653,17 +483,13 @@ private fun previewTypes() =
 
 private fun previewState(
     results: SearchResultsState,
-    mode: ResultsMode = ResultsMode.MAP,
     criteria: SearchCriteria = SearchCriteria(),
     origin: SearchOrigin? = previewOrigin(),
-    selectedId: String? = null,
     typeFilterExpanded: Boolean = false,
 ) = ProfessionalSearchUiState(
     criteria = criteria,
-    mode = mode,
     origin = origin,
     serviceTypes = previewTypes(),
-    selectedId = selectedId,
     typeFilterExpanded = typeFilterExpanded,
     results = results,
 )
@@ -691,45 +517,26 @@ private fun PreviewScreen(
             uiState = uiState,
             onBack = {},
             actions = SearchActions(),
-            map = { model, modifier -> PreviewMap(model, modifier) },
         )
     }
 }
 
-@Preview(showBackground = true, name = "Busqueda en el mapa, claro", heightDp = 760)
-@Composable
-private fun SearchMapLightPreview() {
-    PreviewScreen(previewState(previewContent(), selectedId = "p1"))
-}
-
-@Preview(showBackground = true, name = "Busqueda en el mapa, oscuro", heightDp = 760)
-@Composable
-private fun SearchMapDarkPreview() {
-    PreviewScreen(previewState(previewContent(), selectedId = "p1"), darkTheme = true)
-}
-
-@Preview(showBackground = true, name = "Busqueda en lista, claro", heightDp = 900)
+@Preview(showBackground = true, name = "Agendar, lista en claro", heightDp = 900)
 @Composable
 private fun SearchListLightPreview() {
-    PreviewScreen(previewState(previewContent(), mode = ResultsMode.LIST))
+    PreviewScreen(previewState(previewContent()))
 }
 
-@Preview(showBackground = true, name = "Busqueda en lista, oscuro", heightDp = 900)
+@Preview(showBackground = true, name = "Agendar, lista en oscuro", heightDp = 900)
 @Composable
 private fun SearchListDarkPreview() {
-    PreviewScreen(previewState(previewContent(), mode = ResultsMode.LIST), darkTheme = true)
+    PreviewScreen(previewState(previewContent()), darkTheme = true)
 }
 
-@Preview(showBackground = true, name = "Busqueda en lista al 200 %", fontScale = 2f, heightDp = 1800)
+@Preview(showBackground = true, name = "Agendar, lista al 200 %", fontScale = 2f, heightDp = 2000)
 @Composable
 private fun SearchListLargeFontPreview() {
-    PreviewScreen(previewState(previewContent(), mode = ResultsMode.LIST))
-}
-
-@Preview(showBackground = true, name = "Busqueda en el mapa al 200 %", fontScale = 2f, heightDp = 1200)
-@Composable
-private fun SearchMapLargeFontPreview() {
-    PreviewScreen(previewState(previewContent(), selectedId = "p1"))
+    PreviewScreen(previewState(previewContent()))
 }
 
 @Preview(showBackground = true, name = "Lista de tipos abierta", heightDp = 900)
@@ -753,7 +560,7 @@ private fun SearchSearchingPreview() {
 @Preview(showBackground = true, name = "Sin resultados en el radio", heightDp = 760)
 @Composable
 private fun SearchEmptyPreview() {
-    PreviewScreen(previewState(SearchResultsState.Empty, mode = ResultsMode.LIST))
+    PreviewScreen(previewState(SearchResultsState.Empty))
 }
 
 @Preview(showBackground = true, name = "Sin coincidencias con los filtros", heightDp = 760)
@@ -762,8 +569,7 @@ private fun SearchEmptyNarrowedPreview() {
     PreviewScreen(
         previewState(
             SearchResultsState.Empty,
-            mode = ResultsMode.LIST,
-            criteria = SearchCriteria(radius = SearchRadius.KM_10, serviceTypeId = "t1", availableNowOnly = true),
+            criteria = SearchCriteria(radius = SearchRadius.KM_10, serviceTypeId = "t1"),
         ),
     )
 }
@@ -789,7 +595,6 @@ private fun SearchNextPageFailedPreview() {
     PreviewScreen(
         previewState(
             previewContent().copy(endReached = false, notice = SearchError.NetworkUnavailable),
-            mode = ResultsMode.LIST,
         ),
     )
 }

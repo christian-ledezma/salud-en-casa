@@ -77,6 +77,9 @@ sealed interface ScheduleAppointmentUiState {
 
 class ScheduleAppointmentViewModel(
     private val professionalId: String,
+    // The service the patient filtered the list by, if any (docs/decisions.md,
+    // 2026-10-23, HT-23).
+    private val preferredServiceTypeId: String?,
     private val getPublicProfile: GetPublicProfileUseCase,
     private val getProfessionalServices: GetProfessionalServicesUseCase,
     private val getMyAddresses: GetMyAddressesUseCase,
@@ -238,7 +241,8 @@ class ScheduleAppointmentViewModel(
                 professional = professional,
                 services = services,
                 addresses = addresses,
-                selectedServiceTypeId = services.first().type.id,
+                selectedServiceTypeId =
+                    services.firstOrNull { it.type.id == preferredServiceTypeId }?.type?.id ?: services.first().type.id,
                 times = TimesState.Loading,
                 selectedDate = null,
                 selectedStart = null,

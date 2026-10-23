@@ -1,22 +1,31 @@
 package bo.saludencasa.features.auth.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -34,6 +43,7 @@ import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.presentation.activateRes
 import bo.saludencasa.features.profile.presentation.messageRes
 import bo.saludencasa.features.profile.presentation.shortLabelRes
+import bo.saludencasa.ui.animations.RadarPulse
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.SegmentedControl
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
@@ -44,8 +54,8 @@ import org.koin.androidx.compose.koinViewModel
 fun AccountScreen(
     onSignedOut: () -> Unit,
     onOpenProfile: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenCreateRequest: () -> Unit,
+    onOpenImmediateCare: () -> Unit,
+    onOpenScheduling: () -> Unit,
     onOpenMyRequests: () -> Unit,
     onOpenInbox: () -> Unit,
     onOpenAvailability: () -> Unit,
@@ -66,8 +76,8 @@ fun AccountScreen(
         onSignOutClick = viewModel::signOut,
         onDismissError = viewModel::dismissError,
         onOpenProfile = onOpenProfile,
-        onOpenSearch = onOpenSearch,
-        onOpenCreateRequest = onOpenCreateRequest,
+        onOpenImmediateCare = onOpenImmediateCare,
+        onOpenScheduling = onOpenScheduling,
         onOpenMyRequests = onOpenMyRequests,
         onOpenInbox = onOpenInbox,
         onOpenAvailability = onOpenAvailability,
@@ -86,8 +96,8 @@ internal fun AccountContent(
     onSignOutClick: () -> Unit,
     onDismissError: () -> Unit,
     onOpenProfile: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenCreateRequest: () -> Unit,
+    onOpenImmediateCare: () -> Unit,
+    onOpenScheduling: () -> Unit,
     onOpenMyRequests: () -> Unit,
     onOpenInbox: () -> Unit,
     onOpenAvailability: () -> Unit,
@@ -152,28 +162,61 @@ internal fun AccountContent(
                         text = stringResource(R.string.auth_account_open_document_review),
                         onClick = onOpenDocumentReview,
                     )
+                } else if (uiState.roleSection.roles.active == UserRole.PATIENT) {
+                    // docs/decisions.md, 2026-10-23, HT-23: the two ways to get
+                    // care come first, and the account after them.
+                    HomeActionCard(
+                        title = stringResource(R.string.auth_account_immediate_care_title),
+                        body = stringResource(R.string.auth_account_immediate_care_body),
+                        onClick = onOpenImmediateCare,
+                        emphasized = true,
+                        icon = { iconModifier ->
+                            // The rings alone fade to nothing at rest; the dot
+                            // keeps the figure readable as the patient's point.
+                            Box(modifier = iconModifier, contentAlignment = Alignment.Center) {
+                                RadarPulse(
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .size(Spacing.scale12)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.onPrimaryContainer),
+                                )
+                            }
+                        },
+                    )
+                    HomeActionCard(
+                        title = stringResource(R.string.auth_account_schedule_title),
+                        body = stringResource(R.string.auth_account_schedule_body),
+                        onClick = onOpenScheduling,
+                        emphasized = false,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.DateRange,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = it,
+                            )
+                        },
+                    )
+                    OutlinedButton(
+                        onClick = onOpenMyRequests,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(R.string.auth_account_open_my_requests))
+                    }
+                    OutlinedButton(
+                        onClick = onOpenProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(R.string.auth_account_open_profile))
+                    }
+                    AccountButtons(onOpenAddress = onOpenAddress, onOpenVerification = onOpenVerification)
                 } else {
                     PrimaryButton(text = stringResource(R.string.auth_account_open_profile), onClick = onOpenProfile)
-                    if (uiState.roleSection.roles.active == UserRole.PATIENT) {
-                        OutlinedButton(
-                            onClick = onOpenSearch,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(text = stringResource(R.string.auth_account_open_search))
-                        }
-                        OutlinedButton(
-                            onClick = onOpenCreateRequest,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(text = stringResource(R.string.auth_account_open_create_request))
-                        }
-                        OutlinedButton(
-                            onClick = onOpenMyRequests,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(text = stringResource(R.string.auth_account_open_my_requests))
-                        }
-                    }
                     if (uiState.roleSection.roles.active == UserRole.PROFESSIONAL) {
                         OutlinedButton(
                             onClick = onOpenInbox,
@@ -188,18 +231,7 @@ internal fun AccountContent(
                             Text(text = stringResource(R.string.auth_account_open_availability))
                         }
                     }
-                    OutlinedButton(
-                        onClick = onOpenAddress,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(R.string.auth_account_open_address))
-                    }
-                    OutlinedButton(
-                        onClick = onOpenVerification,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(R.string.auth_account_open_verification))
-                    }
+                    AccountButtons(onOpenAddress = onOpenAddress, onOpenVerification = onOpenVerification)
                 }
                 OutlinedButton(
                     onClick = onSignOutClick,
@@ -207,6 +239,63 @@ internal fun AccountContent(
                 ) {
                     Text(text = stringResource(R.string.auth_account_sign_out))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountButtons(
+    onOpenAddress: () -> Unit,
+    onOpenVerification: () -> Unit,
+) {
+    OutlinedButton(
+        onClick = onOpenAddress,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(text = stringResource(R.string.auth_account_open_address))
+    }
+    OutlinedButton(
+        onClick = onOpenVerification,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(text = stringResource(R.string.auth_account_open_verification))
+    }
+}
+
+// The whole card is the button, and its title says exactly where it goes.
+@Composable
+private fun HomeActionCard(
+    title: String,
+    body: String,
+    onClick: () -> Unit,
+    emphasized: Boolean,
+    icon: @Composable (Modifier) -> Unit,
+) {
+    val container =
+        if (emphasized) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+    val content =
+        if (emphasized) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = container,
+        contentColor = content,
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.cardPadding),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.scale16),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            icon(Modifier.size(Spacing.scale48))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+            ) {
+                Text(text = title, style = MaterialTheme.typography.titleLarge)
+                Text(text = body, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

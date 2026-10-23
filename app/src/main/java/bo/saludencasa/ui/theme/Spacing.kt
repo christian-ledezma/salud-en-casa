@@ -24,6 +24,10 @@ object Spacing {
     // written address on screen beside it.
     val mapHeight: Dp = 280.dp
 
+    // The radar of «Atención ahora» while the request waits: the figure the
+    // screen is about, not an icon.
+    val radarHeroSize: Dp = 160.dp
+
     // docs/design-system.md, section 9. The mark starts at the icon size of the
     // Android 12 system splash, so the startup screen picks it up where the
     // system left it.

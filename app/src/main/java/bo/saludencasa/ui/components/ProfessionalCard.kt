@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +54,10 @@ fun ProfessionalCard(
     openContentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    // docs/decisions.md, 2026-10-23, HT-23: the list to schedule from acts on the
+    // card itself, so booking does not have to pass through the profile.
+    actionText: String? = null,
+    onAction: () -> Unit = {},
 ) {
     Surface(
         onClick = onClick,
@@ -150,6 +156,20 @@ fun ProfessionalCard(
                 )
                 availableNowText?.let { AvailabilityPill(text = it) }
             }
+
+            actionText?.let { text ->
+                FilledTonalButton(
+                    onClick = onAction,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = Spacing.minTouchTarget)
+                            .padding(start = Spacing.cardPadding, end = Spacing.cardPadding, bottom = Spacing.scale12),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Text(text = text, style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
     }
 }
@@ -211,6 +231,7 @@ private fun ProfessionalCardLightPreview() {
             openContentDescription = "Ver la ficha de Ana Pérez",
             onClick = {},
             modifier = Modifier.padding(Spacing.screenMargin),
+            actionText = "Agendar",
         )
     }
 }

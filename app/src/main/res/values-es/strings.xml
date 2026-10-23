@@ -349,19 +349,15 @@
     <string name="error_catalog_invalid_price">Escribe un precio mayor a cero, con hasta dos decimales.</string>
     <string name="error_catalog_service_already_declared">Ya declaraste ese tipo de atención. Cambia su precio en la lista de arriba.</string>
 
-    <string name="auth_account_open_search">Buscar profesionales</string>
 
-    <string name="search_title">Profesionales cerca</string>
+    <string name="search_title">Agendar una cita</string>
     <string name="search_origin">Cerca de «%1$s»</string>
-    <string name="search_mode_map">Mapa</string>
-    <string name="search_mode_list">Lista</string>
 
     <string name="search_type_filter_label">Tipo de atención</string>
     <string name="search_type_all">Todos</string>
     <string name="cd_open_type_filter">Abrir la lista de tipos de atención</string>
     <string name="search_radius_label">Distancia</string>
     <string name="search_radius_option">%1$d km</string>
-    <string name="search_available_now_filter">Disponibles ahora</string>
     <string name="search_available_now_badge">Disponible ahora</string>
     <string name="search_no_rating_yet">Sin calificaciones</string>
 
@@ -375,7 +371,7 @@
     <string name="search_empty_title">No hay profesionales en este radio</string>
     <string name="search_empty_description">Prueba con un radio más amplio. Todavía somos pocos en la plataforma.</string>
     <string name="search_empty_narrowed_title">Ninguno coincide con los filtros</string>
-    <string name="search_empty_narrowed_description">Hay profesionales cerca, pero ninguno presta ese tipo de atención ahora mismo.</string>
+    <string name="search_empty_narrowed_description">Hay profesionales cerca, pero ninguno presta ese tipo de atención.</string>
     <string name="search_widen_radius">Ampliar a %1$d km</string>
     <string name="search_clear_filters">Quitar los filtros</string>
 
@@ -393,26 +389,50 @@
     <string name="error_search_unreadable_result">Un resultado llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
     <string name="error_reviews_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_reviews_unreadable_result">Un comentario llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
-    <string name="auth_account_open_create_request">Solicitar atención</string>
     <string name="auth_account_open_my_requests">Mis solicitudes</string>
+    <string name="auth_account_immediate_care_title">Atención ahora</string>
+    <string name="auth_account_immediate_care_body">Pide atención a los profesionales disponibles cerca de ti.</string>
+    <string name="auth_account_schedule_title">Agendar una cita</string>
+    <string name="auth_account_schedule_body">Elige a un profesional, el día y la hora.</string>
     <string name="auth_account_open_inbox">Solicitudes de mi zona</string>
     <string name="auth_account_open_availability">Mi disponibilidad</string>
 
-    <string name="request_create_title">Solicitar atención</string>
-    <string name="request_create_subtitle">Publica tu solicitud y los profesionales cercanos podrán ofertar.</string>
     <string name="request_create_service_type_label">Tipo de atención</string>
     <string name="request_create_address_label">Dónde necesitas la atención</string>
     <string name="request_create_description_label">Describe lo que necesitas (opcional)</string>
     <string name="request_create_budget_label">Presupuesto sugerido en bolivianos (opcional)</string>
-    <string name="request_create_submit">Publicar solicitud</string>
     <string name="request_create_no_address_title">Todavía no registraste una dirección</string>
     <string name="request_create_no_address_description">La solicitud se publica alrededor de una de tus direcciones. Registra una para continuar.</string>
     <string name="request_create_no_address_action">Registrar mi dirección</string>
 
+    <!-- HT-23: Atención ahora -->
+    <string name="immediate_title">Atención ahora</string>
+    <string name="immediate_subtitle">Elige el servicio y la dirección. La solicitud llega a los profesionales disponibles cerca.</string>
+    <string name="immediate_service_type_placeholder">Elige un servicio</string>
+    <string name="immediate_nearby_searching">Buscando profesionales disponibles…</string>
+    <plurals name="immediate_nearby_count">
+        <item quantity="one">%d profesional disponible cerca</item>
+        <item quantity="other">%d profesionales disponibles cerca</item>
+    </plurals>
+    <plurals name="immediate_nearby_more">
+        <item quantity="one">Más de %d profesional disponible cerca</item>
+        <item quantity="other">Más de %d profesionales disponibles cerca</item>
+    </plurals>
+    <string name="immediate_nearby_none">Nadie está disponible cerca en este momento. Puedes pedir igual: la solicitud queda publicada y la ve quien se conecte.</string>
+    <string name="immediate_nearby_unavailable">No pudimos mostrar quién está cerca. Puedes pedir igual.</string>
+    <string name="immediate_budget_reference">Precio de referencia del servicio: %1$s</string>
+    <string name="immediate_submit">Pedir atención</string>
+    <string name="immediate_waiting_title">Buscando profesional</string>
+    <string name="immediate_waiting_body">Tu solicitud ya está publicada. Los profesionales disponibles cerca de ti pueden verla y ofertar.</string>
+    <string name="immediate_waiting_expires">Sigue publicada hasta las %1$s</string>
+    <string name="immediate_waiting_my_requests">Ver mis solicitudes</string>
+    <string name="search_subtitle">Elige al profesional. Después eliges el día y la hora.</string>
+    <string name="search_schedule_action">Agendar</string>
+
     <string name="request_list_title">Mis solicitudes</string>
     <string name="request_list_empty_title">Todavía no publicaste ninguna solicitud</string>
     <string name="request_list_empty_description">Cuando necesites atención, publica una solicitud y los profesionales cercanos podrán ofertar.</string>
-    <string name="request_list_create_action">Solicitar atención</string>
+    <string name="request_list_create_action">Pedir atención ahora</string>
     <string name="request_list_budget">Presupuesto sugerido: %1$s</string>
     <string name="request_list_cancel_action">Cancelar solicitud</string>
     <string name="request_list_load_more">Ver más solicitudes</string>

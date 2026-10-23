@@ -72,9 +72,10 @@ class ScheduleAppointmentViewModelTest {
                 )
         }
 
-    private fun viewModel(): ScheduleAppointmentViewModel =
+    private fun viewModel(preferredServiceTypeId: String? = null): ScheduleAppointmentViewModel =
         ScheduleAppointmentViewModel(
             professionalId = PROFESSIONAL,
+            preferredServiceTypeId = preferredServiceTypeId,
             getPublicProfile = GetPublicProfileUseCase(profiles),
             getProfessionalServices = GetProfessionalServicesUseCase(catalog),
             getMyAddresses = GetMyAddressesUseCase(addresses),
@@ -245,6 +246,31 @@ class ScheduleAppointmentViewModelTest {
             assertFalse(content.submitting)
         }
 
+    // HT-23: the patient filtered the list by a service and tapped «Agendar», so
+    // the times shown are those of that service and not the first one declared.
+    @Test
+    fun theServiceTheListWasFilteredByOpensSelectedWithItsTimes() =
+        runTest {
+            val viewModel = viewModel(preferredServiceTypeId = generalConsultation.id)
+            advanceUntilIdle()
+
+            val content = content(viewModel)
+            assertEquals(generalConsultation.id, content.selectedServiceTypeId)
+            assertEquals(PROFESSIONAL to generalConsultation.id, requests.bookableTimesRequests.single())
+            assertEquals(tuesday, content.selectedDate)
+        }
+
+    // The filter can name a service this professional does not offer when the
+    // list was not narrowed by it; the screen falls back to one that exists.
+    @Test
+    fun aServiceTheProfessionalDoesNotOfferFallsBackToTheFirstDeclared() =
+        runTest {
+            val viewModel = viewModel(preferredServiceTypeId = "not-offered")
+            advanceUntilIdle()
+
+            assertEquals(venousLine.id, content(viewModel).selectedServiceTypeId)
+        }
+
     @Test
     fun aProfessionalWhoDeclaresNoServiceCannotBeBooked() =
         runTest {
@@ -252,6 +278,7 @@ class ScheduleAppointmentViewModelTest {
             val viewModel =
                 ScheduleAppointmentViewModel(
                     PROFESSIONAL,
+                    null,
                     GetPublicProfileUseCase(profiles),
                     GetProfessionalServicesUseCase(empty),
                     GetMyAddressesUseCase(addresses),

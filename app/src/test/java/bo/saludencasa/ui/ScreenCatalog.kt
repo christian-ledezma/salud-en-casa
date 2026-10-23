@@ -77,7 +77,7 @@ class ScreenCatalog(
                 "bo.saludencasa.features.verification.presentation.FullScreenDocumentImageKt",
                 "bo.saludencasa.features.catalog.presentation.MyServicesScreenKt",
                 "bo.saludencasa.features.search.presentation.ProfessionalSearchScreenKt",
-                "bo.saludencasa.features.requests.presentation.CreateRequestScreenKt",
+                "bo.saludencasa.features.requests.presentation.ImmediateCareScreenKt",
                 "bo.saludencasa.features.requests.presentation.MyRequestsScreenKt",
                 "bo.saludencasa.features.requests.presentation.InboxScreenKt",
                 "bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreenKt",
