@@ -196,7 +196,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[x]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
-| 6 | Avisos y negociación de tarifas | 3 · Coordinación | 34 | `[ ]` |
+| 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[ ]` |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 26 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
@@ -5711,11 +5711,12 @@ acuerdo genera el servicio.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 34. Eran 26 al cerrar el Sprint 5; el 2026-10-15 se replanificaron las
+**Puntos:** 42. Eran 26 al cerrar el Sprint 5; el 2026-10-15 se replanificaron las
 notificaciones push, HU-20 pasó de 5 a 8 puntos y el sprint cambió de nombre. Ver
 `docs/decisions.md`, 2026-10-15, «Notificaciones push». El 2026-10-18 entró HT-22
 con 5 puntos, pedida por el autor en medio del sprint, como pide la retrospectiva
-del Sprint 5.
+del Sprint 5. El 2026-10-23 entró HT-23 con 8 puntos, también pedida por el
+autor en medio del sprint.
 
 **Fecha de corte: 7 días corridos desde el primer día del sprint. Primer día del
 sprint: 2026-10-16. Fecha de corte: 2026-10-22**, contando los dos extremos. Si las
@@ -5742,6 +5743,106 @@ propio. Si la medición del sprint dice otra cosa, la retrospectiva lo corrige.
 quedó construida y verificada, pero no puede cerrarse: la cuenta de servicio de
 Firebase solo se genera desde una consola a la que nadie puede entrar. HT-22 la
 desbloquea.
+
+**Orden desde el 2026-10-23: HT-23, HU-17, HU-18, HU-19.** HT-23 va antes de
+HU-17 porque cambia la pantalla donde el paciente publica la inmediata, y esa es la
+pantalla donde HU-17 mostrará las ofertas que llegan.
+
+### HT-23 · Pedir atención y agendar en menos pasos `[x]` — 8 puntos
+
+> Como **paciente**, quiero **pedir atención inmediata desde el mapa de quienes están
+> disponibles, y agendar con un profesional desde la lista**, para **resolver cada
+> cosa sin recorrer pantallas que no aportan**.
+
+**Origen.** El autor revisó el flujo del paciente el 2026-10-23. El mapa con el
+radar servía para buscar a quién agendar, y la inmediata se pedía en un formulario
+aparte que no mostraba a nadie. Agendar costaba cinco pantallas y unos siete toques:
+inicio, mapa, pin, tarjeta, ficha, «Agendar cita» y el formulario. El razonamiento y
+las cuatro decisiones tomadas con el autor están en `docs/decisions.md`, 2026-10-23.
+
+**El flujo nuevo.**
+
+| Paso | Antes | Después |
+|---|---|---|
+| Inicio del paciente | Siete botones iguales | Dos tarjetas, «Atención ahora» y «Agendar una cita», y debajo «Mis solicitudes» y la cuenta |
+| Atención inmediata | Un formulario sin mapa, y después «Mis solicitudes» | Una sola pantalla: el mapa con el radar y los disponibles que atienden el servicio elegido, el formulario y «Pedir atención» fijo al pie. Al publicar, la misma pantalla pasa a «Buscando profesional» |
+| Agendar | Mapa, pin, tarjeta, ficha, «Agendar cita» | Lista sin mapa. Cada tarjeta lleva «Agendar», que abre la pantalla de agendar con el servicio del filtro ya elegido. Tocar la tarjeta sigue abriendo la ficha |
+
+**Criterios de aceptación**
+
+- [x] Dado que soy paciente, cuando abro el inicio, entonces las dos primeras
+      acciones son «Atención ahora» y «Agendar una cita».
+- [x] Dado que abro «Atención ahora», cuando elijo el servicio y la dirección,
+      entonces el mapa muestra, alrededor de esa dirección, a los profesionales
+      disponibles en este momento que prestan ese servicio y cuya cobertura la
+      alcanza, y publico con «Pedir atención» sin cambiar de pantalla.
+- [x] Dado que nadie está disponible cerca, cuando miro el mapa, entonces la
+      pantalla lo dice y me deja publicar igual.
+- [x] Dado que publiqué, cuando la solicitud queda publicada, entonces la pantalla
+      pasa a «Buscando profesional», con la hora de vencimiento y la opción de
+      cancelar.
+- [x] Dado que tengo una inmediata activa, cuando vuelvo a «Atención ahora»,
+      entonces veo esa solicitud y no un formulario nuevo.
+- [x] Dado que abro «Agendar una cita», cuando filtro por servicio y toco «Agendar»
+      en una tarjeta, entonces se abre la pantalla de agendar con ese profesional y
+      ese servicio ya elegidos.
+- [x] Dado que la búsqueda cambió de forma, cuando se revisa RF-06, entonces sigue
+      cumplido entre las dos pantallas: el mapa y la disponibilidad inmediata en
+      «Atención ahora»; la lista, el radio y el tipo de servicio en «Agendar una cita».
+
+**Evidencia de los criterios.**
+
+- **Recorrido en emulador, 2026-10-23, confirmado por el autor.** Cubre el inicio,
+  publicar, volver con la inmediata activa, cancelar y agendar desde la lista con el
+  servicio ya elegido: criterios 1, 2, 4, 5 y 6.
+- **El criterio 3, nadie disponible cerca, lo sostienen las pruebas**, sin evidencia
+  propia del recorrido. `nobodyAvailableNearbyStillLetsThePatientPublish` y
+  `aMapThatCannotBeReadLeavesTheFormUsable` en el modelo de vista, y
+  `nobodyNearbyIsSaidAndStillLetsThePatientAsk` en la interfaz.
+- **El criterio 7, RF-06, se cumple por revisión.** La función del motor, el orden y
+  la exclusión no cambiaron, y el filtro de disponibilidad pasó a «Atención ahora»
+  (`FindProfessionalsAvailableNowUseCaseTest`).
+
+**Cerrada el 2026-10-23.**
+
+**Requisitos:** RF-06.1 a RF-06.5, RF-07.1 a RF-07.3, RF-07.6, RF-09.13.
+
+**Tareas**
+
+- [x] `docs/decisions.md`, 2026-10-23, y el glosario.
+- [x] «Atención ahora»: `ImmediateCareScreen` y `ImmediateCareViewModel` reemplazan
+      a `CreateRequestScreen` y `CreateRequestViewModel`. Caso de uso nuevo
+      `GetActiveImmediateRequestUseCase`, que lee una sola fila de
+      `my_service_requests`.
+- [x] «Agendar una cita»: la búsqueda queda en lista. Se retiran el modo mapa, el
+      pin seleccionado y el filtro «Disponibles ahora». La tarjeta recibe la acción
+      «Agendar». `ScheduleAppointmentRoute` recibe el servicio elegido.
+- [x] El inicio del paciente con las dos tarjetas.
+- [x] Las cadenas en `values/` y `values-es/`, y el retiro de las que quedan sin uso.
+- [x] Pruebas de modelo de vista y de interfaz al 200 % y en 320 dp de las pantallas
+      nuevas o cambiadas. Previsualizaciones en claro, oscuro y 200 %, abiertas y
+      miradas.
+- [x] `./gradlew build` en verde.
+- [x] Recorrido en emulador, porque cambia la pantalla de HU-11, que es crítica: las
+      dos tarjetas, publicar y cancelar una inmediata, volver con una activa, y
+      agendar desde la lista.
+
+**Estado al 2026-10-23.** `./gradlew build` en verde: 751 pruebas en 129 clases. Las pruebas
+nuevas son `ImmediateCareViewModelTest` (18), `ImmediateCareScreenLargeFontTest`
+(9) y `FindProfessionalsAvailableNowUseCaseTest`. Se agregaron casos a
+`ScheduleAppointmentViewModelTest`, `AccountScreenLargeFontTest` y
+`ProfessionalSearchScreenLargeFontTest`. Se retiraron las pruebas del modo mapa y
+del filtro «Disponibles ahora», junto con lo que probaban. La prueba de la carrera
+del mapa se mutó, quitando la cancelación de la búsqueda anterior, y falló como
+debía. Las previsualizaciones en claro, oscuro y 200 % se miraron en las capturas
+de `ScreenCatalog`.
+
+**Sin cambios en la base.** El mapa usa `search_nearby_professionals` con «disponible
+ahora» y el servicio elegido. Esa función ya exige que la cobertura del profesional
+alcance el punto, así que los pines son, en la práctica, los destinatarios de la
+inmediata. No son exactamente los mismos: el mapa busca hasta 10 km, y el aviso
+llega a cualquiera cuya cobertura alcance la dirección. Por eso la pantalla dice
+«disponibles cerca» y no «recibirán tu solicitud».
 
 ### HT-22 · Servicios de Google en un proyecto con dos dueños `[x]` — 5 puntos
 

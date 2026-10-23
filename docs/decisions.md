@@ -5439,6 +5439,78 @@ Firebase o esperar la recuperación.
 
 ---
 
+## 2026-10-23 · HT-23: el mapa es para pedir atención ahora y la lista para agendar
+
+**Contexto.** El autor revisó el flujo del paciente al terminar HU-20. El mapa con
+el radar, construido en HU-11 para buscar profesionales, terminaba en la ficha y en
+«Agendar cita»: agendar costaba cinco pantallas y unos siete toques. La solicitud
+inmediata, en cambio, se publicaba desde un formulario que no mostraba a nadie, y
+después la aplicación saltaba a «Mis solicitudes». El mapa le respondía a la
+pregunta de quien agenda, «¿quién hay cerca?», cuando quien agenda pregunta «¿con
+quién?», y quien tiene una urgencia, que sí pregunta quién está cerca ahora, no lo
+veía.
+
+**Decisión.** El mapa con el radar pasa a ser la pantalla de la atención inmediata,
+y la búsqueda para agendar queda en lista. El autor decidió cuatro puntos:
+
+1. «Atención ahora» es una sola pantalla: arriba el mapa, debajo el formulario y
+   «Pedir atención» fijo al pie. Al publicar, la misma pantalla pasa a «Buscando
+   profesional». Se descartó la hoja inferior arrastrable, porque al 200 % de
+   fuente y en 320 dp el formulario no cabe en ella. Se descartó también conservar
+   el formulario aparte, porque deja las mismas dos pantallas.
+2. «Agendar una cita» es una lista. Cada tarjeta lleva «Agendar», que abre la
+   pantalla de agendar con el servicio del filtro ya elegido, y tocar la tarjeta
+   sigue abriendo la ficha. Se descartó meter el agendamiento dentro de la ficha:
+   ahorra una pantalla más, pero reescribe las dos pantallas más grandes del
+   proyecto, y la lista con la acción directa ya logra el ahorro mayor.
+3. El inicio del paciente muestra primero dos tarjetas: «Atención ahora» y «Agendar
+   una cita». Se descartó la barra de navegación inferior: toca la navegación de los
+   tres roles y no la pide ningún requisito.
+4. Quien tiene una inmediata activa y vuelve a «Atención ahora» ve esa solicitud, no
+   un formulario nuevo. Así no publica dos veces sin darse cuenta, y es el lugar
+   donde HU-17 mostrará las ofertas.
+
+**Razonamiento.**
+
+- **El mapa de «Atención ahora» no tiene chips de radio.** Quién recibe la inmediata
+  no lo decide un radio elegido por el paciente, sino la cobertura de cada
+  profesional (RF-07.2). Los chips sugerirían un control que no existe. El mapa
+  busca con 10 km, el mayor de los tres radios, con «disponible ahora» y con el
+  servicio elegido. `search_nearby_professionals` ya exige que la cobertura del
+  profesional alcance el punto, así que los pines son, en la práctica, quienes
+  recibirán el aviso. No son exactamente los mismos, porque el aviso no tiene el
+  tope de 10 km: por eso la pantalla dice «disponibles cerca» y no promete a quién
+  le llega.
+- **El mapa se centra en la dirección elegida en el formulario, no siempre en la
+  principal.** La solicitud se publica alrededor de esa dirección, y mostrar a los
+  disponibles alrededor de otra sería mostrar a otras personas.
+- **Que nadie esté disponible no impide publicar.** La disponibilidad cambia en
+  minutos, y la solicitud dura el plazo de `platform_settings`. Un profesional que
+  se conecta después la ve en su bandeja.
+- **La solicitud activa se lee con una sola fila de `my_service_requests`, filtrada
+  en la consulta** por modalidad inmediata y estado publicado o en negociación. Leer
+  la primera página de la lista y buscar ahí fallaría con quien tiene veinte
+  solicitudes posteriores a la inmediata.
+- **RF-06 queda cumplido entre las dos pantallas.** El mapa y el filtro por
+  disponibilidad inmediata viven en «Atención ahora». La lista, el radio y el tipo de
+  servicio viven en «Agendar una cita». La función del motor, el orden por distancia
+  y la exclusión de quien no está verificado o activo no cambian, así que los
+  experimentos y las pruebas de HU-11 siguen valiendo.
+- **El permiso de notificaciones se pide en «Buscando profesional».** Es el momento
+  en que el aviso tiene sentido, y cumple lo decidido el 2026-10-16: al paciente se
+  le pide después de publicar.
+
+**Consecuencia.**
+
+- `CreateRequestRoute` y su pantalla se retiran, y en su lugar quedan
+  `ImmediateCareRoute`, `ImmediateCareScreen` e `ImmediateCareViewModel`.
+- La búsqueda pierde el modo mapa, la selección de un pin y el filtro «Disponibles
+  ahora». `SearchCriteria.availableNowOnly` sigue en el dominio, porque lo usa
+  «Atención ahora».
+- `ScheduleAppointmentRoute` recibe un servicio opcional.
+- HU-17 mostrará las ofertas en el estado «Buscando profesional» de «Atención
+  ahora», y en «Mis solicitudes» para las agendadas.
+
 ## Plantilla para entradas nuevas
 
 ```

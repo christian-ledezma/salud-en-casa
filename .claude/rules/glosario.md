@@ -60,12 +60,15 @@ que lo introduce.
 | Criterios de búsqueda | `SearchCriteria` | Radio, tipo de servicio y disponibilidad con que el paciente recorta la búsqueda |
 | Origen de la búsqueda | `SearchOrigin` | La dirección **principal** del paciente, desde la que se mide la distancia. Nunca su base profesional |
 | Radio de búsqueda | `SearchRadius` | Las tres opciones que el paciente puede pedir: 2, 5 y 10 km |
-| Modo de resultados | `ResultsMode` | `MAP` o `LIST`, las dos formas de ver el mismo resultado |
 | Punto aproximado de la base | `basePoint` / `base_latitude`, `base_longitude` | Dónde se dibuja el marcador: la base profesional redondeada a la manzana. Nunca la coordenada exacta |
 | Bandeja de solicitudes | `request_inbox` / `InboxRequest` | Las solicitudes inmediatas publicadas dentro del radio del profesional y las agendadas dirigidas a él, leídas por la RPC de definidor. Cada fila lleva tipo, ciudad, presupuesto, modalidad, la hora de la cita si la hay y la distancia redondeada, nunca la ubicación exacta ni la identidad del paciente. Reemplazó a `immediate_inbox` en HU-16 |
 | Cita agendada | `RequestModality.SCHEDULED` / `create_scheduled_request` | Solicitud dirigida a un profesional para una fecha y hora. Solo nace por la función de servidor, que valida la hora contra `bookable_start_times` |
 | Horarios reservables | `bookable_start_times` / `BookableTimes` / `BookableStart` | Las horas de inicio que un profesional ofrece para un servicio en los próximos 14 días: cada 30 minutos desde el inicio de la franja, con 2 horas de anticipación y la atención completa dentro de una franja. Cada inicio trae el instante y su fecha y hora en La Paz |
 | Parte del día | `PartOfDay` | `MORNING` antes de las 12:00, `AFTERNOON` hasta las 18:00, `EVENING` desde las 18:00. Agrupa las horas del carrusel. Vive en `core/vo/`: lo usan agendar y disponibilidad |
+| Atención ahora | `ImmediateCare` / `ImmediateCareRoute` | La pantalla de la inmediata desde HT-23: el mapa de disponibles, el formulario y la espera de ofertas en una sola. Reemplazó a `CreateRequestScreen` |
+| Disponibles cerca | `NearbyState` / `FindProfessionalsAvailableNowUseCase` | Quiénes muestra el mapa de «Atención ahora»: disponibles ahora, que prestan el servicio elegido, en el radio mayor, alrededor de la dirección elegida. Indicativo, no la lista de destinatarios |
+| Solicitud inmediata activa | `ActiveRequestResult` / `GetActiveImmediateRequestUseCase` | La inmediata más reciente del paciente que sigue publicada o en negociación: `Found`, `None` o `Failure` |
+| Selector desplegable | `ExpandableOptionPicker` | La lista que se abre para elegir entre muchas opciones de nombre largo, como los tipos de servicio |
 | Agendar una cita | `ScheduleAppointment` | La pantalla y su modelo de vista; se abre desde la ficha del profesional |
 | Zona de la cita | `AppointmentZone` | `America/La_Paz`. Solo para mostrar una `scheduled_at` guardada; el cálculo vive en el motor |
 | Puede agendar | `CanScheduleAppointmentUseCase` / `showsScheduleAction` | Si la ficha ofrece «Agendar cita»: rol activo paciente, ficha ajena y profesional con servicios declarados |
