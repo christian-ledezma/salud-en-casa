@@ -5743,7 +5743,7 @@ quedó construida y verificada, pero no puede cerrarse: la cuenta de servicio de
 Firebase solo se genera desde una consola a la que nadie puede entrar. HT-22 la
 desbloquea.
 
-### HT-22 · Servicios de Google en un proyecto con dos dueños `[~]` — 5 puntos
+### HT-22 · Servicios de Google en un proyecto con dos dueños `[x]` — 5 puntos
 
 > Como **autor del proyecto**, quiero **que todo lo que la aplicación usa de Google
 > viva en un proyecto que dos cuentas mías puedan administrar**, para **no volver a
@@ -5819,8 +5819,11 @@ nunca un secreto.
       una fila de esa cuenta registrada contra el proyecto nuevo. **2026-10-20:**
       hay filas de `chris.ledezma.s` y de `ledezma.aramayo.73`, y Firebase, con la
       cuenta de servicio del proyecto nuevo, entregó avisos a esos FID.
-- [ ] Dado un envío a `master`, cuando corre la integración continua, entonces
-      termina en verde con los secretos nuevos. Pendiente: requiere los commits.
+- [x] Dado un envío a `master`, cuando corre la integración continua, entonces
+      termina en verde con los secretos nuevos. **2026-10-23:** el autor actualizó
+      `GOOGLE_WEB_CLIENT_ID` y `GOOGLE_SERVICES_JSON` y envió la rama
+      `hu-20-push-notifications`; la integración continua terminó en verde
+      (confirmado por el autor). Corre igual sobre `master` al fusionarla.
 - [x] Dada la cuenta de facturación, cuando reviso sus presupuestos, entonces hay
       una alerta de USD 35 al 50, 90 y 100 %, dirigida a las dos cuentas.
       **2026-10-21:** la cuenta `010465-855698-617093` tiene «$35 Alerta de
@@ -5852,9 +5855,8 @@ nunca un secreto.
       `local.properties`. Registrar el resultado de cada criterio aquí, con fecha.
       Hecho el 2026-10-23.
 
-**Lo que falta para cerrar HT-22, al 2026-10-23:** el primer envío a GitHub con
-estos cambios y la integración continua en verde con los secretos nuevos. La
-publicación de la pantalla de consentimiento pasó a HT-10.
+**Cerrada el 2026-10-23.** La publicación de la pantalla de consentimiento pasó a
+HT-10.
 
 **Tareas del autor (en las consolas), en este orden.**
 
