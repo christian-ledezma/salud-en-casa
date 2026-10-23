@@ -196,7 +196,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[x]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
-| 6 | Avisos y negociación de tarifas | 3 · Coordinación | 29 | `[ ]` |
+| 6 | Avisos y negociación de tarifas | 3 · Coordinación | 34 | `[ ]` |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 26 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
@@ -5711,9 +5711,22 @@ acuerdo genera el servicio.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 29. Eran 26 al cerrar el Sprint 5; el 2026-10-15 se replanificaron las
+**Puntos:** 34. Eran 26 al cerrar el Sprint 5; el 2026-10-15 se replanificaron las
 notificaciones push, HU-20 pasó de 5 a 8 puntos y el sprint cambió de nombre. Ver
-`docs/decisions.md`, 2026-10-15, «Notificaciones push».
+`docs/decisions.md`, 2026-10-15, «Notificaciones push». El 2026-10-18 entró HT-22
+con 5 puntos, pedida por el autor en medio del sprint, como pide la retrospectiva
+del Sprint 5.
+
+**Fecha de corte: 7 días corridos desde el primer día del sprint. Primer día del
+sprint: 2026-10-16. Fecha de corte: 2026-10-22**, contando los dos extremos. Si las
+cuatro historias se cierran antes, se toma la siguiente del Sprint 7 en lugar de
+cerrar (retrospectiva del Sprint 5).
+
+**Extendido el 2026-10-23, por decisión del autor, hasta terminar sus historias.**
+Al llegar el corte, HT-22 había ocupado el sprint: HU-20 estaba cerrada, HT-22
+esperaba la integración continua, y HU-17, HU-18 y HU-19 no habían empezado. Las
+tres siguen en este sprint, en ese orden. La retrospectiva registra cuántos días
+se extendió y por qué.
 
 **Orden de ejecución: HU-20, HU-17, HU-18, HU-19.** HU-20 va primero, aunque su
 número sea mayor, porque construye el canal por el que HU-17, HU-18 y HU-19 avisan
@@ -5725,7 +5738,182 @@ HU-17.
 puntos.** Cada uno conecta un evento más al canal de HU-20 y no construye nada
 propio. Si la medición del sprint dice otra cosa, la retrospectiva lo corrige.
 
-### HU-20 · Recibir avisos de solicitudes `[ ]` — 8 puntos
+**Orden desde el 2026-10-18: HT-22, cierre de HU-20, HU-17, HU-18, HU-19.** HU-20
+quedó construida y verificada, pero no puede cerrarse: la cuenta de servicio de
+Firebase solo se genera desde una consola a la que nadie puede entrar. HT-22 la
+desbloquea.
+
+### HT-22 · Servicios de Google en un proyecto con dos dueños `[~]` — 5 puntos
+
+> Como **autor del proyecto**, quiero **que todo lo que la aplicación usa de Google
+> viva en un proyecto que dos cuentas mías puedan administrar**, para **no volver a
+> quedar fuera de la configuración por perder el acceso a una sola cuenta**.
+
+**Origen.** El 2026-10-16 la única cuenta propietaria de `salud-en-casa-508102`
+quedó atrapada en la verificación en dos pasos. Después de 48 horas y del flujo
+de recuperación sigue sin acceso, y ninguna otra cuenta tiene permisos en el
+proyecto. Lo desplegado sigue funcionando, pero nada se puede modificar:
+
+- Firebase, con Crashlytics, Cloud Messaging y App Distribution;
+- los tres clientes OAuth;
+- la clave de Maps.
+
+El razonamiento está en `docs/decisions.md`, 2026-10-18. El procedimiento paso a
+paso, con cada valor y cada clic, se le entregó al autor fuera del repositorio,
+porque cita las rutas de sus secretos. Aquí constan los pasos y su verificación,
+nunca un secreto.
+
+**Qué cambia y qué no.**
+
+| Pieza | Antes | Después |
+|---|---|---|
+| Propietarios de Google Cloud y Firebase | Una cuenta, inaccesible | Dos cuentas del autor, con recuperación por tres vías |
+| `app/google-services.json` | Proyecto viejo | Proyecto nuevo, y el secreto de CI `GOOGLE_SERVICES_JSON` |
+| Ingreso con Google | Clientes OAuth del proyecto viejo | Cliente web y dos Android nuevos (depuración y subida). `GOOGLE_WEB_CLIENT_ID` en `local.properties` y en CI. En Supabase, los dos identificadores web durante la transición |
+| Pantalla de consentimiento | En prueba, con una lista de usuarios | En producción, con permisos básicos y sin logotipo |
+| Maps | Clave del proyecto viejo | Clave nueva, restringida al paquete, a las dos huellas y a Maps SDK for Android |
+| Facturación | En una cuenta que nadie ve | Cuenta nueva con dos administradores y alerta de presupuesto en USD 35 (RNF-10) |
+| Firma de depuración | `~/.android/debug.keystore`, huella `A7:50:9A:DD…` atrapada en el proyecto viejo | Clave propia del proyecto en `DEBUG_KEYSTORE_FILE`, fuera del repositorio |
+| Firma de publicación | No existía | Clave de subida generada y con su huella ya registrada, para HT-10 |
+| `applicationId`, Supabase, base de datos, cuentas de usuario | — | **Sin cambios** |
+
+**Criterios de aceptación**
+
+- [x] Dado el proyecto nuevo, cuando consulto su IAM, entonces figuran dos cuentas
+      del autor con rol Propietario, y las dos entran a la consola.
+      **2026-10-21:** el IAM de `salud-en-casa-app` muestra a `chris.ledezma.s@gmail.com`
+      y a `saludencasa.2073@gmail.com` como Propietario. **2026-10-22:** la segunda
+      entró a la consola (confirmado por el autor).
+- [x] Dadas esas dos cuentas, cuando reviso su seguridad, entonces cada una tiene
+      verificación en dos pasos con app autenticadora, llave de acceso y códigos de
+      respaldo guardados, y teléfono y correo de recuperación al día.
+      **2026-10-22:** confirmado por el autor. La página de seguridad de la cuenta
+      no es legible desde el navegador del agente.
+- [x] Dado un usuario existente, cuando ingresa con la compilación nueva, entonces
+      entra a su misma cuenta con sus roles, y `auth.users` no suma ninguna fila.
+      **2026-10-19/20:** cuatro cuentas ingresaron con el cliente `422326765830-…`
+      (`chris.ledezma.s`, `ledezma.aramayo.73`, `christian.ledezma@ucb.edu.bo` y
+      `salud.en.casa.73`) y `auth.users` siguió en 9, con 9 identidades de Google.
+- [x] Dada la pantalla de consentimiento, cuando ingresa una cuenta que no estaba
+      en ninguna lista de prueba, entonces puede ingresar.
+      **2026-10-21:** el ingreso funciona: la lista de usuarios de prueba tiene
+      **cero** cuentas y las cuatro de arriba entraron. Pero el estado de
+      publicación sigue en **Prueba**, no en producción como pide la tabla de
+      arriba. La consola indica que falta completar la marca antes de publicar.
+      **2026-10-23:** la marca tiene nombre, correo de soporte y contacto del
+      desarrollador, y el estado **sigue en Prueba**: la aplicación no se llegó a
+      publicar. Google exige además una página principal y una política de
+      privacidad publicadas. **Decidido con el autor el 2026-10-23:** el criterio se
+      cierra tal como está redactado, porque el ingreso funciona con la lista vacía,
+      y la publicación en producción pasa a HT-10, antes de la prueba con
+      participantes.
+- [x] Dado el mapa de «Mi dirección» y el de la búsqueda, cuando abro la pantalla,
+      entonces las teselas cargan. **2026-10-21:** las métricas de Maps SDK for
+      Android del proyecto nuevo registran solicitudes con respuesta 2xx en la
+      última semana, y ninguna con error.
+- [x] Dado un fallo de prueba, cuando reabro la aplicación, entonces aparece en el
+      Crashlytics del proyecto nuevo. **2026-10-21:** Crashlytics de
+      `salud-en-casa-app` muestra `RemoteServiceException$CrashedByAdbException`,
+      provocado con `adb shell am crash`, 1 fallo y 1 usuario.
+- [x] Dado un ingreso en el teléfono, cuando consulto `device_tokens`, entonces hay
+      una fila de esa cuenta registrada contra el proyecto nuevo. **2026-10-20:**
+      hay filas de `chris.ledezma.s` y de `ledezma.aramayo.73`, y Firebase, con la
+      cuenta de servicio del proyecto nuevo, entregó avisos a esos FID.
+- [ ] Dado un envío a `master`, cuando corre la integración continua, entonces
+      termina en verde con los secretos nuevos. Pendiente: requiere los commits.
+- [x] Dada la cuenta de facturación, cuando reviso sus presupuestos, entonces hay
+      una alerta de USD 35 al 50, 90 y 100 %, dirigida a las dos cuentas.
+      **2026-10-21:** la cuenta `010465-855698-617093` tiene «$35 Alerta de
+      presupuesto mensual», sobre toda la cuenta, con alertas al 50, 90, 100 y
+      150 %. Gasto actual: USD 0. Los destinatarios no se verificaron.
+- [x] Dados Supabase y GitHub, cuando reviso sus accesos, entonces cada uno tiene
+      recuperación por más de una vía, y Supabase tiene un segundo miembro
+      propietario. **2026-10-21:** la organización de Supabase tiene dos Owner,
+      `chris.ledezma.s@gmail.com` y `saludencasa.2073@gmail.com`, los dos con MFA
+      activo. GitHub: códigos de recuperación guardados, confirmado por el autor el
+      2026-10-22.
+- [x] Dado el cierre de la transición, cuando todo dispositivo de prueba tiene la
+      compilación nueva, entonces el identificador web viejo se retira de Supabase y
+      el ingreso sigue funcionando. **2026-10-21:** el proveedor de Google en
+      Supabase tiene solo el identificador nuevo, con su secreto y la
+      verificación del *nonce* activa. **2026-10-22:** `chris.ledezma.s` ingresó a
+      las 12:45 con solo ese identificador, y `auth.users` sigue en 9.
+
+**Requisitos:** RF-01.1, RNF-05, RNF-06, RNF-10.
+
+**Tareas del agente (en el repositorio).**
+
+- [x] La compilación de depuración se firma con la clave que declara
+      `DEBUG_KEYSTORE_FILE`. Sin la propiedad se usa la clave de siempre: CI no
+      cambia. Comprobado con `signingReport` en los dos caminos el 2026-10-18.
+- [x] La decisión, en `docs/decisions.md`, 2026-10-18.
+- [x] Al cerrar: `README.md` con el proyecto nuevo, la pantalla de consentimiento
+      en producción, la sección de cuentas y accesos, y `DEBUG_KEYSTORE_FILE` en
+      `local.properties`. Registrar el resultado de cada criterio aquí, con fecha.
+      Hecho el 2026-10-23.
+
+**Lo que falta para cerrar HT-22, al 2026-10-23:** el primer envío a GitHub con
+estos cambios y la integración continua en verde con los secretos nuevos. La
+publicación de la pantalla de consentimiento pasó a HT-10.
+
+**Tareas del autor (en las consolas), en este orden.**
+
+1. Respaldar `local.properties` y `app/google-services.json` actuales, para poder
+   volver atrás.
+2. Asegurar las dos cuentas propietarias: verificación en dos pasos por tres vías
+   y códigos de respaldo en el gestor de contraseñas.
+3. Generar las dos claves de firma, la de depuración y la de subida, y anotar sus
+   huellas SHA-1.
+4. Crear el proyecto de Firebase con la cuenta A, sin Google Analytics, y agregar
+   la cuenta B como Propietario. B acepta la invitación y entra.
+5. Crear la cuenta de facturación, vincularla, sumar a B como administradora y
+   crear el presupuesto.
+6. Registrar la aplicación Android sin huellas en Firebase, descargar
+   `google-services.json` y comprobar que la API de Cloud Messaging esté activa.
+7. Configurar la pantalla de consentimiento externa en producción y crear los
+   clientes: uno web, con la URL de retorno de Supabase, y dos Android, con
+   paquete y huella.
+8. Habilitar Maps SDK for Android y crear su clave restringida.
+9. En Supabase, poner el identificador web nuevo primero, seguido de los viejos, y
+   el secreto nuevo. Antes, guardar los valores anteriores.
+10. Actualizar `local.properties`, reemplazar `google-services.json`, verificar con
+    `signingReport`, desinstalar la aplicación de cada dispositivo e instalar la
+    nueva.
+11. Verificar el ingreso con tres cuentas (paciente, doble rol y administrador),
+    midiendo `auth.users` antes y después. Verificar también el mapa y Crashlytics.
+    El registro del dispositivo se verifica después del `db push` de HU-20, que
+    trae la función que lo registra.
+12. Actualizar los secretos de CI `GOOGLE_WEB_CLIENT_ID` y `GOOGLE_SERVICES_JSON`.
+13. Completar HU-20 con la cuenta de servicio del proyecto nuevo.
+14. Sumar un segundo propietario en Supabase y guardar los códigos de recuperación
+    de GitHub.
+15. Retirar de Supabase el identificador web viejo cuando todos los dispositivos de
+    prueba estén actualizados.
+
+**Riesgos y cómo se cubren.**
+
+| Riesgo | Cómo se detecta | Cómo se cubre |
+|---|---|---|
+| La huella SHA-1 ya está registrada en otro proyecto | Google responde *already in use* al crear el cliente Android | Claves de firma nuevas. Si `signingReport` muestra `A7:50:9A:DD…`, la clave nueva no se aplicó |
+| Un usuario existente aparece como cuenta nueva | `auth.users` sube después del ingreso | Se mide antes y después con una sola cuenta. Supabase acepta los dos identificadores, de modo que volver atrás es restaurar el respaldo. El duplicado se borra desde el panel |
+| La pantalla de consentimiento queda en prueba | Una cuenta fuera de la lista no puede ingresar | Publicarla en producción, sin logotipo |
+| El mapa no dibuja | `Authorization failure` en `adb logcat` | API habilitada, facturación vinculada, restricciones por huella y por API |
+| La compilación vieja no se actualiza encima | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Desinstalar primero. Solo se pierde la sesión |
+| CI en rojo | La ejecución falla en la escritura de credenciales | Actualizar los dos secretos antes de enviar |
+| La caché de configuración de Gradle conserva la firma vieja | `signingReport` sigue mostrando la clave anterior | `./gradlew --stop` y una compilación con `--no-configuration-cache` |
+| Se pierde la clave de subida | — | Respaldada en el gestor de contraseñas. Con Play App Signing se puede reemplazar |
+| Se repite el bloqueo de una cuenta | El control de acceso al cerrar cada sprint | Dos propietarios, tres vías de recuperación cada uno y el control en cada cierre |
+| La prueba gratuita de la cuenta de facturación vence el **2027-01-18** y Google detiene el proyecto | El mapa deja de cargar | Pulsar «Activar cuenta completa» antes de esa fecha. No cobra por sí misma. Se revisa en el control de acceso de cada cierre de sprint |
+
+**Verificación de cierre.** Todos los criterios marcados, con fecha y con el
+resultado de cada consulta. `./gradlew build` en verde. El recorrido de HU-20 en el
+teléfono físico se hace ya sobre el proyecto nuevo.
+
+**Control nuevo en el cierre de cada sprint, desde el Sprint 6:** entrar a la
+consola de Google Cloud con las dos cuentas propietarias, y a Supabase con sus dos
+miembros. Se anota en la retrospectiva.
+
+### HU-20 · Recibir avisos de solicitudes `[x]` — 8 puntos
 
 > Como **profesional**, quiero **recibir una notificación cuando se publique una
 > solicitud cerca de mí o cuando un paciente me agende una cita**, para **no perder
@@ -5737,42 +5925,61 @@ propio. Si la medición del sprint dice otra cosa, la retrospectiva lo corrige.
 
 *Solicitudes, para el profesional:*
 
-- [ ] Dado que se publica una solicitud inmediata dentro de mi radio y de un tipo
+- [x] Dado que se publica una solicitud inmediata dentro de mi radio y de un tipo
       que presto, cuando ocurre, entonces recibo una notificación con el tipo de
-      servicio y la distancia.
-- [ ] Dado que un paciente me agenda una cita, cuando se crea, entonces recibo una
+      servicio y la distancia. **2026-10-20:** la inmediata de las 14:39:34 llegó
+      al teléfono a las 14:39:40, con la app deslizada fuera de recientes.
+- [x] Dado que un paciente me agenda una cita, cuando se crea, entonces recibo una
       notificación con el tipo de servicio y la fecha y hora de la cita.
-- [ ] Dado que el paciente cancela la cita que me había agendado, cuando la
-      cancela, entonces recibo una notificación.
-- [ ] Dado que toco la notificación, cuando se abre la aplicación, entonces voy
-      directo a esa solicitud en mi bandeja.
-- [ ] Dado que no estoy verificado o no estoy disponible, cuando se publica una
-      solicitud inmediata, entonces no me llega notificación.
-- [ ] Dado que tengo ambos roles y publico una solicitud como paciente, cuando se
-      publica, entonces no me llega a mí como profesional (INV-16).
+      **2026-10-22:** cita de las 12:51:11, `sent:1`, mostrada en el teléfono
+      (confirmado por el autor).
+- [x] Dado que el paciente cancela la cita que me había agendado, cuando la
+      cancela, entonces recibo una notificación. **2026-10-22:** cancelación de
+      las 12:54:40, `sent:1`, mostrada en el teléfono (confirmado por el autor).
+- [x] Dado que toco la notificación, cuando se abre la aplicación, entonces voy
+      directo a esa solicitud en mi bandeja. **2026-10-22:** recorrido en el
+      teléfono, filas a y d de la guía (confirmado por el autor).
+- [x] Dado que no estoy verificado o no estoy disponible, cuando se publica una
+      solicitud inmediata, entonces no me llega notificación. Los destinatarios los
+      decide la base: experimento e01, que discrimina en cada condición. En datos
+      reales, el 2026-10-20 una inmediata de un tipo que el profesional no presta
+      («Sondaje vesical») no generó ningún envío.
+- [x] Dado que tengo ambos roles y publico una solicitud como paciente, cuando se
+      publica, entonces no me llega a mí como profesional (INV-16). Experimento
+      e02, con el control de que la misma persona sí recibe la de otro paciente.
 
 *Solicitudes, para el paciente:*
 
-- [ ] Dado que mi solicitud vence sin acuerdo, inmediata o agendada, cuando el
+- [x] Dado que mi solicitud vence sin acuerdo, inmediata o agendada, cuando el
       barrido la marca vencida, entonces recibo una notificación que me lleva a
-      «Mis solicitudes».
+      «Mis solicitudes». **2026-10-20:** el emulador mostró el vencimiento de las
+      14:32; e09 cubre las dos modalidades. Al tocarlo abre «Mis solicitudes»
+      (2026-10-22, confirmado por el autor).
 
 *El canal, para los dos:*
 
-- [ ] Dado que tengo ambos roles y el activo es paciente, cuando llega un aviso de
+- [x] Dado que tengo ambos roles y el activo es paciente, cuando llega un aviso de
       profesional y lo toco, entonces la aplicación activa el rol profesional y abre
-      la solicitud.
-- [ ] Ninguna notificación muestra la descripción de la solicitud, la dirección ni
+      la solicitud. **2026-10-22:** fila b de la guía (confirmado por el autor), más
+      `OpenNotificationUseCaseTest`.
+- [x] Ninguna notificación muestra la descripción de la solicitud, la dirección ni
       la identidad del paciente: solo el tipo de evento y lo necesario para abrirlo.
-- [ ] Dado que cambio de dispositivo, cuando ingreso, entonces las notificaciones
-      llegan al nuevo.
-- [ ] Dado que cierro sesión, cuando ocurre un evento mío, entonces no llega a ese
-      dispositivo.
-- [ ] Dado que otra persona ingresa con su cuenta en el mismo teléfono, cuando
-      ocurre un evento mío, entonces no le llega a ella.
-- [ ] Dado que es la primera vez que la aplicación necesita el permiso de
+      Experimento e03 y la lista de claves permitidas de `send-push`.
+- [x] Dado que cambio de dispositivo, cuando ingreso, entonces las notificaciones
+      llegan al nuevo. **2026-10-20:** `chris.ledezma.s` pasó del emulador al
+      teléfono y los avisos le llegaron al teléfono. Experimento e04.
+- [x] Dado que cierro sesión, cuando ocurre un evento mío, entonces no llega a ese
+      dispositivo. Experimento e05 y `StopReceivingNotificationsUseCaseTest`.
+- [x] Dado que otra persona ingresa con su cuenta en el mismo teléfono, cuando
+      ocurre un evento mío, entonces no le llega a ella. **2026-10-20:** el FID del
+      emulador pasó de `chris.ledezma.s` a `ledezma.aramayo.73`, y desde entonces
+      cada envío a `chris.ledezma.s` tuvo un solo destino, el teléfono. Experimento
+      e04.
+- [x] Dado que es la primera vez que la aplicación necesita el permiso de
       notificaciones, cuando lo pide, entonces antes explica para qué sirve; y si lo
-      niego, la bandeja y «Mis solicitudes» siguen funcionando.
+      niego, la bandeja y «Mis solicitudes» siguen funcionando. **2026-10-22:**
+      fila j de la guía (confirmado por el autor), más
+      `NotificationPermissionViewModelTest`.
 
 **Requisitos:** RF-09.4, RF-09.8, RF-09.10, RF-09.11, RF-09.12, RF-09.13, RN-01,
 RN-13, INV-07, INV-08, INV-16.
@@ -5796,20 +6003,200 @@ RN-13, INV-07, INV-08, INV-16.
   Cloud Messaging. La cuenta de servicio de Firebase vive en los secretos de
   Supabase, igual que la clave de servicio (INV-14): nunca en el cliente, el
   repositorio ni un registro. El mecanismo de disparo desde el motor se decide al
-  planificar la historia y se registra en `docs/decisions.md`.
+  planificar la historia y se registra en `docs/decisions.md`. **Decidido el
+  2026-10-16:** trigger en `service_requests` y `pg_net` hacia la función
+  `send-push`, con el cuerpo armado por `request_push_body` y la regla de cobertura
+  en una sola función, `professional_covers_for`, que ningún cliente ejecuta. Ver
+  `docs/decisions.md`, 2026-10-16, «el motor decide y encola».
+- **Identificador por instalación (FID), no por token de registro**, que
+  `firebase-messaging` 25.1.0 deprecó. Escritura de `device_tokens` solo por
+  `register_my_device` y `unregister_my_device`. Ver `docs/decisions.md`,
+  2026-10-16, «el teléfono se identifica por su instalación».
 - **Mensajes de datos, no de notificación**: el servidor envía el tipo de evento y
   los identificadores, y el dispositivo compone el texto desde los recursos de
   cadenas, en el idioma del teléfono (RF-09.10, `.claude/rules/i18n.md`).
 - Canales de notificación de Android por categoría —solicitudes, negociación,
   mensajes, atención y pago, verificación—, con sus nombres en recursos de cadenas,
   para que la persona silencie cada uno desde el sistema. Las notificaciones de una
-  misma solicitud se agrupan.
+  misma solicitud se agrupan. **Ajustado el 2026-10-16:** HU-20 crea solo el canal
+  «Solicitudes», y cada historia crea el de su evento. Con el teléfono bloqueado
+  se ve una versión reservada del aviso, sin el tipo de servicio.
 - Apertura del evento al tocar la notificación, con cambio de rol activo si hace
-  falta (RF-09.11), por las rutas tipadas de `navigation/`.
+  falta (RF-09.11), por las rutas tipadas de `navigation/`. Hasta que HU-17 cree la
+  pantalla de la solicitud, el destino es la bandeja con la fila resaltada.
 
 > **Esta historia es de criticidad alta**: la entrega efectiva se demuestra en un
 > dispositivo físico, con la aplicación cerrada. Ver «Cuándo hace falta un
 > dispositivo».
+
+#### Avance al 2026-10-16
+
+**Planificación.** Nueve decisiones tomadas con el autor antes del código, cada una
+con su recomendación: el mecanismo de disparo, el identificador, el destino al
+tocar, el momento del permiso, los canales, la segunda barrera en el teléfono, la
+cancelación, la fecha de corte y la pantalla de bloqueo. Están en
+`docs/decisions.md`, 2026-10-16, en dos entradas. El diseño lo hizo un arquitecto
+de feature-dev sobre dos exploraciones del código. La documentación vigente de
+Firebase y Supabase se consultó con context7, y la API de 25.1.3 se leyó en el
+bytecode.
+
+**Construido.**
+
+- Tres migraciones:
+  - `20261016120000_register_device_by_function`;
+  - `20261016121000_professional_covers_for_a_named_professional`;
+  - `20261016122000_push_on_request_events`.
+- La función `send-push`.
+- El paquete `features/notifications/`.
+- El resaltado en la bandeja.
+- El permiso en contexto.
+- La apertura con cambio de rol.
+
+`./gradlew build` concluye sin error, después de la revisión, con lint, ktlint y la
+suite completa: 734 pruebas en 128 clases, ninguna saltada ni fallida.
+
+**Mutación de las aserciones nuevas.** Se rompió el código en doce puntos y las
+doce pruebas fallaron. Los puntos fueron:
+
+- la segunda barrera;
+- el orden del cierre de sesión;
+- la espera del arranque;
+- el tag por solicitud;
+- la versión de la pantalla bloqueada;
+- la búsqueda en páginas posteriores;
+- el cambio de rol;
+- la repetición desde recientes;
+- el texto público;
+- el guardado antes de subir;
+- la tarjeta que no parpadea;
+- el enganche del arranque.
+
+**Revisión de cierre con dos revisores de feature-dev** (correctitud y seguridad;
+convenciones). Ninguno encontró un defecto crítico. Se corrigió:
+
+- **Los avisos ya mostrados sobrevivían al cierre de sesión.** Quien tomara
+  después el teléfono desbloqueado los leía en la bandeja del sistema. Ahora se
+  retiran al cerrar sesión.
+- **Un cierre de sesión rechazado dejaba el teléfono sin registro** hasta el
+  siguiente arranque en frío. Ahora se vuelve a registrar.
+- **Un toque pendiente se perdía** si la actividad se recreaba durante el arranque,
+  por una rotación o un cambio a modo oscuro. Ahora se guarda en el estado.
+- **La función podaba ante cualquier 404.** Un `project_id` mal configurado habría
+  borrado todos los dispositivos con el primer envío. Ahora poda solo ante
+  `UNREGISTERED`.
+- **La búsqueda de la fila resaltada vivía en el modelo de vista.** Pasó al caso
+  de uso `FindInboxRequestUseCase`, que trabaja sobre su propia lista, de modo que
+  un refresco por señal ya no le descuenta páginas.
+- **La distancia estaba escrita dos veces**, en la bandeja y en la búsqueda, con
+  claves idénticas. Quedó una sola función, `distanceText`, con las claves
+  `common_distance_*`.
+- **Los comentarios nuevos repetían el razonamiento de `decisions.md` o describían
+  el código.** Quedaron reducidos a citas y restricciones externas: otra vez lo
+  encontró la revisión, no yo al escribirlos.
+- **Faltaba la prueba al 200 % de «Mis solicitudes» con la tarjeta del permiso.**
+
+**La segunda ronda de mutación encontró dos pruebas débiles.**
+
+- **Una afirmaba contra la misma constante que se mutaba.** Repetía la
+  implementación; se reescribió para afirmar la regla, cinco páginas.
+- **Un guard contra la carrera con el refresco sobrevivió a la mutación.** Desde el
+  caso de uso ya no protegía nada, y se retiró como código muerto.
+
+Las otras mutaciones nuevas fueron detectadas:
+
+- el reintento tras el cierre fallido;
+- el `Bundle` del estado guardado;
+- la página que falla, que no cuenta como solicitud que se fue.
+
+**Previsualizaciones capturadas y miradas.** El catálogo de capturas ahora incluye
+la tarjeta del permiso. Encontraron dos defectos que ninguna prueba veía:
+
+- **En la tarjeta resaltada, la etiqueta «Agendada» desaparecía.** Usaba el mismo
+  color contenedor que el resaltado. El resaltado pasó a ser un borde del color
+  primario, con la medida nueva `Spacing.highlightBorderWidth`.
+- **En oscuro, «Mis solicitudes» no pintaba su fondo** y el título quedaba
+  ilegible. Es el mismo defecto de la bandeja, que también quedó corregido, como
+  anotó el Sprint 5.
+
+**Firma del JWT de `fcm.ts`.** Se verificó con Node y WebCrypto: una clave RSA
+generada, la firma validada con su clave pública, y las claims y la codificación
+base64url correctas.
+
+**Experimentos SQL contra el remoto (2026-10-16, `begin…rollback`, todos en verde,
+con las tres migraciones sin aplicar dentro de la transacción).** El fixture tiene
+un paciente y siete profesionales sintéticos, uno a cada lado de cada condición.
+La clave foránea hacia `auth.users` se suelta dentro de la transacción, con la
+técnica del 2026-10-09.
+
+| # | Prueba | Resultado |
+|---|---|---|
+| e01 | `nearbyRequestIsNotifiedExactlyToThoseWhoSeeItInTheirInbox` | **Pasa y discrimina.** La bandeja de la solicitud la ven {ADR, BUSY, DUAL, OK}; los destinatarios son {ADR, DUAL, OK}. Solo BUSY cae, por `available_now`. El pendiente, el inactivo, el que está fuera de radio y el del otro tipo no están en ninguno de los dos lados. Distancia 1.000 m |
+| e02 | `aDualRoleUserIsNeverNotifiedOfTheirOwnRequest` | **Pasa y discrimina.** La solicitud de DUAL va a {ADR, OK}, y la del otro paciente sí incluye a DUAL |
+| e03 | `notificationPayloadCarriesNoTextWrittenByAUser` | **Pasa.** En los cuatro eventos, ningún centinela de descripción, dirección, referencia ni nombre. Las claves son exactamente las de la lista permitida, y `scheduledAt` sale con `Z` |
+| e04 | `aDeviceTokenBelongsOnlyToTheLastAccountThatSignedInOnIt` | **Pasa.** A registra y después B registra el mismo FID: B lo ve, A no, y queda una sola fila. El `unregister` de A deja la fila de B y el de B la borra. Una inserción o un borrado directo dan 42501, un FID corto da `invalid_device_token` y `anon` no puede llamar a la función |
+| e05 | `signingOutStopsNotificationsOnThatDevice`, lado servidor | **Pasa.** Antes del cierre de sesión el vencimiento se arma; después, nada |
+| e06 | `scheduledRequestIsNotifiedOnlyToItsAddressee` | **Pasa y discrimina.** La agendada va solo a ADR. Al destinatario no verificado no le llega la creación y sí la cancelación (decisión 7). El vencimiento va al paciente |
+| e07 | Encolado real con secretos de Vault creados en la transacción | **Pasa.** Seis filas en `net.http_request_queue`: dos inmediatas, la agendada a ADR, dos vencimientos al paciente y la cancelación a UNV. Todas tienen la URL y el secreto correctos y ningún texto de usuario |
+| e08 | El trigger nunca tumba la solicitud | **Pasa.** Con `request_push_body` renombrada dentro de la transacción, la solicitud se crea y no se encola nada |
+| e09 | El barrido sin `auth.uid()` | **Pasa** dentro de e07: las dos modalidades vencidas encolan `REQUEST_EXPIRED` al paciente |
+| e10 | Cancelación | **Pasa** dentro de e07: cancelar la agendada encola un aviso, y cancelar una inmediata no encola nada |
+| e11 | Regresión del refactor de cobertura | **Pasa.** `professional_covers_for` da 42501 a `authenticated`. Las cinco preguntas de cobertura y la oferta dentro y fuera de radio responden **igual que la función actual del remoto**, que se corrió aparte sin la migración |
+| e12 | `everyTableHasRowLevelSecurityEnabledAndAtLeastOnePolicy` | **Pasa.** Ninguna tabla queda sin RLS o sin política; `device_tokens` conserva `device_tokens_select_own` |
+
+Sin residuo, comprobado después: `pg_net` sigue sin instalar, no hay secretos
+`push_*` en Vault, quedan 0 perfiles sintéticos y la clave foránea está de vuelta.
+
+**Cierre, 2026-10-22.** La historia se cerró ese día:
+
+1. el `db push`, el 2026-10-20 (`db push --dry-run`: «Remote database is up to date»);
+2. los secretos y el despliegue de `send-push`, el 2026-10-20, con la cuenta de
+   servicio del proyecto nuevo de HT-22. La función está `ACTIVE`, versión 3;
+3. las previsualizaciones del permiso y de la bandeja resaltada, abiertas y miradas
+   por el autor en claro, oscuro y 200 %;
+4. el recorrido en el teléfono físico, con la aplicación cerrada;
+5. `./gradlew build` en verde el 2026-10-23: 734 pruebas en 128 clases, sin fallas.
+
+El `supabase db reset` local pasa al cierre del Sprint 6, que es donde
+`.claude/rules/supabase.md` lo exige. Docker no estaba disponible al cerrar la
+historia.
+
+La prueba con `curl` confirma además el campo `fid` de la API HTTP v1, el único
+punto de la API que no se pudo leer en el código.
+
+#### Recorrido en dispositivo, 2026-10-20 y 2026-10-22
+
+Teléfono físico nubia con Android 16 y `chris.ledezma.s` como profesional;
+emulador con `ledezma.aramayo.73` como paciente.
+
+| Prueba | Resultado |
+|---|---|
+| Contrato de la función con `curl` | **Pasa.** Un secreto incorrecto da `401`; un cuerpo sin destinatarios da `200` con `{"sent":0,"pruned":0,"failed":0}` |
+| Aviso directo con `curl` y el campo `fid` | **Pasa.** `{"sent":1}` y la notificación aparece |
+| Solicitud inmediata desde el emulador, con la app del teléfono deslizada fuera de recientes | **Pasa.** El trigger la encola a las 14:39:34 y el teléfono la muestra a las 14:39:40 |
+| Vencimiento al paciente por el barrido | **Pasa.** La solicitud de las 14:01 venció a las 14:32 y el emulador muestra el aviso con su `requestId` |
+| Cita agendada y su cancelación | El 2026-10-20 el trigger y Firebase respondieron `sent:1`, pero el teléfono no las mostró. **Repetidas el 2026-10-22:** cita a las 12:51:11 y cancelación a las 12:54:40, `sent:1` las dos, mostradas en el teléfono (confirmado por el autor) |
+
+**Avisos entregados que no se mostraron, causa sin determinar.** Los servicios de
+Google del teléfono registraron «Successful broadcast» para los avisos de las
+14:01, 14:06, 14:09 y 14:17. El registro de uso de Android no muestra ninguno de
+los cuatro como notificación. La carga de la cita, reconstruida desde la base, es
+válida. Lo que consta:
+
+1. El de las 14:01 llegó **antes de que se concediera el permiso**, a las 14:05:20.
+   Sin permiso no se muestra nada, como está diseñado.
+2. Los de las 14:06, 14:09 y 14:17 llegaron **con el permiso ya concedido** y
+   tampoco se mostraron. No se encontró la causa: los registros del teléfono
+   están silenciados por el fabricante, y el diagnóstico se activó recién a las
+   14:26.
+3. Todos los avisos que sí se mostraron (14:26, 14:27, 14:28 y 14:39) llegaron a
+   un proceso **iniciado después** de conceder el permiso: el de las 14:26 y el
+   de las 14:27 arrancaron el proceso. No consta si los que fallaron llegaron
+   al proceso que existía desde antes del permiso.
+
+Es una coincidencia observada, no una causa demostrada. Falta reproducirlo:
+conceder el permiso con la aplicación abierta y, sin cerrarla, enviar un aviso
+con los registros de diagnóstico activos. Mientras no se reproduzca ni se
+descarte, no se cambia el código.
 
 ### HU-17 · Ofertar por una solicitud `[ ]` — 5 puntos
 
@@ -6279,6 +6666,13 @@ configuración de App Distribution y del grupo de evaluadores.
 
 - [ ] La versión firmada autentica correctamente con Google
 - [ ] Los evaluadores reciben la invitación y pueden instalar
+- [ ] La pantalla de consentimiento de OAuth está **en producción**. Google lo exige
+      con una página principal y una política de privacidad publicadas, y la
+      política es también el destino del botón «Política de privacidad» de la
+      bienvenida, que hoy no lleva a ningún lado. El texto lo redacta y revisa el
+      autor. Viene de HT-22: hasta el 2026-10-23 el ingreso funcionaba en «Prueba»
+      con la lista de usuarios de prueba vacía, pero nada garantiza que Google lo
+      siga permitiendo. Debe quedar hecho antes de HT-13.
 
 ### HT-11 · Datos iniciales `[ ]`
 

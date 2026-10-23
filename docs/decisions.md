@@ -5224,6 +5224,219 @@ RF-09 pasa de cinco a trece requisitos. FA-11 entra en el alcance como HU-37.
 
 ---
 
+## 2026-10-16 · HU-20: el motor decide y encola, la función de servidor solo entrega
+
+**Contexto.** La entrada del 2026-10-15 dejó para la planificación de HU-20 cómo
+pasa un evento del motor a la función de servidor que habla con Cloud Messaging.
+Las condiciones ya estaban fijadas: los destinatarios los decide el motor con la
+regla de la bandeja (INV-08), el aviso no lleva texto escrito por un usuario
+(RF-09.10), y HU-19 exige que una aceptación revertida no notifique a nadie.
+
+**Decisión.** Un trigger `after` en `service_requests` arma el cuerpo completo
+—evento, identificadores y la lista de destinatarios con sus dispositivos— y lo
+encola con `net.http_post` de `pg_net` hacia la función `send-push`, que solo
+autentica, firma y entrega. El autor la eligió el 2026-10-16 entre tres opciones.
+
+**Razonamiento.**
+
+- **`pg_net` encola dentro de la transacción.** La petición es una fila en
+  `net.http_request_queue` que un proceso aparte despacha después del `commit`. Un
+  `rollback` la borra junto con todo lo demás, de modo que «una aceptación fallida
+  no notifica» se cumple por construcción y no por disciplina. Se descartó una
+  tabla de salida barrida por `pg_cron` porque el aviso tardaría hasta un minuto,
+  mucho para una solicitud inmediata que vence en treinta, y porque agrega una
+  tabla con su política que ningún requisito pide. Se descartaron los Database
+  Webhooks del panel porque envían la fila entera —ubicación exacta, dirección,
+  identidad del paciente— y obligan a la función a decidir los destinatarios: dos
+  copias de la regla y una fuga.
+- **El cuerpo lo arma una función aparte, `request_push_body`.** El trigger solo
+  elige el evento, lee los secretos y encola. Así los experimentos verifican
+  destinatarios y contenido sin secretos y sin enviar nada, y el experimento de
+  extremo a extremo lee la fila que quedó en la cola.
+- **Una sola copia de la regla de cobertura.** `professional_covers` estaba atada a
+  `auth.uid()` y el trigger necesita preguntar por otros profesionales. Su cuerpo
+  pasó a `professional_covers_for(p_professional_id, ...)`, que **ningún cliente
+  puede ejecutar**: con un profesional y un punto libres sería el oráculo de
+  bisección sobre la base exacta del 2026-10-11. `professional_covers` conserva su
+  firma y su respuesta y delega con `auth.uid()`; pasó a `security definer` porque
+  una función de invocador no puede llamar a otra que el invocador no puede
+  ejecutar. Las tres tablas que lee eran de lectura propia, así que la respuesta
+  para el mismo llamante no cambia, y las dos políticas que la usan tampoco.
+- **`available_now` solo en el aviso de la inmediata.** Los destinatarios son la
+  bandeja menos quien apagó su disponibilidad: es la forma de no recibir avisos de
+  profesional sin perder la bandeja (entrada del 2026-10-15). La cita agendada va a
+  su destinatario si sigue en `professional_directory`; su cancelación le llega
+  siempre, verificado o no, porque había reservado ese tiempo.
+- **Un aviso nunca tumba la transacción del negocio.** El trigger atrapa cualquier
+  error y lo deja como `warning`. Sin Vault configurado —un `db reset` local— no
+  hace nada. Perder un aviso es recuperable: la bandeja y «Mis solicitudes» siguen
+  diciendo la verdad. Perder la solicitud no lo es.
+- **El secreto compartido vive en Vault y en los secretos de la función.** La
+  función se despliega con `verify_jwt = false` y compara la cabecera
+  `x-webhook-secret` en tiempo constante. La cuenta de servicio de Firebase está
+  solo en los secretos de la función (INV-14). La clave de servicio de Supabase la
+  provee la plataforma a la función y se usa solo para borrar los dispositivos que
+  Cloud Messaging declara dados de baja.
+- **La función filtra claves por lista permitida.** Si un cambio futuro del SQL
+  agregara un campo de texto libre al cuerpo, no llegaría al teléfono. Es la
+  segunda línea de RF-09.10; la primera es que el SQL nunca lo pone.
+- **Firma con WebCrypto, sin dependencias.** Firmar un JWT RS256 y canjearlo por
+  un token OAuth son treinta líneas; una biblioteca de Google para eso es peso y
+  cadena de suministro en la primera función del proyecto.
+
+**Consecuencia.** El proyecto incorpora `pg_net`, Vault y su primera función de
+servidor. Toda historia que agregue un evento —HU-17, HU-18, HU-19, HU-21, HU-23 a
+HU-26, HU-28 y HU-37— lo agrega en `request_push_body` o en una función hermana,
+en su trigger y en el teléfono; la función de servidor solo cambia si aparece una
+clave nueva en la lista permitida. `pg_net` no reintenta: un envío fallido se
+pierde y su respuesta queda un tiempo en `net._http_response`. Los secretos se
+cargan a mano, con el procedimiento de `README.md`, y nunca se versionan.
+
+---
+
+## 2026-10-16 · HU-20: el teléfono se identifica por su instalación, y el aviso se abre en la bandeja
+
+**Contexto.** El cliente nunca había registrado un dispositivo. Faltaba decidir con
+qué identificador, cómo se cede en un teléfono compartido, qué se ve en la
+pantalla bloqueada, cuándo se pide el permiso y adónde lleva el aviso cuando
+todavía no existe una pantalla de la solicitud.
+
+**Decisiones.**
+
+1. **El identificador es el ID de instalación de Firebase (FID).**
+   `firebase-messaging` 25.1.0 deprecó `getToken`, `onNewToken` y `deleteToken`, y
+   avisa que el campo `token` del envío se retirará. La versión que trae el BOM del
+   proyecto (25.1.3) registra por FID con la meta-data
+   `firebase_messaging_installation_id_enabled`, `register()`, `onRegistered` y
+   `unregister()`. El bytecode de 25.1.3 confirma que `register()` vuelve a
+   entregar el FID en `onRegistered` aunque ya esté en caché, así que llamarlo al
+   llegar a la pantalla principal basta para que la cuenta que acaba de ingresar
+   lo reclame. La columna `device_tokens.token` guarda el FID y no se renombra.
+2. **El dispositivo se escribe solo por `register_my_device` y
+   `unregister_my_device`.** El FID es único y la política solo deja ver las filas
+   propias, así que la segunda cuenta de un teléfono compartido chocaba contra una
+   fila invisible. La función de definidor la reasigna a quien ingresó último
+   (RF-09.12). Se retiraron las políticas y los permisos de escritura directa: de
+   paso, el error de unicidad de una inserción directa delataba que un FID ajeno
+   existe.
+3. **El cierre de sesión retira el dispositivo antes de cerrar la sesión.** Sin
+   sesión no hay JWT para llamar a la función. Después se llama a `unregister()`
+   aunque la llamada haya fallado sin conexión: el FID dado de baja hace que Cloud
+   Messaging responda que ya no existe, y la función borra la fila. También se
+   retiran los avisos que siguen en la bandeja del sistema: la persona que tome el
+   teléfono después los leería ahí. Si el servidor rechaza el cierre de sesión y
+   la persona sigue dentro, el teléfono se vuelve a registrar.
+4. **Segunda barrera en el teléfono.** El aviso lleva el identificador de su
+   destinatario. El teléfono no muestra nada si no hay sesión o si la sesión es de
+   otra cuenta. Cubre el cierre de sesión sin conexión, que el servidor no se
+   entera, y la ventana entre el ingreso de una cuenta y su registro.
+5. **En la pantalla bloqueada se ve una versión reservada.** Con el teléfono
+   bloqueado el aviso dice solo qué pasó —«Nueva solicitud cerca», «Tu solicitud
+   venció»— y el tipo de servicio aparece al desbloquear. El tipo puede delatar qué
+   le pasa al paciente, que es lo que la entrada del 2026-10-15 quiso proteger.
+6. **El permiso se pide cuando hace falta, con explicación previa.** Al
+   profesional, la primera vez que abre la bandeja; al paciente, al volver de
+   publicar o agendar. Si responde «Ahora no» o niega el permiso, la aplicación no
+   vuelve a preguntar, y la bandeja y «Mis solicitudes» funcionan igual (RF-09.13).
+7. **Un solo canal, «Solicitudes».** Cada historia crea el canal de su evento,
+   igual que cada una conecta su evento. Un canal que no envía nada sería un
+   interruptor en los ajustes del sistema que no hace nada. El catálogo de canales
+   vive en un solo enumerado.
+8. **Tocar el aviso abre la bandeja con la fila resaltada.** No existe todavía una
+   pantalla de la solicitud: la construye HU-17, y entonces el aviso pasará a
+   abrirla. Si la solicitud ya no está —la tomó otro, venció, se canceló—, la
+   bandeja lo dice. La cancelación de una cita abre la bandeja sin resaltar nada,
+   porque una cancelada nunca está ahí. El vencimiento abre «Mis solicitudes». Si
+   el aviso es del rol que no está activo, primero se activa ese rol (RF-09.11).
+   La cuenta se reconstruye debajo del destino, porque lee el rol activo una sola
+   vez y quedaría mostrando el anterior. La búsqueda de la fila lee hasta cinco
+   páginas (RNF-08), porque un toque tardío puede apuntar más abajo de la
+   primera.
+
+9. **La función de servidor poda un dispositivo solo ante `UNREGISTERED`.** Un
+   `project_id` equivocado también responde 404, y podar por el código de estado
+   borraría todos los dispositivos con el primer envío.
+
+**Consecuencia.** La sesión arranca el registro y el cierre de sesión lo detiene;
+el servicio de mensajería solo guarda el FID que recibe y lo sube. El tag de cada
+aviso es su solicitud, de modo que el aviso siguiente de la misma solicitud
+reemplaza al anterior. `InboxRoute` y `MyRequestsRoute` ganan un argumento cada
+una.
+
+---
+
+## 2026-10-18 · HT-22: los servicios de Google se rehacen en un proyecto con dos dueños
+
+**Contexto.** El proyecto de Google Cloud `salud-en-casa-508102` tenía un único
+propietario, `salud.en.casa.73@gmail.com`. Desde el 2026-10-16 esa cuenta quedó
+atrapada en la verificación en dos pasos, sin vía de recuperación que funcione, y
+ninguna otra cuenta tiene acceso al proyecto. De ese proyecto dependen:
+
+- Firebase, con Crashlytics, Cloud Messaging y App Distribution;
+- los clientes OAuth del ingreso con Google;
+- la clave de Maps.
+
+HU-20 necesita una clave de cuenta de servicio que solo se genera desde la consola.
+Lo que ya está desplegado sigue funcionando, pero nada se puede cambiar.
+
+**Decisión.** Todo lo que el proyecto usa de Google se configura de cero en un
+proyecto nuevo, creado con una cuenta accesible y con **dos propietarios** desde el
+primer día. El autor lo eligió el 2026-10-18 frente a dos alternativas: migrar solo
+Firebase o esperar la recuperación.
+
+**Razonamiento.**
+
+- **Migrar solo Firebase dejaba una trampa para el Sprint 10.** El ingreso con
+  Google y Maps quedarían en un proyecto que nadie puede modificar. Publicar exige
+  registrar la huella de la clave de publicación en el cliente OAuth Android, y
+  eso sería imposible justo antes de la validación con usuarios. Además, la
+  facturación de Maps quedaría en una cuenta que nadie ve.
+- **Esperar no tiene plazo.** Para cuentas personales de Gmail, el flujo de
+  recuperación es la única vía y su resultado no depende del proyecto.
+- **La huella de depuración no puede reutilizarse.** Google exige que cada
+  combinación de paquete y huella SHA-1 de un cliente OAuth sea única entre todos
+  los proyectos, y la huella actual está registrada en el proyecto bloqueado.
+  Por eso la compilación de depuración pasa a firmarse con una clave propia del
+  proyecto, fuera del repositorio, que `local.properties` declara en
+  `DEBUG_KEYSTORE_FILE`. Sin esa propiedad, como en integración continua, se firma
+  con la clave de siempre. La clave de subida para publicar se genera en la misma
+  migración, para que HT-10 no encuentre el mismo bloqueo.
+- **El `applicationId` no cambia.** `bo.saludencasa.app` se registra en el
+  proyecto nuevo; lo que cambia son las huellas.
+- **El ingreso migra sin corte.** Supabase acepta varios identificadores de
+  cliente separados por coma, con el web primero. Durante la transición acepta el
+  nuevo y el viejo; el viejo se retira cuando todo dispositivo de prueba tenga la
+  compilación nueva. Las cuentas existentes se conservan porque Supabase
+  identifica a cada persona por el identificador estable de su cuenta de Google y
+  vincula por correo verificado. Igual se comprueba midiendo, antes de retirar el
+  identificador viejo: el número de usuarios no debe subir y cada cuenta conserva
+  sus roles.
+- **La pantalla de consentimiento pasa a producción.** El proyecto viejo estaba en
+  modo de prueba, donde solo ingresan los usuarios de una lista. Con los permisos
+  básicos (`openid`, `email`, `profile`) y sin logotipo, publicarla no exige la
+  verificación de Google, y la validación del Sprint 10 tiene usuarios que no
+  estarían en ninguna lista.
+- **Nunca más un solo dueño.** Dos cuentas propietarias del proyecto y
+  administradoras de la facturación, cada una con verificación en dos pasos por
+  al menos tres vías: app autenticadora, llave de acceso y códigos de respaldo
+  guardados en el gestor de contraseñas. Las mismas medidas se aplican a Supabase
+  y a GitHub. Al cerrar cada sprint se comprueba que las dos cuentas entran.
+
+**Consecuencia.**
+
+- El proyecto `salud-en-casa-508102` queda huérfano. Sus clientes, su clave de Maps
+  y su registro de la aplicación siguen activos, pero ya nada nuevo los usa. Si
+  algún día se recupera la cuenta, se eliminan.
+- Crashlytics empieza su historial de cero. Lo verificado en HT-08 sigue escrito en
+  `plan.md`.
+- Para instalar la compilación nueva hay que desinstalar la anterior en cada
+  dispositivo, porque cambió la firma. Eso solo borra la sesión guardada.
+- HU-20 se completa con la cuenta de servicio del proyecto nuevo.
+- El procedimiento completo se le entregó al autor fuera del repositorio. En
+  `plan.md` constan los pasos y su verificación, nunca los secretos.
+
+---
+
 ---
 
 ## Plantilla para entradas nuevas

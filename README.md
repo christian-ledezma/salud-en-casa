@@ -41,7 +41,13 @@ SUPABASE_URL=https://<referencia>.supabase.co
 SUPABASE_ANON_KEY=<clave anónima>
 GOOGLE_WEB_CLIENT_ID=<identificador de cliente OAuth de tipo Web>
 MAPS_API_KEY=<clave de Google Maps>
+DEBUG_KEYSTORE_FILE=<ruta absoluta a la clave de depuración del proyecto>
 ```
+
+`DEBUG_KEYSTORE_FILE` es opcional. Sin ella, la versión de depuración se firma con
+`~/.android/debug.keystore`; con ella, se firma con la clave del proyecto, cuya
+huella es la registrada en Google Cloud. La ruta debe ser absoluta: Gradle no
+expande `~`. Ver `docs/decisions.md`, 2026-10-18.
 
 Sin estos valores el proyecto **compila igual**, pero la aplicación muestra un
 error de configuración al intentar ingresar. Es deliberado: una compilación que
@@ -52,7 +58,7 @@ Los valores se obtienen así:
 | Valor | Dónde |
 |---|---|
 | `SUPABASE_URL` y `SUPABASE_ANON_KEY` | Panel de Supabase → Configuración → API |
-| `GOOGLE_WEB_CLIENT_ID` | Google Cloud Console → Credenciales → ID de cliente OAuth de tipo **Web** |
+| `GOOGLE_WEB_CLIENT_ID` | Google Cloud Console, proyecto `salud-en-casa-app` → Credenciales → ID de cliente OAuth de tipo **Web** |
 | `MAPS_API_KEY` | Google Cloud Console → API y servicios → Credenciales. Antes hay que habilitar **Maps SDK for Android** en ese proyecto: sin eso la clave existe pero el mapa no dibuja |
 
 La **clave de servicio** de Supabase no se usa en la aplicación y nunca debe
@@ -108,6 +114,33 @@ npx supabase stop      # libera los contenedores
 `db reset` sin `--linked` actúa **solo sobre el entorno local**. Nunca se corre
 `db reset --linked`: borraría los datos del proyecto remoto.
 
+### 4. Notificaciones push
+
+Las notificaciones las envía la función de servidor `send-push`, y la base la
+llama desde un trigger. Hacen falta dos secretos, que **nunca se versionan**
+(`docs/decisions.md`, 2026-10-16):
+
+| Dónde | Nombre | Contenido |
+|---|---|---|
+| Secretos de las funciones | `FCM_SERVICE_ACCOUNT` | El JSON de la cuenta de servicio de Firebase, en una línea |
+| Secretos de las funciones | `PUSH_WEBHOOK_SECRET` | Un valor aleatorio |
+| Vault de la base | `push_webhook_secret` | El mismo valor aleatorio |
+| Vault de la base | `push_project_url` | `https://<referencia del proyecto>.supabase.co` |
+
+La cuenta de servicio se descarga en la consola de Firebase, en Configuración
+del proyecto → Cuentas de servicio → Generar nueva clave privada, y se guarda
+fuera del repositorio.
+
+```bash
+SECRET=$(openssl rand -hex 32)
+npx supabase secrets set PUSH_WEBHOOK_SECRET="$SECRET" FCM_SERVICE_ACCOUNT="$(jq -c . <ruta de la clave>.json)"
+npx supabase db query --linked "select vault.create_secret('$SECRET', 'push_webhook_secret'); select vault.create_secret('https://<referencia del proyecto>.supabase.co', 'push_project_url');"
+npx supabase functions deploy send-push
+```
+
+Sin los secretos de Vault el trigger no envía nada, y la aplicación funciona
+igual; así se comporta el entorno local.
+
 ## Comandos
 
 | Comando | Qué hace |
@@ -125,6 +158,7 @@ npx supabase stop      # libera los contenedores
 | `npx supabase start` | Entorno local con Docker |
 | `npx supabase db reset` | Reconstruye la base local desde las migraciones |
 | `npx supabase db diff --linked --schema public` | Compara el remoto contra las migraciones |
+| `npx supabase functions deploy send-push` | Publica la función que envía las notificaciones |
 
 ## Integración continua
 
@@ -156,9 +190,12 @@ Firebase → Crashlytics.
 
 Crashlytics **no sube el reporte en el momento del fallo**, sino en el arranque
 siguiente: para verlo en el panel hay que volver a abrir la aplicación después de
-que se cierre. El botón «Provocar un fallo de prueba» existe para comprobarlo.
-Vive en la pantalla «Mi cuenta», a la que se llega después de ingresar, y solo
-aparece en compilaciones de depuración.
+que se cierre. Para comprobarlo, con la aplicación abierta en un dispositivo
+conectado:
+
+```bash
+adb shell am crash bo.saludencasa.app
+```
 
 ## Verificar la configuración
 
@@ -166,9 +203,10 @@ Si la autenticación con Google falla, el orden de revisión es:
 
 1. `./gradlew signingReport` y comparar la huella SHA-1 de depuración contra la
    registrada en Google Cloud Console.
-2. Confirmar que el correo de prueba figura en la lista de usuarios de prueba de
-   la pantalla de consentimiento de OAuth. Mientras la aplicación esté en estado
-   de prueba, ninguna otra cuenta puede ingresar.
+2. Revisar el estado de publicación en Google Auth Platform → Público. Hoy está
+   en «Prueba» con la lista de usuarios de prueba vacía, y el ingreso funciona. Si
+   una cuenta nueva no puede ingresar, se la suma a esa lista. El paso a producción
+   está previsto en HT-10 (`plan.md`).
 3. Confirmar que en Supabase el identificador de cliente **Web** figura primero en
    la lista del proveedor de Google.
 
@@ -189,6 +227,21 @@ Cloud; `MAPS_API_KEY` está vacío o no existe en `local.properties`; o la clave
 tiene restricción de API y no incluye ese servicio. La clave que trae
 `app/google-services.json` **no sirve** para esto: es la de Firebase y responde
 `Authorization failure`.
+
+## Cuentas y accesos
+
+Los servicios de Google viven en el proyecto `salud-en-casa-app`: Firebase, los
+clientes OAuth y la clave de Maps. Tanto ese proyecto como la organización de
+Supabase tienen **dos propietarios**, cada uno con verificación en dos pasos. Así
+perder el acceso a una cuenta no deja a nadie fuera de la configuración
+(`docs/decisions.md`, 2026-10-18).
+
+La cuenta de facturación de Google tiene una alerta de presupuesto de USD 35 al
+mes. Nació en prueba gratuita, que vence el **2027-01-18**: antes de esa fecha hay
+que pulsar «Activar cuenta completa» en Facturación, o Google detiene el proyecto
+y el mapa deja de cargar.
+
+Al cerrar cada sprint se entra con las dos cuentas a Google Cloud y a Supabase.
 
 ## Estructura
 

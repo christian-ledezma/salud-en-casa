@@ -73,6 +73,21 @@ que lo introduce.
 | Fila de horas | `TimeChipRow` | Fila de píldoras de hora, agrupadas por parte del día, que se detiene en cada una al deslizar. La comparten la pantalla de agendar y el editor de franjas |
 | Barra de acción al pie | `BottomActionBar` | El botón principal fijo al pie, fuera del contenido que se desplaza |
 | Aviso de la bandeja | `inboxSignals` / `notify_immediate_inbox` | El Broadcast sin datos que dispara un trigger al tema `immediate_inbox` para que el cliente re-consulte. No transporta la fila |
+| Notificación push | `PushPayload` / `features/notifications/` | Lo que llega al teléfono: el evento, a quién y lo necesario para abrirlo. Nunca texto escrito por un usuario (RF-09.10). El texto lo compone el teléfono |
+| Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`. Los mismos nombres en SQL y en Kotlin; `NotificationEventParityTest` lo vigila |
+| Sujeto del aviso | `PushSubject` | La solicitud, el destinatario, el rol con el que recibe y el tipo de servicio |
+| Destino al tocar | `NotificationDestination` | `Inbox(highlightRequestId)` o `MyRequests`. Hasta HU-17 el aviso abre la bandeja con la fila resaltada |
+| Fila resaltada | `InboxHighlight` | `None`, `Row(requestId)` o `Unavailable`, cuando la solicitud ya salió de la bandeja |
+| Buscar la solicitud del aviso | `FindInboxRequestUseCase` / `InboxSearchResult` | Lee páginas de la bandeja hasta encontrar la solicitud, con un tope de cinco (RNF-08): `Found`, `NotInInbox` o `Failure` |
+| Avisos mostrados | `ShownNotificationsDataSource` | Los que siguen en la bandeja del sistema. Se retiran al cerrar sesión |
+| Identificador de instalación | FID / `installationId` | Lo que guarda `device_tokens.token` desde HU-20: el ID de instalación de Firebase, que reemplazó al token de registro deprecado |
+| Registrar el dispositivo | `register_my_device` / `unregister_my_device` | Las dos únicas vías de escritura de `device_tokens`. El registro le pasa el FID a la última cuenta que ingresó en el teléfono |
+| Destinatarios de la inmediata | `immediate_request_recipients` | La regla de `request_inbox` más `available_now`. Solo la llama el motor |
+| Cuerpo del envío | `request_push_body` | Arma el evento, los identificadores y la lista de destinatarios con sus FID. Lo encola `queue_request_push` con `pg_net` hacia la función `send-push` |
+| Cobertura de un profesional dado | `professional_covers_for` | La regla de cobertura escrita una vez. Ningún cliente puede ejecutarla: con un profesional y un punto libres sería un oráculo sobre su base |
+| Canal de notificación | `NotificationChannelSpec` | Un canal de Android por categoría. Cada historia agrega el de su evento; hoy solo `REQUESTS` |
+| Explicación del permiso | `NotificationPermissionPrompt` / `NotificationRationale` | La tarjeta que explica para qué sirven los avisos antes de pedir el permiso. Se muestra una sola vez |
+| Alcance de la aplicación | `ApplicationScope` | El `CoroutineScope` que sobrevive a las pantallas, donde el servicio de mensajería deja su trabajo |
 | Cola de revisión | `PendingReviewSubject` | Persona con trabajo pendiente del administrador: documentos por revisar, la verificación por conceder, o las dos |
 | Listo para verificar | `awaitingVerification` / `awaiting_verification` | Profesional con todos sus requeridos aprobados que todavía no es `APPROVED` |
 | Esperando desde | `waitingSince` / `waiting_since` | Cuándo el turno pasó al administrador: la subida del documento o la aprobación del último requerido |
@@ -140,6 +155,7 @@ que lo introduce.
 | Motivo de rechazo | `rejectionReason` / `rejection_reason` |
 | Tope de ancho de una ficha | `filterChipMaxWidth` | Medida de `Spacing`: sin ella una etiqueta del catálogo no tiene ancho dentro del que envolver |
 | Grosor del borde | `borderWidth` | Medida de `Spacing`: el trazo de un control que se lee como campo |
+| Borde del resaltado | `highlightBorderWidth` | Medida de `Spacing`: el trazo de la tarjeta que abrió un aviso |
 | Precio de referencia | `referencePriceBob` / `reference_price_bob` |
 | Duración estimada | `estimatedDurationMin` / `estimated_duration_min` |
 | Día de la semana | `dayOfWeek` / `day_of_week` |
