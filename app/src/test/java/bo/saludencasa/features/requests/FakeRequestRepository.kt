@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests
 
+import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.BookableStart
 import bo.saludencasa.features.requests.domain.model.BookableTimes
 import bo.saludencasa.features.requests.domain.model.BookableTimesResult
@@ -33,6 +34,11 @@ class FakeRequestRepository : IRequestRepository {
 
     var createResult: RequestResult = RequestResult.Created("request-1")
     var cancelResult: CancelRequestResult = CancelRequestResult.Success
+    var activeResult: ActiveRequestResult = ActiveRequestResult.None
+    var activeReads = 0
+
+    // Lets a test hold the cancellation back to look at the screen while it runs.
+    var cancelGate: CompletableDeferred<Unit>? = null
     var scheduleResult: RequestResult = RequestResult.Created("request-1")
 
     // Answers per service type, so a test can tell which service an answer was
@@ -79,8 +85,14 @@ class FakeRequestRepository : IRequestRepository {
         return requestsResponder?.invoke(offset, limit) ?: requestsResult
     }
 
+    override suspend fun getActiveImmediate(): ActiveRequestResult {
+        activeReads++
+        return activeResult
+    }
+
     override suspend fun cancel(requestId: String): CancelRequestResult {
         cancelledIds += requestId
+        cancelGate?.await()
         return cancelResult
     }
 

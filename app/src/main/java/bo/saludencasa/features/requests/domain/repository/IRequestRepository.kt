@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests.domain.repository
 
+import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.BookableTimesResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.CreateImmediateRequestDraft
@@ -23,6 +24,9 @@ interface IRequestRepository {
         offset: Int,
         limit: Int,
     ): MyRequestsResult
+
+    // The newest immediate request of the caller that is still open to offers.
+    suspend fun getActiveImmediate(): ActiveRequestResult
 
     suspend fun cancel(requestId: String): CancelRequestResult
 

@@ -8,6 +8,7 @@ import bo.saludencasa.features.requests.data.mapper.toServiceRequest
 import bo.saludencasa.features.requests.data.model.BookableTimesParams
 import bo.saludencasa.features.requests.data.model.CreateImmediateRequestParams
 import bo.saludencasa.features.requests.data.model.CreateScheduledRequestParams
+import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.BookableTimes
 import bo.saludencasa.features.requests.domain.model.BookableTimesResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
@@ -117,6 +118,22 @@ class RequestRepository(
             throw cancellation
         } catch (failure: Exception) {
             MyRequestsResult.Failure(failure.toRequestError())
+        }
+    }
+
+    override suspend fun getActiveImmediate(): ActiveRequestResult {
+        if (dataSource.currentUserId() == null) {
+            return ActiveRequestResult.Failure(RequestError.NotSignedIn)
+        }
+
+        return try {
+            val row = dataSource.findActiveImmediate() ?: return ActiveRequestResult.None
+            row.toServiceRequest()?.let(ActiveRequestResult::Found)
+                ?: ActiveRequestResult.Failure(RequestError.Unexpected)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            ActiveRequestResult.Failure(failure.toRequestError())
         }
     }
 

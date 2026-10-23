@@ -63,6 +63,20 @@ sealed interface MyRequestsPageResult {
     ) : MyRequestsPageResult
 }
 
+// HT-23: what «Atención ahora» shows on arrival. None is an answer, not a
+// failure: it is the patient with nothing waiting, who gets the form.
+sealed interface ActiveRequestResult {
+    data class Found(
+        val request: ServiceRequest,
+    ) : ActiveRequestResult
+
+    data object None : ActiveRequestResult
+
+    data class Failure(
+        val error: RequestError,
+    ) : ActiveRequestResult
+}
+
 sealed interface CancelRequestResult {
     data object Success : CancelRequestResult
 

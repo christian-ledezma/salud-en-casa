@@ -62,6 +62,21 @@ class SupabaseRequestDataSource(
                 range(offset.toLong(), (offset + limit - 1).toLong())
             }.decodeList<ServiceRequestDto>()
 
+    // docs/decisions.md, 2026-10-23, HT-23: filtered here and not by reading the
+    // first page of findMyRequests.
+    suspend fun findActiveImmediate(): ServiceRequestDto? =
+        supabase
+            .from(MY_SERVICE_REQUESTS)
+            .select(COLUMNS) {
+                filter {
+                    eq("modality", "IMMEDIATE")
+                    isIn("status", listOf("PUBLISHED", "NEGOTIATING"))
+                }
+                order("created_at", Order.DESCENDING)
+                limit(1)
+            }.decodeList<ServiceRequestDto>()
+            .firstOrNull()
+
     // A direct status write, allowed for the owning patient only from PUBLISHED
     // or NEGOTIATING to CANCELLED by guard_request_lifecycle (RF-07.6). The
     // column builder writes straight into the request body, so it does not drop
