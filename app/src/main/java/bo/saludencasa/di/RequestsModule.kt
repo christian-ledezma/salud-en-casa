@@ -6,6 +6,7 @@ import bo.saludencasa.features.requests.domain.repository.IRequestRepository
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateImmediateRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateScheduledRequestUseCase
+import bo.saludencasa.features.requests.domain.usecase.FindInboxRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetBookableTimesUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetInboxUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetMyRequestsUseCase
@@ -27,6 +28,7 @@ val requestsModule =
         factory { GetMyRequestsUseCase(get()) }
         factory { CancelRequestUseCase(get()) }
         factory { GetInboxUseCase(get()) }
+        factory { FindInboxRequestUseCase(get()) }
         factory { ObserveInboxSignalsUseCase(get()) }
         factory { GetBookableTimesUseCase(get()) }
         factory { CreateScheduledRequestUseCase(get()) }
@@ -36,7 +38,7 @@ val requestsModule =
         // locationModule), which Koin resolves across modules.
         viewModel { CreateRequestViewModel(get(), get(), get()) }
         viewModel { MyRequestsViewModel(get(), get()) }
-        viewModel { InboxViewModel(get(), get()) }
+        viewModel { (highlightRequestId: String?) -> InboxViewModel(highlightRequestId, get(), get(), get()) }
         viewModel { (professionalId: String) ->
             ScheduleAppointmentViewModel(professionalId, get(), get(), get(), get(), get())
         }

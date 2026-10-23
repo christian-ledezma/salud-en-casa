@@ -84,6 +84,9 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 # limita el tamano del paquete.
 firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
+# Notificaciones push (HU-20). La version la fija el BOM.
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+
 # Inyeccion de dependencias
 koin-android = { group = "io.insert-koin", name = "koin-android" }
 koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose" }

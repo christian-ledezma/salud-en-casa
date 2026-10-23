@@ -1,5 +1,7 @@
 package bo.saludencasa.core.util
 
+import android.content.res.Resources
+import bo.saludencasa.R
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -17,3 +19,20 @@ fun formatKilometres(
             minimumFractionDigits = 1
             maximumFractionDigits = 1
         }.format(distanceM / 1000.0)
+
+// The distance the engine already rounded to the hundred metres, so "cerca"
+// stands in for the sub-hundred case instead of "a 0 m" (docs/decisions.md,
+// 2026-10-09).
+fun distanceText(
+    resources: Resources,
+    distanceM: Int,
+    locale: Locale,
+): String =
+    when {
+        distanceM < METRES_IN_A_HUNDRED -> resources.getString(R.string.common_distance_near)
+        distanceM < METRES_IN_A_KILOMETRE -> resources.getString(R.string.common_distance_m, distanceM)
+        else -> resources.getString(R.string.common_distance_km, formatKilometres(distanceM, locale))
+    }
+
+private const val METRES_IN_A_HUNDRED = 100
+private const val METRES_IN_A_KILOMETRE = 1_000

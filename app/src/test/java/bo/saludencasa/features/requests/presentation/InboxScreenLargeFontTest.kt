@@ -1,6 +1,8 @@
 package bo.saludencasa.features.requests.presentation
 
 import android.content.Context
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -10,6 +12,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
+import bo.saludencasa.features.notifications.presentation.NotificationRationale
 import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -48,6 +51,8 @@ class InboxScreenLargeFontTest {
     private fun show(
         requests: List<InboxRequest>,
         endReached: Boolean = true,
+        highlight: InboxHighlight = InboxHighlight.None,
+        withPrompt: Boolean = false,
     ) {
         composeRule.setContentAtDoubleFontScale {
             InboxContent(
@@ -60,6 +65,16 @@ class InboxScreenLargeFontTest {
                     ),
                 onBack = {},
                 actions = InboxActions(),
+                highlight = highlight,
+                permissionPrompt = {
+                    if (withPrompt) {
+                        NotificationRationale(
+                            body = R.string.notification_permission_body_professional,
+                            onEnable = {},
+                            onDismiss = {},
+                        )
+                    }
+                },
             )
         }
     }
@@ -132,5 +147,57 @@ class InboxScreenLargeFontTest {
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(string(R.string.request_inbox_empty_title)),
         )
+    }
+
+    // HU-20: the request a notification opened is marked, and the mark must
+    // not push its content off a 320 dp card.
+    @Test
+    fun theNotifiedRequestStaysOnScreen() {
+        show(listOf(request("r1"), request("r2")), highlight = InboxHighlight.Row("r2"))
+        scrollTo(2)
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNode(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    string(R.string.cd_inbox_notified_request),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun theNoLongerAvailableNoticeAndItsButtonStayOnScreen() {
+        show(listOf(request("r1")), highlight = InboxHighlight.Unavailable)
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.request_inbox_request_unavailable)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.common_accept)))
+    }
+
+    @Test
+    fun theNoticeAlsoShowsOnAnEmptyInbox() {
+        composeRule.setContentAtDoubleFontScale {
+            InboxContent(
+                uiState = InboxUiState.Empty,
+                onBack = {},
+                actions = InboxActions(),
+                highlight = InboxHighlight.Unavailable,
+            )
+        }
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.common_accept)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.request_inbox_empty_title)))
+    }
+
+    // The permission card sits above the requests; both of its choices and the
+    // first request must stay reachable below it.
+    @Test
+    fun thePermissionCardLeavesTheInboxReachable() {
+        show(listOf(request("r1")), withPrompt = true)
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.notification_permission_enable)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.notification_permission_dismiss)))
+        scrollTo(1)
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Colocación y control de vía venosa"))
     }
 }

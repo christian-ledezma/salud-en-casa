@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import bo.saludencasa.features.auth.domain.model.SessionState
 import bo.saludencasa.features.auth.domain.usecase.ObserveSessionUseCase
+import bo.saludencasa.features.notifications.domain.usecase.StartReceivingNotificationsUseCase
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.RoleResult
 import bo.saludencasa.features.profile.domain.usecase.GetRolesUseCase
@@ -33,6 +34,7 @@ sealed interface StartupDestination {
 class StartupViewModel(
     observeSession: ObserveSessionUseCase,
     private val getRoles: GetRolesUseCase,
+    private val startReceivingNotifications: StartReceivingNotificationsUseCase,
 ) : ViewModel() {
     private val attempts = MutableStateFlow(0)
 
@@ -51,9 +53,20 @@ class StartupViewModel(
 
     private suspend fun SessionState.toDestination(): StartupDestination =
         when (this) {
-            SessionState.Loading -> StartupDestination.Loading
-            SessionState.SignedOut -> StartupDestination.SignIn
-            is SessionState.SignedIn -> resolveRole()
+            SessionState.Loading -> {
+                StartupDestination.Loading
+            }
+
+            SessionState.SignedOut -> {
+                StartupDestination.SignIn
+            }
+
+            is SessionState.SignedIn -> {
+                // Also for someone about to choose a role: role selection goes
+                // straight to the account screen without coming back here.
+                startReceivingNotifications()
+                resolveRole()
+            }
         }
 
     // Home carries no role: the switch lives in "Mi cuenta", which is the single

@@ -383,9 +383,6 @@
     <string name="search_no_address_description">La búsqueda mide la distancia desde tu dirección principal. Regístrala para ver quién atiende cerca de ti.</string>
     <string name="search_no_address_action">Registrar mi dirección</string>
 
-    <string name="search_distance_near">A menos de 100 m</string>
-    <string name="search_distance_m">A unos %1$d m</string>
-    <string name="search_distance_km">A unos %1$s km</string>
 
     <string name="cd_search_map">Mapa con los profesionales cercanos</string>
     <string name="cd_open_professional_profile">Ver la ficha de %1$s</string>
@@ -425,9 +422,9 @@
     <string name="request_inbox_empty_description">Cuando un paciente publique una solicitud dentro de tu radio, aparecerá aquí sin que recargues.</string>
     <string name="request_inbox_budget">Presupuesto sugerido: %1$s</string>
     <string name="request_inbox_load_more">Ver más solicitudes</string>
-    <string name="request_inbox_distance_near">A menos de 100 m</string>
-    <string name="request_inbox_distance_m">A unos %1$d m</string>
-    <string name="request_inbox_distance_km">A unos %1$s km</string>
+    <string name="common_distance_near">A menos de 100 m</string>
+    <string name="common_distance_m">A unos %1$d m</string>
+    <string name="common_distance_km">A unos %1$s km</string>
 
     <string name="request_status_published">Publicada</string>
     <string name="request_status_negotiating">En negociación</string>
@@ -491,4 +488,24 @@
     <string name="availability_remove_action">Eliminar</string>
     <string name="availability_error_end_not_after_start">La hora de fin debe ser después de la de inicio.</string>
     <string name="availability_error_overlap">Esta franja se cruza con otra que ya declaraste.</string>
+
+    <!-- HU-20 notifications -->
+    <string name="notification_channel_requests_name">Solicitudes</string>
+    <string name="notification_channel_requests_description">Solicitudes cerca de ti, citas que te agendan o cancelan, y solicitudes tuyas que vencen sin acuerdo.</string>
+    <string name="notification_request_nearby_title">Nueva solicitud cerca</string>
+    <string name="notification_request_nearby_body">%1$s · %2$s</string>
+    <string name="notification_appointment_scheduled_title">Te agendaron una cita</string>
+    <string name="notification_appointment_scheduled_body">%1$s · %2$s</string>
+    <string name="notification_appointment_cancelled_title">El paciente canceló la cita</string>
+    <string name="notification_appointment_cancelled_body">%1$s · %2$s</string>
+    <string name="notification_request_expired_title">Tu solicitud venció</string>
+    <string name="notification_request_expired_body">Nadie aceptó tu solicitud de %1$s. Puedes volver a pedir atención.</string>
+    <string name="notification_public_body">Desbloquea el teléfono para ver el detalle.</string>
+    <string name="notification_permission_title">Activa los avisos</string>
+    <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti o un paciente te agende una cita, aunque no tengas la aplicación abierta.</string>
+    <string name="notification_permission_body_patient">Te avisamos si tu solicitud vence sin que nadie la acepte, para que vuelvas a pedir atención sin quedarte esperando.</string>
+    <string name="notification_permission_enable">Activar avisos</string>
+    <string name="notification_permission_dismiss">Ahora no</string>
+    <string name="request_inbox_request_unavailable">Esa solicitud ya no está en tu bandeja: la tomó otro profesional, venció o fue cancelada.</string>
+    <string name="cd_inbox_notified_request">Solicitud del aviso que abriste</string>
 </resources>

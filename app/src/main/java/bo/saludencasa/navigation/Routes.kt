@@ -36,10 +36,14 @@ data object ProfessionalSearchRoute
 data object CreateRequestRoute
 
 @Serializable
-data object MyRequestsRoute
+data class MyRequestsRoute(
+    val justCreated: Boolean = false,
+)
 
 @Serializable
-data object InboxRoute
+data class InboxRoute(
+    val highlightRequestId: String? = null,
+)
 
 @Serializable
 data object AvailabilityRoute

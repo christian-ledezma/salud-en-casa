@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import bo.saludencasa.features.requests.domain.model.InboxPageResult
 import bo.saludencasa.features.requests.domain.model.InboxRequest
+import bo.saludencasa.features.requests.domain.model.InboxSearchResult
 import bo.saludencasa.features.requests.domain.model.RequestError
+import bo.saludencasa.features.requests.domain.usecase.FindInboxRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetInboxUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveInboxSignalsUseCase
 import kotlinx.coroutines.Job
@@ -31,12 +33,30 @@ sealed interface InboxUiState {
     ) : InboxUiState
 }
 
+// The request a tapped notification points at (docs/decisions.md, 2026-10-16).
+sealed interface InboxHighlight {
+    data object None : InboxHighlight
+
+    data class Row(
+        val requestId: String,
+    ) : InboxHighlight
+
+    data object Unavailable : InboxHighlight
+}
+
 class InboxViewModel(
+    highlightRequestId: String?,
     private val getInbox: GetInboxUseCase,
+    private val findInboxRequest: FindInboxRequestUseCase,
     observeInboxSignals: ObserveInboxSignalsUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<InboxUiState>(InboxUiState.Loading)
     val uiState: StateFlow<InboxUiState> = state.asStateFlow()
+
+    private val highlightState = MutableStateFlow<InboxHighlight>(InboxHighlight.None)
+    val highlight: StateFlow<InboxHighlight> = highlightState.asStateFlow()
+
+    private var pendingHighlight: String? = highlightRequestId
 
     private var loadMoreJob: Job? = null
 
@@ -56,7 +76,44 @@ class InboxViewModel(
         state.value = InboxUiState.Loading
         viewModelScope.launch {
             state.value = firstPageState(getInbox(offset = 0), onFailure = InboxUiState::Failed)
+            locateHighlight()
         }
+    }
+
+    private suspend fun locateHighlight() {
+        val requestId = pendingHighlight ?: return
+        val (loaded, endReached) =
+            when (val current = state.value) {
+                is InboxUiState.Content -> current.requests to current.endReached
+                InboxUiState.Empty -> emptyList<InboxRequest>() to true
+                else -> return
+            }
+
+        val result = findInboxRequest(requestId, loaded, endReached)
+
+        if (result.requests.isNotEmpty()) {
+            state.value =
+                InboxUiState.Content(
+                    requests = result.requests,
+                    loadingMore = false,
+                    endReached = result.endReached,
+                    notice = null,
+                )
+        }
+        when (result) {
+            is InboxSearchResult.Found -> concludeHighlight(InboxHighlight.Row(requestId))
+            is InboxSearchResult.NotInInbox -> concludeHighlight(InboxHighlight.Unavailable)
+            is InboxSearchResult.Failure -> Unit
+        }
+    }
+
+    private fun concludeHighlight(highlight: InboxHighlight) {
+        pendingHighlight = null
+        highlightState.value = highlight
+    }
+
+    fun onDismissUnavailable() {
+        highlightState.value = InboxHighlight.None
     }
 
     // A signal-driven refresh never flashes the loading spinner or blanks the

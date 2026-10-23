@@ -12,11 +12,19 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 private val Context.sessionStore: DataStore<Preferences> by preferencesDataStore(name = "session")
+
+// Outlives any screen: the messaging service hands its work here, because the
+// platform may stop the service as soon as its callback returns.
+val ApplicationScope = named("application_scope")
 
 val coreModule =
     module {
@@ -29,6 +37,8 @@ val coreModule =
         }
 
         single<DataStore<Preferences>> { androidContext().sessionStore }
+
+        single(ApplicationScope) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 
         single { DataStoreSessionManager(dataStore = get(), json = get()) }
 

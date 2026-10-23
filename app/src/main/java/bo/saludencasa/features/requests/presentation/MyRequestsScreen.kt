@@ -15,6 +15,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +30,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
+import bo.saludencasa.features.notifications.presentation.NotificationPermissionPrompt
+import bo.saludencasa.features.notifications.presentation.NotificationRationale
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -43,6 +46,7 @@ import java.time.Instant
 
 @Composable
 fun MyRequestsScreen(
+    justCreated: Boolean,
     onBack: () -> Unit,
     onCreateRequest: () -> Unit,
     modifier: Modifier = Modifier,
@@ -61,6 +65,9 @@ fun MyRequestsScreen(
                 onCreateRequest = onCreateRequest,
             ),
         modifier = modifier,
+        permissionPrompt = {
+            if (justCreated) NotificationPermissionPrompt(body = R.string.notification_permission_body_patient)
+        },
     )
 }
 
@@ -77,8 +84,15 @@ internal fun MyRequestsContent(
     onBack: () -> Unit,
     actions: MyRequestsActions,
     modifier: Modifier = Modifier,
+    permissionPrompt: @Composable () -> Unit = {},
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
+    val header: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale16)) {
+            ScreenHeader(title = stringResource(R.string.request_list_title), onBack = onBack)
+            permissionPrompt()
+        }
+    }
 
     when (uiState) {
         MyRequestsUiState.Loading -> {
@@ -91,7 +105,7 @@ internal fun MyRequestsContent(
 
         MyRequestsUiState.Empty -> {
             RequestsColumn(modifier = modifier) {
-                ScreenHeader(title = stringResource(R.string.request_list_title), onBack = onBack)
+                header()
                 Text(
                     text = stringResource(R.string.request_list_empty_title),
                     style = MaterialTheme.typography.titleMedium,
@@ -111,7 +125,7 @@ internal fun MyRequestsContent(
 
         is MyRequestsUiState.Failed -> {
             RequestsColumn(modifier = modifier) {
-                ScreenHeader(title = stringResource(R.string.request_list_title), onBack = onBack)
+                header()
                 Text(
                     text = stringResource(uiState.error.messageRes()),
                     style = MaterialTheme.typography.bodyLarge,
@@ -131,7 +145,7 @@ internal fun MyRequestsContent(
                 contentPadding = PaddingValues(vertical = Spacing.sectionGap),
             ) {
                 item(key = "header") {
-                    ScreenHeader(title = stringResource(R.string.request_list_title), onBack = onBack)
+                    header()
                 }
 
                 items(uiState.requests, key = ServiceRequest::id) { request ->
@@ -320,34 +334,68 @@ private fun previewContent(): MyRequestsUiState.Content =
         cancellingId = null,
     )
 
+@Composable
+private fun MyRequestsPreviewFrame(
+    darkTheme: Boolean,
+    content: @Composable () -> Unit,
+) {
+    SaludEnCasaTheme(darkTheme = darkTheme) {
+        Surface(color = MaterialTheme.colorScheme.background) { content() }
+    }
+}
+
+@Composable
+private fun PreviewPermissionPrompt() {
+    NotificationRationale(
+        body = R.string.notification_permission_body_patient,
+        onEnable = {},
+        onDismiss = {},
+    )
+}
+
 @Preview(showBackground = true, widthDp = 320, name = "Mis solicitudes, claro")
 @Composable
 private fun MyRequestsLightPreview() {
-    SaludEnCasaTheme(darkTheme = false) {
-        MyRequestsContent(previewContent(), onBack = {}, actions = MyRequestsActions())
+    MyRequestsPreviewFrame(darkTheme = false) {
+        MyRequestsContent(
+            previewContent(),
+            onBack = {},
+            actions = MyRequestsActions(),
+            permissionPrompt = { PreviewPermissionPrompt() },
+        )
     }
 }
 
 @Preview(showBackground = true, widthDp = 320, name = "Mis solicitudes, oscuro")
 @Composable
 private fun MyRequestsDarkPreview() {
-    SaludEnCasaTheme(darkTheme = true) {
-        MyRequestsContent(previewContent(), onBack = {}, actions = MyRequestsActions())
+    MyRequestsPreviewFrame(darkTheme = true) {
+        MyRequestsContent(
+            previewContent(),
+            onBack = {},
+            actions = MyRequestsActions(),
+            permissionPrompt = { PreviewPermissionPrompt() },
+        )
     }
 }
 
 @Preview(showBackground = true, widthDp = 320, fontScale = 2f, name = "Mis solicitudes, fuente 200%")
 @Composable
 private fun MyRequestsLargeFontPreview() {
-    SaludEnCasaTheme(darkTheme = false) {
-        MyRequestsContent(previewContent(), onBack = {}, actions = MyRequestsActions())
+    MyRequestsPreviewFrame(darkTheme = false) {
+        MyRequestsContent(
+            previewContent(),
+            onBack = {},
+            actions = MyRequestsActions(),
+            permissionPrompt = { PreviewPermissionPrompt() },
+        )
     }
 }
 
 @Preview(showBackground = true, widthDp = 320, name = "Mis solicitudes vacío")
 @Composable
 private fun MyRequestsEmptyPreview() {
-    SaludEnCasaTheme(darkTheme = false) {
+    MyRequestsPreviewFrame(darkTheme = false) {
         MyRequestsContent(MyRequestsUiState.Empty, onBack = {}, actions = MyRequestsActions())
     }
 }
@@ -355,7 +403,7 @@ private fun MyRequestsEmptyPreview() {
 @Preview(showBackground = true, widthDp = 320, name = "Mis solicitudes con error")
 @Composable
 private fun MyRequestsFailedPreview() {
-    SaludEnCasaTheme(darkTheme = false) {
+    MyRequestsPreviewFrame(darkTheme = false) {
         MyRequestsContent(
             MyRequestsUiState.Failed(RequestError.NetworkUnavailable),
             onBack = {},

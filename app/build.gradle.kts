@@ -52,6 +52,20 @@ android {
         manifestPlaceholders["MAPS_API_KEY"] = secret("MAPS_API_KEY")
     }
 
+    // docs/decisions.md, 2026-10-18, HT-22: the debug build is signed with this
+    // project's own keystore, kept outside the repository.
+    signingConfigs {
+        getByName("debug") {
+            val keystore = secret("DEBUG_KEYSTORE_FILE")
+            if (keystore.isNotBlank()) {
+                storeFile = file(keystore)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             optimization {
@@ -99,6 +113,7 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.messaging)
 
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.exifinterface)

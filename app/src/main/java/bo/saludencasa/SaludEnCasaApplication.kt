@@ -6,11 +6,13 @@ import bo.saludencasa.di.availabilityModule
 import bo.saludencasa.di.catalogModule
 import bo.saludencasa.di.coreModule
 import bo.saludencasa.di.locationModule
+import bo.saludencasa.di.notificationsModule
 import bo.saludencasa.di.profileModule
 import bo.saludencasa.di.requestsModule
 import bo.saludencasa.di.reviewModule
 import bo.saludencasa.di.searchModule
 import bo.saludencasa.di.verificationModule
+import bo.saludencasa.features.notifications.presentation.NotificationChannelSpec
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -33,7 +35,9 @@ class SaludEnCasaApplication : Application() {
                 reviewModule,
                 requestsModule,
                 availabilityModule,
+                notificationsModule,
             )
         }
+        NotificationChannelSpec.registerAll(this)
     }
 }

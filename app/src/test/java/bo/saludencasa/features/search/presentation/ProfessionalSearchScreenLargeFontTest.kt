@@ -195,7 +195,7 @@ class ProfessionalSearchScreenLargeFontTest {
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Carla Villarroel Antezana"))
         composeRule.assertFitsTheScreen(
-            composeRule.onNodeWithText(string(R.string.search_distance_near)),
+            composeRule.onNodeWithText(string(R.string.common_distance_near)),
         )
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText("180", substring = true))
         composeRule.assertFitsTheScreen(
@@ -288,8 +288,8 @@ class ProfessionalSearchScreenLargeFontTest {
 
         // The unmerged tree: the whole card is one button, so in the merged one
         // a text answers with the bounds of its card and not its own.
-        val withBadge = composeRule.onNodeWithText(string(R.string.search_distance_near), useUnmergedTree = true)
-        val withLabel = composeRule.onNodeWithText(string(R.string.search_distance_m, 900), useUnmergedTree = true)
+        val withBadge = composeRule.onNodeWithText(string(R.string.common_distance_near), useUnmergedTree = true)
+        val withLabel = composeRule.onNodeWithText(string(R.string.common_distance_m, 900), useUnmergedTree = true)
         composeRule.assertFitsTheScreen(withLabel)
 
         val rated = withBadge.getUnclippedBoundsInRoot()

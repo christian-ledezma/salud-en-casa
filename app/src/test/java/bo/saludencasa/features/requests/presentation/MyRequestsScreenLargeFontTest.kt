@@ -10,6 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
+import bo.saludencasa.features.notifications.presentation.NotificationRationale
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
@@ -51,6 +52,7 @@ class MyRequestsScreenLargeFontTest {
     private fun show(
         requests: List<ServiceRequest>,
         endReached: Boolean = true,
+        withPrompt: Boolean = false,
     ) {
         composeRule.setContentAtDoubleFontScale {
             MyRequestsContent(
@@ -64,6 +66,15 @@ class MyRequestsScreenLargeFontTest {
                     ),
                 onBack = {},
                 actions = MyRequestsActions(),
+                permissionPrompt = {
+                    if (withPrompt) {
+                        NotificationRationale(
+                            body = R.string.notification_permission_body_patient,
+                            onEnable = {},
+                            onDismiss = {},
+                        )
+                    }
+                },
             )
         }
     }
@@ -155,5 +166,17 @@ class MyRequestsScreenLargeFontTest {
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(string(R.string.request_list_create_action)),
         )
+    }
+
+    // HU-20: the patient arrives here right after publishing, with the
+    // permission card above the request just created.
+    @Test
+    fun thePermissionCardLeavesTheNewRequestReachable() {
+        show(listOf(request("r1", RequestStatus.PUBLISHED)), withPrompt = true)
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.notification_permission_enable)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.notification_permission_dismiss)))
+        scrollTo(1)
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.request_list_cancel_action)))
     }
 }

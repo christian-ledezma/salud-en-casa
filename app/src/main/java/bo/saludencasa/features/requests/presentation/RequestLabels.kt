@@ -3,9 +3,9 @@ package bo.saludencasa.features.requests.presentation
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalResources
 import bo.saludencasa.R
-import bo.saludencasa.core.util.formatKilometres
+import bo.saludencasa.core.util.distanceText
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -46,19 +46,6 @@ internal fun RequestModality.labelRes(): Int =
         RequestModality.SCHEDULED -> R.string.request_modality_scheduled
     }
 
-// The distance the engine already rounded to the hundred metres, so "cerca"
-// stands in for the sub-hundred case instead of "a 0 m" (docs/decisions.md,
-// 2026-10-09). The unit lives inside the translatable string.
 @Composable
-internal fun inboxDistanceText(distanceM: Int): String {
-    val locale = LocalConfiguration.current.locales[0]
-
-    return when {
-        distanceM < METRES_IN_A_HUNDRED -> stringResource(R.string.request_inbox_distance_near)
-        distanceM < METRES_IN_A_KILOMETRE -> stringResource(R.string.request_inbox_distance_m, distanceM)
-        else -> stringResource(R.string.request_inbox_distance_km, formatKilometres(distanceM, locale))
-    }
-}
-
-private const val METRES_IN_A_HUNDRED = 100
-private const val METRES_IN_A_KILOMETRE = 1_000
+internal fun inboxDistanceText(distanceM: Int): String =
+    distanceText(LocalResources.current, distanceM, LocalConfiguration.current.locales[0])

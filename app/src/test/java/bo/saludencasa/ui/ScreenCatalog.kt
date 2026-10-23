@@ -82,6 +82,7 @@ class ScreenCatalog(
                 "bo.saludencasa.features.requests.presentation.InboxScreenKt",
                 "bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreenKt",
                 "bo.saludencasa.features.availability.presentation.AvailabilityScreenKt",
+                "bo.saludencasa.features.notifications.presentation.NotificationPermissionPromptKt",
             )
 
         // The Compose compiler appends a Composer and a changed-flags Int to every

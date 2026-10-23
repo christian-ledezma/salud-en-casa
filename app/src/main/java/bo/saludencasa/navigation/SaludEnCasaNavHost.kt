@@ -17,6 +17,8 @@ import bo.saludencasa.features.availability.presentation.AvailabilityScreen
 import bo.saludencasa.features.catalog.presentation.MyServicesScreen
 import bo.saludencasa.features.location.presentation.AddressListScreen
 import bo.saludencasa.features.location.presentation.AddressScreen
+import bo.saludencasa.features.notifications.domain.model.PushPayload
+import bo.saludencasa.features.notifications.presentation.OpenNotificationViewModel
 import bo.saludencasa.features.profile.presentation.ProfileScreen
 import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
@@ -28,12 +30,23 @@ import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewScreen
 import bo.saludencasa.features.verification.presentation.VerificationScreen
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun SaludEnCasaNavHost(
     modifier: Modifier = Modifier,
+    pendingNotification: PushPayload? = null,
+    onNotificationHandled: () -> Unit = {},
     navController: NavHostController = rememberNavController(),
+    openNotification: OpenNotificationViewModel = koinViewModel(),
 ) {
+    NotificationTapEffect(
+        navController = navController,
+        pending = pendingNotification,
+        onHandled = onNotificationHandled,
+        resolve = openNotification::resolve,
+    )
+
     NavHost(
         navController = navController,
         startDestination = StartupRoute(),
@@ -73,8 +86,8 @@ fun SaludEnCasaNavHost(
                 onOpenProfile = { navController.navigate(ProfileRoute) },
                 onOpenSearch = { navController.navigate(ProfessionalSearchRoute) },
                 onOpenCreateRequest = { navController.navigate(CreateRequestRoute) },
-                onOpenMyRequests = { navController.navigate(MyRequestsRoute) },
-                onOpenInbox = { navController.navigate(InboxRoute) },
+                onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
+                onOpenInbox = { navController.navigate(InboxRoute()) },
                 onOpenAvailability = { navController.navigate(AvailabilityRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
                 onOpenVerification = { navController.navigate(VerificationRoute) },
@@ -107,7 +120,7 @@ fun SaludEnCasaNavHost(
                 // create screen is torn off the back stack so returning does not
                 // reopen a spent form.
                 onCreated = {
-                    navController.navigate(MyRequestsRoute) {
+                    navController.navigate(MyRequestsRoute(justCreated = true)) {
                         popUpTo(CreateRequestRoute) { inclusive = true }
                     }
                 },
@@ -115,15 +128,19 @@ fun SaludEnCasaNavHost(
             )
         }
 
-        composable<MyRequestsRoute> {
+        composable<MyRequestsRoute> { entry ->
             MyRequestsScreen(
+                justCreated = entry.toRoute<MyRequestsRoute>().justCreated,
                 onBack = { navController.popBackStack() },
                 onCreateRequest = { navController.navigate(CreateRequestRoute) },
             )
         }
 
-        composable<InboxRoute> {
-            InboxScreen(onBack = { navController.popBackStack() })
+        composable<InboxRoute> { entry ->
+            InboxScreen(
+                highlightRequestId = entry.toRoute<InboxRoute>().highlightRequestId,
+                onBack = { navController.popBackStack() },
+            )
         }
 
         composable<AvailabilityRoute> {
@@ -175,7 +192,7 @@ fun SaludEnCasaNavHost(
                 professionalId = entry.toRoute<ScheduleAppointmentRoute>().professionalId,
                 onBack = { navController.popBackStack() },
                 onCreated = {
-                    navController.navigate(MyRequestsRoute) {
+                    navController.navigate(MyRequestsRoute(justCreated = true)) {
                         popUpTo<ScheduleAppointmentRoute> { inclusive = true }
                     }
                 },

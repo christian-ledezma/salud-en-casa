@@ -11,6 +11,9 @@ import bo.saludencasa.features.auth.domain.model.SessionState
 import bo.saludencasa.features.auth.domain.model.SignOutResult
 import bo.saludencasa.features.auth.domain.usecase.ObserveSessionUseCase
 import bo.saludencasa.features.auth.domain.usecase.SignOutUseCase
+import bo.saludencasa.features.notifications.FakeNotificationRepository
+import bo.saludencasa.features.notifications.domain.usecase.StartReceivingNotificationsUseCase
+import bo.saludencasa.features.notifications.domain.usecase.StopReceivingNotificationsUseCase
 import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.AddRoleResult
 import bo.saludencasa.features.profile.domain.model.AssignableRole
@@ -276,7 +279,14 @@ private fun viewModel(
 ): AccountViewModel =
     AccountViewModel(
         observeSession = ObserveSessionUseCase(repository),
-        signOut = SignOutUseCase(repository),
+        signOut =
+            FakeNotificationRepository().let {
+                SignOutUseCase(
+                    repository,
+                    StopReceivingNotificationsUseCase(it),
+                    StartReceivingNotificationsUseCase(it),
+                )
+            },
         getRoles = GetRolesUseCase(profiles),
         switchActiveRole = SwitchActiveRoleUseCase(profiles),
         addRole = AddRoleUseCase(profiles),

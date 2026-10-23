@@ -6,6 +6,8 @@ import bo.saludencasa.features.auth.FakeAuthRepository
 import bo.saludencasa.features.auth.authSession
 import bo.saludencasa.features.auth.domain.model.SessionState
 import bo.saludencasa.features.auth.domain.usecase.ObserveSessionUseCase
+import bo.saludencasa.features.notifications.FakeNotificationRepository
+import bo.saludencasa.features.notifications.domain.usecase.StartReceivingNotificationsUseCase
 import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.RoleResult
@@ -15,6 +17,7 @@ import bo.saludencasa.features.profile.loadedRoles
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -105,6 +108,38 @@ class StartupViewModelTest {
 
             assertEquals(2, repository.roleReads)
         }
+
+    // RF-09.12: the phone is claimed on every launch with a session, so it
+    // follows whoever signed in last. Someone still choosing a role goes from
+    // that screen straight to the account and never comes back here.
+    @Test
+    fun `starts receiving notifications on every launch with a session`() =
+        runTest {
+            val notifications = FakeNotificationRepository()
+            val viewModel = viewModel(signedIn(), FakeProfileRepository(roleResult = noRoles()), notifications)
+
+            viewModel.destination.test {
+                assertEquals(StartupDestination.Loading, awaitItem())
+                assertEquals(StartupDestination.ChooseRole, awaitItem())
+            }
+
+            assertEquals(listOf("requestRegistration"), notifications.calls)
+        }
+
+    @Test
+    fun `does not start receiving notifications while signed out`() =
+        runTest {
+            val notifications = FakeNotificationRepository()
+            val sessions = MutableStateFlow<SessionState>(SessionState.SignedOut)
+            val viewModel = viewModel(sessions, FakeProfileRepository(), notifications)
+
+            viewModel.destination.test {
+                assertEquals(StartupDestination.Loading, awaitItem())
+                assertEquals(StartupDestination.SignIn, awaitItem())
+            }
+
+            assertTrue(notifications.calls.isEmpty())
+        }
 }
 
 private fun signedIn(): MutableStateFlow<SessionState> = MutableStateFlow(SessionState.SignedIn(authSession()))
@@ -116,8 +151,10 @@ private fun noRoles(): RoleResult = loadedRoles(held = emptySet(), active = null
 private fun viewModel(
     sessions: MutableStateFlow<SessionState>,
     profiles: FakeProfileRepository,
+    notifications: FakeNotificationRepository = FakeNotificationRepository(),
 ): StartupViewModel =
     StartupViewModel(
         observeSession = ObserveSessionUseCase(FakeAuthRepository(sessions = sessions)),
         getRoles = GetRolesUseCase(profiles),
+        startReceivingNotifications = StartReceivingNotificationsUseCase(notifications),
     )

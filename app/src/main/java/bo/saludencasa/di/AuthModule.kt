@@ -29,10 +29,10 @@ val authModule =
         single { GoogleCredentialClient(webClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID) }
 
         factory { SignInWithGoogleUseCase(get()) }
-        factory { SignOutUseCase(get()) }
+        factory { SignOutUseCase(get(), get(), get()) }
         factory { ObserveSessionUseCase(get()) }
 
-        viewModel { StartupViewModel(get(), get()) }
+        viewModel { StartupViewModel(get(), get(), get()) }
         viewModel { WelcomeViewModel(get()) }
         viewModel { AccountViewModel(get(), get(), get(), get(), get()) }
     }
