@@ -14,6 +14,9 @@ local.properties
 
 # Credenciales y secretos
 google-services.json
+# Clave de la cuenta de servicio de Firebase para la funcion send-push (HU-20)
+*service-account*.json
+*firebase-adminsdk*.json
 *.jks
 *.keystore
 .env
