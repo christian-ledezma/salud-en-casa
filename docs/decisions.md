@@ -5511,6 +5511,134 @@ y la búsqueda para agendar queda en lista. El autor decidió cuatro puntos:
 - HU-17 mostrará las ofertas en el estado «Buscando profesional» de «Atención
   ahora», y en «Mis solicitudes» para las agendadas.
 
+---
+
+## 2026-10-23 · HU-17: el profesional oferta desde una pantalla de la solicitud, y la primera oferta mueve la solicitud a negociación
+
+**Contexto.** HU-17 hace que un profesional emita una oferta sobre una solicitud
+publicada y que el paciente la vea. No existía nada de ofertas en el cliente: ni
+dominio, ni datos, ni interfaz, ni evento de aviso. El motor sí tenía la tabla
+`request_offers` con su monto, su mensaje, el disparador de solo agregar y la
+política de inserción. HU-17 además debía saldar dos deudas que HU-16 dejó
+anotadas (`2026-10-15`, cierre de HU-16).
+
+**Decisión.**
+
+1. **El profesional oferta desde una pantalla de detalle de la solicitud.** La fila
+   de la bandeja, hasta hoy de solo lectura, se vuelve tocable y abre `MakeOfferRoute`:
+   el detalle de la solicitud más el formulario de oferta (monto y mensaje), con
+   «Enviar oferta» al pie.
+2. **El paciente ve sus ofertas en una pantalla de la solicitud.** `NegotiationRoute`
+   lista las ofertas recibidas, de solo lectura en esta historia. Se abre desde «Mis
+   solicitudes», desde el estado «Buscando profesional» de «Atención ahora» y desde el
+   aviso de oferta. HU-18 le suma contraofertar y HU-19, aceptar; por eso la pantalla
+   se llama «Negotiation» desde ya.
+3. **«Sin recargar» se resuelve con Broadcast sin datos, por paciente.** Un disparador
+   en `request_offers` emite una señal vacía al tema privado `patient_offers:<id del
+   paciente>`, y la pantalla re-consulta. Es el mismo patrón del `2026-10-13`: mantener
+   el dato fuera del socket y dejar que la consulta del cliente filtre y proyecte. La
+   política de `realtime.messages` autoriza a cada paciente solo su propio tema,
+   comparando `realtime.topic()` con `'patient_offers:' || auth.uid()`.
+4. **La primera oferta mueve la solicitud de `PUBLISHED` a `NEGOTIATING`.** Lo hace un
+   disparador de definidor al insertar la oferta. Para que el guardia de ciclo de vida
+   (`2026-09-12`, `guard_request_lifecycle`) no lo rechace, se amplía el guardia para
+   admitir esa transición: hasta hoy solo dejaba pasar `→CANCELLED` desde `PUBLISHED` o
+   `NEGOTIATING`.
+
+**Deudas de HU-16 saldadas.**
+
+- **La lectura del destinatario se lleva a un definidor y se retira
+  `service_requests_select_addressee`.** Esa política dejaba al profesional
+  destinatario de una agendada leer por la API la fila entera —ubicación exacta,
+  dirección, referencia e identidad del paciente— antes de aceptar nada, violando
+  RF-08.6. La decisión de si un profesional puede ofertar pasa a
+  `professional_may_offer_on(request_id)`, un definidor que responde un booleano sobre
+  el propio `auth.uid()` sin devolver ubicación ni identidad, calcado de
+  `offer_continues_thread`. Con eso la política de inserción deja de leer
+  `service_requests` en su rama profesional, y la política se puede retirar sin romper
+  la oferta. El paciente conserva `select_own` y la inmediata, `select_inbox`.
+- **La rama agendada decide por destinatario, no por cobertura.** La creación de una
+  cita decide la cobertura contra la base redondeada a tres decimales (`2026-10-11`,
+  el canal de bisección), y la política de ofertas la decidía contra la base exacta,
+  así que una dirección a unos 80 m del borde creaba una solicitud sobre la que el
+  profesional destinatario no podía ofertar. Ahora la rama agendada de
+  `professional_may_offer_on` exige `modality = 'SCHEDULED'` y `professional_id =
+  auth.uid()`, sin re-medir cobertura: ya se decidió al crear. La cobertura queda solo
+  en la rama inmediata. De paso se cierra una brecha de seguridad que la política no
+  nombraba: como no miraba `professional_id`, cualquier profesional que cubriera el
+  punto podía ofertar sobre una agendada dirigida a otro.
+
+**El aviso de oferta.** Se suma el evento `OFFER_RECEIVED` al canal de `2026-10-16`.
+Un disparador en `request_offers` (solo cuando el emisor es el profesional) encola el
+push con el patrón de `queue_request_push`. El cuerpo lleva el tipo de servicio y el
+monto (`amountBob`), nunca el mensaje de la oferta (RF-09.10): el monto es un dato
+estructurado, como la distancia, no texto escrito por una persona. `request_push_body`
+gana un tercer parámetro, el identificador de la oferta, y se reescribe entero con las
+cinco ramas, porque la prueba de paridad solo mira la última migración que lo define.
+
+**Razonamiento.** La pantalla de detalle (y no una hoja sobre la fila) es donde HU-18
+y HU-19 agregarán el hilo y la aceptación sin rehacer la navegación, y es lo que la
+decisión de HT-23 (`2026-10-23`) anticipaba. El Broadcast se prefiere a Postgres
+Changes por lo ya dicho el `2026-10-13`: supabase-kt no expone el filtro por columna, y
+meter la fila en el socket obligaría a exponer la oferta por el canal. Mover la lectura
+a un definidor es el remedio estándar de una política que filtra por un dato sensible,
+ya usado en `professional_covers` y `offer_continues_thread`. Ampliar el guardia en vez
+de puentearlo mantiene una sola puerta para los cambios de estado: `ACCEPTED` y el
+cambio de `professional_id` siguen reservados a la operación atómica de HU-19.
+
+**Consecuencia.**
+
+- Nace `features/offers/` en el cliente, con `MakeOfferScreen` y `NegotiationScreen`.
+- `request_offers_insert_participants` deja de leer `service_requests` en la rama
+  profesional; `service_requests_select_addressee` desaparece. HU-19 y HU-21 tendrán
+  que abrirse sus propias vías de lectura para el profesional, sin reponer esa política.
+- `guard_request_lifecycle` admite `PUBLISHED → NEGOTIATING` desde el cliente dueño; es
+  inocuo, porque no asigna profesional ni crea servicio.
+- La caducidad de una oferta (`request_offers.expires_at`) sigue sin llenarse: ningún
+  criterio de HU-17 la pide. Queda como posible trabajo futuro.
+
+---
+
+## 2026-10-24 · HU-17, dos correcciones tras el recorrido: el presupuesto numérico y el motor de Ktor
+
+**Contexto.** Al probar HU-17 en el emulador, publicar una inmediata o agendar una
+cita llevaba a la pantalla de «error inesperado». El rastro mostró dos problemas
+independientes, ninguno del servidor (los experimentos SQL seguían en verde).
+
+**Decisión.**
+
+1. **`ServiceRequestDto.suggestedBudgetBob` pasa de `String?` a `BigDecimal` con
+   `BigDecimalSerializer`.** PostgREST devuelve una columna `numeric` como número JSON
+   sin comillas (`80.00`), y el campo tipado como texto fallaba al decodificar
+   (`JsonDecodingException`) en cuanto una solicitud llevaba monto. El repositorio lo
+   mapeaba a `Unexpected`, de ahí la pantalla de error. Afectaba a las dos pantallas,
+   porque ambas leen `my_service_requests`. Era un defecto latente, previo a HU-17: no
+   se notaba porque las solicitudes de prueba no tenían presupuesto. `InboxRequestDto`
+   ya usaba el serializador por esta misma razón. Se agregó una prueba que decodifica
+   un JSON con el monto como número.
+2. **El motor HTTP de Ktor pasa de `ktor-client-android` a `ktor-client-okhttp`.** El
+   motor Android de Ktor no soporta WebSocket, así que Realtime nunca conectaba
+   («Engine doesn't support WebSocketCapability») y el «sin recargar» no podía
+   cumplirse en vivo. OkHttp sí lo soporta. Era un defecto previo —la bandeja de HU-16
+   ya dependía de Realtime y degradaba en silencio—, pero HU-17 lo expone porque el
+   paciente ahora se suscribe a sus ofertas.
+
+**Razonamiento.** Ambos son del cliente y del empaquetado, no del dominio ni del
+esquema. El serializador tolera número o texto, de modo que no importa cómo PostgREST
+rinda el `numeric`. El cambio de motor es el mínimo que habilita WebSocket sin tocar la
+configuración del cliente Supabase.
+
+**Consecuencia.**
+
+- Archivos: `features/requests/data/model/RequestDto.kt`,
+  `features/requests/data/mapper/RequestMapper.kt` (y su prueba),
+  `gradle/libs.versions.toml`.
+- El «sin recargar» (criterio 2) queda habilitado por OkHttp; su lógica de cliente ya
+  estaba cubierta por las pruebas de ViewModel con Turbine. Falta la comprobación en
+  dispositivo, con una oferta entrante, que queda con el recorrido del autor.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

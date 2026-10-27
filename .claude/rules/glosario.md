@@ -26,8 +26,16 @@ que lo introduce.
 | Español | Inglés | Uso |
 |---|---|---|
 | Solicitud de atención | `ServiceRequest` | Petición publicada por el paciente |
-| Oferta | `RequestOffer` | Propuesta de monto sobre una solicitud |
+| Oferta | `RequestOffer` | Propuesta de monto sobre una solicitud. Desde HU-17 leída por el paciente con el nombre y la calificación públicos del profesional (vía `my_request_offers`) |
 | Contraoferta | Oferta con `parentOfferId` | No es un tipo aparte |
+| Puede ofertar | `professional_may_offer_on` | Función de definidor que responde si el llamante puede ofertar sobre una solicitud, sin devolver ubicación ni identidad. Reemplazó la lectura que hacía `request_offers_insert_participants`, de modo que `service_requests_select_addressee` se retiró (HU-17). La rama agendada decide por `professional_id`, no por cobertura |
+| Ofertas de mi solicitud | `my_request_offers` | Función de definidor que da las ofertas de la propia solicitud del paciente, unidas al directorio público del profesional |
+| Solicitud para ofertar | `OfferableRequest` / `inbox_request` | La solicitud que el profesional abre para ofertar: la proyección de la bandeja para una fila, más si ya ofertó. Nunca la ubicación exacta ni la identidad del paciente |
+| Hacer una oferta | `MakeOffer` / `MakeOfferRoute` | La pantalla del profesional con el detalle de la solicitud y el formulario de oferta (HU-17) |
+| Negociación | `Negotiation` / `NegotiationRoute` | La pantalla del paciente con las ofertas recibidas, de solo lectura en HU-17. HU-18 le suma contraofertar y HU-19, aceptar |
+| Aviso de oferta al paciente | `patient_offers` / `notify_patient_offers` | El Broadcast sin datos al tema privado `patient_offers:<id del paciente>` que dispara un trigger al insertarse una oferta, para que el paciente re-consulte. La política `patient_offers_listen` deja a cada paciente escuchar solo su propio tema |
+| Encolar el aviso de oferta | `queue_offer_push` / `OFFER_RECEIVED` | El trigger en `request_offers` (solo si el emisor es el profesional) que encola el push `OFFER_RECEIVED` con el tipo de servicio y el monto, nunca el mensaje |
+| Pasar a negociación | `move_request_to_negotiating` | El trigger que mueve la solicitud de `PUBLISHED` a `NEGOTIATING` al insertarse la primera oferta. El guardia de ciclo de vida admite esa transición |
 | Atención / Servicio | `Service` | Atención acordada y prestada |
 | Tipo de servicio | `ServiceType` | Catálogo de tipos de atención |
 | Servicio ofrecido | `ProfessionalService` | Unión profesional–tipo de servicio, con el precio que el profesional declaró |

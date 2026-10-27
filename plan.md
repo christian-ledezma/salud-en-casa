@@ -5748,6 +5748,10 @@ desbloquea.
 HU-17 porque cambia la pantalla donde el paciente publica la inmediata, y esa es la
 pantalla donde HU-17 mostrará las ofertas que llegan.
 
+**HT-23 y HU-17 cerradas el 2026-10-23.** Sigue HU-18 (contraofertar): extiende
+`NegotiationScreen` con la contraoferta del paciente y reusa la suscripción Broadcast
+por paciente que HU-17 dejó.
+
 ### HT-23 · Pedir atención y agendar en menos pasos `[x]` — 8 puntos
 
 > Como **paciente**, quiero **pedir atención inmediata desde el mapa de quienes están
@@ -6301,40 +6305,107 @@ conceder el permiso con la aplicación abierta y, sin cerrarla, enviar un aviso
 con los registros de diagnóstico activos. Mientras no se reproduzca ni se
 descarte, no se cambia el código.
 
-### HU-17 · Ofertar por una solicitud `[ ]` — 5 puntos
+### HU-17 · Ofertar por una solicitud `[x]` — 5 puntos
 
 > Como **profesional**, quiero **proponer un monto por una atención**, para
 > **conseguir el trabajo**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que veo una solicitud publicada, cuando emito una oferta, entonces
+- [x] Dado que veo una solicitud publicada, cuando emito una oferta, entonces
       indico monto y mensaje.
-- [ ] Dado que emito la oferta, cuando el paciente abre la solicitud, entonces la
+- [x] Dado que emito la oferta, cuando el paciente abre la solicitud, entonces la
       ve sin recargar.
-- [ ] Dado que la solicitud ya fue aceptada, cuando intento ofertar, entonces se
+- [x] Dado que la solicitud ya fue aceptada, cuando intento ofertar, entonces se
       rechaza.
-- [ ] Dado que no estoy verificado, cuando intento ofertar, entonces se rechaza.
-- [ ] Dado que emití una oferta, cuando intento editarla, entonces no es posible.
-- [ ] Dado que emito una oferta, cuando el paciente no tiene la aplicación abierta,
+- [x] Dado que no estoy verificado, cuando intento ofertar, entonces se rechaza.
+- [x] Dado que emití una oferta, cuando intento editarla, entonces no es posible.
+- [x] Dado que emito una oferta, cuando el paciente no tiene la aplicación abierta,
       entonces le llega una notificación con el tipo de servicio y el monto, que lo
       lleva a la negociación.
 
 **Requisitos:** RF-08.1, RF-09.5, RF-09.10, RN-01, RN-04, RN-05, INV-06.
 
-**Heredado de HU-16 (`docs/decisions.md`, 2026-10-15). No se cierra sin esto:**
+**Decisiones (`docs/decisions.md`, 2026-10-23, HU-17):** el profesional oferta desde
+`MakeOfferScreen` (abierta desde la bandeja); el paciente ve las ofertas en
+`NegotiationScreen` (abierta desde «Mis solicitudes», desde «Buscando profesional» y
+desde el aviso); «sin recargar» por Broadcast sin datos por paciente; la primera
+oferta mueve la solicitud a `NEGOTIATING` por trigger, con el guardia de ciclo de
+vida ampliado.
 
-- `service_requests_select_addressee` deja al profesional destinatario de una
-  solicitud agendada leer por la API la fila completa: ubicación exacta, dirección,
-  referencia y `patient_id`, antes de que se acepte nada. Hay que llevar a una
-  función de definidor la lectura que hace `request_offers_insert_participants` y
-  después retirar la política. Revocar el `SELECT` de columnas no sirve, porque la
-  política de ofertas lee `location`.
-- La rama agendada de la política de ofertas tiene que decidirse por
-  `professional_id`, no por `professional_covers`. La creación decide la cobertura
-  contra la base redondeada y la oferta contra la exacta, así que una dirección a
-  menos de ~80 m del borde crea una solicitud sobre la que el profesional no puede
-  ofertar.
+**Evidencia de los criterios.**
+
+- Criterios 1, 3, 4, 5 y la deuda heredada: experimentos SQL contra el remoto en
+  `begin … rollback` el 2026-10-23 (ver «Experimentos» abajo). El criterio 5 lo
+  garantiza el trigger `guard_offer_is_append_only` (errcode `issued_offer_cannot_be_edited`).
+- Criterio 2 («sin recargar»): `NegotiationViewModelTest` (Turbine: la señal lleva el
+  estado de `Empty` a `Content` sin pasar por `Loading`) e `ImmediateCareViewModelTest`
+  (el conteo de ofertas aparece y se actualiza con la señal).
+- Criterio 6 (aviso de oferta): `PushPayloadTest` (ida y vuelta de `OfferReceived`,
+  monto ausente/negativo/no numérico rechazado), `NotificationContentTest`
+  (`everyNotificationEventHasItsTextInAllLocales`, versión de pantalla bloqueada sin
+  tipo ni monto) y `NotificationEventParityTest` (los 5 eventos del SQL igualan el enum).
+- El recorrido en emulador —el «sin recargar» en vivo (criterio 2) y el aviso de
+  oferta con la aplicación cerrada (criterio 6)— lo **confirmó el autor el 2026-10-26**.
+
+**Heredado de HU-16 — saldado.**
+
+- `service_requests_select_addressee` retirada; la decisión de ofertar vive en el
+  definidor `professional_may_offer_on`, que no devuelve ubicación ni identidad.
+  Experimento `debt1_addressee_cannot_read_full_row`: el destinatario ya no lee la
+  fila completa de la agendada por la API.
+- La rama agendada decide por `professional_id`, no por cobertura. Experimentos
+  `scheduled_addressee_can_offer` (el destinatario sí) y
+  `scheduled_non_addressee_cannot_offer` (un profesional que cubre pero no es el
+  destinatario, no).
+
+**Experimentos SQL (remoto, `begin … rollback`, 2026-10-23).** Migración sin aplicar,
+sembrando el mundo dentro de la transacción. Todos en verde:
+
+- Estructurales: `select_addressee` retirada; `professional_may_offer_on`,
+  `move_request_to_negotiating`, `queue_offer_push` y la política
+  `patient_offers_listen` existen; la inserción usa `professional_may_offer_on`;
+  `request_push_body` define los 5 eventos; cobertura de RLS (toda tabla pública con
+  RLS y política).
+- Comportamiento: `rn13_patient_cannot_offer_own`, `rn01_unverified_cannot_offer`,
+  `rn04_accepted_rejects_offer` (los tres, violación de política),
+  `approved_professional_can_offer`, `first_offer_moves_to_negotiating`,
+  `offer_cannot_be_edited`, `scheduled_addressee_can_offer`,
+  `scheduled_non_addressee_cannot_offer`, `debt1_addressee_cannot_read_full_row`,
+  `offer_push_was_enqueued` y `realtime_listens_own_topic_only`.
+
+**Tareas.**
+
+- [x] Migración `20261023130000_offers.sql`: `professional_may_offer_on`, reescritura
+      de `request_offers_insert_participants`, retiro de `service_requests_select_addressee`,
+      guardia de ciclo de vida ampliado, `move_request_to_negotiating`, `inbox_request`,
+      `my_request_offers`, `request_push_body` con `OFFER_RECEIVED`, `queue_offer_push`,
+      `notify_patient_offers` y la política de `realtime.messages`.
+- [x] Edge Function `send-push`: `amountBob` en la lista permitida.
+- [x] Android: dominio, datos y presentación de ofertas en `features/requests/`
+      (`MakeOfferScreen`, `NegotiationScreen`), evento push `OFFER_RECEIVED`, enganches
+      de navegación y módulo de Koin.
+- [x] Cadenas en `values/` y `values-es/`, idénticas.
+
+**Estado al 2026-10-23.** `./gradlew ktlintCheck test build` en verde: 780 pruebas,
+0 fallos. Previsualizaciones de `MakeOfferScreen` y `NegotiationScreen` (claro, oscuro
+y 200 %) revisadas. Experimentos SQL corridos y anotados. **Cerrada el 2026-10-23.**
+
+**Correcciones tras el recorrido (2026-10-24, `docs/decisions.md`).** El recorrido en
+emulador reveló dos defectos de cliente —no del servidor— que daban «error
+inesperado» al publicar o agendar: (1) `ServiceRequestDto.suggestedBudgetBob` tipado
+como `String?` no decodificaba el `numeric` que PostgREST rinde como número JSON —se
+pasó a `BigDecimal` con `BigDecimalSerializer`, con prueba de regresión; (2) el motor
+`ktor-client-android` no soporta WebSocket, así que Realtime no conectaba —se cambió a
+`ktor-client-okhttp`. El error de publicar/agendar quedó **confirmado resuelto por el
+autor** el 2026-10-24, y el recorrido completo en emulador (incluido el «sin recargar»
+en vivo y el aviso de oferta con la app cerrada) el **2026-10-26**. Archivos extra:
+`RequestDto.kt`, `RequestMapper.kt`, `RequestMapperTest.kt`, `gradle/libs.versions.toml`.
+
+**Confirmar hecho (CLI, fuera del emulador):** `supabase db push` (hecho), redesplegar
+`send-push` (necesario para que el aviso lleve el monto), y `supabase db reset` local
+para comprobar que las migraciones reconstruyen el esquema. Falta versionar: los cuatro
+commits de la entrega.
 
 ### HU-18 · Contraofertar `[ ]` — 8 puntos
 
