@@ -24,7 +24,9 @@ import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 import bo.saludencasa.features.requests.presentation.ImmediateCareScreen
 import bo.saludencasa.features.requests.presentation.InboxScreen
+import bo.saludencasa.features.requests.presentation.MakeOfferScreen
 import bo.saludencasa.features.requests.presentation.MyRequestsScreen
+import bo.saludencasa.features.requests.presentation.NegotiationScreen
 import bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
@@ -124,6 +126,7 @@ fun SaludEnCasaNavHost(
                 onOpenProfessional = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
                 onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
                 onRegisterAddress = { navController.navigate(AddressRoute()) },
+                onOpenNegotiation = { requestId -> navController.navigate(NegotiationRoute(requestId)) },
             )
         }
 
@@ -132,12 +135,30 @@ fun SaludEnCasaNavHost(
                 justCreated = entry.toRoute<MyRequestsRoute>().justCreated,
                 onBack = { navController.popBackStack() },
                 onCreateRequest = { navController.navigate(ImmediateCareRoute) },
+                onOpenRequest = { requestId -> navController.navigate(NegotiationRoute(requestId)) },
             )
         }
 
         composable<InboxRoute> { entry ->
             InboxScreen(
                 highlightRequestId = entry.toRoute<InboxRoute>().highlightRequestId,
+                onBack = { navController.popBackStack() },
+                onOpenRequest = { requestId -> navController.navigate(MakeOfferRoute(requestId)) },
+            )
+        }
+
+        // HU-17: the professional offers from here; the patient reads offers here.
+        composable<MakeOfferRoute> { entry ->
+            MakeOfferScreen(
+                requestId = entry.toRoute<MakeOfferRoute>().requestId,
+                onBack = { navController.popBackStack() },
+                onSent = { navController.popBackStack() },
+            )
+        }
+
+        composable<NegotiationRoute> { entry ->
+            NegotiationScreen(
+                requestId = entry.toRoute<NegotiationRoute>().requestId,
                 onBack = { navController.popBackStack() },
             )
         }

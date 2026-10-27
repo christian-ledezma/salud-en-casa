@@ -53,6 +53,7 @@ import java.time.Instant
 fun InboxScreen(
     highlightRequestId: String?,
     onBack: () -> Unit,
+    onOpenRequest: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: InboxViewModel = koinViewModel { parametersOf(highlightRequestId) },
 ) {
@@ -67,6 +68,7 @@ fun InboxScreen(
                 onReachedEnd = viewModel::onReachedEnd,
                 onRetry = viewModel::onRetry,
                 onDismissUnavailable = viewModel::onDismissUnavailable,
+                onOpenRequest = onOpenRequest,
             ),
         modifier = modifier,
         highlight = highlight,
@@ -80,6 +82,8 @@ internal data class InboxActions(
     val onReachedEnd: () -> Unit = {},
     val onRetry: () -> Unit = {},
     val onDismissUnavailable: () -> Unit = {},
+    // HU-17: the card opens the request to offer on it.
+    val onOpenRequest: (String) -> Unit = {},
 )
 
 @Composable
@@ -162,7 +166,11 @@ internal fun InboxContent(
                 }
 
                 items(uiState.requests, key = InboxRequest::id) { request ->
-                    InboxCard(request = request, highlighted = request.id == highlightedId)
+                    InboxCard(
+                        request = request,
+                        highlighted = request.id == highlightedId,
+                        onClick = { actions.onOpenRequest(request.id) },
+                    )
                 }
 
                 item(key = "footer") {
@@ -221,11 +229,13 @@ private fun UnavailableNotice(onDismiss: () -> Unit) {
 private fun InboxCard(
     request: InboxRequest,
     highlighted: Boolean,
+    onClick: () -> Unit = {},
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val notifiedDescription = stringResource(R.string.cd_inbox_notified_request)
 
     Card(
+        onClick = onClick,
         modifier =
             Modifier
                 .fillMaxWidth()

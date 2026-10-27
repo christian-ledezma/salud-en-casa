@@ -7,6 +7,7 @@ import bo.saludencasa.features.notifications.domain.repository.INotificationRepo
 import bo.saludencasa.features.profile.domain.model.UserRole
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.math.BigDecimal
 import java.time.Instant
 
 const val SIGNED_IN_USER = "08ddb28f-0000-4000-8000-000000000000"
@@ -82,7 +83,16 @@ fun appointmentCancelled(): PushPayload = PushPayload.AppointmentCancelled(pushS
 fun requestExpired(recipientId: String = SIGNED_IN_USER): PushPayload =
     PushPayload.RequestExpired(pushSubject(recipientId = recipientId, recipientRole = UserRole.PATIENT))
 
+fun offerReceived(
+    recipientId: String = SIGNED_IN_USER,
+    amountBob: BigDecimal = BigDecimal("160.00"),
+): PushPayload =
+    PushPayload.OfferReceived(
+        pushSubject(recipientId = recipientId, recipientRole = UserRole.PATIENT),
+        amountBob,
+    )
+
 // One of each, so a test that walks every event cannot miss one: the sealed
 // hierarchy is compared against this list.
 fun everyPayload(): List<PushPayload> =
-    listOf(nearbyRequest(), appointmentScheduled(), appointmentCancelled(), requestExpired())
+    listOf(nearbyRequest(), appointmentScheduled(), appointmentCancelled(), requestExpired(), offerReceived())

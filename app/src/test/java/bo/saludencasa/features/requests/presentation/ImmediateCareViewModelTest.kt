@@ -13,15 +13,20 @@ import bo.saludencasa.features.location.address
 import bo.saludencasa.features.location.coordinate
 import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
+import bo.saludencasa.features.requests.FakeOfferRepository
 import bo.saludencasa.features.requests.FakeRequestRepository
 import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.RequestError
+import bo.saludencasa.features.requests.domain.model.RequestOffersResult
 import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateImmediateRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.FindProfessionalsAvailableNowUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetActiveImmediateRequestUseCase
+import bo.saludencasa.features.requests.domain.usecase.GetRequestOffersUseCase
+import bo.saludencasa.features.requests.domain.usecase.ObserveMyOfferSignalsUseCase
+import bo.saludencasa.features.requests.requestOffer
 import bo.saludencasa.features.requests.serviceRequest
 import bo.saludencasa.features.search.FakeProfessionalSearchRepository
 import bo.saludencasa.features.search.domain.model.SearchError
@@ -49,6 +54,7 @@ class ImmediateCareViewModelTest {
     private val catalog = FakeCatalogRepository(catalog = listOf(generalConsultation, venousLine))
     private val addresses = FakeAddressRepository(listResult = AddressListResult.Success(listOf(office, home)))
     private val requests = FakeRequestRepository()
+    private val offers = FakeOfferRepository()
     private val search = FakeProfessionalSearchRepository(professionals = listOf(nearbyProfessional(id = "p1")))
 
     private val published = serviceRequest(id = "published", serviceTypeName = venousLine.name)
@@ -61,6 +67,8 @@ class ImmediateCareViewModelTest {
             CreateImmediateRequestUseCase(requests),
             CancelRequestUseCase(requests),
             FindProfessionalsAvailableNowUseCase(SearchNearbyProfessionalsUseCase(search)),
+            GetRequestOffersUseCase(offers),
+            ObserveMyOfferSignalsUseCase(offers),
         )
 
     private fun TestScope.opened(): ImmediateCareViewModel {
@@ -92,6 +100,34 @@ class ImmediateCareViewModelTest {
 
             assertEquals(ImmediateCareUiState.Waiting(published, false, null), viewModel.uiState.value)
             assertTrue(search.requests.isEmpty())
+        }
+
+    // HU-17: arriving at the wait shows how many offers already landed.
+    @Test
+    fun enteringTheWaitLoadsHowManyOffersAlreadyExist() =
+        runTest {
+            requests.activeResult = ActiveRequestResult.Found(published)
+            offers.offersResult = RequestOffersResult.Loaded(listOf(requestOffer(id = "o1")))
+
+            val viewModel = opened()
+
+            assertEquals(1, (viewModel.uiState.value as ImmediateCareUiState.Waiting).offerCount)
+        }
+
+    // Criterion 2: an offer landing re-queries the count with no reload.
+    @Test
+    fun anOfferThatLandsWhileWaitingUpdatesTheCountFromTheSignal() =
+        runTest {
+            requests.activeResult = ActiveRequestResult.Found(published)
+            val viewModel = opened()
+            assertEquals(0, (viewModel.uiState.value as ImmediateCareUiState.Waiting).offerCount)
+
+            offers.offersResult =
+                RequestOffersResult.Loaded(listOf(requestOffer(id = "o1"), requestOffer(id = "o2")))
+            offers.offerSignals.emit(Unit)
+            advanceUntilIdle()
+
+            assertEquals(2, (viewModel.uiState.value as ImmediateCareUiState.Waiting).offerCount)
         }
 
     @Test

@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import bo.saludencasa.R
 import bo.saludencasa.core.util.distanceText
 import bo.saludencasa.core.util.formatAppointment
+import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.notifications.domain.model.PushPayload
 import java.util.Locale
 
@@ -20,6 +21,7 @@ private fun PushPayload.titleRes(): Int =
         is PushPayload.AppointmentScheduled -> R.string.notification_appointment_scheduled_title
         is PushPayload.AppointmentCancelled -> R.string.notification_appointment_cancelled_title
         is PushPayload.RequestExpired -> R.string.notification_request_expired_title
+        is PushPayload.OfferReceived -> R.string.notification_offer_received_title
     }
 
 // RF-09.10.
@@ -57,6 +59,14 @@ internal fun PushPayload.text(
             is PushPayload.RequestExpired -> {
                 resources.getString(R.string.notification_request_expired_body, type)
             }
+
+            is PushPayload.OfferReceived -> {
+                resources.getString(
+                    R.string.notification_offer_received_body,
+                    type,
+                    formatBob(amountBob, locale),
+                )
+            }
         }
     return NotificationText(title = resources.getString(titleRes()), body = body)
 }
@@ -74,5 +84,6 @@ internal fun PushPayload.channel(): NotificationChannelSpec =
         is PushPayload.AppointmentScheduled,
         is PushPayload.AppointmentCancelled,
         is PushPayload.RequestExpired,
+        is PushPayload.OfferReceived,
         -> NotificationChannelSpec.REQUESTS
     }

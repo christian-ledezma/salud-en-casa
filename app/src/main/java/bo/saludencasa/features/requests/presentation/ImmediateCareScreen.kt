@@ -72,6 +72,7 @@ fun ImmediateCareScreen(
     onOpenProfessional: (String) -> Unit,
     onOpenMyRequests: () -> Unit,
     onRegisterAddress: () -> Unit,
+    onOpenNegotiation: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ImmediateCareViewModel = koinViewModel(),
 ) {
@@ -98,6 +99,7 @@ fun ImmediateCareScreen(
                 onRegisterAddress = onRegisterAddress,
                 onOpenProfessional = onOpenProfessional,
                 onOpenMyRequests = onOpenMyRequests,
+                onOpenNegotiation = onOpenNegotiation,
             ),
         modifier = modifier,
         map = { model, mapModifier ->
@@ -124,6 +126,7 @@ internal data class ImmediateCareActions(
     val onRegisterAddress: () -> Unit = {},
     val onOpenProfessional: (String) -> Unit = {},
     val onOpenMyRequests: () -> Unit = {},
+    val onOpenNegotiation: (String) -> Unit = {},
 )
 
 // The map is a slot, so the preview and the Robolectric test never reach the
@@ -439,6 +442,25 @@ private fun WaitingPanel(
             }
         }
 
+        // HU-17: an offer landed while waiting. The count updates live from the
+        // offer signal; the button opens the offers (docs/decisions.md, 2026-10-23).
+        if (waiting.offerCount > 0) {
+            Text(
+                text =
+                    pluralStringResource(
+                        R.plurals.immediate_waiting_offers,
+                        waiting.offerCount,
+                        waiting.offerCount,
+                    ),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            PrimaryButton(
+                text = stringResource(R.string.immediate_waiting_view_offers),
+                onClick = { actions.onOpenNegotiation(request.id) },
+            )
+        }
+
         permissionPrompt()
 
         waiting.cancelError?.let { error ->
@@ -557,8 +579,9 @@ private fun previewNearby() =
         more = false,
     )
 
-private fun previewWaiting() =
+private fun previewWaiting(offerCount: Int = 0) =
     ImmediateCareUiState.Waiting(
+        offerCount = offerCount,
         request =
             ServiceRequest(
                 id = "r1",
@@ -633,6 +656,12 @@ private fun ImmediateWaitingDarkPreview() {
 @Composable
 private fun ImmediateWaitingLargeFontPreview() {
     PreviewScreen(previewWaiting())
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Buscando profesional con ofertas")
+@Composable
+private fun ImmediateWaitingWithOffersPreview() {
+    PreviewScreen(previewWaiting(offerCount = 2))
 }
 
 @Preview(showBackground = true, widthDp = 320, name = "Atención ahora sin dirección")

@@ -39,6 +39,7 @@ private fun NavHostController.openFromNotification(destination: NotificationDest
         when (destination) {
             is NotificationDestination.Inbox -> InboxRoute(destination.highlightRequestId)
             NotificationDestination.MyRequests -> MyRequestsRoute()
+            is NotificationDestination.Negotiation -> NegotiationRoute(destination.requestId)
         },
     )
 }

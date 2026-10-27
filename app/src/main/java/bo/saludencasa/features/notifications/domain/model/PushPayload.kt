@@ -1,6 +1,7 @@
 package bo.saludencasa.features.notifications.domain.model
 
 import bo.saludencasa.features.profile.domain.model.UserRole
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.format.DateTimeParseException
 
@@ -9,6 +10,7 @@ enum class NotificationEvent {
     APPOINTMENT_SCHEDULED,
     APPOINTMENT_CANCELLED,
     REQUEST_EXPIRED,
+    OFFER_RECEIVED,
 }
 
 data class PushSubject(
@@ -50,6 +52,15 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.REQUEST_EXPIRED
     }
 
+    // RF-09.10: the amount is structured data, like the distance, never the text
+    // of the offer's message, which the engine leaves out of the body.
+    data class OfferReceived(
+        override val subject: PushSubject,
+        val amountBob: BigDecimal,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.OFFER_RECEIVED
+    }
+
     fun toMap(): Map<String, String> =
         buildMap {
             put(KEY_EVENT, event.name)
@@ -62,6 +73,7 @@ sealed interface PushPayload {
                 is AppointmentScheduled -> put(KEY_SCHEDULED_AT, scheduledAt.toString())
                 is AppointmentCancelled -> put(KEY_SCHEDULED_AT, scheduledAt.toString())
                 is RequestExpired -> Unit
+                is OfferReceived -> put(KEY_AMOUNT_BOB, amountBob.toPlainString())
             }
         }
 
@@ -73,6 +85,7 @@ sealed interface PushPayload {
         const val KEY_SERVICE_TYPE_NAME = "serviceTypeName"
         const val KEY_DISTANCE_M = "distanceM"
         const val KEY_SCHEDULED_AT = "scheduledAt"
+        const val KEY_AMOUNT_BOB = "amountBob"
 
         private val UUID_PATTERN = Regex("^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
         private val RECIPIENT_ROLES = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
@@ -116,6 +129,13 @@ sealed interface PushPayload {
 
                 NotificationEvent.REQUEST_EXPIRED -> {
                     Result.success(RequestExpired(subject))
+                }
+
+                NotificationEvent.OFFER_RECEIVED -> {
+                    val amount =
+                        data[KEY_AMOUNT_BOB]?.toBigDecimalOrNull()?.takeIf { it > BigDecimal.ZERO }
+                            ?: return failure("push_payload_invalid_amount")
+                    Result.success(OfferReceived(subject, amount))
                 }
             }
         }

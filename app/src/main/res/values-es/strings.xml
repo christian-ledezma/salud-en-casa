@@ -426,6 +426,11 @@
     <string name="immediate_waiting_body">Tu solicitud ya está publicada. Los profesionales disponibles cerca de ti pueden verla y ofertar.</string>
     <string name="immediate_waiting_expires">Sigue publicada hasta las %1$s</string>
     <string name="immediate_waiting_my_requests">Ver mis solicitudes</string>
+    <plurals name="immediate_waiting_offers">
+        <item quantity="one">%d oferta recibida</item>
+        <item quantity="other">%d ofertas recibidas</item>
+    </plurals>
+    <string name="immediate_waiting_view_offers">Ver ofertas</string>
     <string name="search_subtitle">Elige al profesional. Después eliges el día y la hora.</string>
     <string name="search_schedule_action">Agendar</string>
 
@@ -464,6 +469,9 @@
     <string name="error_request_service_not_offered">El profesional ya no ofrece ese servicio. Elige otro.</string>
     <string name="error_request_outside_coverage">El profesional no atiende en esa dirección. Elige otra o busca a un profesional más cerca.</string>
     <string name="error_request_time_not_bookable">Esa hora ya no está disponible. Actualizamos los horarios: elige otra.</string>
+    <string name="error_offer_invalid_amount">Ingresa un monto válido, mayor a cero y con hasta dos decimales.</string>
+    <string name="error_offer_message_required">Escribe un mensaje para el paciente.</string>
+    <string name="error_offer_not_allowed">No puedes ofertar sobre esta solicitud. Puede que ya no esté disponible o que ya hayas ofertado.</string>
 
     <string name="schedule_title">Agendar una cita</string>
     <string name="schedule_subtitle">Elige el servicio, el día y la hora. El profesional recibirá tu solicitud y podrá responder con una oferta.</string>
@@ -484,6 +492,26 @@
     <string name="request_modality_scheduled">Agendada</string>
     <string name="request_scheduled_for">Cita: %1$s</string>
     <string name="request_list_with_professional">Con %1$s</string>
+
+    <!-- HU-17: ofertar y negociación -->
+    <string name="offer_make_title">Hacer una oferta</string>
+    <string name="offer_budget_suggested">Presupuesto sugerido: %1$s</string>
+    <string name="offer_amount_label">Tu oferta (Bs)</string>
+    <string name="offer_message_label">Mensaje para el paciente</string>
+    <string name="offer_message_placeholder">Cuéntale cómo lo atenderías y qué incluye tu oferta.</string>
+    <string name="offer_submit">Enviar oferta</string>
+    <string name="offer_sent_title">Oferta enviada</string>
+    <string name="offer_sent_body">El paciente ya puede ver tu oferta. Te avisaremos si responde.</string>
+    <string name="offer_already_title">Ya ofertaste por esta solicitud</string>
+    <string name="offer_already_body">Solo puedes hacer una oferta. Si el paciente responde, continúa la negociación desde ahí.</string>
+    <string name="offer_request_gone_title">Esta solicitud ya no está disponible</string>
+    <string name="offer_request_gone_description">Puede que la hayan aceptado, cancelado o que haya vencido. Vuelve a tu bandeja.</string>
+
+    <string name="negotiation_title">Ofertas recibidas</string>
+    <string name="negotiation_empty_title">Todavía no tienes ofertas</string>
+    <string name="negotiation_empty_description">Cuando un profesional haga una oferta sobre tu solicitud, aparecerá aquí sin que recargues.</string>
+    <string name="negotiation_offer_anonymous">Profesional</string>
+    <string name="negotiation_no_rating">Sin calificaciones todavía</string>
 
     <!-- HU-15 availability -->
     <string name="availability_title">Mi disponibilidad</string>
@@ -520,6 +548,8 @@
     <string name="notification_appointment_cancelled_body">%1$s · %2$s</string>
     <string name="notification_request_expired_title">Tu solicitud venció</string>
     <string name="notification_request_expired_body">Nadie aceptó tu solicitud de %1$s. Puedes volver a pedir atención.</string>
+    <string name="notification_offer_received_title">Recibiste una oferta</string>
+    <string name="notification_offer_received_body">%1$s · %2$s</string>
     <string name="notification_public_body">Desbloquea el teléfono para ver el detalle.</string>
     <string name="notification_permission_title">Activa los avisos</string>
     <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti o un paciente te agende una cita, aunque no tengas la aplicación abierta.</string>

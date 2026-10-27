@@ -38,8 +38,15 @@ class OpenNotificationUseCase(
     private fun PushPayload.destination(): NotificationDestination =
         when (this) {
             is PushPayload.NearbyRequest -> NotificationDestination.Inbox(subject.requestId)
+
             is PushPayload.AppointmentScheduled -> NotificationDestination.Inbox(subject.requestId)
+
             is PushPayload.AppointmentCancelled -> NotificationDestination.Inbox(null)
+
             is PushPayload.RequestExpired -> NotificationDestination.MyRequests
+
+            // docs/decisions.md, 2026-10-23: the offer takes the patient to the
+            // request's offers.
+            is PushPayload.OfferReceived -> NotificationDestination.Negotiation(subject.requestId)
         }
 }

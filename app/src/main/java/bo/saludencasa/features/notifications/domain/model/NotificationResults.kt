@@ -8,6 +8,12 @@ sealed interface NotificationDestination {
     ) : NotificationDestination
 
     data object MyRequests : NotificationDestination
+
+    // HU-17: the patient opens the offers on their request. docs/decisions.md,
+    // 2026-10-23.
+    data class Negotiation(
+        val requestId: String,
+    ) : NotificationDestination
 }
 
 enum class DiscardReason {

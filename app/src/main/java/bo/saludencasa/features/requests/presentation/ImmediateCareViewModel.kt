@@ -11,12 +11,15 @@ import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.RequestError
+import bo.saludencasa.features.requests.domain.model.RequestOffersResult
 import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateImmediateRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.FindProfessionalsAvailableNowUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetActiveImmediateRequestUseCase
+import bo.saludencasa.features.requests.domain.usecase.GetRequestOffersUseCase
+import bo.saludencasa.features.requests.domain.usecase.ObserveMyOfferSignalsUseCase
 import bo.saludencasa.features.search.domain.model.NearbyProfessional
 import bo.saludencasa.features.search.domain.model.NearbyProfessionalsPageResult
 import kotlinx.coroutines.Job
@@ -77,6 +80,8 @@ sealed interface ImmediateCareUiState {
         val request: ServiceRequest,
         val cancelling: Boolean,
         val cancelError: RequestError?,
+        // HU-17: how many offers have landed. Updated live from the offer signal.
+        val offerCount: Int = 0,
     ) : ImmediateCareUiState
 }
 
@@ -87,12 +92,24 @@ class ImmediateCareViewModel(
     private val createImmediateRequest: CreateImmediateRequestUseCase,
     private val cancelRequest: CancelRequestUseCase,
     private val findProfessionalsAvailableNow: FindProfessionalsAvailableNowUseCase,
+    private val getRequestOffers: GetRequestOffersUseCase,
+    private val observeMyOfferSignals: ObserveMyOfferSignalsUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<ImmediateCareUiState>(ImmediateCareUiState.Loading)
     val uiState: StateFlow<ImmediateCareUiState> = state.asStateFlow()
 
     private var loadJob: Job? = null
     private var nearbyJob: Job? = null
+
+    init {
+        // HU-17: while waiting, an offer landing re-queries the count so the panel
+        // shows it without the patient reloading (docs/decisions.md, 2026-10-23).
+        viewModelScope.launch {
+            observeMyOfferSignals().collect {
+                (state.value as? ImmediateCareUiState.Waiting)?.let { loadOfferCount(it.request.id) }
+            }
+        }
+    }
 
     // The form as it was when it was published, so cancelling brings back the
     // same choices instead of a blank page.
@@ -110,8 +127,7 @@ class ImmediateCareViewModel(
                 when (val active = getActiveImmediateRequest()) {
                     is ActiveRequestResult.Found -> {
                         nearbyJob?.cancel()
-                        state.value =
-                            ImmediateCareUiState.Waiting(active.request, cancelling = false, cancelError = null)
+                        enterWaiting(active.request)
                     }
 
                     ActiveRequestResult.None -> {
@@ -213,21 +229,40 @@ class ImmediateCareViewModel(
     // publishing again from it would duplicate the request. The retry of the
     // failure is refresh, which finds it.
     private suspend fun showPublished() {
-        state.value =
-            when (val active = getActiveImmediateRequest()) {
-                is ActiveRequestResult.Found -> {
-                    ImmediateCareUiState.Waiting(active.request, cancelling = false, cancelError = null)
-                }
+        when (val active = getActiveImmediateRequest()) {
+            is ActiveRequestResult.Found -> {
+                enterWaiting(active.request)
+            }
 
-                is ActiveRequestResult.Failure -> {
-                    ImmediateCareUiState.Failed(active.error)
-                }
+            is ActiveRequestResult.Failure -> {
+                state.value = ImmediateCareUiState.Failed(active.error)
+            }
 
-                // Expired or cancelled in the instant between the two calls.
-                ActiveRequestResult.None -> {
-                    return showForm()
+            // Expired or cancelled in the instant between the two calls.
+            ActiveRequestResult.None -> {
+                showForm()
+            }
+        }
+    }
+
+    private fun enterWaiting(request: ServiceRequest) {
+        state.value = ImmediateCareUiState.Waiting(request, cancelling = false, cancelError = null)
+        viewModelScope.launch { loadOfferCount(request.id) }
+    }
+
+    // A failed read leaves the count as it was: the panel is about the wait, not
+    // the offers, and a wrong zero would be worse than a stale number.
+    private suspend fun loadOfferCount(requestId: String) {
+        val result = getRequestOffers(requestId)
+        if (result is RequestOffersResult.Loaded) {
+            state.update { current ->
+                if (current is ImmediateCareUiState.Waiting && current.request.id == requestId) {
+                    current.copy(offerCount = result.offers.size)
+                } else {
+                    current
                 }
             }
+        }
     }
 
     private suspend fun showForm() {

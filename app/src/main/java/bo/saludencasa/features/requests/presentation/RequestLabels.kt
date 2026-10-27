@@ -6,6 +6,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import bo.saludencasa.R
 import bo.saludencasa.core.util.distanceText
+import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -25,6 +26,17 @@ internal fun RequestError.messageRes(): Int =
         RequestError.TimeNotBookable -> R.string.error_request_time_not_bookable
         RequestError.NetworkUnavailable -> R.string.error_network_unavailable
         RequestError.Unexpected -> R.string.error_unexpected
+    }
+
+@StringRes
+internal fun OfferError.messageRes(): Int =
+    when (this) {
+        OfferError.NotSignedIn -> R.string.error_request_not_signed_in
+        OfferError.InvalidAmount -> R.string.error_offer_invalid_amount
+        OfferError.MessageRequired -> R.string.error_offer_message_required
+        OfferError.NotAllowed -> R.string.error_offer_not_allowed
+        OfferError.NetworkUnavailable -> R.string.error_network_unavailable
+        OfferError.Unexpected -> R.string.error_unexpected
     }
 
 @StringRes

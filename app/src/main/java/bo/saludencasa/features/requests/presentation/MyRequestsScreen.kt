@@ -49,6 +49,7 @@ fun MyRequestsScreen(
     justCreated: Boolean,
     onBack: () -> Unit,
     onCreateRequest: () -> Unit,
+    onOpenRequest: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyRequestsViewModel = koinViewModel(),
 ) {
@@ -63,6 +64,7 @@ fun MyRequestsScreen(
                 onReachedEnd = viewModel::onReachedEnd,
                 onRetry = viewModel::onRetry,
                 onCreateRequest = onCreateRequest,
+                onOpenRequest = onOpenRequest,
             ),
         modifier = modifier,
         permissionPrompt = {
@@ -76,6 +78,8 @@ internal data class MyRequestsActions(
     val onReachedEnd: () -> Unit = {},
     val onRetry: () -> Unit = {},
     val onCreateRequest: () -> Unit = {},
+    // HU-17: the card opens the offers received on the request.
+    val onOpenRequest: (String) -> Unit = {},
 )
 
 @Composable
@@ -154,6 +158,7 @@ internal fun MyRequestsContent(
                         cancelling = uiState.cancellingId == request.id,
                         cancelEnabled = uiState.cancellingId == null,
                         onCancel = { actions.onCancel(request.id) },
+                        onOpenRequest = { actions.onOpenRequest(request.id) },
                     )
                 }
 
@@ -176,11 +181,12 @@ private fun RequestCard(
     cancelling: Boolean,
     cancelEnabled: Boolean,
     onCancel: () -> Unit,
+    onOpenRequest: () -> Unit = {},
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val loadingDescription = stringResource(R.string.cd_loading)
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(onClick = onOpenRequest, modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.cardPadding),
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),

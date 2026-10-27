@@ -80,6 +80,8 @@ class ScreenCatalog(
                 "bo.saludencasa.features.requests.presentation.ImmediateCareScreenKt",
                 "bo.saludencasa.features.requests.presentation.MyRequestsScreenKt",
                 "bo.saludencasa.features.requests.presentation.InboxScreenKt",
+                "bo.saludencasa.features.requests.presentation.MakeOfferScreenKt",
+                "bo.saludencasa.features.requests.presentation.NegotiationScreenKt",
                 "bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreenKt",
                 "bo.saludencasa.features.availability.presentation.AvailabilityScreenKt",
                 "bo.saludencasa.features.notifications.presentation.NotificationPermissionPromptKt",

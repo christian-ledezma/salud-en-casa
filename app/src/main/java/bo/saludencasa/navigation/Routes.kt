@@ -47,6 +47,16 @@ data class InboxRoute(
 )
 
 @Serializable
+data class MakeOfferRoute(
+    val requestId: String,
+)
+
+@Serializable
+data class NegotiationRoute(
+    val requestId: String,
+)
+
+@Serializable
 data object AvailabilityRoute
 
 @Serializable

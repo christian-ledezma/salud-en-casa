@@ -8,6 +8,7 @@ import bo.saludencasa.features.profile.domain.model.UserRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.math.BigDecimal
 
 class PushPayloadTest {
     private fun wire(vararg overrides: Pair<String, String?>): Map<String, String> {
@@ -55,6 +56,62 @@ class PushPayloadTest {
                 .getOrThrow()
 
         assertEquals(UserRole.PATIENT, expired.subject.recipientRole)
+    }
+
+    @Test
+    fun parsesAnOfferWithItsAmountForThePatientRole() {
+        val offer =
+            PushPayload
+                .parse(
+                    wire(
+                        "event" to "OFFER_RECEIVED",
+                        "distanceM" to null,
+                        "recipientRole" to "PATIENT",
+                        "amountBob" to "160.00",
+                    ),
+                ).getOrThrow()
+
+        offer as PushPayload.OfferReceived
+        assertEquals(UserRole.PATIENT, offer.subject.recipientRole)
+        assertEquals(0, offer.amountBob.compareTo(BigDecimal("160.00")))
+    }
+
+    @Test
+    fun rejectsAnOfferWithoutItsAmount() {
+        assertEquals(
+            "push_payload_invalid_amount",
+            failureKey(wire("event" to "OFFER_RECEIVED", "distanceM" to null, "recipientRole" to "PATIENT")),
+        )
+    }
+
+    @Test
+    fun rejectsAnOfferAmountThatIsNotPositive() {
+        assertEquals(
+            "push_payload_invalid_amount",
+            failureKey(
+                wire(
+                    "event" to "OFFER_RECEIVED",
+                    "distanceM" to null,
+                    "recipientRole" to "PATIENT",
+                    "amountBob" to "0",
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun rejectsAnOfferAmountThatIsNotANumber() {
+        assertEquals(
+            "push_payload_invalid_amount",
+            failureKey(
+                wire(
+                    "event" to "OFFER_RECEIVED",
+                    "distanceM" to null,
+                    "recipientRole" to "PATIENT",
+                    "amountBob" to "mucho",
+                ),
+            ),
+        )
     }
 
     @Test
