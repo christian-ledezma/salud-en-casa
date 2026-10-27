@@ -2,7 +2,7 @@ import { type SendOutcome, sendData, type ServiceAccount } from "./fcm.ts";
 
 // docs/decisions.md, 2026-10-16: only these keys ever reach a phone, whatever
 // the body carries (RF-09.10).
-const SHARED_KEYS = ["event", "requestId", "recipientRole", "serviceTypeName", "scheduledAt"];
+const SHARED_KEYS = ["event", "requestId", "recipientRole", "serviceTypeName", "scheduledAt", "amountBob"];
 const TARGET_KEYS = ["recipientId", "distanceM"];
 
 const INSTALLATION_ID = /^[A-Za-z0-9_:-]{8,256}$/;
