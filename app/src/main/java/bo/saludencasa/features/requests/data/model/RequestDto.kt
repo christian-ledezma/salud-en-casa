@@ -53,7 +53,11 @@ data class ServiceRequestDto(
     val modality: String,
     val status: String,
     val description: String? = null,
-    @SerialName("suggested_budget_bob") val suggestedBudgetBob: String? = null,
+    // PostgREST returns a numeric column as a JSON number (80.00, unquoted), so
+    // this rides through BigDecimalSerializer like InboxRequestDto, not as a
+    // String: a plain String? fails to decode a request that carries a budget.
+    @Serializable(with = BigDecimalSerializer::class)
+    @SerialName("suggested_budget_bob") val suggestedBudgetBob: BigDecimal? = null,
     @SerialName("expires_at") val expiresAt: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("scheduled_at") val scheduledAt: String? = null,

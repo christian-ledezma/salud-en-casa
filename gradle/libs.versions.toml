@@ -98,7 +98,10 @@ supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
 supabase-realtime = { group = "io.github.jan-tennert.supabase", name = "realtime-kt" }
 supabase-storage = { group = "io.github.jan-tennert.supabase", name = "storage-kt" }
 supabase-functions = { group = "io.github.jan-tennert.supabase", name = "functions-kt" }
-ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
+# OkHttp y no el motor Android: Realtime necesita WebSocket, que el motor Android
+# de Ktor no soporta (lanza "Engine doesn't support WebSocketCapability" y la
+# suscripcion nunca conecta). docs/decisions.md, 2026-10-24.
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 # Imagenes
@@ -136,7 +139,7 @@ supabase = [
     "supabase-realtime",
     "supabase-storage",
     "supabase-functions",
-    "ktor-client-android",
+    "ktor-client-okhttp",
     "kotlinx-serialization-json",
 ]
 maps = [

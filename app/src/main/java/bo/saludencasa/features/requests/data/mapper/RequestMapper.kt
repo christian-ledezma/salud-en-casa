@@ -8,7 +8,6 @@ import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
-import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -22,7 +21,7 @@ internal fun ServiceRequestDto.toServiceRequest(): ServiceRequest? {
     val expires = expiresAt?.let(::parseInstant)
     val scheduled = scheduledAt?.let(::parseInstant)
     if (mappedModality == RequestModality.SCHEDULED && scheduled == null) return null
-    val budget = suggestedBudgetBob?.let { runCatching { BigDecimal(it) }.getOrNull() }
+    val budget = suggestedBudgetBob
 
     return ServiceRequest(
         id = id,

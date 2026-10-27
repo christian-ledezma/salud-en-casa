@@ -5,6 +5,7 @@ import bo.saludencasa.features.requests.data.model.InboxRequestDto
 import bo.saludencasa.features.requests.data.model.ServiceRequestDto
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -135,11 +136,31 @@ class RequestMapperTest {
         assertNull(BookableStartDto("2026-10-20T01:30:00+00:00", "2026-10-19", "half past nine").toBookableStart())
     }
 
+    // PostgREST returns a numeric column as an unquoted JSON number. A request
+    // that carries a budget must decode; a String-typed field failed on the '8'
+    // of 80.00 and the whole read was reported as an unexpected error.
+    @Test
+    fun decodesARequestWhoseBudgetIsAJsonNumber() {
+        val json =
+            """[{"id":"r1","service_type_name":"Vacunación","address_text":"Av. América 1234",
+               "city":"Cochabamba","modality":"IMMEDIATE","status":"PUBLISHED","description":null,
+               "suggested_budget_bob":80.00,"expires_at":"2026-10-24T13:00:00+00:00",
+               "created_at":"2026-10-24T12:00:00+00:00","scheduled_at":null,"professional_name":null}]"""
+
+        val request =
+            Json
+                .decodeFromString<List<ServiceRequestDto>>(json)
+                .single()
+                .toServiceRequest()!!
+
+        assertEquals(0, BigDecimal("80.00").compareTo(request.suggestedBudgetBob))
+    }
+
     private fun dto(
         status: String = "PUBLISHED",
         modality: String = "IMMEDIATE",
         createdAt: String = "2026-10-12T12:00:00+00:00",
-        suggestedBudgetBob: String? = "150.00",
+        suggestedBudgetBob: BigDecimal? = BigDecimal("150.00"),
         description: String? = "Fiebre alta",
         scheduledAt: String? = null,
         professionalName: String? = null,
