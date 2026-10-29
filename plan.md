@@ -5758,6 +5758,10 @@ de seguir, porque HU-19 pone «Aceptar» justamente en las pantallas que HT-24 c
 criterio 5 de HU-18 (el aviso de contraoferta hacia ambos lados) se prueba en el recorrido
 de HT-24, y con eso se cierra HU-18.
 
+**HU-18 y HT-24 cerradas el 2026-10-28.** Sigue HU-19 (aceptar una oferta): la operación
+atómica en una función de servidor, el servicio y el pago pendiente creados juntos, y los
+datos de contacto que se revelan recién al aceptar.
+
 ### HT-23 · Pedir atención y agendar en menos pasos `[x]` — 8 puntos
 
 > Como **paciente**, quiero **pedir atención inmediata desde el mapa de quienes están
@@ -6415,7 +6419,7 @@ en vivo y el aviso de oferta con la app cerrada) el **2026-10-26**. Archivos ext
 para comprobar que las migraciones reconstruyen el esquema. Falta versionar: los cuatro
 commits de la entrega.
 
-### HU-18 · Contraofertar `[ ]` — 8 puntos
+### HU-18 · Contraofertar `[x]` — 8 puntos
 
 > Como **paciente**, quiero **responder con otro monto**, para **acordar un precio
 > que me convenga**.
@@ -6430,7 +6434,7 @@ commits de la entrega.
       la respuesta sin recargar. *Confirmado por el autor en emulador el 2026-10-27.*
 - [x] Dado que rechazo una oferta, cuando confirmo, entonces la solicitud sigue
       publicada para otros profesionales.
-- [ ] Dado que la contraparte responde con una contraoferta, cuando no tengo la
+- [x] Dado que la contraparte responde con una contraoferta, cuando no tengo la
       aplicación abierta, entonces me llega una notificación con el monto nuevo,
       sea yo el paciente o el profesional.
 
@@ -6502,7 +6506,7 @@ profesional gana su tema espejo de Realtime, `professional_offers:<id>`.
   `OpenNotificationUseCaseTest.aCounterOfferOpensItsThreadForWhicheverSideReceivesIt`,
   `NotificationTapEffectTest.aCounterOfferTapOpensItsThread`, `NotificationEventParityTest`
   (seis eventos) y `NotificationContentTest.everyNotificationEventHasItsTextInAllLocales`.
-  **Falta el recorrido con la aplicación cerrada, hacia cada lado.**
+  Confirmado por el autor en emulador, con la aplicación cerrada hacia ambos lados, el 2026-10-28.
 
 **Experimentos SQL (remoto, `begin … rollback`, 2026-10-27).** Migración sin aplicar,
 sembrando el mundo dentro de la transacción. 35 de comportamiento y 20 estructurales,
@@ -6581,13 +6585,10 @@ estático y lint incluidos. Previsualizaciones de `OfferThreadScreen` (claro, os
 200 %, contraofertando y cerrada) y de `NegotiationScreen` (claro, oscuro y 200 %)
 renderizadas y revisadas.
 
-**Confirmar hecho (CLI, fuera del emulador):** `supabase db push`, redesplegar
-`send-push` (sin eso el aviso llega sin con qué abrir el hilo) y `supabase db reset`
-local. **El criterio 3 lo confirmó el autor en emulador el 2026-10-27; el 5 se prueba en el
-recorrido de HT-24**, que cambia a dónde lleva el aviso. Pendientes también los
-commits de la entrega.
+**Confirmado por el autor (2026-10-28).** `supabase db push` y redespliegue de `send-push`
+hechos; recorrido en emulador con dos cuentas sin observaciones. **Cerrada el 2026-10-28.**
 
-### HT-24 · Negociar en menos pasos `[ ]` — 8 puntos
+### HT-24 · Negociar en menos pasos `[x]` — 8 puntos
 
 > Como **paciente y como profesional**, quiero **negociar sin recorrer pantallas que no
 > aportan**, para **llegar a un acuerdo en el menor número de toques**.
@@ -6613,10 +6614,10 @@ mostraba solo el alias. El razonamiento y las seis decisiones tomadas con el aut
 
 **Criterios de aceptación**
 
-- [ ] Dado que publiqué una solicitud inmediata, cuando un profesional oferta, entonces la
+- [x] Dado que publiqué una solicitud inmediata, cuando un profesional oferta, entonces la
       oferta aparece sola en «Buscando profesional», con su calificación, su distancia y su
       monto, sin recargar.
-- [ ] Dado que llegan varias ofertas, cuando miro la espera, entonces aparecen una debajo
+- [x] Dado que llegan varias ofertas, cuando miro la espera, entonces aparecen una debajo
       de otra, y tocar una abre la negociación con ese profesional.
 - [x] Dado que soy profesional, cuando abro una solicitud desde la bandeja o desde el
       aviso, entonces la oferto y negocio en la misma pantalla.
@@ -6627,7 +6628,7 @@ mostraba solo el alias. El razonamiento y las seis decisiones tomadas con el aut
       se envía igual.
 - [x] Dado que elijo dónde atenderme, cuando miro las opciones, entonces veo cada dirección
       con su nombre y su calle, y puedo agregar otra sin salir del flujo.
-- [ ] Dado que me llega un aviso de oferta, de contraoferta o de una solicitud para mí,
+- [x] Dado que me llega un aviso de oferta, de contraoferta o de una solicitud para mí,
       cuando lo toco, entonces se abre directamente la negociación o la solicitud.
 
 **Requisitos:** RF-08.1, RF-08.2, RF-08.3, RF-08.4, RF-09.5, RF-09.10, RNF-08.
@@ -6654,11 +6655,11 @@ mostraba solo el alias. El razonamiento y las seis decisiones tomadas con el aut
   `ImmediateCareViewModelTest.anOfferThatLandsWhileWaitingAppearsFromTheSignal` y
   `enteringTheWaitShowsTheOffersThatAlreadyExist`; la distancia en el motor
   (`the_offer_distance_is_rounded_to_the_hundred_metres`, medida desde el punto publicado) y
-  en el mapeador (`OfferMapperTest.eachThreadCarriesItsDistanceAndTheBudget`). **Falta verlo
-  en vivo en el recorrido.**
+  en el mapeador (`OfferMapperTest.eachThreadCarriesItsDistanceAndTheBudget`). Confirmado por
+  el autor en emulador el 2026-10-28.
 - Criterio 2 (una debajo de otra, y tocar abre la negociación):
   `ImmediateCareScreenLargeFontTest.threeOffersStackAsCardsThatFitTheScreen`;
-  `aRejectedNegotiationLeavesTheWait`. **Falta el recorrido.**
+  `aRejectedNegotiationLeavesTheWait`. Confirmado por el autor en emulador el 2026-10-28.
 - Criterio 3 (el profesional oferta y negocia en la misma pantalla):
   `OfferThreadViewModelTest.theProfessionalWithoutAThreadSeesTheFirstOfferForm`,
   `sendingTheFirstOfferTurnsTheScreenIntoTheNegotiation`, `aRefusedFirstOfferKeepsTheFormWithItsError`
@@ -6680,8 +6681,8 @@ mostraba solo el alias. El razonamiento y las seis decisiones tomadas con el aut
 - Criterio 7 (los avisos abren directo): `offer_push_carries_the_professional` en el motor;
   `PushPayloadTest.rejectsAnOfferWithoutItsProfessional`,
   `OpenNotificationUseCaseTest.eachEventOpensItsOwnDestination` y
-  `NotificationTapEffectTest.aTapWaitsWhileTheStartupScreenIsShowing`. **Falta el aviso real
-  con la aplicación cerrada.**
+  `NotificationTapEffectTest.aTapWaitsWhileTheStartupScreenIsShowing`. Confirmado por el autor
+  en emulador, con la aplicación cerrada, el 2026-10-28.
 - «Mis solicitudes» abre donde está la negociación: `NegotiationEntryTest`.
 
 **Experimentos SQL (remoto, `begin … rollback`, 2026-10-27).** Migración sin aplicar. 14 de
@@ -6753,9 +6754,8 @@ quedan. Previsualizaciones revisadas: la espera con ofertas (claro, oscuro y 200
 del profesional antes de ofertar (claro y 200 %), el hilo contraofertando con el mínimo, y el
 selector de dirección con su calle.
 
-**Pendiente.** `supabase db push` de `20261027150000_negotiate_in_fewer_steps.sql`; redesplegar
-`send-push` si no se hizo tras HU-18; `supabase db reset` local; y el recorrido en emulador con
-dos cuentas, que confirma los criterios 1, 2 y 7 de esta historia y el 5 de HU-18.
+**Confirmado por el autor (2026-10-28).** `supabase db push`, redespliegue de `send-push` y
+recorrido en emulador con dos cuentas hechos, sin observaciones. **Cerrada el 2026-10-28.**
 
 ### HU-19 · Aceptar una oferta `[ ]` — 8 puntos
 
