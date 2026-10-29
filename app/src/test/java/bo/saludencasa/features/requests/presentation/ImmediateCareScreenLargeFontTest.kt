@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests.presentation
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsEnabled
@@ -8,15 +9,19 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
+import bo.saludencasa.core.util.distanceText
 import bo.saludencasa.core.util.formatTime
 import bo.saludencasa.features.catalog.domain.model.ServiceType
 import bo.saludencasa.features.location.address
 import bo.saludencasa.features.requests.domain.model.RequestError
+import bo.saludencasa.features.requests.offerThread
 import bo.saludencasa.features.requests.serviceRequest
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
+import bo.saludencasa.ui.plural
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
 import org.junit.Assert.assertTrue
@@ -38,7 +43,8 @@ class ImmediateCareScreenLargeFontTest {
     private val vaccination = ServiceType("t2", "Vacunación", null, BigDecimal("90.00"), 20)
 
     private val home = address(id = "a1", alias = "Mi casa", isPrimary = true)
-    private val mother = address(id = "a2", alias = "Casa de mi mamá", isPrimary = false)
+    private val mother =
+        address(id = "a2", alias = "Casa de mi mamá", addressText = "Calle Jordán 456, Cochabamba", isPrimary = false)
 
     private fun form(
         nearby: NearbyState = NearbyState.Found(emptyList(), more = false),
@@ -141,6 +147,42 @@ class ImmediateCareScreenLargeFontTest {
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.immediate_waiting_my_requests)))
     }
 
+    // HT-24: three offers stacked as cards, each with its professional, its
+    // distance and its amount, all reachable and none off the edge.
+    @Test
+    fun threeOffersStackAsCardsThatFitTheScreen() {
+        val threads =
+            listOf(
+                offerThread(professionalId = "p1", professionalName = "Ana Pérez Quiroga de la Fuente")
+                    .copy(distanceM = 1200),
+                offerThread(professionalId = "p2", professionalName = "Luis Gutiérrez").copy(distanceM = 3400),
+                offerThread(professionalId = "p3", professionalName = "Carla Rojas").copy(distanceM = 900),
+            )
+        show(
+            ImmediateCareUiState.Waiting(
+                serviceRequest(),
+                cancelling = false,
+                cancelError = null,
+                threads = threads,
+            ),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Ana Pérez Quiroga de la Fuente"))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Carla Rojas"))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(inboxDistance(3400)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(plural(R.plurals.immediate_waiting_offers, 3, 3)))
+    }
+
+    // The address reads as an address: the alias, its street under it, and the
+    // way to add another without leaving the form.
+    @Test
+    fun theAddressShowsItsStreetAndTheWayToAddAnother() {
+        show(form())
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(home.addressText, useUnmergedTree = true))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.request_address_add_another)))
+    }
+
     @Test
     fun aFailedCancellationSaysWhyNextToTheButton() {
         show(
@@ -171,6 +213,14 @@ class ImmediateCareScreenLargeFontTest {
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.common_retry)))
     }
+
+    // The distance as the card writes it, from the same resource and locale.
+    private fun inboxDistance(distanceM: Int): String =
+        distanceText(
+            ApplicationProvider.getApplicationContext<Context>().resources,
+            distanceM,
+            Locale.getDefault(),
+        )
 
     private companion object {
         const val MAP_TAG = "immediate_map"

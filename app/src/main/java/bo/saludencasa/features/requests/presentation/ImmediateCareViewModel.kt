@@ -10,16 +10,17 @@ import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
+import bo.saludencasa.features.requests.domain.model.OfferThread
+import bo.saludencasa.features.requests.domain.model.OfferThreadsResult
 import bo.saludencasa.features.requests.domain.model.RequestError
-import bo.saludencasa.features.requests.domain.model.RequestOffersResult
 import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateImmediateRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.FindProfessionalsAvailableNowUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetActiveImmediateRequestUseCase
-import bo.saludencasa.features.requests.domain.usecase.GetRequestOffersUseCase
-import bo.saludencasa.features.requests.domain.usecase.ObserveMyOfferSignalsUseCase
+import bo.saludencasa.features.requests.domain.usecase.GetOfferThreadsUseCase
+import bo.saludencasa.features.requests.domain.usecase.ObserveOfferSignalsUseCase
 import bo.saludencasa.features.search.domain.model.NearbyProfessional
 import bo.saludencasa.features.search.domain.model.NearbyProfessionalsPageResult
 import kotlinx.coroutines.Job
@@ -80,8 +81,10 @@ sealed interface ImmediateCareUiState {
         val request: ServiceRequest,
         val cancelling: Boolean,
         val cancelError: RequestError?,
-        // HU-17: how many offers have landed. Updated live from the offer signal.
-        val offerCount: Int = 0,
+        // The live offers, one per professional, shown as cards under the request
+        // and updated from the offer signal. A rejected negotiation leaves the
+        // list, as in InDrive (docs/decisions.md, 2026-10-27, HT-24).
+        val threads: List<OfferThread> = emptyList(),
     ) : ImmediateCareUiState
 }
 
@@ -92,8 +95,8 @@ class ImmediateCareViewModel(
     private val createImmediateRequest: CreateImmediateRequestUseCase,
     private val cancelRequest: CancelRequestUseCase,
     private val findProfessionalsAvailableNow: FindProfessionalsAvailableNowUseCase,
-    private val getRequestOffers: GetRequestOffersUseCase,
-    private val observeMyOfferSignals: ObserveMyOfferSignalsUseCase,
+    private val getOfferThreads: GetOfferThreadsUseCase,
+    private val observeOfferSignals: ObserveOfferSignalsUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<ImmediateCareUiState>(ImmediateCareUiState.Loading)
     val uiState: StateFlow<ImmediateCareUiState> = state.asStateFlow()
@@ -102,11 +105,12 @@ class ImmediateCareViewModel(
     private var nearbyJob: Job? = null
 
     init {
-        // HU-17: while waiting, an offer landing re-queries the count so the panel
-        // shows it without the patient reloading (docs/decisions.md, 2026-10-23).
+        // While waiting, an offer landing re-queries the offers so its card shows
+        // up without the patient reloading (docs/decisions.md, 2026-10-23 and
+        // 2026-10-27, HT-24).
         viewModelScope.launch {
-            observeMyOfferSignals().collect {
-                (state.value as? ImmediateCareUiState.Waiting)?.let { loadOfferCount(it.request.id) }
+            observeOfferSignals(asProfessional = false).collect {
+                (state.value as? ImmediateCareUiState.Waiting)?.let { loadOffers(it.request.id) }
             }
         }
     }
@@ -131,12 +135,16 @@ class ImmediateCareViewModel(
                     }
 
                     ActiveRequestResult.None -> {
-                        // A form on screen keeps what the patient was typing.
-                        if (state.value !is ImmediateCareUiState.Form) showForm()
+                        // A form on screen keeps what the patient was typing, and
+                        // only its addresses are read again.
+                        if (state.value is ImmediateCareUiState.Form) refreshAddresses() else showForm()
                     }
 
+                    // A form or a wait already on screen stays: a read that failed
+                    // on coming back says nothing about either.
                     is ActiveRequestResult.Failure -> {
-                        if (state.value !is ImmediateCareUiState.Form) {
+                        val onScreen = state.value
+                        if (onScreen !is ImmediateCareUiState.Form && onScreen !is ImmediateCareUiState.Waiting) {
                             state.value = ImmediateCareUiState.Failed(active.error)
                         }
                     }
@@ -245,24 +253,44 @@ class ImmediateCareViewModel(
         }
     }
 
+    // Coming back from a thread lands here with the same request: its cards stay
+    // while they are read again, so they do not blink out and the radar back in.
     private fun enterWaiting(request: ServiceRequest) {
-        state.value = ImmediateCareUiState.Waiting(request, cancelling = false, cancelError = null)
-        viewModelScope.launch { loadOfferCount(request.id) }
+        val onScreen = state.value as? ImmediateCareUiState.Waiting
+        state.value =
+            if (onScreen?.request?.id == request.id) {
+                onScreen.copy(request = request)
+            } else {
+                ImmediateCareUiState.Waiting(request, cancelling = false, cancelError = null)
+            }
+        viewModelScope.launch { loadOffers(request.id) }
     }
 
-    // A failed read leaves the count as it was: the panel is about the wait, not
-    // the offers, and a wrong zero would be worse than a stale number.
-    private suspend fun loadOfferCount(requestId: String) {
-        val result = getRequestOffers(requestId)
-        if (result is RequestOffersResult.Loaded) {
+    // A failed read leaves the cards as they were: the panel is about the wait,
+    // and an empty list would say no one has offered when someone has.
+    private suspend fun loadOffers(requestId: String) {
+        val result = getOfferThreads(requestId)
+        if (result is OfferThreadsResult.Loaded) {
             state.update { current ->
                 if (current is ImmediateCareUiState.Waiting && current.request.id == requestId) {
-                    current.copy(offerCount = result.offers.size)
+                    current.copy(threads = result.threads.filterNot { it.isClosed })
                 } else {
                     current
                 }
             }
         }
+    }
+
+    // Coming back from «Agregar otra dirección»: the list is read again, the rest
+    // of the form stays, and the address just added is the one chosen.
+    private suspend fun refreshAddresses() {
+        val result = getMyAddresses() as? AddressListResult.Success ?: return
+        if (result.addresses.isEmpty()) return
+        val form = state.value as? ImmediateCareUiState.Form ?: return
+
+        val selected = result.addresses.selectionAfterRefresh(form.addresses, form.selectedAddressId)
+        state.value = form.copy(addresses = result.addresses, selectedAddressId = selected)
+        if (selected != form.selectedAddressId) searchNearby()
     }
 
     private suspend fun showForm() {

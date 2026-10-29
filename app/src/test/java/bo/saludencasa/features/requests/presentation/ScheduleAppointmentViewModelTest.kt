@@ -99,6 +99,50 @@ class ScheduleAppointmentViewModelTest {
             assertEquals("a1", content.selectedAddressId)
         }
 
+    // HT-24: coming back from «Agregar otra dirección» chooses the one just added
+    // and keeps the time and the description already chosen.
+    @Test
+    fun comingBackWithANewAddressChoosesItAndKeepsTheRest() =
+        runTest {
+            val viewModel = viewModel()
+            advanceUntilIdle()
+            viewModel.onDescriptionChanged("Control de presión")
+            val chosenStart = content(viewModel).selectedStart
+
+            addresses.listResult =
+                AddressListResult.Success(
+                    listOf(
+                        address(id = "a2", alias = "Oficina", isPrimary = false),
+                        address(id = "a1", alias = "Casa", isPrimary = true),
+                        address(id = "a3", alias = "Casa de mi mamá", isPrimary = false),
+                    ),
+                )
+            viewModel.refreshAddresses()
+            advanceUntilIdle()
+
+            val content = content(viewModel)
+            assertEquals("a3", content.selectedAddressId)
+            assertEquals("Control de presión", content.description)
+            assertEquals(chosenStart, content.selectedStart)
+        }
+
+    // With no address yet, the person had to leave to add one: coming back loads
+    // the screen with it.
+    @Test
+    fun comingBackWithTheFirstAddressLoadsTheScreen() =
+        runTest {
+            addresses.listResult = AddressListResult.Success(emptyList())
+            val viewModel = viewModel()
+            advanceUntilIdle()
+            assertEquals(ScheduleAppointmentUiState.NoAddress, viewModel.uiState.value)
+
+            addresses.listResult = AddressListResult.Success(listOf(address(id = "a1", alias = "Casa")))
+            viewModel.refreshAddresses()
+            advanceUntilIdle()
+
+            assertEquals("a1", content(viewModel).selectedAddressId)
+        }
+
     // The times depend on the service's duration: a time picked for a 60
     // minute service may not fit a longer one, so it must not survive the
     // switch and be sent for the other service.

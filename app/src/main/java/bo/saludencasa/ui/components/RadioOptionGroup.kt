@@ -32,6 +32,9 @@ fun <T> RadioOptionGroup(
     optionLabel: (T) -> String,
     modifier: Modifier = Modifier,
     errorText: String? = null,
+    // A second, quieter line under the label, for an option whose name alone
+    // does not say what it is: an address alias and its street.
+    optionSupportingText: ((T) -> String?)? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().selectableGroup(),
@@ -59,11 +62,20 @@ fun <T> RadioOptionGroup(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
             ) {
                 RadioButton(selected = isSelected, onClick = null)
-                Text(
-                    text = optionLabel(option),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = optionLabel(option),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    optionSupportingText?.invoke(option)?.let { supporting ->
+                        Text(
+                            text = supporting,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
 

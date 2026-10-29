@@ -95,6 +95,36 @@ class ScheduleAppointmentViewModel(
         load()
     }
 
+    // Called on every resume: coming back from «Agregar otra dirección» has to
+    // show it. With no address yet the whole screen loads again; with the form
+    // up, only its addresses are read, and the one just added is chosen.
+    fun refreshAddresses() {
+        when (val current = state.value) {
+            ScheduleAppointmentUiState.NoAddress -> {
+                load()
+            }
+
+            is ScheduleAppointmentUiState.Content -> {
+                viewModelScope.launch {
+                    val result = getMyAddresses() as? AddressListResult.Success ?: return@launch
+                    if (result.addresses.isEmpty()) return@launch
+                    val latest = state.value as? ScheduleAppointmentUiState.Content ?: return@launch
+                    state.value =
+                        latest.copy(
+                            addresses = result.addresses,
+                            selectedAddressId =
+                                result.addresses.selectionAfterRefresh(current.addresses, latest.selectedAddressId),
+                        )
+                }
+            }
+
+            else -> {
+                // Still loading, or past the form: there is no address list on
+                // screen to bring up to date.
+            }
+        }
+    }
+
     fun load() {
         state.value = ScheduleAppointmentUiState.Loading
         viewModelScope.launch {

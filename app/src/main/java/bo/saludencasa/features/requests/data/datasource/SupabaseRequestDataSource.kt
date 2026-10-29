@@ -17,10 +17,12 @@ import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.broadcastFlow
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 
 class SupabaseRequestDataSource(
@@ -115,8 +117,13 @@ class SupabaseRequestDataSource(
             .map { }
             .onStart { channel.subscribe() }
             .onCompletion {
-                runCatching { channel.unsubscribe() }
-                runCatching { supabase.realtime.removeChannel(channel) }
+                // The collection ends by cancellation, and a suspending call in a
+                // cancelled coroutine throws before it does anything: without
+                // NonCancellable the channel would never be left.
+                withContext(NonCancellable) {
+                    runCatching { channel.unsubscribe() }
+                    runCatching { supabase.realtime.removeChannel(channel) }
+                }
             }
     }
 
@@ -144,6 +151,7 @@ class SupabaseRequestDataSource(
                 "created_at",
                 "scheduled_at",
                 "professional_name",
+                "professional_id",
             )
     }
 }

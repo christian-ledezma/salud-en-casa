@@ -11,6 +11,7 @@ enum class NotificationEvent {
     APPOINTMENT_CANCELLED,
     REQUEST_EXPIRED,
     OFFER_RECEIVED,
+    COUNTER_OFFER_RECEIVED,
 }
 
 data class PushSubject(
@@ -57,8 +58,22 @@ sealed interface PushPayload {
     data class OfferReceived(
         override val subject: PushSubject,
         val amountBob: BigDecimal,
+        // The professional who offered, so the tap opens their thread
+        // (docs/decisions.md, 2026-10-27, HT-24).
+        val professionalId: String,
     ) : PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.OFFER_RECEIVED
+    }
+
+    // The one event that reaches either role: whoever did not write the
+    // counter-offer is told of it (RF-09.5). professionalId names the thread, so
+    // the tap opens that thread and not the whole negotiation.
+    data class CounterOfferReceived(
+        override val subject: PushSubject,
+        val amountBob: BigDecimal,
+        val professionalId: String,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.COUNTER_OFFER_RECEIVED
     }
 
     fun toMap(): Map<String, String> =
@@ -69,11 +84,31 @@ sealed interface PushPayload {
             put(KEY_RECIPIENT_ROLE, subject.recipientRole.name)
             put(KEY_SERVICE_TYPE_NAME, subject.serviceTypeName)
             when (this@PushPayload) {
-                is NearbyRequest -> put(KEY_DISTANCE_M, distanceM.toString())
-                is AppointmentScheduled -> put(KEY_SCHEDULED_AT, scheduledAt.toString())
-                is AppointmentCancelled -> put(KEY_SCHEDULED_AT, scheduledAt.toString())
-                is RequestExpired -> Unit
-                is OfferReceived -> put(KEY_AMOUNT_BOB, amountBob.toPlainString())
+                is NearbyRequest -> {
+                    put(KEY_DISTANCE_M, distanceM.toString())
+                }
+
+                is AppointmentScheduled -> {
+                    put(KEY_SCHEDULED_AT, scheduledAt.toString())
+                }
+
+                is AppointmentCancelled -> {
+                    put(KEY_SCHEDULED_AT, scheduledAt.toString())
+                }
+
+                is RequestExpired -> {
+                    // Nothing of its own: the subject carries all of it.
+                }
+
+                is OfferReceived -> {
+                    put(KEY_AMOUNT_BOB, amountBob.toPlainString())
+                    put(KEY_PROFESSIONAL_ID, professionalId)
+                }
+
+                is CounterOfferReceived -> {
+                    put(KEY_AMOUNT_BOB, amountBob.toPlainString())
+                    put(KEY_PROFESSIONAL_ID, professionalId)
+                }
             }
         }
 
@@ -86,6 +121,7 @@ sealed interface PushPayload {
         const val KEY_DISTANCE_M = "distanceM"
         const val KEY_SCHEDULED_AT = "scheduledAt"
         const val KEY_AMOUNT_BOB = "amountBob"
+        const val KEY_PROFESSIONAL_ID = "professionalId"
 
         private val UUID_PATTERN = Regex("^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
         private val RECIPIENT_ROLES = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
@@ -132,13 +168,26 @@ sealed interface PushPayload {
                 }
 
                 NotificationEvent.OFFER_RECEIVED -> {
-                    val amount =
-                        data[KEY_AMOUNT_BOB]?.toBigDecimalOrNull()?.takeIf { it > BigDecimal.ZERO }
-                            ?: return failure("push_payload_invalid_amount")
-                    Result.success(OfferReceived(subject, amount))
+                    val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
+                    val professionalId =
+                        data.professionalIdOrNull() ?: return failure("push_payload_invalid_professional")
+                    Result.success(OfferReceived(subject, amount, professionalId))
+                }
+
+                NotificationEvent.COUNTER_OFFER_RECEIVED -> {
+                    val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
+                    val professionalId =
+                        data.professionalIdOrNull() ?: return failure("push_payload_invalid_professional")
+                    Result.success(CounterOfferReceived(subject, amount, professionalId))
                 }
             }
         }
+
+        private fun Map<String, String>.professionalIdOrNull(): String? =
+            this[KEY_PROFESSIONAL_ID]?.takeIf(UUID_PATTERN::matches)
+
+        private fun Map<String, String>.amountOrNull(): BigDecimal? =
+            this[KEY_AMOUNT_BOB]?.toBigDecimalOrNull()?.takeIf { it > BigDecimal.ZERO }
 
         private fun String?.toInstantOrNull(): Instant? =
             this?.let {

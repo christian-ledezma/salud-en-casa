@@ -20,4 +20,7 @@ data class ServiceRequest(
     // Present exactly when the request is scheduled; the mapper enforces it.
     val scheduledAt: Instant?,
     val professionalName: String?,
+    // The professional a scheduled request is for, so "Mis solicitudes" can open
+    // that thread straight away (docs/decisions.md, 2026-10-27, HT-24).
+    val professionalId: String? = null,
 )

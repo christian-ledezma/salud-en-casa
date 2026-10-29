@@ -398,7 +398,7 @@
     <string name="auth_account_open_availability">Mi disponibilidad</string>
 
     <string name="request_create_service_type_label">Tipo de atención</string>
-    <string name="request_create_address_label">Dónde necesitas la atención</string>
+    <string name="request_create_address_label">¿Dónde te atendemos?</string>
     <string name="request_create_description_label">Describe lo que necesitas (opcional)</string>
     <string name="request_create_budget_label">Presupuesto sugerido en bolivianos (opcional)</string>
     <string name="request_create_no_address_title">Todavía no registraste una dirección</string>
@@ -423,14 +423,13 @@
     <string name="immediate_budget_reference">Precio de referencia del servicio: %1$s</string>
     <string name="immediate_submit">Pedir atención</string>
     <string name="immediate_waiting_title">Buscando profesional</string>
-    <string name="immediate_waiting_body">Tu solicitud ya está publicada. Los profesionales disponibles cerca de ti pueden verla y ofertar.</string>
+    <string name="immediate_waiting_body">Tu solicitud ya está publicada. Cuando un profesional cercano oferte, su oferta aparecerá aquí.</string>
     <string name="immediate_waiting_expires">Sigue publicada hasta las %1$s</string>
     <string name="immediate_waiting_my_requests">Ver mis solicitudes</string>
     <plurals name="immediate_waiting_offers">
         <item quantity="one">%d oferta recibida</item>
         <item quantity="other">%d ofertas recibidas</item>
     </plurals>
-    <string name="immediate_waiting_view_offers">Ver ofertas</string>
     <string name="search_subtitle">Elige al profesional. Después eliges el día y la hora.</string>
     <string name="search_schedule_action">Agendar</string>
 
@@ -470,8 +469,7 @@
     <string name="error_request_outside_coverage">El profesional no atiende en esa dirección. Elige otra o busca a un profesional más cerca.</string>
     <string name="error_request_time_not_bookable">Esa hora ya no está disponible. Actualizamos los horarios: elige otra.</string>
     <string name="error_offer_invalid_amount">Ingresa un monto válido, mayor a cero y con hasta dos decimales.</string>
-    <string name="error_offer_message_required">Escribe un mensaje para el paciente.</string>
-    <string name="error_offer_not_allowed">No puedes ofertar sobre esta solicitud. Puede que ya no esté disponible o que ya hayas ofertado.</string>
+    <string name="error_offer_not_allowed">No puedes responder ahora. Puede que la negociación esté cerrada, que la solicitud ya no esté disponible o que no sea tu turno.</string>
 
     <string name="schedule_title">Agendar una cita</string>
     <string name="schedule_subtitle">Elige el servicio, el día y la hora. El profesional recibirá tu solicitud y podrá responder con una oferta.</string>
@@ -481,7 +479,7 @@
     <string name="schedule_time_label">Hora</string>
     <string name="schedule_no_times_title">Sin horarios en las próximas dos semanas</string>
     <string name="schedule_no_times_description">Prueba con otro servicio. Si necesitas atención pronto, publica una solicitud inmediata.</string>
-    <string name="schedule_address_label">Dónde será la atención</string>
+    <string name="schedule_address_label">¿Dónde te atendemos?</string>
     <string name="schedule_budget_reference">Precio declarado por el profesional: %1$s</string>
     <string name="schedule_submit_pick_time">Elige un día y una hora</string>
     <string name="schedule_submit_at">Agendar · %1$s</string>
@@ -497,21 +495,41 @@
     <string name="offer_make_title">Hacer una oferta</string>
     <string name="offer_budget_suggested">Presupuesto sugerido: %1$s</string>
     <string name="offer_amount_label">Tu oferta (Bs)</string>
-    <string name="offer_message_label">Mensaje para el paciente</string>
-    <string name="offer_message_placeholder">Cuéntale cómo lo atenderías y qué incluye tu oferta.</string>
+    <string name="offer_message_label">Mensaje para el paciente (opcional)</string>
     <string name="offer_submit">Enviar oferta</string>
-    <string name="offer_sent_title">Oferta enviada</string>
-    <string name="offer_sent_body">El paciente ya puede ver tu oferta. Te avisaremos si responde.</string>
-    <string name="offer_already_title">Ya ofertaste por esta solicitud</string>
-    <string name="offer_already_body">Solo puedes hacer una oferta. Si el paciente responde, continúa la negociación desde ahí.</string>
-    <string name="offer_request_gone_title">Esta solicitud ya no está disponible</string>
-    <string name="offer_request_gone_description">Puede que la hayan aceptado, cancelado o que haya vencido. Vuelve a tu bandeja.</string>
 
-    <string name="negotiation_title">Ofertas recibidas</string>
-    <string name="negotiation_empty_title">Todavía no tienes ofertas</string>
-    <string name="negotiation_empty_description">Cuando un profesional haga una oferta sobre tu solicitud, aparecerá aquí sin que recargues.</string>
     <string name="negotiation_offer_anonymous">Profesional</string>
     <string name="negotiation_no_rating">Sin calificaciones todavía</string>
+
+    <!-- HT-24: negociar en menos pasos -->
+    <string name="request_address_add_another">Agregar otra dirección</string>
+    <string name="offer_counter_minimum">Puedes ofrecer desde %1$s, lo que ya propusiste.</string>
+    <string name="error_offer_below_minimum">No puedes ofrecer menos de %1$s: es lo que ya propusiste.</string>
+    <string name="error_offer_below_your_last">No puedes ofrecer menos de lo que ya propusiste.</string>
+
+    <!-- HU-18: contraofertar -->
+    <string name="thread_title">Negociación</string>
+    <string name="thread_gone_title">Esta negociación ya no está disponible</string>
+    <string name="thread_gone_description">Puede que la solicitud se haya aceptado, cancelado o que haya vencido.</string>
+    <string name="thread_issuer_me">Tu propuesta</string>
+    <string name="thread_issuer_professional">Propuesta del profesional</string>
+    <string name="thread_issuer_patient">Propuesta del paciente</string>
+    <string name="thread_state_your_turn">Te toca responder</string>
+    <string name="thread_state_waiting">Esperando respuesta</string>
+    <string name="thread_state_closed">Negociación cerrada</string>
+    <string name="thread_rejected_badge">Rechazada</string>
+    <string name="offer_counter_open">Contraofertar</string>
+    <string name="offer_counter_submit">Enviar contraoferta</string>
+    <string name="offer_counter_amount_label">Tu contraoferta (Bs)</string>
+    <string name="offer_counter_message_label">Mensaje (opcional)</string>
+    <string name="offer_reject">Rechazar</string>
+    <string name="offer_reject_confirm_title">¿Rechazar esta propuesta?</string>
+    <string name="offer_reject_confirm_body">La negociación con esta persona se cierra y no podrá volver a proponerte un monto. Tu solicitud sigue disponible para otros profesionales.</string>
+    <string name="offer_reject_confirm_action">Rechazar</string>
+    <plurals name="negotiation_thread_rounds">
+        <item quantity="one">%d propuesta</item>
+        <item quantity="other">%d propuestas</item>
+    </plurals>
 
     <!-- HU-15 availability -->
     <string name="availability_title">Mi disponibilidad</string>
@@ -539,7 +557,7 @@
 
     <!-- HU-20 notifications -->
     <string name="notification_channel_requests_name">Solicitudes</string>
-    <string name="notification_channel_requests_description">Solicitudes cerca de ti, citas que te agendan o cancelan, y solicitudes tuyas que vencen sin acuerdo.</string>
+    <string name="notification_channel_requests_description">Solicitudes cerca de ti, citas que te agendan o cancelan, propuestas de la negociación y solicitudes tuyas que vencen sin acuerdo.</string>
     <string name="notification_request_nearby_title">Nueva solicitud cerca</string>
     <string name="notification_request_nearby_body">%1$s · %2$s</string>
     <string name="notification_appointment_scheduled_title">Te agendaron una cita</string>
@@ -550,12 +568,12 @@
     <string name="notification_request_expired_body">Nadie aceptó tu solicitud de %1$s. Puedes volver a pedir atención.</string>
     <string name="notification_offer_received_title">Recibiste una oferta</string>
     <string name="notification_offer_received_body">%1$s · %2$s</string>
+    <string name="notification_counter_offer_received_title">Respondieron tu propuesta</string>
+    <string name="notification_counter_offer_received_body">%1$s · %2$s</string>
     <string name="notification_public_body">Desbloquea el teléfono para ver el detalle.</string>
     <string name="notification_permission_title">Activa los avisos</string>
-    <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti o un paciente te agende una cita, aunque no tengas la aplicación abierta.</string>
-    <string name="notification_permission_body_patient">Te avisamos si tu solicitud vence sin que nadie la acepte, para que vuelvas a pedir atención sin quedarte esperando.</string>
+    <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti, cuando un paciente te agende una cita y cuando responda tu oferta, aunque no tengas la aplicación abierta.</string>
+    <string name="notification_permission_body_patient">Te avisamos cuando un profesional oferte o responda tu propuesta, y si tu solicitud vence sin que nadie la acepte.</string>
     <string name="notification_permission_enable">Activar avisos</string>
     <string name="notification_permission_dismiss">Ahora no</string>
-    <string name="request_inbox_request_unavailable">Esa solicitud ya no está en tu bandeja: la tomó otro profesional, venció o fue cancelada.</string>
-    <string name="cd_inbox_notified_request">Solicitud del aviso que abriste</string>
 </resources>

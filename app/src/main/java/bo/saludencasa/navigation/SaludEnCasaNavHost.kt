@@ -24,9 +24,9 @@ import bo.saludencasa.features.profile.presentation.PublicProfileScreen
 import bo.saludencasa.features.profile.presentation.RoleSelectionScreen
 import bo.saludencasa.features.requests.presentation.ImmediateCareScreen
 import bo.saludencasa.features.requests.presentation.InboxScreen
-import bo.saludencasa.features.requests.presentation.MakeOfferScreen
 import bo.saludencasa.features.requests.presentation.MyRequestsScreen
-import bo.saludencasa.features.requests.presentation.NegotiationScreen
+import bo.saludencasa.features.requests.presentation.NegotiationEntry
+import bo.saludencasa.features.requests.presentation.OfferThreadScreen
 import bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
@@ -89,7 +89,7 @@ fun SaludEnCasaNavHost(
                 onOpenImmediateCare = { navController.navigate(ImmediateCareRoute) },
                 onOpenScheduling = { navController.navigate(ProfessionalSearchRoute) },
                 onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
-                onOpenInbox = { navController.navigate(InboxRoute()) },
+                onOpenInbox = { navController.navigate(InboxRoute) },
                 onOpenAvailability = { navController.navigate(AvailabilityRoute) },
                 onOpenAddress = { navController.navigate(AddressListRoute) },
                 onOpenVerification = { navController.navigate(VerificationRoute) },
@@ -126,7 +126,9 @@ fun SaludEnCasaNavHost(
                 onOpenProfessional = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
                 onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
                 onRegisterAddress = { navController.navigate(AddressRoute()) },
-                onOpenNegotiation = { requestId -> navController.navigate(NegotiationRoute(requestId)) },
+                onOpenThread = { requestId, professionalId ->
+                    navController.navigate(OfferThreadRoute(requestId, professionalId))
+                },
             )
         }
 
@@ -135,30 +137,40 @@ fun SaludEnCasaNavHost(
                 justCreated = entry.toRoute<MyRequestsRoute>().justCreated,
                 onBack = { navController.popBackStack() },
                 onCreateRequest = { navController.navigate(ImmediateCareRoute) },
-                onOpenRequest = { requestId -> navController.navigate(NegotiationRoute(requestId)) },
+                // docs/decisions.md, 2026-10-27, HT-24: no list between the card
+                // and the negotiation.
+                onOpenRequest = { negotiation ->
+                    when (negotiation) {
+                        // Back to the wait already on the stack, if this list was
+                        // opened from it, instead of a second one on top.
+                        NegotiationEntry.ImmediateCare -> {
+                            navController.navigate(ImmediateCareRoute) {
+                                popUpTo<ImmediateCareRoute>()
+                                launchSingleTop = true
+                            }
+                        }
+
+                        is NegotiationEntry.Thread -> {
+                            navController.navigate(OfferThreadRoute(negotiation.requestId, negotiation.professionalId))
+                        }
+                    }
+                },
             )
         }
 
-        composable<InboxRoute> { entry ->
+        composable<InboxRoute> {
             InboxScreen(
-                highlightRequestId = entry.toRoute<InboxRoute>().highlightRequestId,
                 onBack = { navController.popBackStack() },
-                onOpenRequest = { requestId -> navController.navigate(MakeOfferRoute(requestId)) },
+                onOpenRequest = { requestId -> navController.navigate(OfferThreadRoute(requestId)) },
             )
         }
 
-        // HU-17: the professional offers from here; the patient reads offers here.
-        composable<MakeOfferRoute> { entry ->
-            MakeOfferScreen(
-                requestId = entry.toRoute<MakeOfferRoute>().requestId,
-                onBack = { navController.popBackStack() },
-                onSent = { navController.popBackStack() },
-            )
-        }
-
-        composable<NegotiationRoute> { entry ->
-            NegotiationScreen(
-                requestId = entry.toRoute<NegotiationRoute>().requestId,
+        // HU-18 and HT-24: the one screen of a negotiation, for both sides.
+        composable<OfferThreadRoute> { entry ->
+            val route = entry.toRoute<OfferThreadRoute>()
+            OfferThreadScreen(
+                requestId = route.requestId,
+                professionalId = route.professionalId,
                 onBack = { navController.popBackStack() },
             )
         }
@@ -190,8 +202,16 @@ fun SaludEnCasaNavHost(
                 // it again tears down that stale instance and starts a fresh
                 // one, which loads the list the address was just added to.
                 onSaved = {
-                    navController.navigate(AddressListRoute) {
-                        popUpTo(AddressListRoute) { inclusive = true }
+                    if (navController.previousBackStackEntry?.destination?.hasRoute<AddressListRoute>() == true) {
+                        navController.navigate(AddressListRoute) {
+                            popUpTo(AddressListRoute) { inclusive = true }
+                        }
+                    } else {
+                        // Opened from a form, «Atención ahora» or «Agendar»: back
+                        // to it, which reads its addresses again on resume and
+                        // chooses the one just added (docs/decisions.md,
+                        // 2026-10-27, HT-24).
+                        navController.popBackStack()
                     }
                 },
                 onBack = { navController.popBackStack() },

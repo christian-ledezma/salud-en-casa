@@ -7,11 +7,15 @@ import java.io.IOException
 
 // The insert policy refuses with the platform's row-level security error, which
 // names no reason the person can act on: a closed request, an ineligible
-// professional and one's own request all look the same here. MakeOfferScreen
-// shows those proactively; this maps the refusal to a single NotAllowed.
+// professional, one's own request, a thread that is not theirs to answer and one
+// already closed all look the same here. The screens show the state of the thread
+// before offering the control; this maps the refusal to a single NotAllowed.
 internal fun Throwable.toOfferError(): OfferError {
     message?.let { body ->
-        if (body.contains(ROW_LEVEL_SECURITY) || body.contains(LIFECYCLE_GUARD)) {
+        // The screen already checked the floor; the engine says so only when the
+        // thread on screen was older than the one it read.
+        if (body.contains(BELOW_FLOOR)) return OfferError.BelowMinimum(null)
+        if (REFUSAL_LABELS.any(body::contains)) {
             return OfferError.NotAllowed
         }
     }
@@ -22,5 +26,17 @@ internal fun Throwable.toOfferError(): OfferError {
     }
 }
 
-private const val ROW_LEVEL_SECURITY = "row-level security"
-private const val LIFECYCLE_GUARD = "request_status_change_requires_the_atomic_operation"
+private const val BELOW_FLOOR = "counter_offer_below_your_last_offer"
+
+private val REFUSAL_LABELS =
+    listOf(
+        "row-level security",
+        "request_status_change_requires_the_atomic_operation",
+        "issued_offer_cannot_be_edited",
+        "answered_offer_cannot_be_rejected",
+        "offer_acceptance_requires_the_atomic_operation",
+        // Two answers to the same offer, or two first offers, from two taps or
+        // two phones: the second loses to the unique index (HU-18).
+        "idx_request_offers_one_answer_per_parent",
+        "idx_request_offers_one_first_offer",
+    )

@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +43,7 @@ import bo.saludencasa.features.catalog.domain.model.ServiceType
 import bo.saludencasa.features.location.domain.model.Address
 import bo.saludencasa.features.notifications.presentation.NotificationPermissionPrompt
 import bo.saludencasa.features.profile.domain.model.ProfessionalType
+import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -72,7 +74,7 @@ fun ImmediateCareScreen(
     onOpenProfessional: (String) -> Unit,
     onOpenMyRequests: () -> Unit,
     onRegisterAddress: () -> Unit,
-    onOpenNegotiation: (String) -> Unit,
+    onOpenThread: (requestId: String, professionalId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ImmediateCareViewModel = koinViewModel(),
 ) {
@@ -99,7 +101,7 @@ fun ImmediateCareScreen(
                 onRegisterAddress = onRegisterAddress,
                 onOpenProfessional = onOpenProfessional,
                 onOpenMyRequests = onOpenMyRequests,
-                onOpenNegotiation = onOpenNegotiation,
+                onOpenThread = onOpenThread,
             ),
         modifier = modifier,
         map = { model, mapModifier ->
@@ -126,7 +128,7 @@ internal data class ImmediateCareActions(
     val onRegisterAddress: () -> Unit = {},
     val onOpenProfessional: (String) -> Unit = {},
     val onOpenMyRequests: () -> Unit = {},
-    val onOpenNegotiation: (String) -> Unit = {},
+    val onOpenThread: (requestId: String, professionalId: String) -> Unit = { _, _ -> },
 )
 
 // The map is a slot, so the preview and the Robolectric test never reach the
@@ -248,14 +250,22 @@ private fun ImmediateForm(
 
             ServiceTypePicker(form = form, actions = actions, modifier = margin)
 
-            RadioOptionGroup(
-                label = stringResource(R.string.request_create_address_label),
-                options = form.addresses,
-                selected = form.selectedAddress,
-                onSelectedChange = { actions.onAddressSelected(it.id) },
-                optionLabel = Address::alias,
-                modifier = margin,
-            )
+            // The alias alone reads like a kind of place ("Consultorio"), so the
+            // street goes under it, and another address can be added right here
+            // (docs/decisions.md, 2026-10-27, HT-24).
+            Column(modifier = margin) {
+                RadioOptionGroup(
+                    label = stringResource(R.string.request_create_address_label),
+                    options = form.addresses,
+                    selected = form.selectedAddress,
+                    onSelectedChange = { actions.onAddressSelected(it.id) },
+                    optionLabel = Address::alias,
+                    optionSupportingText = Address::addressText,
+                )
+                TextButton(onClick = actions.onRegisterAddress) {
+                    Text(text = stringResource(R.string.request_address_add_another))
+                }
+            }
 
             FormField(
                 label = stringResource(R.string.request_create_description_label),
@@ -386,16 +396,20 @@ private fun WaitingPanel(
     ) {
         ScreenHeader(title = stringResource(R.string.immediate_title), onBack = onBack)
 
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            // Decorative: the title below says the same in words.
-            RadarPulse(modifier = Modifier.size(Spacing.radarHeroSize))
-            Box(
-                modifier =
-                    Modifier
-                        .size(Spacing.scale16)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
-            )
+        // The radar while nobody has offered. Once someone has, the offers take
+        // its place, so the first card is on screen without scrolling.
+        if (waiting.threads.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                // Decorative: the title below says the same in words.
+                RadarPulse(modifier = Modifier.size(Spacing.radarHeroSize))
+                Box(
+                    modifier =
+                        Modifier
+                            .size(Spacing.scale16)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                )
+            }
         }
 
         Text(
@@ -408,6 +422,32 @@ private fun WaitingPanel(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        // The offers appear here by themselves, stacked as InDrive stacks its
+        // drivers, and each one opens its negotiation (docs/decisions.md,
+        // 2026-10-27, HT-24).
+        if (waiting.threads.isNotEmpty()) {
+            Text(
+                text =
+                    pluralStringResource(
+                        R.plurals.immediate_waiting_offers,
+                        waiting.threads.size,
+                        waiting.threads.size,
+                    ),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            // Keyed by professional, so a card keeps its place and state when
+            // another one arrives above it.
+            waiting.threads.forEach { thread ->
+                key(thread.professionalId) {
+                    OfferCard(
+                        thread = thread,
+                        onClick = { actions.onOpenThread(request.id, thread.professionalId) },
+                    )
+                }
+            }
+        }
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -440,25 +480,6 @@ private fun WaitingPanel(
                     )
                 }
             }
-        }
-
-        // HU-17: an offer landed while waiting. The count updates live from the
-        // offer signal; the button opens the offers (docs/decisions.md, 2026-10-23).
-        if (waiting.offerCount > 0) {
-            Text(
-                text =
-                    pluralStringResource(
-                        R.plurals.immediate_waiting_offers,
-                        waiting.offerCount,
-                        waiting.offerCount,
-                    ),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            PrimaryButton(
-                text = stringResource(R.string.immediate_waiting_view_offers),
-                onClick = { actions.onOpenNegotiation(request.id) },
-            )
         }
 
         permissionPrompt()
@@ -579,9 +600,9 @@ private fun previewNearby() =
         more = false,
     )
 
-private fun previewWaiting(offerCount: Int = 0) =
+private fun previewWaiting(threads: List<OfferThread> = emptyList()) =
     ImmediateCareUiState.Waiting(
-        offerCount = offerCount,
+        threads = threads,
         request =
             ServiceRequest(
                 id = "r1",
@@ -661,7 +682,25 @@ private fun ImmediateWaitingLargeFontPreview() {
 @Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Buscando profesional con ofertas")
 @Composable
 private fun ImmediateWaitingWithOffersPreview() {
-    PreviewScreen(previewWaiting(offerCount = 2))
+    PreviewScreen(previewWaiting(threads = previewThreads()))
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Buscando profesional con ofertas, oscuro")
+@Composable
+private fun ImmediateWaitingWithOffersDarkPreview() {
+    PreviewScreen(previewWaiting(threads = previewThreads()), darkTheme = true)
+}
+
+@Preview(
+    showBackground = true,
+    widthDp = 320,
+    heightDp = 2000,
+    fontScale = 2f,
+    name = "Buscando profesional con ofertas, 200 %",
+)
+@Composable
+private fun ImmediateWaitingWithOffersLargeFontPreview() {
+    PreviewScreen(previewWaiting(threads = previewThreads()))
 }
 
 @Preview(showBackground = true, widthDp = 320, name = "Atención ahora sin dirección")

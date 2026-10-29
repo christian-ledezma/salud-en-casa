@@ -13,6 +13,7 @@ import java.time.Instant
 const val SIGNED_IN_USER = "08ddb28f-0000-4000-8000-000000000000"
 const val OTHER_USER = "7f435cb7-0000-4000-8000-000000000000"
 const val REQUEST_ID = "a745c750-0000-4000-8000-000000000000"
+const val PROFESSIONAL_ID = "c3b1f0a2-0000-4000-8000-000000000000"
 
 // Every call lands in one ordered log, because what the notification rules
 // care about is often the order: the server row before the session closes.
@@ -86,13 +87,36 @@ fun requestExpired(recipientId: String = SIGNED_IN_USER): PushPayload =
 fun offerReceived(
     recipientId: String = SIGNED_IN_USER,
     amountBob: BigDecimal = BigDecimal("160.00"),
+    professionalId: String = PROFESSIONAL_ID,
 ): PushPayload =
     PushPayload.OfferReceived(
         pushSubject(recipientId = recipientId, recipientRole = UserRole.PATIENT),
         amountBob,
+        professionalId,
+    )
+
+// The one event that reaches either role, so the factory takes the role instead
+// of fixing it.
+fun counterOfferReceived(
+    recipientId: String = SIGNED_IN_USER,
+    recipientRole: UserRole = UserRole.PATIENT,
+    amountBob: BigDecimal = BigDecimal("140.00"),
+    professionalId: String = PROFESSIONAL_ID,
+): PushPayload =
+    PushPayload.CounterOfferReceived(
+        pushSubject(recipientId = recipientId, recipientRole = recipientRole),
+        amountBob,
+        professionalId,
     )
 
 // One of each, so a test that walks every event cannot miss one: the sealed
 // hierarchy is compared against this list.
 fun everyPayload(): List<PushPayload> =
-    listOf(nearbyRequest(), appointmentScheduled(), appointmentCancelled(), requestExpired(), offerReceived())
+    listOf(
+        nearbyRequest(),
+        appointmentScheduled(),
+        appointmentCancelled(),
+        requestExpired(),
+        offerReceived(),
+        counterOfferReceived(),
+    )

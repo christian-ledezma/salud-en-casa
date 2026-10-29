@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests.presentation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -21,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -49,7 +52,7 @@ fun MyRequestsScreen(
     justCreated: Boolean,
     onBack: () -> Unit,
     onCreateRequest: () -> Unit,
-    onOpenRequest: (String) -> Unit,
+    onOpenRequest: (NegotiationEntry) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyRequestsViewModel = koinViewModel(),
 ) {
@@ -78,8 +81,8 @@ internal data class MyRequestsActions(
     val onReachedEnd: () -> Unit = {},
     val onRetry: () -> Unit = {},
     val onCreateRequest: () -> Unit = {},
-    // HU-17: the card opens the offers received on the request.
-    val onOpenRequest: (String) -> Unit = {},
+    // The card opens where the negotiation is: the waiting screen or the thread.
+    val onOpenRequest: (NegotiationEntry) -> Unit = {},
 )
 
 @Composable
@@ -158,7 +161,7 @@ internal fun MyRequestsContent(
                         cancelling = uiState.cancellingId == request.id,
                         cancelEnabled = uiState.cancellingId == null,
                         onCancel = { actions.onCancel(request.id) },
-                        onOpenRequest = { actions.onOpenRequest(request.id) },
+                        onOpenRequest = request.negotiationEntry()?.let { entry -> { actions.onOpenRequest(entry) } },
                     )
                 }
 
@@ -181,12 +184,25 @@ private fun RequestCard(
     cancelling: Boolean,
     cancelEnabled: Boolean,
     onCancel: () -> Unit,
-    onOpenRequest: () -> Unit = {},
+    // Null when there is nothing to negotiate: then the card is not tappable.
+    onOpenRequest: (() -> Unit)? = null,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val loadingDescription = stringResource(R.string.cd_loading)
 
-    Card(onClick = onOpenRequest, modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .then(
+                    // Clipped to the card's own shape, so the ripple keeps its corners.
+                    if (onOpenRequest != null) {
+                        Modifier.clip(CardDefaults.shape).clickable(onClick = onOpenRequest)
+                    } else {
+                        Modifier
+                    },
+                ),
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.cardPadding),
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),

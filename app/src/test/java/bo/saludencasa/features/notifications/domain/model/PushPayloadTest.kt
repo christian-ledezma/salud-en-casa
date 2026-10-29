@@ -1,6 +1,7 @@
 package bo.saludencasa.features.notifications.domain.model
 
 import bo.saludencasa.features.notifications.APPOINTMENT_AT
+import bo.saludencasa.features.notifications.PROFESSIONAL_ID
 import bo.saludencasa.features.notifications.REQUEST_ID
 import bo.saludencasa.features.notifications.SIGNED_IN_USER
 import bo.saludencasa.features.notifications.everyPayload
@@ -68,12 +69,31 @@ class PushPayloadTest {
                         "distanceM" to null,
                         "recipientRole" to "PATIENT",
                         "amountBob" to "160.00",
+                        "professionalId" to PROFESSIONAL_ID,
                     ),
                 ).getOrThrow()
 
         offer as PushPayload.OfferReceived
         assertEquals(UserRole.PATIENT, offer.subject.recipientRole)
         assertEquals(0, offer.amountBob.compareTo(BigDecimal("160.00")))
+        assertEquals(PROFESSIONAL_ID, offer.professionalId)
+    }
+
+    // HT-24: the tap opens the thread of the professional who offered, so an
+    // offer without them has nowhere to go.
+    @Test
+    fun rejectsAnOfferWithoutItsProfessional() {
+        assertEquals(
+            "push_payload_invalid_professional",
+            failureKey(
+                wire(
+                    "event" to "OFFER_RECEIVED",
+                    "distanceM" to null,
+                    "recipientRole" to "PATIENT",
+                    "amountBob" to "160.00",
+                ),
+            ),
+        )
     }
 
     @Test
@@ -112,6 +132,59 @@ class PushPayloadTest {
                 ),
             ),
         )
+    }
+
+    private fun counterWire(vararg overrides: Pair<String, String?>): Map<String, String> =
+        wire(
+            "event" to "COUNTER_OFFER_RECEIVED",
+            "distanceM" to null,
+            "recipientRole" to "PATIENT",
+            "amountBob" to "140.00",
+            "professionalId" to PROFESSIONAL_ID,
+            *overrides,
+        )
+
+    // The one event that reaches either role: the same wire shape parses for a
+    // patient and for a professional, because the role is a field of the subject
+    // and not a property of the event.
+    @Test
+    fun parsesACounterOfferForEitherRole() {
+        listOf(UserRole.PATIENT, UserRole.PROFESSIONAL).forEach { role ->
+            val counter =
+                PushPayload.parse(counterWire("recipientRole" to role.name)).getOrThrow()
+
+            counter as PushPayload.CounterOfferReceived
+            assertEquals(role, counter.subject.recipientRole)
+            assertEquals(0, counter.amountBob.compareTo(BigDecimal("140.00")))
+            assertEquals(PROFESSIONAL_ID, counter.professionalId)
+        }
+    }
+
+    // Without the thread's professional the tap has nothing to open.
+    @Test
+    fun rejectsACounterOfferWithoutItsProfessional() {
+        assertEquals(
+            "push_payload_invalid_professional",
+            failureKey(counterWire("professionalId" to null)),
+        )
+    }
+
+    @Test
+    fun rejectsACounterOfferWhoseProfessionalIsNotAnIdentifier() {
+        assertEquals(
+            "push_payload_invalid_professional",
+            failureKey(counterWire("professionalId" to "profesional-1")),
+        )
+    }
+
+    @Test
+    fun rejectsACounterOfferWithoutItsAmount() {
+        assertEquals("push_payload_invalid_amount", failureKey(counterWire("amountBob" to null)))
+    }
+
+    @Test
+    fun rejectsACounterOfferAmountThatIsNotPositive() {
+        assertEquals("push_payload_invalid_amount", failureKey(counterWire("amountBob" to "-10")))
     }
 
     @Test

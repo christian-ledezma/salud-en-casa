@@ -37,9 +37,17 @@ private fun NavHostController.openFromNotification(destination: NotificationDest
     }
     navigate(
         when (destination) {
-            is NotificationDestination.Inbox -> InboxRoute(destination.highlightRequestId)
-            NotificationDestination.MyRequests -> MyRequestsRoute()
-            is NotificationDestination.Negotiation -> NegotiationRoute(destination.requestId)
+            NotificationDestination.Inbox -> {
+                InboxRoute
+            }
+
+            NotificationDestination.MyRequests -> {
+                MyRequestsRoute()
+            }
+
+            is NotificationDestination.OfferThread -> {
+                OfferThreadRoute(destination.requestId, destination.professionalId)
+            }
         },
     )
 }

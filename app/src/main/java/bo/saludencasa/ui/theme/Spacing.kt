@@ -16,9 +16,6 @@ object Spacing {
     // The outline of a control that reads as a form field.
     val borderWidth: Dp = 1.dp
 
-    // The card a notification opened, set apart without recolouring its content.
-    val highlightBorderWidth: Dp = 2.dp
-
     // docs/design-system.md, section 5: the map of the address screen. Tall
     // enough to tell one block from the next and short enough to leave the
     // written address on screen beside it.

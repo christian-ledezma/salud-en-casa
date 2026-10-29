@@ -17,15 +17,18 @@ import bo.saludencasa.features.requests.FakeOfferRepository
 import bo.saludencasa.features.requests.FakeRequestRepository
 import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
+import bo.saludencasa.features.requests.domain.model.OfferError
+import bo.saludencasa.features.requests.domain.model.OfferStatus
+import bo.saludencasa.features.requests.domain.model.OfferThreadsResult
 import bo.saludencasa.features.requests.domain.model.RequestError
-import bo.saludencasa.features.requests.domain.model.RequestOffersResult
 import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateImmediateRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.FindProfessionalsAvailableNowUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetActiveImmediateRequestUseCase
-import bo.saludencasa.features.requests.domain.usecase.GetRequestOffersUseCase
-import bo.saludencasa.features.requests.domain.usecase.ObserveMyOfferSignalsUseCase
+import bo.saludencasa.features.requests.domain.usecase.GetOfferThreadsUseCase
+import bo.saludencasa.features.requests.domain.usecase.ObserveOfferSignalsUseCase
+import bo.saludencasa.features.requests.offerThread
 import bo.saludencasa.features.requests.requestOffer
 import bo.saludencasa.features.requests.serviceRequest
 import bo.saludencasa.features.search.FakeProfessionalSearchRepository
@@ -67,8 +70,8 @@ class ImmediateCareViewModelTest {
             CreateImmediateRequestUseCase(requests),
             CancelRequestUseCase(requests),
             FindProfessionalsAvailableNowUseCase(SearchNearbyProfessionalsUseCase(search)),
-            GetRequestOffersUseCase(offers),
-            ObserveMyOfferSignalsUseCase(offers),
+            GetOfferThreadsUseCase(offers),
+            ObserveOfferSignalsUseCase(offers),
         )
 
     private fun TestScope.opened(): ImmediateCareViewModel {
@@ -89,6 +92,61 @@ class ImmediateCareViewModelTest {
         advanceUntilIdle()
     }
 
+    // HT-24: coming back from «Agregar otra dirección» shows the new address and
+    // chooses it, and nothing else the patient had filled in is lost.
+    @Test
+    fun comingBackWithANewAddressChoosesItAndKeepsTheForm() =
+        runTest {
+            val viewModel = opened()
+            viewModel.onServiceTypeSelected(venousLine.id)
+            viewModel.onDescriptionChanged("Necesito una vía para el suero")
+
+            val newHome =
+                address(id = "a3", alias = "Casa nueva", isPrimary = false, coordinate = coordinate(-17.40, -66.14))
+            addresses.listResult = AddressListResult.Success(listOf(office, home, newHome))
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            val state = form(viewModel)
+            assertEquals("a3", state.selectedAddressId)
+            assertEquals(venousLine.id, state.selectedServiceTypeId)
+            assertEquals("Necesito una vía para el suero", state.description)
+            // The map now shows who is available around the new address.
+            assertEquals(newHome.coordinate, search.requests.last().origin)
+        }
+
+    // Coming back from a thread lands on the wait with the same request: its
+    // cards stay even if reading the offers again fails.
+    @Test
+    fun comingBackToTheWaitKeepsTheCardsWhenTheReadFails() =
+        runTest {
+            requests.activeResult = ActiveRequestResult.Found(published)
+            offers.threadsResult = OfferThreadsResult.Loaded(listOf(offerThread(professionalId = "p1")))
+            val viewModel = opened()
+
+            offers.threadsResult = OfferThreadsResult.Failure(OfferError.NetworkUnavailable)
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertEquals(listOf("p1"), waitingThreads(viewModel).map { it.professionalId })
+        }
+
+    // A read of the active request that fails on coming back says nothing about
+    // the wait on screen, which stays.
+    @Test
+    fun aFailedReadOnComingBackKeepsTheWait() =
+        runTest {
+            requests.activeResult = ActiveRequestResult.Found(published)
+            offers.threadsResult = OfferThreadsResult.Loaded(listOf(offerThread(professionalId = "p1")))
+            val viewModel = opened()
+
+            requests.activeResult = ActiveRequestResult.Failure(RequestError.NetworkUnavailable)
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertEquals(listOf("p1"), waitingThreads(viewModel).map { it.professionalId })
+        }
+
     // HT-23: coming back with a request still open shows that request. A blank
     // form here is how a patient ends up publishing the same need twice.
     @Test
@@ -102,33 +160,61 @@ class ImmediateCareViewModelTest {
             assertTrue(search.requests.isEmpty())
         }
 
-    // HU-17: arriving at the wait shows how many offers already landed.
+    // Arriving at the wait shows the offers that already landed, as cards.
     @Test
-    fun enteringTheWaitLoadsHowManyOffersAlreadyExist() =
+    fun enteringTheWaitShowsTheOffersThatAlreadyExist() =
         runTest {
             requests.activeResult = ActiveRequestResult.Found(published)
-            offers.offersResult = RequestOffersResult.Loaded(listOf(requestOffer(id = "o1")))
+            offers.threadsResult = OfferThreadsResult.Loaded(listOf(offerThread(professionalId = "p1")))
 
             val viewModel = opened()
 
-            assertEquals(1, (viewModel.uiState.value as ImmediateCareUiState.Waiting).offerCount)
+            assertEquals(listOf("p1"), waitingThreads(viewModel).map { it.professionalId })
         }
 
-    // Criterion 2: an offer landing re-queries the count with no reload.
+    // HT-24's criterion 1: an offer landing shows up by itself while waiting,
+    // with no reload.
     @Test
-    fun anOfferThatLandsWhileWaitingUpdatesTheCountFromTheSignal() =
+    fun anOfferThatLandsWhileWaitingAppearsFromTheSignal() =
         runTest {
             requests.activeResult = ActiveRequestResult.Found(published)
             val viewModel = opened()
-            assertEquals(0, (viewModel.uiState.value as ImmediateCareUiState.Waiting).offerCount)
+            assertTrue(waitingThreads(viewModel).isEmpty())
 
-            offers.offersResult =
-                RequestOffersResult.Loaded(listOf(requestOffer(id = "o1"), requestOffer(id = "o2")))
+            offers.threadsResult =
+                OfferThreadsResult.Loaded(
+                    listOf(offerThread(professionalId = "p1"), offerThread(professionalId = "p2")),
+                )
             offers.offerSignals.emit(Unit)
             advanceUntilIdle()
 
-            assertEquals(2, (viewModel.uiState.value as ImmediateCareUiState.Waiting).offerCount)
+            assertEquals(listOf("p1", "p2"), waitingThreads(viewModel).map { it.professionalId })
         }
+
+    // A rejected negotiation leaves the wait, as a declined driver leaves the
+    // list in InDrive; it is still in its thread.
+    @Test
+    fun aRejectedNegotiationLeavesTheWait() =
+        runTest {
+            requests.activeResult = ActiveRequestResult.Found(published)
+            offers.threadsResult =
+                OfferThreadsResult.Loaded(
+                    listOf(
+                        offerThread(professionalId = "p1"),
+                        offerThread(
+                            professionalId = "p2",
+                            offers = listOf(requestOffer(id = "o9", status = OfferStatus.REJECTED)),
+                        ),
+                    ),
+                )
+
+            val viewModel = opened()
+
+            assertEquals(listOf("p1"), waitingThreads(viewModel).map { it.professionalId })
+        }
+
+    private fun waitingThreads(viewModel: ImmediateCareViewModel) =
+        (viewModel.uiState.value as ImmediateCareUiState.Waiting).threads
 
     @Test
     fun withoutAnAddressTheStateIsNoAddress() =

@@ -3,16 +3,16 @@ package bo.saludencasa.features.notifications.domain.model
 import bo.saludencasa.features.profile.domain.model.ProfileError
 
 sealed interface NotificationDestination {
-    data class Inbox(
-        val highlightRequestId: String?,
-    ) : NotificationDestination
+    data object Inbox : NotificationDestination
 
     data object MyRequests : NotificationDestination
 
-    // HU-17: the patient opens the offers on their request. docs/decisions.md,
-    // 2026-10-23.
-    data class Negotiation(
+    // The one screen of a negotiation (docs/decisions.md, 2026-10-27, HT-24). A
+    // null professionalId opens it as its professional: a request for them, not
+    // yet offered on. With one, the thread of that professional, for either side.
+    data class OfferThread(
         val requestId: String,
+        val professionalId: String?,
     ) : NotificationDestination
 }
 

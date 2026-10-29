@@ -8,6 +8,7 @@ import bo.saludencasa.features.requests.domain.model.OfferSubmitResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.math.BigDecimal
@@ -16,22 +17,22 @@ class SubmitOfferUseCaseTest {
     private val repository = FakeOfferRepository()
     private val useCase = SubmitOfferUseCase(repository)
 
-    // RF-08.1: a message is part of the offer, so a blank one never reaches the
-    // network and never records a submission.
+    // HT-24: the message is optional. A blank one leaves as no message at all,
+    // not as an empty string the patient would see as a blank bubble.
     @Test
-    fun rejectsABlankMessageBeforeHittingTheNetwork() =
+    fun anOfferWithoutAMessageIsSent() =
         runTest {
             val result = useCase(requestId = "r1", amountRaw = "120", message = "   ")
 
-            assertEquals(OfferSubmitResult.Failure(OfferError.MessageRequired), result)
-            assertTrue(repository.submitted.isEmpty())
+            assertEquals(OfferSubmitResult.Success, result)
+            assertNull(repository.submitted.single().message)
         }
 
     // The amount is a value object: zero, negatives and junk never leave.
     @Test
     fun rejectsAnAmountThatIsNotPositive() =
         runTest {
-            val result = useCase(requestId = "r1", amountRaw = "0", message = "Puedo ir ahora")
+            val result = useCase(requestId = "r1", amountRaw = "0", message = "")
 
             assertEquals(OfferSubmitResult.Failure(OfferError.InvalidAmount), result)
             assertTrue(repository.submitted.isEmpty())
@@ -40,7 +41,7 @@ class SubmitOfferUseCaseTest {
     @Test
     fun rejectsAnAmountThatDoesNotParse() =
         runTest {
-            val result = useCase(requestId = "r1", amountRaw = "ciento veinte", message = "Puedo ir ahora")
+            val result = useCase(requestId = "r1", amountRaw = "ciento veinte", message = "")
 
             assertEquals(OfferSubmitResult.Failure(OfferError.InvalidAmount), result)
             assertTrue(repository.submitted.isEmpty())
@@ -58,16 +59,5 @@ class SubmitOfferUseCaseTest {
             assertEquals("r1", submission.requestId)
             assertEquals(BigDecimal("120.50"), submission.amount.value)
             assertEquals("Llevo el material", submission.message)
-        }
-
-    // The policy's refusal comes back as it is, not swallowed.
-    @Test
-    fun surfacesTheRepositoryRefusal() =
-        runTest {
-            repository.submitResult = OfferSubmitResult.Failure(OfferError.NotAllowed)
-
-            val result = useCase(requestId = "r1", amountRaw = "120", message = "Puedo ir ahora")
-
-            assertEquals(OfferSubmitResult.Failure(OfferError.NotAllowed), result)
         }
 }

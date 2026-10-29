@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
@@ -75,6 +76,11 @@ fun ScheduleAppointmentScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is ScheduleAppointmentUiState.Submitted) onCreated()
+    }
+
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refreshAddresses()
+        onPauseOrDispose {}
     }
 
     ScheduleAppointmentContent(
@@ -220,14 +226,21 @@ private fun ScheduleForm(
 
             TimesSection(uiState = uiState, actions = actions)
 
-            RadioOptionGroup(
-                label = stringResource(R.string.schedule_address_label),
-                options = uiState.addresses,
-                selected = uiState.addresses.firstOrNull { it.id == uiState.selectedAddressId },
-                onSelectedChange = { actions.onAddressSelected(it.id) },
-                optionLabel = Address::alias,
-                modifier = margin,
-            )
+            // The street under the alias, and another address right here
+            // (docs/decisions.md, 2026-10-27, HT-24).
+            Column(modifier = margin) {
+                RadioOptionGroup(
+                    label = stringResource(R.string.schedule_address_label),
+                    options = uiState.addresses,
+                    selected = uiState.addresses.firstOrNull { it.id == uiState.selectedAddressId },
+                    onSelectedChange = { actions.onAddressSelected(it.id) },
+                    optionLabel = Address::alias,
+                    optionSupportingText = Address::addressText,
+                )
+                TextButton(onClick = actions.onRegisterAddress) {
+                    Text(text = stringResource(R.string.request_address_add_another))
+                }
+            }
 
             FormField(
                 label = stringResource(R.string.request_create_description_label),

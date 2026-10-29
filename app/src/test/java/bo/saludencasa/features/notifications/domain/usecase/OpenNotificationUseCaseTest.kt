@@ -2,12 +2,15 @@ package bo.saludencasa.features.notifications.domain.usecase
 
 import bo.saludencasa.features.notifications.FakeNotificationRepository
 import bo.saludencasa.features.notifications.OTHER_USER
+import bo.saludencasa.features.notifications.PROFESSIONAL_ID
 import bo.saludencasa.features.notifications.REQUEST_ID
 import bo.saludencasa.features.notifications.appointmentCancelled
 import bo.saludencasa.features.notifications.appointmentScheduled
+import bo.saludencasa.features.notifications.counterOfferReceived
 import bo.saludencasa.features.notifications.domain.model.NotificationDestination
 import bo.saludencasa.features.notifications.domain.model.NotificationOpenResult
 import bo.saludencasa.features.notifications.nearbyRequest
+import bo.saludencasa.features.notifications.offerReceived
 import bo.saludencasa.features.notifications.requestExpired
 import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.ProfileError
@@ -38,7 +41,10 @@ class OpenNotificationUseCaseTest {
             val result = useCase(profiles)(nearbyRequest())
 
             assertEquals(UserRole.PROFESSIONAL, profiles.lastActiveRole)
-            assertEquals(NotificationOpenResult.Open(NotificationDestination.Inbox(REQUEST_ID)), result)
+            assertEquals(
+                NotificationOpenResult.Open(NotificationDestination.OfferThread(REQUEST_ID, professionalId = null)),
+                result,
+            )
         }
 
     @Test
@@ -104,8 +110,9 @@ class OpenNotificationUseCaseTest {
             assertEquals(0, profiles.switchAttempts)
         }
 
-    // A cancelled appointment never shows in the inbox, so highlighting it
-    // would always end in "no longer available".
+    // HT-24: a request for the professional opens that request, where they
+    // offer, and an offer opens the thread of the professional who made it. A
+    // cancelled appointment has nothing left to open, so it goes to the inbox.
     @Test
     fun eachEventOpensItsOwnDestination() =
         runTest {
@@ -113,12 +120,44 @@ class OpenNotificationUseCaseTest {
                 FakeProfileRepository(roleResult = loadedRoles(held = bothRoles, active = UserRole.PROFESSIONAL))
 
             assertEquals(
-                NotificationOpenResult.Open(NotificationDestination.Inbox(REQUEST_ID)),
+                NotificationOpenResult.Open(NotificationDestination.OfferThread(REQUEST_ID, professionalId = null)),
                 useCase(profiles)(appointmentScheduled()),
             )
             assertEquals(
-                NotificationOpenResult.Open(NotificationDestination.Inbox(null)),
+                NotificationOpenResult.Open(NotificationDestination.Inbox),
                 useCase(profiles)(appointmentCancelled()),
             )
+            assertEquals(
+                NotificationOpenResult.Open(NotificationDestination.OfferThread(REQUEST_ID, PROFESSIONAL_ID)),
+                useCase(profiles)(offerReceived()),
+            )
         }
+
+    // HU-18's criterion 5: the counter-offer reaches either side, and each one
+    // lands on the same thread with the role it receives it in activated first.
+    @Test
+    fun aCounterOfferOpensItsThreadForWhicheverSideReceivesIt() =
+        runTest {
+            listOf(UserRole.PATIENT, UserRole.PROFESSIONAL).forEach { role ->
+                val profiles =
+                    FakeProfileRepository(
+                        roleResult = loadedRoles(held = bothRoles, active = role.other()),
+                    )
+
+                val result = useCase(profiles)(counterOfferReceived(recipientRole = role))
+
+                assertEquals(role, profiles.lastActiveRole)
+                // The professional opens their own thread without their own
+                // identifier, so the screen knows its side before reading.
+                val expectedProfessional = PROFESSIONAL_ID.takeIf { role == UserRole.PATIENT }
+                assertEquals(
+                    NotificationOpenResult.Open(
+                        NotificationDestination.OfferThread(REQUEST_ID, expectedProfessional),
+                    ),
+                    result,
+                )
+            }
+        }
+
+    private fun UserRole.other(): UserRole = if (this == UserRole.PATIENT) UserRole.PROFESSIONAL else UserRole.PATIENT
 }

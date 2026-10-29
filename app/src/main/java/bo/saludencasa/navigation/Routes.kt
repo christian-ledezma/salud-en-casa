@@ -42,18 +42,15 @@ data class MyRequestsRoute(
 )
 
 @Serializable
-data class InboxRoute(
-    val highlightRequestId: String? = null,
-)
+data object InboxRoute
 
+// The one screen of a negotiation, for either side: the professional's first
+// offer and the thread that follows it (docs/decisions.md, 2026-10-27, HU-18 and
+// HT-24). A null professionalId means the caller is the professional of it.
 @Serializable
-data class MakeOfferRoute(
+data class OfferThreadRoute(
     val requestId: String,
-)
-
-@Serializable
-data class NegotiationRoute(
-    val requestId: String,
+    val professionalId: String? = null,
 )
 
 @Serializable

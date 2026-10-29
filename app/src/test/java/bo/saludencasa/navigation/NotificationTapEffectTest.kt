@@ -49,6 +49,7 @@ class NotificationTapEffectTest {
                 composable<AccountRoute> { Text("account") }
                 composable<InboxRoute> { Text("inbox") }
                 composable<MyRequestsRoute> { Text("requests") }
+                composable<OfferThreadRoute> { Text("thread") }
             }
         }
     }
@@ -61,12 +62,13 @@ class NotificationTapEffectTest {
     }
 
     // A cold start from a notification: the startup screen is still deciding
-    // whether the person is signed in, and opening the inbox under it would be
-    // undone the moment it finishes.
+    // whether the person is signed in, and opening the request under it would be
+    // undone the moment it finishes. HT-24: a request for the professional opens
+    // that request, with no professionalId, as its professional.
     @Test
     fun aTapWaitsWhileTheStartupScreenIsShowing() {
         pending = nearbyRequest()
-        show(NotificationDestination.Inbox(REQUEST_ID))
+        show(NotificationDestination.OfferThread(REQUEST_ID, professionalId = null))
         composeRule.waitForIdle()
 
         assertEquals(0, resolves)
@@ -74,7 +76,9 @@ class NotificationTapEffectTest {
 
         finishStartup()
 
-        assertEquals(REQUEST_ID, navController.currentBackStackEntry!!.toRoute<InboxRoute>().highlightRequestId)
+        val route = navController.currentBackStackEntry!!.toRoute<OfferThreadRoute>()
+        assertEquals(REQUEST_ID, route.requestId)
+        assertNull(route.professionalId)
         assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<AccountRoute>())
     }
 
@@ -83,7 +87,7 @@ class NotificationTapEffectTest {
     @Test
     fun aTapIsHandledOnlyOnce() {
         pending = nearbyRequest()
-        show(NotificationDestination.Inbox(REQUEST_ID))
+        show(NotificationDestination.Inbox)
         finishStartup()
 
         composeRule.runOnIdle { navController.popBackStack() }
@@ -92,6 +96,20 @@ class NotificationTapEffectTest {
         assertEquals(1, resolves)
         assertNull(pending)
         assertTrue(navController.currentDestination!!.hasRoute<AccountRoute>())
+    }
+
+    // HU-18: a counter-offer opens the thread it answers, with the account
+    // rebuilt underneath it, so going back lands somewhere that exists.
+    @Test
+    fun aCounterOfferTapOpensItsThread() {
+        pending = nearbyRequest()
+        show(NotificationDestination.OfferThread(REQUEST_ID, "professional-1"))
+        finishStartup()
+
+        val route = navController.currentBackStackEntry!!.toRoute<OfferThreadRoute>()
+        assertEquals(REQUEST_ID, route.requestId)
+        assertEquals("professional-1", route.professionalId)
+        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<AccountRoute>())
     }
 
     // Signed out, or meant for another account: the tap is spent and the

@@ -7,6 +7,8 @@ import androidx.compose.ui.platform.LocalResources
 import bo.saludencasa.R
 import bo.saludencasa.core.util.distanceText
 import bo.saludencasa.features.requests.domain.model.OfferError
+import bo.saludencasa.features.requests.domain.model.OfferIssuer
+import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -33,10 +35,28 @@ internal fun OfferError.messageRes(): Int =
     when (this) {
         OfferError.NotSignedIn -> R.string.error_request_not_signed_in
         OfferError.InvalidAmount -> R.string.error_offer_invalid_amount
-        OfferError.MessageRequired -> R.string.error_offer_message_required
+        is OfferError.BelowMinimum -> R.string.error_offer_below_your_last
         OfferError.NotAllowed -> R.string.error_offer_not_allowed
         OfferError.NetworkUnavailable -> R.string.error_network_unavailable
         OfferError.Unexpected -> R.string.error_unexpected
+    }
+
+// What the thread is waiting for, said from the reader's side: the two roles
+// share the screen, so neither label names a role.
+@StringRes
+internal fun OfferThread.stateRes(): Int =
+    when {
+        isClosed -> R.string.thread_state_closed
+        isMyTurn -> R.string.thread_state_your_turn
+        else -> R.string.thread_state_waiting
+    }
+
+@StringRes
+internal fun OfferIssuer.threadLabelRes(mine: Boolean): Int =
+    when {
+        mine -> R.string.thread_issuer_me
+        this == OfferIssuer.PROFESSIONAL -> R.string.thread_issuer_professional
+        else -> R.string.thread_issuer_patient
     }
 
 @StringRes
