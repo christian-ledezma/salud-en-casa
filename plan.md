@@ -196,7 +196,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 3 | Verificación de usuarios | 2 · Perfiles | 24 | `[x]` |
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
-| 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[ ]` |
+| 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 26 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
@@ -5762,6 +5762,10 @@ de HT-24, y con eso se cierra HU-18.
 atómica en una función de servidor, el servicio y el pago pendiente creados juntos, y los
 datos de contacto que se revelan recién al aceptar.
 
+**HU-19 cerrada el 2026-10-30.** Con ella el Sprint 6 entrega su incremento: una solicitud
+avisa, se oferta y contraoferta, y la aceptación crea el servicio y su pago en una sola
+transacción. Queda por cerrar el sprint (retrospectiva y `supabase db reset` local).
+
 ### HT-23 · Pedir atención y agendar en menos pasos `[x]` — 8 puntos
 
 > Como **paciente**, quiero **pedir atención inmediata desde el mapa de quienes están
@@ -6757,26 +6761,26 @@ selector de dirección con su calle.
 **Confirmado por el autor (2026-10-28).** `supabase db push`, redespliegue de `send-push` y
 recorrido en emulador con dos cuentas hechos, sin observaciones. **Cerrada el 2026-10-28.**
 
-### HU-19 · Aceptar una oferta `[ ]` — 8 puntos
+### HU-19 · Aceptar una oferta `[x]` — 8 puntos
 
 > Como **cualquiera de las partes**, quiero **aceptar el monto propuesto**, para
 > **cerrar el acuerdo y dar inicio a la atención**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que acepto una oferta, cuando confirmo, entonces se marca aceptada, la
+- [x] Dado que acepto una oferta, cuando confirmo, entonces se marca aceptada, la
       solicitud pasa a aceptada, se crea el servicio y se crea el pago pendiente.
-- [ ] Dado que la operación falla a la mitad, cuando consulto la base de datos,
+- [x] Dado que la operación falla a la mitad, cuando consulto la base de datos,
       entonces no queda ningún registro parcial.
-- [ ] Dado que se acepta la oferta, cuando abro la atención, entonces veo los datos
+- [x] Dado que se acepta la oferta, cuando abro la atención, entonces veo los datos
       de contacto de la contraparte, que antes no eran visibles.
-- [ ] Dado que se acepta la oferta, cuando consulto el servicio, entonces el monto
+- [x] Dado que se acepta la oferta, cuando consulto el servicio, entonces el monto
       congelado coincide con el aceptado.
-- [ ] Dado que la tarifa base del profesional cambia después, cuando consulto el
+- [x] Dado que la tarifa base del profesional cambia después, cuando consulto el
       servicio, entonces el monto no cambia.
-- [ ] Dado que la contraparte acepta mi oferta, cuando se cierra el acuerdo,
+- [x] Dado que la contraparte acepta mi oferta, cuando se cierra el acuerdo,
       entonces me llega una notificación que me lleva a la atención.
-- [ ] Dado que la aceptación falla a la mitad, cuando la transacción se revierte,
+- [x] Dado que la aceptación falla a la mitad, cuando la transacción se revierte,
       entonces no sale ninguna notificación: el aviso se emite solo si la
       transacción se confirma.
 
@@ -6784,6 +6788,60 @@ recorrido en emulador con dos cuentas hechos, sin observaciones. **Cerrada el 20
 
 **Tareas técnicas.** Función de servidor que ejecute la aceptación en una sola
 transacción · prueba de atomicidad.
+
+**Decisiones (2026-10-29, `docs/decisions.md`).** La aceptación es un definidor
+`accept_offer`; el guardia de ciclo de vida —y el de aceptación de la oferta—
+reconocen la operación por la existencia del servicio, no por una bandera; la
+comisión entra como columna configurable en `platform_settings` (10 % inicial) y
+se congela al aceptar; «la atención» es una pantalla propia (`features/services`);
+«Aceptar» va en el hilo con diálogo.
+
+**Experimentos SQL (2026-10-29, remoto, `begin … rollback`, sobre la migración sin
+aplicar `20261029120000`).** Todos en verde:
+
+- `contact_hidden_before_and_visible_after` — la contraparte no se lee antes de
+  aceptar y sí después (A, G).
+- `a_client_cannot_set_the_request_to_accepted_directly` — el update directo lo
+  rechaza el guardia porque no existe servicio (B).
+- `the_issuer_cannot_accept_their_own_offer` (C) y `an_accepted_offer_rejects_a_second_acceptance` (H).
+- `accepting_creates_the_service_and_pending_payment_in_one_transaction` — servicio
+  congelado a 100,00 ASSIGNED con el profesional fijado; pago PENDING con
+  100 = 10 de comisión + 90 del profesional (F1, F2, F3).
+- `a_later_base_rate_change_does_not_move_the_frozen_amount` (I).
+- `the_acceptance_push_targets_the_issuer_of_the_accepted_offer` — rol PROFESSIONAL,
+  el profesional como destino, con monto y sin `professionalId` (J).
+- `an_accepted_request_is_no_longer_offerable` (K).
+- `my_attention_gives_each_party_the_other` — al paciente el profesional con
+  teléfono y el monto congelado; al profesional, el paciente (L, M).
+- `a_failed_acceptance_leaves_no_partial_record` — un fallo forzado en el pago
+  revierte el servicio, el pago, el estado y el aviso encolado (criterios 2 y 7).
+
+**Corrección tras el recorrido del autor (2026-10-30).** La atención ya no muestra teléfono ni
+llamada: el paciente abre la ficha pública del profesional que ya existe y el profesional ve el
+nombre del paciente. Migración nueva `20261030120000_attention_without_phone.sql` (`my_attention`
+sin teléfono), verificada en el remoto (`begin … rollback`): devuelve la contraparte sin la
+columna de teléfono y sigue reservada a una parte del servicio. Registrado en `docs/decisions.md`,
+2026-10-30. Pendiente del autor: `supabase db push` de esta migración.
+
+Pendiente del autor (primera migración, ya hecho): `supabase db push`. `send-push` no se
+redespliega.
+
+**Estado al 2026-10-30.** `./gradlew build` en verde: análisis estático, lint y pruebas de
+interfaz incluidos, sin pruebas apagadas. Pruebas nuevas de la rebanada Kotlin: la aceptación
+en `OfferThreadViewModelTest`, `AttentionMapperTest`, `AttentionViewModelTest`,
+`AttentionScreenLargeFontTest`, y las de aviso (`PushPayloadTest`, `OpenNotificationUseCaseTest`,
+`NotificationTapEffectTest`); `NotificationEventParityTest` sigue verde con `OFFER_ACCEPTED`.
+Previsualizaciones de `AttentionScreen` (claro, oscuro, 200 %) renderizadas.
+
+**Confirmado por el autor (2026-10-30).** `supabase db push` de la primera migración hecho;
+recorrido en emulador con dos cuentas, aceptación por ambos lados, sin observaciones sobre el
+flujo. Tras el recorrido pidió que la atención reutilizara la ficha pública del profesional y
+no mostrara teléfono ni llamada; hecho, con la migración `20261030120000` y la entrada de
+`docs/decisions.md`, 2026-10-30. **El criterio 3 se cumple por la revelación de identidad:** el
+profesional ve el nombre del paciente, que la bandeja ocultaba, y el paciente abre la ficha
+pública del profesional; la coordinación del servicio es por la conversación de HU-21, no por
+un teléfono. **Cerrada el 2026-10-30.** Pendiente del autor: `supabase db push` de la segunda
+migración y los commits.
 
 ## Incremento del sprint
 
@@ -6795,7 +6853,44 @@ aplicación. **El mecanismo distintivo del producto está completo.**
 
 ## Retrospectiva
 
-_Completar al cerrar el sprint._
+> El Sprint 6 se ejecutó del **16/10/2026** al **30/10/2026**.
+
+Fue el sprint más grande del proyecto —42 puntos, replanificados desde 26 el 2026-10-15 al
+sumar HT-22, HT-23 y HT-24— y el más largo, quince días. Entregó el mecanismo distintivo del
+producto de punta a punta: una solicitud avisa a los profesionales cercanos, uno oferta, el
+paciente contraoferta, y la aceptación crea el servicio y su pago pendiente en una sola
+transacción, sin que nadie tuviera que estar mirando la aplicación.
+
+**Qué se aprendió.**
+
+1. **El recorrido temprano del autor ahorra reescritura.** Recorrer la negociación en
+   emulador reveló que el flujo tenía demasiadas pantallas; cortarlas (HT-23 y HT-24) a mitad
+   de sprint fue caro, pero más barato que arrastrarlas hasta que HU-19 las tocara. Las
+   historias de negociación se recorren antes de construir sobre ellas.
+2. **Una dependencia externa con un solo dueño bloquea el cierre.** HU-20 quedó construida y
+   verificada pero sin poder cerrarse: la cuenta de servicio de Firebase solo se generaba desde
+   una consola a la que nadie podía entrar (HT-22). De ahí el control nuevo de cada cierre:
+   ingresar con las dos cuentas propietarias de Google Cloud y los dos miembros de Supabase,
+   para que el bloqueo no se repita.
+3. **Los invariantes se atan a filas reales, no a permisos.** La aceptación atómica de HU-19
+   deja pasar la transición a `ACCEPTED` solo si ya existe el servicio, no por una bandera de
+   sesión: la política de cancelación del paciente le deja actualizar su solicitud, así que una
+   bandera habría sido suya para fijar. La existencia de una fila que solo el definidor puede
+   crear no lo es.
+4. **Reutilizar lo que existe antes que construir otra vista.** Tras el recorrido de HU-19, la
+   pantalla de la atención se recortó: reutiliza la ficha pública del profesional y no muestra
+   teléfono ni llamada. La coordinación del servicio es la conversación de HU-21.
+
+**Verificación de cierre.** `./gradlew build` en verde, sin pruebas apagadas. Experimentos SQL
+de política y disparadores anotados por historia. `supabase db diff --linked --schema public`
+sin deriva el 2026-10-30, tras aplicar las 46 migraciones —incluidas las dos de HU-19— sobre la
+base de sombra. Control de acceso de cierre con las dos cuentas propietarias de Google Cloud y
+los dos miembros de Supabase (rutina desde el Sprint 6).
+
+**Velocidad.** 42 puntos en quince días: por debajo del ritmo diario de los sprints previos, lo
+que se explica por el reflujo de interfaz a mitad de camino y el bloqueo externo de HU-20. El
+Sprint 7 tiene 26 puntos y entra holgado; su historia de menor prioridad, HU-37, es la primera
+que se traslada si el corte muerde.
 
 ---
 

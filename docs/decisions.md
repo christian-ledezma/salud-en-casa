@@ -5832,6 +5832,89 @@ qué se construyó en cada una.
 
 ---
 
+## 2026-10-29 · HU-19: la aceptación es una operación atómica en un definidor, y la atención es una pantalla propia
+
+**Contexto.** Aceptar una oferta tiene que marcar la oferta aceptada, mover la solicitud a
+aceptada, crear el servicio y crear el pago pendiente, todo o nada (RF-08.5). El cliente no
+puede garantizar esa transacción. Además, al aceptarse se revelan los datos de contacto de la
+contraparte (RN-06, RF-08.6) y hay que avisar a quien hizo la oferta aceptada (RF-09.5), con
+la garantía de que el aviso no sale si la transacción se revierte. Tres cosas estaban sin
+resolver antes de escribir una línea: cómo deja el guardia de ciclo de vida pasar la
+transición que reserva para esta historia, cómo se fija el desglose del pago cuando la
+comisión es un porcentaje configurable (RN-08) y dónde vive «la atención» que los dos criterios
+nombran como destino.
+
+**Decisión.** La aceptación es una función de servidor `security definer`, `accept_offer`. El
+pago nace con su desglose calculado y congelado al aceptar, con una columna nueva y
+configurable en `platform_settings` (valor inicial 10 %). «La atención» es una pantalla
+dedicada y mínima, `features/services`, a la que llevan el hilo aceptado, la tarjeta aceptada
+de «Mis solicitudes» y el aviso `OFFER_ACCEPTED`. «Aceptar» va en el hilo, junto a «Rechazar»,
+con un diálogo de confirmación.
+
+**Razonamiento.**
+
+- **El guardia reconoce la operación por la existencia del servicio, no por una bandera.**
+  `guard_request_lifecycle` seguía rechazando todo `→ ACCEPTED` y todo cambio de
+  `professional_id` mientras hubiera un llamante autenticado, y un definidor no cambia
+  `auth.uid()`. Se amplió para admitir esa transición **solo si ya existe un `services` para
+  esa solicitud**, que `accept_offer` inserta antes de actualizar la solicitud en la misma
+  transacción. Nadie salvo ese definidor puede insertar un servicio (la tabla no tiene política
+  de insert), así que esa existencia es prueba infalsificable de que corre la operación
+  atómica. Se descartó una variable de sesión (`set local`) porque la propia política de
+  cancelación del paciente le deja actualizar su solicitud: podría fijar la bandera y escribir
+  `ACCEPTED` por su cuenta. Atar el estado a una fila real, y no a un permiso, mantiene además
+  la protección contra la solicitud que «nace ACCEPTED» que HU-18 dejó anotada.
+- **La comisión se calcula y se congela al aceptar.** El desglose del pago (`total`,
+  `platform_fee_bob`, `professional_amount_bob`) lo congela `guard_payment_is_frozen` desde que
+  la fila nace, y la fila nace al aceptar. Si se dejara la comisión en cero ahora para
+  calcularla en el Sprint 8 (RF-11.1), el guardia impediría corregirla después: habría que
+  relajarlo, debilitando INV-05. Por eso la columna configurable entra aquí, que es la primera
+  vez que se escribe un desglose, y no en el Sprint 8 como adelantaba el comentario de
+  `platform_settings`. `professional_amount_bob` se calcula como `total - fee`, no como otro
+  redondeo, para que INV-10 (`total = fee + professional`) sea exacto.
+- **La atención es una pantalla propia, no un modo del hilo.** El requisito la nombra como
+  destino («abro la atención», «me lleva a la atención»), es la base sobre la que construyen
+  HU-21 (conversación) y HU-23 (avance), y los datos de contacto —sensibles, revelados recién
+  ahora— quedan en su propia pantalla posterior al acuerdo en vez de recargar la pantalla de
+  negociación con un modo muy distinto. No es un paso de más: es la pantalla de la que trata la
+  historia. Una sola llamada, `my_attention`, un definidor que arma la fila con la contraparte
+  relativa a `auth.uid()`, concentra en un lugar auditado la lógica de «la otra parte» y la
+  reserva a quien es parte del servicio.
+- **«Aceptar» en el hilo, con diálogo.** Refleja el flujo de rechazo ya existente, deja leer la
+  oferta y su mensaje completos antes de comprometer dinero, y evita un contrato por toque
+  accidental desde la tarjeta de la espera, que conserva solo «es tu turno» y abre el hilo.
+
+**Consecuencia.**
+
+- Migración `20261029120000_accept_an_offer.sql`: columna `platform_fee_percent`, función
+  `accept_offer`, `guard_request_lifecycle` reescrito, `my_attention`, `OFFER_ACCEPTED` en
+  `request_push_body` (reescrito entero, siete ramas) y el trigger `queue_acceptance_push`
+  `after insert on services`. El aviso se encola dentro de la transacción, de modo que un
+  `rollback` descarta la fila de `pg_net` (criterio 7). `send-push` no se redespliega:
+  `OFFER_ACCEPTED` solo usa claves que ya pasa.
+- Nace la característica `features/services` con `Attention`, `IServiceRepository`,
+  `GetAttentionUseCase`, `AttentionScreen`/`AttentionViewModel` y su módulo de Koin.
+- `AcceptOfferUseCase` y `IOfferRepository.acceptOffer`; el hilo gana «Aceptar» y su diálogo.
+- `NotificationEvent` y `PushPayload` ganan `OFFER_ACCEPTED`; `NotificationDestination` gana
+  `Attention`, al que llevan el aviso y la tarjeta aceptada de «Mis solicitudes».
+- La doble aceptación la cierra la unicidad de `services.request_id` y `offer_id`: un solo
+  ganador, el resto choca contra la restricción. Una solicitud aceptada deja de ser ofertable.
+
+**Corrección tras el recorrido (2026-10-30).** El autor recorrió la aceptación por ambos
+lados. La pantalla de la atención mostraba una ficha propia del profesional con su teléfono y
+un botón de llamar. Se cambió: la atención ya no tiene teléfono ni llamada, y el paciente ve
+al profesional abriendo la **ficha pública que ya existe** (`PublicProfileScreen`), en vez de
+una vista nueva. El profesional ve el **nombre del paciente**, que antes estaba oculto en la
+bandeja. `my_attention` deja de devolver el teléfono (migración
+`20261030120000_attention_without_phone.sql`). Con esto, el «dato de contacto que antes no era
+visible» de RN-06 es la identidad de la contraparte —el nombre del paciente para el
+profesional—, y la coordinación del servicio pasa por la conversación de HU-21, no por un
+número de teléfono. Reutilizar la ficha pública respeta además los límites entre
+características: la atención navega a la pantalla que ya existe en vez de copiar sus
+componentes.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
