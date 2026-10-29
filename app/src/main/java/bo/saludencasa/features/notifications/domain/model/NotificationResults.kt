@@ -14,6 +14,12 @@ sealed interface NotificationDestination {
         val requestId: String,
         val professionalId: String?,
     ) : NotificationDestination
+
+    // The sealed agreement of a request (HU-19), opened by request: a service has
+    // one, and each party resolves their own side.
+    data class Attention(
+        val requestId: String,
+    ) : NotificationDestination
 }
 
 enum class DiscardReason {

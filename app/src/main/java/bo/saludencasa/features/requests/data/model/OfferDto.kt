@@ -28,6 +28,12 @@ data class RequestIdParam(
     @SerialName("p_request_id") val requestId: String,
 )
 
+// The single named argument of accept_offer.
+@Serializable
+data class OfferIdParam(
+    @SerialName("p_offer_id") val offerId: String,
+)
+
 // A row of my_request_offers. The professional's public fields come from
 // professional_directory; the amount and rating ride through BigDecimalSerializer.
 // The same shape serves the professional's own read straight off request_offers,

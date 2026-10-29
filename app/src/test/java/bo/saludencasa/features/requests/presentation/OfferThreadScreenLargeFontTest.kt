@@ -122,17 +122,35 @@ class OfferThreadScreenLargeFontTest {
         }
     }
 
-    // On my turn both controls are offered, and the primary one is fixed to the
-    // foot, so it is on screen without scrolling.
+    // On my turn the three answers are offered -- accept, counter and reject --
+    // and all stay on screen, with accept the primary one fixed to the foot.
     @Test
-    fun onMyTurnBothAnswersAreReachable() {
+    fun onMyTurnTheThreeAnswersAreReachable() {
         show(OfferThreadUiState.Content(thread = offerThread(offers = chain("160.00" to OfferIssuer.PROFESSIONAL))))
 
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_accept_button)).assertIsEnabled(),
+        )
         composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.offer_counter_open)).assertIsEnabled(),
         )
         composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.offer_reject)).assertIsEnabled(),
+        )
+    }
+
+    // The acceptance confirmation names the amount and stays on screen.
+    @Test
+    fun theAcceptConfirmationStaysOnScreen() {
+        show(
+            OfferThreadUiState.Content(
+                thread = offerThread(offers = chain("160.00" to OfferIssuer.PROFESSIONAL)),
+                confirmingAcceptance = true,
+            ),
+        )
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_accept_confirm_title)),
         )
     }
 

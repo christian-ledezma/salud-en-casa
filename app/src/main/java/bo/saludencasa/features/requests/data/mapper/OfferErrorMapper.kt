@@ -35,6 +35,14 @@ private val REFUSAL_LABELS =
         "issued_offer_cannot_be_edited",
         "answered_offer_cannot_be_rejected",
         "offer_acceptance_requires_the_atomic_operation",
+        // accept_offer refuses when the thread moved on before the tap landed:
+        // the offer was answered, rejected or already accepted, or the request is
+        // no longer open. The screen reloads to show the new state (HU-19).
+        "offer_not_open",
+        "offer_already_answered",
+        "offer_not_found",
+        "request_not_open",
+        "not_your_offer_to_accept",
         // Two answers to the same offer, or two first offers, from two taps or
         // two phones: the second loses to the unique index (HU-18).
         "idx_request_offers_one_answer_per_parent",

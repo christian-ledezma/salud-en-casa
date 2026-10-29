@@ -12,6 +12,7 @@ import bo.saludencasa.features.requests.domain.model.OfferStatus
 import bo.saludencasa.features.requests.domain.model.OfferSubmitResult
 import bo.saludencasa.features.requests.domain.model.OfferThreadResult
 import bo.saludencasa.features.requests.domain.model.OfferableRequestResult
+import bo.saludencasa.features.requests.domain.usecase.AcceptOfferUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetOfferThreadUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetOfferableRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveOfferSignalsUseCase
@@ -49,6 +50,7 @@ class OfferThreadViewModelTest {
             submitOffer = SubmitOfferUseCase(offers),
             submitCounterOffer = SubmitCounterOfferUseCase(offers),
             rejectOffer = RejectOfferUseCase(offers),
+            acceptOffer = AcceptOfferUseCase(offers),
             observeOfferSignals = ObserveOfferSignalsUseCase(offers),
         )
 
@@ -370,6 +372,84 @@ class OfferThreadViewModelTest {
             advanceUntilIdle()
 
             assertEquals(OfferError.NotAllowed, content(viewModel).error)
+        }
+
+    // Criterion 1: accepting the offer on the table seals it, after a
+    // confirmation, and the screen moves on to the attention.
+    @Test
+    fun acceptingTheOfferOnTheTableSealsItAndMovesToTheAttention() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            val viewModel = opened()
+
+            viewModel.onAcceptClicked()
+            advanceUntilIdle()
+            assertTrue(content(viewModel).confirmingAcceptance)
+            assertTrue(offers.accepted.isEmpty())
+
+            viewModel.onAcceptConfirmed()
+            advanceUntilIdle()
+
+            assertEquals(listOf("o1"), offers.accepted)
+            assertEquals(OfferThreadUiState.Accepted, viewModel.uiState.value)
+        }
+
+    @Test
+    fun aDismissedAcceptanceWritesNothing() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            val viewModel = opened()
+
+            viewModel.onAcceptClicked()
+            viewModel.onAcceptDismissed()
+            advanceUntilIdle()
+
+            assertFalse(content(viewModel).confirmingAcceptance)
+            assertTrue(offers.accepted.isEmpty())
+        }
+
+    // The confirmation is not a licence: out of turn nothing is accepted, so a
+    // stale screen cannot seal what is no longer on the table.
+    @Test
+    fun acceptingOutOfTurnWritesNothing() =
+        runTest {
+            offers.threadResult =
+                OfferThreadResult.Loaded(
+                    offerThread(
+                        offers =
+                            listOf(
+                                requestOffer(id = "o1", issuer = OfferIssuer.PROFESSIONAL),
+                                requestOffer(id = "o2", parentOfferId = "o1", issuer = OfferIssuer.PATIENT),
+                            ),
+                    ),
+                )
+            val viewModel = opened()
+
+            viewModel.onAcceptClicked()
+            viewModel.onAcceptConfirmed()
+            advanceUntilIdle()
+
+            assertTrue(offers.accepted.isEmpty())
+        }
+
+    // A refusal means the thread moved on before the tap: the screen stays on the
+    // thread, re-reads it and shows the error, instead of leaving for the attention.
+    @Test
+    fun aRefusedAcceptanceKeepsTheThreadAndReportsIt() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            offers.acceptResult = OfferActionResult.Failure(OfferError.NotAllowed)
+            val viewModel = opened()
+
+            val rejected = theirTurnThread().offers.single().copy(status = OfferStatus.REJECTED)
+            offers.threadResult = OfferThreadResult.Loaded(offerThread(offers = listOf(rejected)))
+            viewModel.onAcceptClicked()
+            viewModel.onAcceptConfirmed()
+            advanceUntilIdle()
+
+            val state = content(viewModel)
+            assertTrue(state.thread.isClosed)
+            assertEquals(OfferError.NotAllowed, state.error)
         }
 
     // Each side listens on its own topic: the professional's thread is read with

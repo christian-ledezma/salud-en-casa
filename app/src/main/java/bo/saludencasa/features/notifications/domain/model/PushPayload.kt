@@ -12,6 +12,7 @@ enum class NotificationEvent {
     REQUEST_EXPIRED,
     OFFER_RECEIVED,
     COUNTER_OFFER_RECEIVED,
+    OFFER_ACCEPTED,
 }
 
 data class PushSubject(
@@ -76,6 +77,16 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.COUNTER_OFFER_RECEIVED
     }
 
+    // Reaches the issuer of the accepted offer: whoever did not accept is told
+    // their offer was taken (RF-09.5). The tap opens the attention, which is keyed
+    // by the request, so no professionalId travels. The amount is structured data.
+    data class OfferAccepted(
+        override val subject: PushSubject,
+        val amountBob: BigDecimal,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.OFFER_ACCEPTED
+    }
+
     fun toMap(): Map<String, String> =
         buildMap {
             put(KEY_EVENT, event.name)
@@ -108,6 +119,10 @@ sealed interface PushPayload {
                 is CounterOfferReceived -> {
                     put(KEY_AMOUNT_BOB, amountBob.toPlainString())
                     put(KEY_PROFESSIONAL_ID, professionalId)
+                }
+
+                is OfferAccepted -> {
+                    put(KEY_AMOUNT_BOB, amountBob.toPlainString())
                 }
             }
         }
@@ -179,6 +194,11 @@ sealed interface PushPayload {
                     val professionalId =
                         data.professionalIdOrNull() ?: return failure("push_payload_invalid_professional")
                     Result.success(CounterOfferReceived(subject, amount, professionalId))
+                }
+
+                NotificationEvent.OFFER_ACCEPTED -> {
+                    val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
+                    Result.success(OfferAccepted(subject, amount))
                 }
             }
         }

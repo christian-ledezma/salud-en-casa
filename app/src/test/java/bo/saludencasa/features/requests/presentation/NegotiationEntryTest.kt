@@ -46,10 +46,25 @@ class NegotiationEntryTest {
     }
 
     @Test
-    fun aClosedRequestOpensNothing() {
-        listOf(RequestStatus.CANCELLED, RequestStatus.EXPIRED, RequestStatus.ACCEPTED).forEach { status ->
+    fun aCancelledOrExpiredRequestOpensNothing() {
+        listOf(RequestStatus.CANCELLED, RequestStatus.EXPIRED).forEach { status ->
             assertNull(immediate(status).negotiationEntry())
             assertNull(scheduled(status).negotiationEntry())
         }
+    }
+
+    // HU-19: once accepted there is nothing left to negotiate, but the card now
+    // opens the sealed agreement instead of being inert. It holds for both
+    // modalities, since either can reach acceptance.
+    @Test
+    fun anAcceptedRequestOpensItsAttention() {
+        assertEquals(
+            NegotiationEntry.Attention(requestId = "r1"),
+            immediate(RequestStatus.ACCEPTED).negotiationEntry(),
+        )
+        assertEquals(
+            NegotiationEntry.Attention(requestId = "r1"),
+            scheduled(RequestStatus.ACCEPTED).negotiationEntry(),
+        )
     }
 }

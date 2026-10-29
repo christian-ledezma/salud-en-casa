@@ -31,6 +31,7 @@ class FakeOfferRepository : IOfferRepository {
 
     val submitted = mutableListOf<Submission>()
     val rejected = mutableListOf<String>()
+    val accepted = mutableListOf<String>()
     val signalSides = mutableListOf<Boolean>()
 
     var submitResult: OfferSubmitResult = OfferSubmitResult.Success
@@ -38,6 +39,7 @@ class FakeOfferRepository : IOfferRepository {
     var threadResult: OfferThreadResult = OfferThreadResult.NotFound
     var offerableResult: OfferableRequestResult = OfferableRequestResult.NotFound
     var rejectResult: OfferActionResult = OfferActionResult.Success
+    var acceptResult: OfferActionResult = OfferActionResult.Success
 
     // A hot flow the test drives: emitting a Unit stands in for the broadcast
     // that tells one side to re-query.
@@ -81,6 +83,11 @@ class FakeOfferRepository : IOfferRepository {
     override suspend fun rejectOffer(offerId: String): OfferActionResult {
         rejected += offerId
         return rejectResult
+    }
+
+    override suspend fun acceptOffer(offerId: String): OfferActionResult {
+        accepted += offerId
+        return acceptResult
     }
 
     override fun observeOfferSignals(asProfessional: Boolean): Flow<Unit> {

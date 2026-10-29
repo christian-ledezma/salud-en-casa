@@ -526,6 +526,25 @@
     <string name="offer_reject_confirm_title">¿Rechazar esta propuesta?</string>
     <string name="offer_reject_confirm_body">La negociación con esta persona se cierra y no podrá volver a proponerte un monto. Tu solicitud sigue disponible para otros profesionales.</string>
     <string name="offer_reject_confirm_action">Rechazar</string>
+
+    <!-- HU-19: aceptar una oferta y la atención -->
+    <string name="offer_accept_button">Aceptar</string>
+    <string name="offer_accept_confirm_title">Aceptar la oferta</string>
+    <string name="offer_accept_confirm_body">Vas a aceptar %1$s. Se creará la atención y verás los datos de contacto de la otra persona.</string>
+    <string name="offer_accept_confirm_action">Aceptar</string>
+    <string name="attention_title">Atención</string>
+    <string name="attention_sealed_banner">Acuerdo cerrado. La atención está confirmada.</string>
+    <string name="attention_counterpart_professional">Profesional</string>
+    <string name="attention_counterpart_patient">Paciente</string>
+    <string name="attention_view_professional">Ver perfil del profesional</string>
+    <string name="attention_amount_label">Monto acordado</string>
+    <string name="attention_status_label">Estado</string>
+    <string name="attention_status_assigned">Asignada</string>
+    <string name="attention_status_in_progress">En curso</string>
+    <string name="attention_status_completed">Completada</string>
+    <string name="attention_status_cancelled">Cancelada</string>
+    <string name="attention_not_found_title">Esta atención ya no está disponible</string>
+    <string name="attention_not_found_description">No encontramos la atención de esta solicitud.</string>
     <plurals name="negotiation_thread_rounds">
         <item quantity="one">%d propuesta</item>
         <item quantity="other">%d propuestas</item>
@@ -570,6 +589,8 @@
     <string name="notification_offer_received_body">%1$s · %2$s</string>
     <string name="notification_counter_offer_received_title">Respondieron tu propuesta</string>
     <string name="notification_counter_offer_received_body">%1$s · %2$s</string>
+    <string name="notification_offer_accepted_title">Aceptaron tu oferta</string>
+    <string name="notification_offer_accepted_body">%1$s · %2$s</string>
     <string name="notification_public_body">Desbloquea el teléfono para ver el detalle.</string>
     <string name="notification_permission_title">Activa los avisos</string>
     <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti, cuando un paciente te agende una cita y cuando responda tu oferta, aunque no tengas la aplicación abierta.</string>

@@ -6,6 +6,7 @@ import bo.saludencasa.features.requests.data.repository.OfferRepository
 import bo.saludencasa.features.requests.data.repository.RequestRepository
 import bo.saludencasa.features.requests.domain.repository.IOfferRepository
 import bo.saludencasa.features.requests.domain.repository.IRequestRepository
+import bo.saludencasa.features.requests.domain.usecase.AcceptOfferUseCase
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateImmediateRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateScheduledRequestUseCase
@@ -53,6 +54,7 @@ val requestsModule =
         factory { GetOfferThreadUseCase(get()) }
         factory { GetOfferableRequestUseCase(get()) }
         factory { RejectOfferUseCase(get()) }
+        factory { AcceptOfferUseCase(get()) }
         factory { ObserveOfferSignalsUseCase(get()) }
 
         // «Atención ahora» reads the catalog, the patient's addresses and the
@@ -66,6 +68,6 @@ val requestsModule =
             ScheduleAppointmentViewModel(professionalId, serviceTypeId, get(), get(), get(), get(), get())
         }
         viewModel { (requestId: String, professionalId: String?) ->
-            OfferThreadViewModel(requestId, professionalId, get(), get(), get(), get(), get(), get())
+            OfferThreadViewModel(requestId, professionalId, get(), get(), get(), get(), get(), get(), get())
         }
     }

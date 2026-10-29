@@ -157,6 +157,21 @@ class OfferRepository(
         }
     }
 
+    override suspend fun acceptOffer(offerId: String): OfferActionResult {
+        if (dataSource.currentUserId() == null) {
+            return OfferActionResult.Failure(OfferError.NotSignedIn)
+        }
+
+        return try {
+            dataSource.acceptOffer(offerId)
+            OfferActionResult.Success
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            OfferActionResult.Failure(failure.toOfferError())
+        }
+    }
+
     override fun observeOfferSignals(asProfessional: Boolean): Flow<Unit> {
         val userId = dataSource.currentUserId() ?: return emptyFlow()
         return dataSource.offerSignals(userId, asProfessional)

@@ -9,6 +9,7 @@ import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.domain.model.OfferThreadResult
 import bo.saludencasa.features.requests.domain.model.OfferableRequest
 import bo.saludencasa.features.requests.domain.model.OfferableRequestResult
+import bo.saludencasa.features.requests.domain.usecase.AcceptOfferUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetOfferThreadUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetOfferableRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveOfferSignalsUseCase
@@ -45,8 +46,11 @@ sealed interface OfferThreadUiState {
         val message: String = "",
         val submitting: Boolean = false,
         val confirmingRejection: Boolean = false,
+        val confirmingAcceptance: Boolean = false,
         val error: OfferError? = null,
     ) : OfferThreadUiState {
+        // Whoever did not write the offer on the table is the one who answers it,
+        // which is also who may accept it (HU-19).
         val canAnswer: Boolean get() = thread.isMyTurn && !submitting
 
         val canSubmit: Boolean get() = canAnswer && countering
@@ -55,6 +59,10 @@ sealed interface OfferThreadUiState {
     // Nothing to negotiate here: the request is gone, or this thread does not
     // exist for this caller.
     data object Gone : OfferThreadUiState
+
+    // The offer was accepted: the service exists and the screen moves on to the
+    // attention (HU-19).
+    data object Accepted : OfferThreadUiState
 
     data class Failed(
         val error: OfferError,
@@ -75,6 +83,7 @@ class OfferThreadViewModel(
     private val submitOffer: SubmitOfferUseCase,
     private val submitCounterOffer: SubmitCounterOfferUseCase,
     private val rejectOffer: RejectOfferUseCase,
+    private val acceptOffer: AcceptOfferUseCase,
     private val observeOfferSignals: ObserveOfferSignalsUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<OfferThreadUiState>(OfferThreadUiState.Loading)
@@ -127,6 +136,36 @@ class OfferThreadViewModel(
             is OfferThreadUiState.Opening -> submitFirstOffer(current)
             is OfferThreadUiState.Content -> submitCounter(current)
             else -> Unit
+        }
+    }
+
+    fun onAcceptClicked() {
+        state.updateContent { it.copy(confirmingAcceptance = true, error = null) }
+    }
+
+    fun onAcceptDismissed() {
+        state.updateContent { it.copy(confirmingAcceptance = false) }
+    }
+
+    fun onAcceptConfirmed() {
+        val content = state.value as? OfferThreadUiState.Content ?: return
+        val target = content.thread.lastOffer ?: return
+        if (!content.canAnswer) return
+
+        state.updateContent { it.copy(confirmingAcceptance = false, submitting = true, error = null) }
+        viewModelScope.launch {
+            when (val result = acceptOffer(target.id)) {
+                // The screen moves on to the attention; a late signal must not put
+                // the thread back on top, so load() leaves this state alone.
+                OfferActionResult.Success -> {
+                    state.value = OfferThreadUiState.Accepted
+                }
+
+                is OfferActionResult.Failure -> {
+                    state.updateContent { it.copy(submitting = false, error = result.error) }
+                    reloadIfStale(result.error)
+                }
+            }
         }
     }
 
@@ -224,6 +263,9 @@ class OfferThreadViewModel(
     }
 
     private suspend fun load(showLoading: Boolean) {
+        // Once accepted, the screen is on its way to the attention: a signal that
+        // lands in between must not pull the thread back onto it.
+        if (state.value is OfferThreadUiState.Accepted) return
         if (showLoading) state.value = OfferThreadUiState.Loading
 
         when (val result = getOfferThread(requestId, professionalId)) {

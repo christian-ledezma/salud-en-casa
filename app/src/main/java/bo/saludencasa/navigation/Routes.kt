@@ -53,6 +53,12 @@ data class OfferThreadRoute(
     val professionalId: String? = null,
 )
 
+// HU-19: the sealed agreement of a request, reached once an offer is accepted.
+@Serializable
+data class AttentionRoute(
+    val requestId: String,
+)
+
 @Serializable
 data object AvailabilityRoute
 

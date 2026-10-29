@@ -50,6 +50,7 @@ class NotificationTapEffectTest {
                 composable<InboxRoute> { Text("inbox") }
                 composable<MyRequestsRoute> { Text("requests") }
                 composable<OfferThreadRoute> { Text("thread") }
+                composable<AttentionRoute> { Text("attention") }
             }
         }
     }
@@ -109,6 +110,19 @@ class NotificationTapEffectTest {
         val route = navController.currentBackStackEntry!!.toRoute<OfferThreadRoute>()
         assertEquals(REQUEST_ID, route.requestId)
         assertEquals("professional-1", route.professionalId)
+        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<AccountRoute>())
+    }
+
+    // HU-19: an accepted offer opens the attention of its request, with the
+    // account rebuilt underneath it.
+    @Test
+    fun anAcceptedOfferTapOpensItsAttention() {
+        pending = nearbyRequest()
+        show(NotificationDestination.Attention(REQUEST_ID))
+        finishStartup()
+
+        val route = navController.currentBackStackEntry!!.toRoute<AttentionRoute>()
+        assertEquals(REQUEST_ID, route.requestId)
         assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<AccountRoute>())
     }
 

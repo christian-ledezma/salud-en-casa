@@ -109,6 +109,18 @@ fun counterOfferReceived(
         professionalId,
     )
 
+// Reaches the issuer of the accepted offer; the tap opens the attention by
+// request, so it carries no professional.
+fun offerAccepted(
+    recipientId: String = SIGNED_IN_USER,
+    recipientRole: UserRole = UserRole.PROFESSIONAL,
+    amountBob: BigDecimal = BigDecimal("160.00"),
+): PushPayload =
+    PushPayload.OfferAccepted(
+        pushSubject(recipientId = recipientId, recipientRole = recipientRole),
+        amountBob,
+    )
+
 // One of each, so a test that walks every event cannot miss one: the sealed
 // hierarchy is compared against this list.
 fun everyPayload(): List<PushPayload> =
@@ -119,4 +131,5 @@ fun everyPayload(): List<PushPayload> =
         requestExpired(),
         offerReceived(),
         counterOfferReceived(),
+        offerAccepted(),
     )

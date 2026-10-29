@@ -29,6 +29,7 @@ import bo.saludencasa.features.requests.presentation.NegotiationEntry
 import bo.saludencasa.features.requests.presentation.OfferThreadScreen
 import bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
+import bo.saludencasa.features.services.presentation.AttentionScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewScreen
 import bo.saludencasa.features.verification.presentation.VerificationScreen
@@ -153,6 +154,10 @@ fun SaludEnCasaNavHost(
                         is NegotiationEntry.Thread -> {
                             navController.navigate(OfferThreadRoute(negotiation.requestId, negotiation.professionalId))
                         }
+
+                        is NegotiationEntry.Attention -> {
+                            navController.navigate(AttentionRoute(negotiation.requestId))
+                        }
                     }
                 },
             )
@@ -172,6 +177,25 @@ fun SaludEnCasaNavHost(
                 requestId = route.requestId,
                 professionalId = route.professionalId,
                 onBack = { navController.popBackStack() },
+                // HU-19: the thread is done; replace it with the attention so a
+                // back press does not return to the accepted negotiation.
+                onAccepted = {
+                    navController.navigate(AttentionRoute(route.requestId)) {
+                        popUpTo<OfferThreadRoute> { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        // HU-19: the sealed agreement, for both parties. The patient opens the
+        // professional's existing public profile from here.
+        composable<AttentionRoute> { entry ->
+            AttentionScreen(
+                requestId = entry.toRoute<AttentionRoute>().requestId,
+                onBack = { navController.popBackStack() },
+                onOpenProfessionalProfile = { professionalId ->
+                    navController.navigate(PublicProfileRoute(professionalId))
+                },
             )
         }
 

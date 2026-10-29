@@ -10,6 +10,7 @@ import bo.saludencasa.features.notifications.counterOfferReceived
 import bo.saludencasa.features.notifications.domain.model.NotificationDestination
 import bo.saludencasa.features.notifications.domain.model.NotificationOpenResult
 import bo.saludencasa.features.notifications.nearbyRequest
+import bo.saludencasa.features.notifications.offerAccepted
 import bo.saludencasa.features.notifications.offerReceived
 import bo.saludencasa.features.notifications.requestExpired
 import bo.saludencasa.features.profile.FakeProfileRepository
@@ -130,6 +131,11 @@ class OpenNotificationUseCaseTest {
             assertEquals(
                 NotificationOpenResult.Open(NotificationDestination.OfferThread(REQUEST_ID, PROFESSIONAL_ID)),
                 useCase(profiles)(offerReceived()),
+            )
+            // HU-19: an accepted offer opens the attention of its request.
+            assertEquals(
+                NotificationOpenResult.Open(NotificationDestination.Attention(REQUEST_ID)),
+                useCase(profiles)(offerAccepted()),
             )
         }
 

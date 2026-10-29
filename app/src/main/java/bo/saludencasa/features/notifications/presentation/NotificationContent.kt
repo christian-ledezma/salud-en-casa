@@ -23,6 +23,7 @@ private fun PushPayload.titleRes(): Int =
         is PushPayload.RequestExpired -> R.string.notification_request_expired_title
         is PushPayload.OfferReceived -> R.string.notification_offer_received_title
         is PushPayload.CounterOfferReceived -> R.string.notification_counter_offer_received_title
+        is PushPayload.OfferAccepted -> R.string.notification_offer_accepted_title
     }
 
 // RF-09.10.
@@ -76,6 +77,14 @@ internal fun PushPayload.text(
                     formatBob(amountBob, locale),
                 )
             }
+
+            is PushPayload.OfferAccepted -> {
+                resources.getString(
+                    R.string.notification_offer_accepted_body,
+                    type,
+                    formatBob(amountBob, locale),
+                )
+            }
         }
     return NotificationText(title = resources.getString(titleRes()), body = body)
 }
@@ -95,5 +104,6 @@ internal fun PushPayload.channel(): NotificationChannelSpec =
         is PushPayload.RequestExpired,
         is PushPayload.OfferReceived,
         is PushPayload.CounterOfferReceived,
+        is PushPayload.OfferAccepted,
         -> NotificationChannelSpec.REQUESTS
     }

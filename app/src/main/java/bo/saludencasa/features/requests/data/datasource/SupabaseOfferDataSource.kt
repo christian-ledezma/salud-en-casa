@@ -1,6 +1,7 @@
 package bo.saludencasa.features.requests.data.datasource
 
 import bo.saludencasa.features.requests.data.model.NewOfferRow
+import bo.saludencasa.features.requests.data.model.OfferIdParam
 import bo.saludencasa.features.requests.data.model.OfferableRequestDto
 import bo.saludencasa.features.requests.data.model.RequestIdParam
 import bo.saludencasa.features.requests.data.model.RequestOfferDto
@@ -82,6 +83,13 @@ class SupabaseOfferDataSource(
             }.decodeList<RequestOfferDto>()
             .size
 
+    // accept_offer runs the whole acceptance in one transaction and returns the
+    // new service id. A policy or guard refusal raises, which the repository maps;
+    // the id is not needed here, the attention opens by request.
+    suspend fun acceptOffer(offerId: String) {
+        supabase.postgrest.rpc(ACCEPT_OFFER, OfferIdParam(offerId))
+    }
+
     // inbox_request returns at most the one row, with the same guards as the inbox.
     suspend fun fetchOfferableRequest(requestId: String): OfferableRequestDto? =
         supabase.postgrest
@@ -135,6 +143,7 @@ class SupabaseOfferDataSource(
         const val REQUEST_OFFERS = "request_offers"
         const val MY_REQUEST_OFFERS = "my_request_offers"
         const val INBOX_REQUEST = "inbox_request"
+        const val ACCEPT_OFFER = "accept_offer"
         const val PATIENT_OFFERS_TOPIC_PREFIX = "patient_offers:"
         const val PROFESSIONAL_OFFERS_TOPIC_PREFIX = "professional_offers:"
         const val OFFERS_EVENT = "offers_changed"

@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,10 +57,17 @@ fun OfferThreadScreen(
     requestId: String,
     professionalId: String?,
     onBack: () -> Unit,
+    onAccepted: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: OfferThreadViewModel = koinViewModel { parametersOf(requestId, professionalId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // The same terminal-state pattern as ScheduleAppointment: once accepted, the
+    // screen moves on to the attention.
+    LaunchedEffect(uiState) {
+        if (uiState is OfferThreadUiState.Accepted) onAccepted()
+    }
 
     OfferThreadContent(
         uiState = uiState,
@@ -74,6 +82,9 @@ fun OfferThreadScreen(
                 onReject = viewModel::onRejectClicked,
                 onRejectConfirmed = viewModel::onRejectConfirmed,
                 onRejectDismissed = viewModel::onRejectDismissed,
+                onAccept = viewModel::onAcceptClicked,
+                onAcceptConfirmed = viewModel::onAcceptConfirmed,
+                onAcceptDismissed = viewModel::onAcceptDismissed,
                 onRetry = viewModel::refresh,
             ),
         modifier = modifier,
@@ -89,6 +100,9 @@ internal data class OfferThreadActions(
     val onReject: () -> Unit = {},
     val onRejectConfirmed: () -> Unit = {},
     val onRejectDismissed: () -> Unit = {},
+    val onAccept: () -> Unit = {},
+    val onAcceptConfirmed: () -> Unit = {},
+    val onAcceptDismissed: () -> Unit = {},
     val onRetry: () -> Unit = {},
 )
 
@@ -102,6 +116,13 @@ internal fun OfferThreadContent(
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (uiState) {
             OfferThreadUiState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            OfferThreadUiState.Accepted -> {
+                // Briefly, while the screen navigates to the attention.
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -268,10 +289,17 @@ private fun ThreadBody(
                     }
                 } else {
                     PrimaryButton(
-                        text = stringResource(R.string.offer_counter_open),
-                        onClick = actions.onCounter,
+                        text = stringResource(R.string.offer_accept_button),
+                        onClick = actions.onAccept,
                         enabled = content.canAnswer,
                     )
+                    OutlinedButton(
+                        onClick = actions.onCounter,
+                        enabled = content.canAnswer,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(R.string.offer_counter_open))
+                    }
                     OutlinedButton(
                         onClick = actions.onReject,
                         enabled = content.canAnswer,
@@ -296,6 +324,34 @@ private fun ThreadBody(
             },
             dismissButton = {
                 TextButton(onClick = actions.onRejectDismissed) {
+                    Text(text = stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
+    if (content.confirmingAcceptance) {
+        val locale = LocalConfiguration.current.locales[0]
+        val amount = content.thread.lastOffer?.amountBob
+        AlertDialog(
+            onDismissRequest = actions.onAcceptDismissed,
+            title = { Text(text = stringResource(R.string.offer_accept_confirm_title)) },
+            text = {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.offer_accept_confirm_body,
+                            amount?.let { formatBob(it, locale) }.orEmpty(),
+                        ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = actions.onAcceptConfirmed) {
+                    Text(text = stringResource(R.string.offer_accept_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = actions.onAcceptDismissed) {
                     Text(text = stringResource(R.string.common_cancel))
                 }
             },

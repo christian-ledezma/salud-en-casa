@@ -187,6 +187,32 @@ class PushPayloadTest {
         assertEquals("push_payload_invalid_amount", failureKey(counterWire("amountBob" to "-10")))
     }
 
+    // An accepted offer reaches its issuer with the amount and no professional:
+    // the attention opens by request.
+    @Test
+    fun parsesAnAcceptedOfferWithItsAmount() {
+        val accepted =
+            PushPayload
+                .parse(
+                    wire(
+                        "event" to "OFFER_ACCEPTED",
+                        "distanceM" to null,
+                        "amountBob" to "160.00",
+                    ),
+                ).getOrThrow()
+
+        accepted as PushPayload.OfferAccepted
+        assertEquals(0, accepted.amountBob.compareTo(BigDecimal("160.00")))
+    }
+
+    @Test
+    fun rejectsAnAcceptedOfferWithoutItsAmount() {
+        assertEquals(
+            "push_payload_invalid_amount",
+            failureKey(wire("event" to "OFFER_ACCEPTED", "distanceM" to null)),
+        )
+    }
+
     @Test
     fun rejectsAnUnknownEvent() {
         assertEquals("push_payload_unknown_event", failureKey(wire("event" to "MESSAGE_RECEIVED")))

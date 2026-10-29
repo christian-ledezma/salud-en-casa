@@ -45,6 +45,12 @@ interface IOfferRepository {
     // open to other professionals (RF-08.4 of HU-18's criterion 4).
     suspend fun rejectOffer(offerId: String): OfferActionResult
 
+    // Accepting the offer on the table seals the agreement in one transaction
+    // (RF-08.5): the service and its pending payment are created and the request
+    // moves to accepted. A refusal means the thread moved on, so the caller
+    // re-reads.
+    suspend fun acceptOffer(offerId: String): OfferActionResult
+
     // Emits once each time an offer the caller takes part in may have changed, so
     // the screen re-queries. It carries no data (docs/decisions.md, 2026-10-23):
     // the signal says "ask again", the read says what. Each role has its own

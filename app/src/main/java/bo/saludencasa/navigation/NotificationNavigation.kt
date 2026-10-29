@@ -48,6 +48,10 @@ private fun NavHostController.openFromNotification(destination: NotificationDest
             is NotificationDestination.OfferThread -> {
                 OfferThreadRoute(destination.requestId, destination.professionalId)
             }
+
+            is NotificationDestination.Attention -> {
+                AttentionRoute(destination.requestId)
+            }
         },
     )
 }

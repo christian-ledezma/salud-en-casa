@@ -72,5 +72,11 @@ class OpenNotificationUseCase(
                     professionalId.takeIf { subject.recipientRole == UserRole.PATIENT },
                 )
             }
+
+            // HU-19: an accepted offer takes its issuer to the attention, which
+            // each party resolves from the request.
+            is PushPayload.OfferAccepted -> {
+                NotificationDestination.Attention(subject.requestId)
+            }
         }
 }
