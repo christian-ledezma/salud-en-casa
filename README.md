@@ -21,7 +21,7 @@ Proyecto de grado. El desarrollo sigue SCRUM con sprints de una semana.
 | JDK | 17 |
 | Android Studio | Quail o posterior |
 | Node.js | 20 LTS o superior, solo para la CLI de Supabase |
-| Docker | Para el entorno local de Supabase. Opcional: solo hace falta para `supabase start` y `supabase db reset` |
+| Docker | Para el entorno local de Supabase. Opcional: solo hace falta para `supabase start`, `db reset` y `db diff` |
 
 Dispositivo o emulador con **Android 8.0 (API 26)** o superior.
 
@@ -106,13 +106,37 @@ que las migraciones reconstruyen la base desde cero, que es lo que exige el cier
 de cada sprint que toque el esquema, hay un entorno local con Docker:
 
 ```bash
-npx supabase start     # levanta el entorno y aplica todas las migraciones
-npx supabase db reset  # recrea la base y las vuelve a aplicar desde cero
-npx supabase stop      # libera los contenedores
+npx supabase start -x studio                    # levanta el entorno sin Studio y aplica todas las migraciones
+npx supabase db reset                           # recrea la base y las vuelve a aplicar desde cero
+npx supabase db diff --linked --schema public   # compara el remoto contra las migraciones
+npx supabase stop                               # elimina los contenedores y conserva las imágenes y los datos
 ```
 
 `db reset` sin `--linked` actúa **solo sobre el entorno local**. Nunca se corre
 `db reset --linked`: borraría los datos del proyecto remoto.
+
+Studio, la interfaz web, se excluye porque ninguno de esos comandos la usa y su
+imagen pesa 1,7 GB. `edge-runtime` **no** se excluye: `db diff` corre dentro de
+ella, y `functions deploy` la usa para empaquetar cuando Docker está encendido.
+Con Docker apagado, el despliegue lo avisa y empaqueta en el servidor.
+
+Las imágenes, unos 6 GB, se descargan una vez y no crecen con el uso. Se acumulan
+al actualizar la CLI, que pide etiquetas nuevas y deja las viejas sin borrar. Por
+eso se limpian solo después de una actualización, y con la pila **levantada**:
+
+```bash
+npx supabase start -x studio
+docker image prune -a
+npx supabase stop
+```
+
+**Nunca `docker image prune -a` con la pila detenida:** `stop` elimina los
+contenedores, y sin ellos el `prune` borra todas las imágenes, que se vuelven a
+descargar en el siguiente `start`. Ese `prune` borra también las imágenes de otros
+proyectos que no tengan un contenedor creado.
+
+En Docker Desktop, *Settings → Resources → Advanced → Disk usage limit* en 32 GB
+impide que el disco virtual crezca hasta ocupar el del equipo.
 
 ### 4. Notificaciones push
 
@@ -155,9 +179,10 @@ igual; así se comporta el entorno local.
 | `npx supabase migration new <nombre>` | Crea una migración |
 | `npx supabase db push --dry-run` | Muestra qué migraciones se aplicarían |
 | `npx supabase db push` | Aplica las migraciones pendientes al proyecto remoto |
-| `npx supabase start` | Entorno local con Docker |
+| `npx supabase start -x studio` | Entorno local con Docker, sin Studio |
 | `npx supabase db reset` | Reconstruye la base local desde las migraciones |
 | `npx supabase db diff --linked --schema public` | Compara el remoto contra las migraciones |
+| `npx supabase stop` | Detiene el entorno local: elimina los contenedores y conserva imágenes y datos |
 | `npx supabase functions deploy send-push` | Publica la función que envía las notificaciones |
 
 ## Integración continua

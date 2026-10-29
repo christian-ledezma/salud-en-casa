@@ -48,7 +48,7 @@ posible trabajo futuro y se sigue con lo que el alcance pide.
 - **Análisis estático:** `./gradlew ktlintCheck`
 - **Verificación completa:** `./gradlew build`
 - **Migraciones:** `supabase migration new <nombre>` · `supabase db push`
-- **Entorno local y reproducibilidad:** `supabase start` · `supabase db reset` · `supabase db diff --linked --schema public`. **`db reset` nunca se corre con `--linked`:** borraría el proyecto remoto
+- **Entorno local y reproducibilidad:** `supabase start -x studio` · `supabase db reset` · `supabase db diff --linked --schema public` · `supabase stop` al terminar. **`db reset` nunca se corre con `--linked`:** borraría el proyecto remoto. **`docker image prune -a` nunca con la pila detenida:** borraría todas las imágenes; ver `README.md`, «Base de datos»
 
 **`namespace` y `applicationId` difieren de forma deliberada.** El `namespace`
 define la raíz de los paquetes y la clase de recursos; el `applicationId`
