@@ -5752,6 +5752,12 @@ pantalla donde HU-17 mostrará las ofertas que llegan.
 `NegotiationScreen` con la contraoferta del paciente y reusa la suscripción Broadcast
 por paciente que HU-17 dejó.
 
+**Orden desde el 2026-10-27: HT-24, cierre de HU-18, HU-19.** El autor recorrió HU-18 en
+emuladores y el flujo de la negociación tenía demasiadas pantallas. HT-24 lo recorta antes
+de seguir, porque HU-19 pone «Aceptar» justamente en las pantallas que HT-24 cambia. El
+criterio 5 de HU-18 (el aviso de contraoferta hacia ambos lados) se prueba en el recorrido
+de HT-24, y con eso se cierra HU-18.
+
 ### HT-23 · Pedir atención y agendar en menos pasos `[x]` — 8 puntos
 
 > Como **paciente**, quiero **pedir atención inmediata desde el mapa de quienes están
@@ -6314,6 +6320,8 @@ descarte, no se cambia el código.
 
 - [x] Dado que veo una solicitud publicada, cuando emito una oferta, entonces
       indico monto y mensaje.
+      *Desde HT-24 (2026-10-27), por decisión del autor, el mensaje es opcional: se
+      indica el monto y, si se quiere, un mensaje.*
 - [x] Dado que emito la oferta, cuando el paciente abre la solicitud, entonces la
       ve sin recargar.
 - [x] Dado que la solicitud ya fue aceptada, cuando intento ofertar, entonces se
@@ -6414,13 +6422,13 @@ commits de la entrega.
 
 **Criterios de aceptación**
 
-- [ ] Dado que recibo una oferta, cuando respondo con otro monto, entonces se crea
+- [x] Dado que recibo una oferta, cuando respondo con otro monto, entonces se crea
       una contraoferta que referencia la anterior.
-- [ ] Dado que existe una cadena de ofertas, cuando abro la negociación, entonces
+- [x] Dado que existe una cadena de ofertas, cuando abro la negociación, entonces
       veo el hilo completo en orden cronológico, con el emisor de cada una.
-- [ ] Dado que el profesional responde, cuando estoy en la pantalla, entonces veo
-      la respuesta sin recargar.
-- [ ] Dado que rechazo una oferta, cuando confirmo, entonces la solicitud sigue
+- [x] Dado que el profesional responde, cuando estoy en la pantalla, entonces veo
+      la respuesta sin recargar. *Confirmado por el autor en emulador el 2026-10-27.*
+- [x] Dado que rechazo una oferta, cuando confirmo, entonces la solicitud sigue
       publicada para otros profesionales.
 - [ ] Dado que la contraparte responde con una contraoferta, cuando no tengo la
       aplicación abierta, entonces me llega una notificación con el monto nuevo,
@@ -6430,6 +6438,324 @@ commits de la entrega.
 
 **Tareas técnicas.** Suscripción en tiempo real de la tabla de ofertas expuesta
 como flujo · reconstrucción del hilo mediante la referencia al padre.
+
+**Decisiones (`docs/decisions.md`, 2026-10-27, HU-18):** una pantalla de hilo por
+profesional, `OfferThreadRoute(requestId, professionalId)`, compartida por los dos roles,
+abierta desde la lista de hilos en que se convierte `NegotiationScreen`; el hilo es lineal
+y por turnos (se contesta solo a la última oferta de la cadena, y en `PROPOSED`); rechazar
+marca la oferta `REJECTED`, lo hace la contraparte del emisor y cierra esa cadena sin
+tocar el estado de la solicitud; el aviso de contraoferta es el evento propio
+`COUNTER_OFFER_RECEIVED`, con destinatario variable y con el `professionalId` del hilo; el
+profesional gana su tema espejo de Realtime, `professional_offers:<id>`.
+
+**Tareas**
+
+- [x] Migración `20261027120000_counter_offers.sql`: `offer_continues_thread` con el
+      emisor esperado del padre, el padre en `PROPOSED` y el turno único;
+      `professional_already_offered_on`; reescritura de
+      `request_offers_insert_participants`; política de rechazo
+      `request_offers_reject_counterparty` en lugar de `request_offers_update_participants`;
+      `guard_offer_is_append_only` congelando además `expires_at`; `notify_offer_parties`
+      con sus dos disparadores y la política `professional_offers_listen`;
+      `request_push_body` reescrita con seis ramas y la rama del evento nuevo;
+      `queue_offer_push` eligiendo el evento por `parent_offer_id`; `my_request_offers`
+      con `parent_offer_id` y `status`.
+- [x] Edge Function `send-push`: `professionalId` en la lista permitida, y redespliegue.
+- [x] Android, dominio y datos: `OfferStatus`, `OfferThread`, los resultados nuevos, los
+      cinco casos de uso, el emisor y la vía de lectura decididos por
+      `iAmTheProfessional`, el rechazo que distingue cero filas actualizadas de un éxito.
+- [x] Android, presentación: `OfferThreadScreen` y su modelo de vista; `NegotiationScreen`
+      como lista de hilos; el botón al hilo en `MakeOfferScreen`; la ruta nueva y su
+      cableado.
+- [x] Evento push en el cliente: `COUNTER_OFFER_RECEIVED`, el subtipo con su
+      `professionalId`, el destino `OfferThread`, el texto y la paridad.
+- [x] Cadenas en `values/` y `values-es/`, idénticas, incluida la reescritura de las que
+      estaban redactadas solo para la primera oferta.
+- [x] Experimentos SQL en `begin … rollback` anotados abajo con su fecha.
+
+
+**Evidencia de los criterios.**
+
+- Criterio 1 (la contraoferta referencia la anterior): experimento
+  `counter_offer_references_previous_offer`, más `patient_cannot_counter_without_a_parent`
+  y `patient_cannot_counter_across_threads`, que comprueban que discrimina.
+  En el cliente, `SubmitCounterOfferUseCaseTest.carriesTheAnsweredOfferAndItsThread`.
+- Criterio 2 (el hilo completo, en orden, con el emisor): `patient_reads_the_whole_thread`
+  y `professional_reads_their_own_chain` en el motor; `OfferMapperTest`
+  (`ordersTheChainByItsParentAndNotByTheTimestamp`, `groupsTheOffersIntoOneThreadPerProfessional`)
+  y `OfferThreadScreenLargeFontTest.everyRoundOfTheThreadStaysOnScreen` en el cliente.
+- Criterio 3 (sin recargar): `OfferThreadViewModelTest.aSignalRefreshesTheThreadWithoutLosingWhatIsTyped`
+  y `NegotiationViewModelTest.aSignalRefreshesTheListWithoutReloading` (Turbine: la señal
+  lleva el estado a su nuevo contenido sin pasar por `Loading`), más
+  `professional_listens_own_topic_only` y `patient_listens_own_topic_only` en el motor.
+  **Confirmado por el autor en el recorrido en emulador del 2026-10-27.**
+- Criterio 4 (rechazar deja la solicitud publicada): `the_request_stays_open_to_other_professionals`
+  y `the_rejection_leaves_the_request_negotiating`, con los cinco rechazos que lo acotan
+  (`nobody_rejects_their_own_offer`, `an_answered_offer_cannot_be_rejected`,
+  `a_rejected_offer_cannot_go_back_to_proposed`, `a_rejected_thread_accepts_no_more_offers`,
+  `a_rejected_professional_does_not_offer_again`). En el cliente,
+  `OfferThreadViewModelTest.rejectingIsConfirmedBeforeItIsWritten`.
+- Criterio 5 (el aviso, sea paciente o profesional): `patient_counter_push_goes_to_the_professional`
+  y `professional_answer_push_goes_to_the_patient` en el motor, con
+  `push_body_carries_no_offer_message` (RF-09.10); en el cliente,
+  `PushPayloadTest.parsesACounterOfferForEitherRole`,
+  `OpenNotificationUseCaseTest.aCounterOfferOpensItsThreadForWhicheverSideReceivesIt`,
+  `NotificationTapEffectTest.aCounterOfferTapOpensItsThread`, `NotificationEventParityTest`
+  (seis eventos) y `NotificationContentTest.everyNotificationEventHasItsTextInAllLocales`.
+  **Falta el recorrido con la aplicación cerrada, hacia cada lado.**
+
+**Experimentos SQL (remoto, `begin … rollback`, 2026-10-27).** Migración sin aplicar,
+sembrando el mundo dentro de la transacción. 35 de comportamiento y 20 estructurales,
+todos en verde. Los de comportamiento:
+
+| # | Prueba | Resultado |
+|---|---|---|
+| e01 | `professional_first_offer_is_accepted` | pasa |
+| e02 | `professional_cannot_issue_a_second_first_offer` | rechaza |
+| e03 | `another_professional_can_still_offer` | pasa |
+| e03b | `an_offer_cannot_be_born_accepted` | rechaza |
+| e03c | `an_offer_cannot_be_born_with_an_expiry` | rechaza |
+| e04 | `counter_offer_references_previous_offer` | pasa |
+| e05 | `patient_cannot_counter_without_a_parent` | rechaza |
+| e06 | `patient_cannot_counter_across_threads` | rechaza |
+| e07 | `professional_answers_the_patients_last_offer` | pasa |
+| e08 | `an_earlier_offer_of_the_thread_cannot_be_answered` | rechaza |
+| e09 | `patient_reads_the_whole_thread` | 4 filas, con padre, emisor y estado |
+| e10 | `professional_reads_their_own_chain` | 3 filas |
+| e11 | `professional_does_not_read_another_chain` | 0 filas |
+| e12 | `nobody_rejects_their_own_offer` | 0 filas actualizadas |
+| e13 | `an_answered_offer_cannot_be_rejected` | rechaza |
+| e14 | `expires_at_cannot_be_written` | rechaza |
+| e15 | `patient_rejects_the_professionals_offer` | pasa |
+| e16 | `a_rejected_offer_cannot_go_back_to_proposed` | 0 filas actualizadas |
+| e17 | `a_rejected_thread_accepts_no_more_offers` | rechaza |
+| e18 | `a_rejected_professional_does_not_offer_again` | rechaza |
+| e19 | `the_request_stays_open_to_other_professionals` | pasa |
+| e20 | `the_rejection_leaves_the_request_negotiating` | pasa |
+| e20b | `the_engine_stamps_the_offer_clock` | la fecha enviada se descarta |
+| e21 | `patient_counters_again_on_their_turn` | pasa |
+| e22 | `professional_rejects_the_patients_counter` | pasa |
+| e23 | `issued_offer_cannot_be_edited` | rechaza |
+| e24 | `rn13_patient_cannot_offer_own` | rechaza |
+| e25 | `rn01_unverified_cannot_offer` | rechaza |
+| e26 | `first_offer_push_goes_to_the_patient` | 3 encoladas |
+| e27 | `patient_counter_push_goes_to_the_professional` | 2 encoladas |
+| e28 | `professional_answer_push_goes_to_the_patient` | 1 encolada |
+| e29 | `push_body_carries_no_offer_message` | 0 cuerpos con el mensaje |
+| e30 | `every_counter_push_carries_its_amount` | 0 sin monto |
+| e31 | `professional_listens_own_topic_only` | pasa |
+| e32 | `patient_listens_own_topic_only` | pasa |
+
+Los estructurales comprueban los dos índices únicos que sostienen el hilo, el disparador
+que sella la fecha, el `with check` que exige `PROPOSED` y sin vencimiento, la firma de
+`offer_continues_thread` con el emisor del padre
+y el retiro de la de tres argumentos, `professional_already_offered_on`, la condición del
+padre (`PROPOSED` y sin respuesta), la política de inserción con las dos ramas, el retiro
+de `request_offers_update_participants`, la de rechazo, el guardia de rechazo,
+`expires_at` congelado, `my_request_offers` con padre y estado, los seis eventos de
+`request_push_body` con el `professionalId`, el disparador de push sin filtro por emisor,
+los dos disparadores de Realtime, el retiro de `notify_patient_offers`, las dos políticas
+de escucha, y que toda tabla pública conserva RLS con política.
+
+**Hallazgo del experimento.** La primera versión de la regla de turno comparaba
+`created_at`, y dentro de una transacción todas las filas comparten el `now()`, de modo
+que el desempate quedaba en manos del identificador. La regla pasó a ser estructural —se
+contesta la oferta que todavía no tiene respuesta—, que además es la que el hilo
+necesita. Está en `docs/decisions.md`, 2026-10-27, y en `OfferMapperTest`.
+
+**Revisión de cierre (2026-10-27).** Dos revisores recorrieron la migración y la rebanada
+Kotlin. Del motor salieron tres huecos, todos cerrados y anotados en `docs/decisions.md`:
+una oferta podía nacer `ACCEPTED` y rodear la operación atómica de HU-19, la fecha la
+ponía el cliente, y las reglas del hilo no tenían índice detrás. Del cliente salieron dos
+defectos reales, también corregidos: una recarga por señal pisaba el estado transitorio
+—podía reactivar el botón con un envío en vuelo, borrar el error o tumbar el formulario
+con un fallo de red— y el profesional veía la cabecera de la contraparte, que es su propia
+ficha, cuando el detalle de la solicitud no se podía leer. Se agregaron sus pruebas
+(`aSignalWhileSubmittingDoesNotReEnableTheForm`, `aFailedSignalReloadKeepsTheThreadAndTheForm`,
+`rejectingOutOfTurnWritesNothing`, `theProfessionalReadsTheRequestAndNotACounterpartHeader`,
+`aChainWithoutItsRootKeepsTheOrderTheEngineSent`) y se retiró una que solo comprobaba que
+el doble devolvía lo que se le había pedido devolver.
+
+**Estado al 2026-10-27.** `./gradlew build` en verde: 825 pruebas, 0 fallos, análisis
+estático y lint incluidos. Previsualizaciones de `OfferThreadScreen` (claro, oscuro,
+200 %, contraofertando y cerrada) y de `NegotiationScreen` (claro, oscuro y 200 %)
+renderizadas y revisadas.
+
+**Confirmar hecho (CLI, fuera del emulador):** `supabase db push`, redesplegar
+`send-push` (sin eso el aviso llega sin con qué abrir el hilo) y `supabase db reset`
+local. **El criterio 3 lo confirmó el autor en emulador el 2026-10-27; el 5 se prueba en el
+recorrido de HT-24**, que cambia a dónde lleva el aviso. Pendientes también los
+commits de la entrega.
+
+### HT-24 · Negociar en menos pasos `[ ]` — 8 puntos
+
+> Como **paciente y como profesional**, quiero **negociar sin recorrer pantallas que no
+> aportan**, para **llegar a un acuerdo en el menor número de toques**.
+
+**Origen.** El autor recorrió HU-18 en emuladores el 2026-10-27. Funcionaba, pero el
+paciente pasaba por «Buscando profesional», «Ofertas recibidas» y el hilo, y el profesional
+por la bandeja, «Hacer una oferta», «Oferta enviada» y otra vez la bandeja para llegar al
+hilo. El mensaje era obligatorio, el paciente podía contraofertar por debajo de lo que ya
+había propuesto, y en «Atención ahora» una cuenta de prueba veía solo «Consultorio» bajo
+«Dónde necesitas la atención»: era el alias de su única dirección, pero la pantalla
+mostraba solo el alias. El razonamiento y las seis decisiones tomadas con el autor están en
+`docs/decisions.md`, 2026-10-27, HT-24.
+
+**El flujo nuevo.**
+
+| Quién | Antes | Después |
+|---|---|---|
+| Paciente, inmediata | Espera → «Ver ofertas» → lista → hilo | Espera con las ofertas a la vista → hilo |
+| Paciente, aviso de oferta | Aviso → lista → hilo | Aviso → hilo de ese profesional |
+| Paciente, «Mis solicitudes» | Tarjeta → lista → hilo | Inmediata activa → la espera; agendada en negociación → su hilo |
+| Profesional, bandeja | Fila → «Hacer una oferta» → «Oferta enviada» → bandeja → fila → hilo | Fila → una pantalla: oferta y negociación |
+| Profesional, aviso de solicitud | Aviso → bandeja resaltada → fila → … | Aviso → la pantalla de la solicitud |
+
+**Criterios de aceptación**
+
+- [ ] Dado que publiqué una solicitud inmediata, cuando un profesional oferta, entonces la
+      oferta aparece sola en «Buscando profesional», con su calificación, su distancia y su
+      monto, sin recargar.
+- [ ] Dado que llegan varias ofertas, cuando miro la espera, entonces aparecen una debajo
+      de otra, y tocar una abre la negociación con ese profesional.
+- [x] Dado que soy profesional, cuando abro una solicitud desde la bandeja o desde el
+      aviso, entonces la oferto y negocio en la misma pantalla.
+- [x] Dado que contraoferto como paciente, cuando el monto es menor que mi presupuesto
+      sugerido o que mi última propuesta en esa negociación, entonces se rechaza y la
+      pantalla me dice cuál es el mínimo.
+- [x] Dado que oferto o contraoferto, cuando no escribo un mensaje, entonces la propuesta
+      se envía igual.
+- [x] Dado que elijo dónde atenderme, cuando miro las opciones, entonces veo cada dirección
+      con su nombre y su calle, y puedo agregar otra sin salir del flujo.
+- [ ] Dado que me llega un aviso de oferta, de contraoferta o de una solicitud para mí,
+      cuando lo toco, entonces se abre directamente la negociación o la solicitud.
+
+**Requisitos:** RF-08.1, RF-08.2, RF-08.3, RF-08.4, RF-09.5, RF-09.10, RNF-08.
+
+**Tareas**
+
+- [x] Migración `20261027150000_negotiate_in_fewer_steps.sql`: `my_request_offers` con la distancia al punto publicado y el presupuesto;
+      `guard_patient_counter_floor`; `my_service_requests` con `professional_id`;
+      `request_push_body` con el `professionalId` también en `OFFER_RECEIVED`.
+- [x] Dominio y datos: mensaje opcional, `OfferError.BelowMinimum`, `counterFloorBob`, la
+      distancia y el presupuesto en el hilo, `ServiceRequest.professionalId`.
+- [x] La pantalla única del profesional (`OfferThreadScreen` con el estado `Opening`) y el
+      retiro de `MakeOfferScreen`.
+- [x] Las tarjetas de oferta en la espera, el retiro de `NegotiationScreen` y el destino de
+      cada tarjeta de «Mis solicitudes».
+- [x] Los avisos abren directo; se retira el resaltado de la bandeja.
+- [x] El selector de dirección con alias, calle y «Agregar otra dirección», en «Atención
+      ahora» y en «Agendar».
+- [x] Experimentos SQL en `begin … rollback` anotados abajo con su fecha.
+
+**Evidencia de los criterios.**
+
+- Criterio 1 (la oferta aparece sola, con calificación, distancia y monto):
+  `ImmediateCareViewModelTest.anOfferThatLandsWhileWaitingAppearsFromTheSignal` y
+  `enteringTheWaitShowsTheOffersThatAlreadyExist`; la distancia en el motor
+  (`the_offer_distance_is_rounded_to_the_hundred_metres`, medida desde el punto publicado) y
+  en el mapeador (`OfferMapperTest.eachThreadCarriesItsDistanceAndTheBudget`). **Falta verlo
+  en vivo en el recorrido.**
+- Criterio 2 (una debajo de otra, y tocar abre la negociación):
+  `ImmediateCareScreenLargeFontTest.threeOffersStackAsCardsThatFitTheScreen`;
+  `aRejectedNegotiationLeavesTheWait`. **Falta el recorrido.**
+- Criterio 3 (el profesional oferta y negocia en la misma pantalla):
+  `OfferThreadViewModelTest.theProfessionalWithoutAThreadSeesTheFirstOfferForm`,
+  `sendingTheFirstOfferTurnsTheScreenIntoTheNegotiation`, `aRefusedFirstOfferKeepsTheFormWithItsError`
+  y `aRequestThatCanNoLongerBeOfferedOnShowsGone`; `OfferThreadScreenLargeFontTest.theFirstOfferFormStaysOnScreen`.
+- Criterio 4 (el mínimo del paciente): experimentos `patient_cannot_counter_below_the_budget`,
+  `patient_cannot_counter_below_their_last_offer`, `patient_can_raise_their_offer`,
+  `professional_has_no_floor`, `without_a_budget_the_first_counter_is_free` y
+  `a_stranger_never_learns_the_budget`; `SubmitCounterOfferUseCaseTest` (bajo el presupuesto,
+  bajo la última propuesta, **exactamente el mínimo pasa**, sin mínimo para el profesional);
+  `OfferThreadScreenLargeFontTest.thePatientSeesTheirMinimumUnderTheAmount` y
+  `aCounterBelowTheMinimumSaysItOnTheField`.
+- Criterio 5 (sin mensaje): `patient_can_counter_at_the_floor_without_a_message` en el motor;
+  `SubmitOfferUseCaseTest.anOfferWithoutAMessageIsSent` y
+  `SubmitCounterOfferUseCaseTest.carriesTheOfferOnTheTableAndNoMessage`.
+- Criterio 6 (dirección con su calle y agregar otra): `AddressSelectionTest` (la recién
+  agregada queda elegida),
+  `ImmediateCareViewModelTest.comingBackWithANewAddressChoosesItAndKeepsTheForm` y
+  `ImmediateCareScreenLargeFontTest.theAddressShowsItsStreetAndTheWayToAddAnother`.
+- Criterio 7 (los avisos abren directo): `offer_push_carries_the_professional` en el motor;
+  `PushPayloadTest.rejectsAnOfferWithoutItsProfessional`,
+  `OpenNotificationUseCaseTest.eachEventOpensItsOwnDestination` y
+  `NotificationTapEffectTest.aTapWaitsWhileTheStartupScreenIsShowing`. **Falta el aviso real
+  con la aplicación cerrada.**
+- «Mis solicitudes» abre donde está la negociación: `NegotiationEntryTest`.
+
+**Experimentos SQL (remoto, `begin … rollback`, 2026-10-27).** Migración sin aplicar. 14 de
+comportamiento y 6 estructurales, todos en verde, y además **la batería completa de HU-18
+(35 + 20) corrida otra vez sobre la migración nueva, también en verde**:
+
+| # | Prueba | Resultado |
+|---|---|---|
+| t01 | `patient_cannot_counter_below_the_budget` | rechaza |
+| t02 | `patient_can_counter_at_the_floor_without_a_message` | pasa |
+| t03 | `professional_has_no_floor` | pasa |
+| t04 | `patient_cannot_counter_below_their_last_offer` | rechaza |
+| t05 | `patient_can_raise_their_offer` | pasa |
+| t06 | `without_a_budget_the_first_counter_is_free` | pasa |
+| t07 | `a_stranger_never_learns_the_budget` | rechaza por la política, nunca por el mínimo |
+| t08 | `the_offer_distance_is_rounded_to_the_hundred_metres` | 1200 m |
+| t09 | `each_offer_carries_the_request_budget` | 4 filas |
+| t10 | `my_service_requests_carries_the_addressee` | pasa |
+| t11 | `my_service_requests_stays_read_only` | rechaza |
+| t12 | `offer_push_carries_the_professional` | 1 encolada |
+| t13 | `counter_push_still_carries_the_professional` | 3 encoladas |
+| t14 | `a_deactivated_professional_gives_no_distance` | 0 filas con distancia |
+
+Los estructurales comprueban el guardia del mínimo, solo para el paciente; la distancia y el
+presupuesto en `my_request_offers`, medida desde el punto publicado; `professional_id` en
+`my_service_requests`; los seis eventos de `request_push_body`, y RLS en toda tabla.
+
+**Un canal que se evitó al escribir el guardia.** El guardia del mínimo es definidor y corre
+antes que la política, así que, sin más, habría contestado con su propia etiqueta a quien
+insertara sobre una solicitud ajena, y eso deja bisecar el presupuesto de otro paciente
+monto por monto. Solo actúa para el dueño de la solicitud; a los demás los rechaza la
+política, sin decir nada del presupuesto. El experimento t07 lo comprueba.
+
+**De la revisión de cierre.** La distancia se calculaba uniendo la base por el profesional de
+la oferta, así que seguía saliendo para uno desactivado, cuyo punto ya no publica la búsqueda.
+Se une por el directorio: fuera de él, la distancia es nula (t14).
+
+**Revisión de cierre (2026-10-27).** Dos revisores, motor y cliente. Del motor, la distancia
+de un profesional desactivado (ya anotada arriba). Del cliente, cinco defectos reales,
+corregidos y con prueba:
+
+- **«Agregar otra dirección» no volvía al formulario:** guardar llevaba siempre a «Mis
+  direcciones». Ahora vuelve a quien la pidió, que relee sus direcciones y elige la nueva
+  (criterio 6).
+- **Volver de un hilo borraba las tarjetas de la espera** y un fallo pasajero tumbaba la
+  pantalla. Ahora se conservan mientras se releen
+  (`comingBackToTheWaitKeepsTheCardsWhenTheReadFails`, `aFailedReadOnComingBackKeepsTheWait`).
+- **La espera y el hilo compartían el canal de Realtime,** y el que se cerraba primero lo
+  cortaba para el otro; además, la limpieza no corría al cancelarse. Ahora hay un flujo
+  compartido por tema, que vive mientras alguien escucha, y la limpieza corre aunque la
+  corrutina esté cancelada (también en la señal de la bandeja, que tenía el mismo defecto).
+  **Se confirma en el recorrido: abrir un hilo, volver, y que una oferta nueva aparezca sola.**
+- **La primera oferta enviada con la relectura fallida dejaba el formulario trabado.** Ahora
+  la pantalla carga de nuevo y, si falla, ofrece reintentar
+  (`aFirstOfferWhoseThreadCannotBeReadDoesNotLeaveTheFormStuck`).
+- **Una negativa del motor no releía el hilo,** y dos respuestas a la misma oferta acababan en
+  «error inesperado». Ahora la negativa relee el hilo y el índice único se lee como negativa
+  (`aRefusedCounterOfferReadsTheThreadAgain`, `OfferErrorMapperTest`).
+
+También: el aviso de contraoferta al profesional abre su hilo sin su propio identificador, de
+modo que la pantalla escucha por su lado desde antes de leer; «Mis solicitudes» vuelve a la
+espera que ya estaba abierta en vez de apilar otra; las tarjetas tienen identidad estable.
+Queda sin cambiar, a sabiendas: tocar un aviso deja «atrás» en el inicio y no en la espera, y
+`OfferableRequest.alreadyOffered` se sigue leyendo aunque ya ninguna pantalla lo usa.
+
+**Estado al 2026-10-27.** `./gradlew build` en verde: 827 pruebas, 0 fallos. Se retiraron las
+pruebas de las pantallas eliminadas y lo que verificaban de valor se reescribió sobre las que
+quedan. Previsualizaciones revisadas: la espera con ofertas (claro, oscuro y 200 %), la pantalla
+del profesional antes de ofertar (claro y 200 %), el hilo contraofertando con el mínimo, y el
+selector de dirección con su calle.
+
+**Pendiente.** `supabase db push` de `20261027150000_negotiate_in_fewer_steps.sql`; redesplegar
+`send-push` si no se hizo tras HU-18; `supabase db reset` local; y el recorrido en emulador con
+dos cuentas, que confirma los criterios 1, 2 y 7 de esta historia y el 5 de HU-18.
 
 ### HU-19 · Aceptar una oferta `[ ]` — 8 puntos
 

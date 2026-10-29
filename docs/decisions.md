@@ -5639,6 +5639,199 @@ configuración del cliente Supabase.
 
 ---
 
+## 2026-10-27 · HU-18: el hilo es lineal y por turnos, y el rechazo lo cierra
+
+**Contexto.** HU-17 dejó la negociación en un solo sentido: el profesional emite una
+oferta y el paciente la lee. HU-18 le da la respuesta al paciente, el hilo completo a las
+dos partes, el aviso al lado que corresponda y la posibilidad de rechazar. El motor ya
+tenía casi todo lo necesario —`parent_offer_id`, `status`, la rama `issuer = 'PATIENT'` de
+la política de inserción escrita el 2026-10-02 y nunca ejercitada, el guardia de solo
+agregar— y la revisión de ese material encontró tres huecos que la historia tiene que
+cerrar antes de poder apoyarse en él.
+
+**Decisión.**
+
+1. **Una pantalla de hilo por profesional, compartida por los dos roles.**
+   `OfferThreadRoute(requestId, professionalId)` muestra la cadena en orden cronológico
+   con el emisor de cada oferta, el formulario de contraoferta y «Rechazar».
+   `NegotiationScreen` pasa de lista plana de ofertas a lista de hilos, una tarjeta por
+   profesional, y es la que abre el hilo. Quien abre el hilo sabe qué lado es porque
+   `professional_id` de la cadena es su propio identificador o no lo es; INV-16 garantiza
+   que nunca es ambas cosas.
+2. **El hilo es lineal y por turnos.** Una oferta solo puede contestar a la **última** de
+   su cadena, y esa última tiene que estar en `PROPOSED`. Lo decide
+   `offer_continues_thread`, que gana un cuarto argumento con el emisor esperado del
+   padre: la contraoferta del paciente contesta a una del profesional, y la respuesta del
+   profesional, a una del paciente.
+3. **Rechazar marca la oferta y nada más.** `status = 'REJECTED'` sobre esa fila; la
+   solicitud se queda en `NEGOTIATING`. «Sigue publicada para otros profesionales» ya era
+   cierto sin tocarla: `request_inbox` y `professional_may_offer_on` admiten `PUBLISHED` y
+   `NEGOTIATING` por igual. Rechaza **la contraparte del emisor**, de modo que el
+   profesional también puede rechazar una contraoferta. Y el rechazo **cierra esa
+   cadena**: con el padre obligado a estar en `PROPOSED`, nadie la continúa, y como cada
+   profesional tiene una sola primera oferta, el rechazado no abre otra. La solicitud
+   sigue abierta a los demás, que es lo que el criterio nombra.
+4. **El aviso de contraoferta es un evento propio, `COUNTER_OFFER_RECEIVED`, con
+   destinatario variable.** El disparador decide por la fila: `parent_offer_id` nulo es
+   `OFFER_RECEIVED` y va al paciente; con padre es `COUNTER_OFFER_RECEIVED` y va a la
+   contraparte del emisor. El cuerpo lleva el tipo de servicio, el monto y —nuevo— el
+   `professionalId`, que es con lo que el teléfono abre el hilo correcto. Nunca el mensaje
+   (RF-09.10).
+5. **El profesional tiene su tema espejo de Realtime,** `professional_offers:<su id>`, con
+   su política sobre `realtime.messages`. Un solo disparador avisa al tema de la
+   contraparte según quién emitió, y también al cambiar el estado, para que el rechazo se
+   vea sin recargar.
+
+**Seis huecos que se cierran de paso.** Los tres primeros los traía la historia; los
+tres últimos los encontró la revisión de cierre del 2026-10-27, y todos son de la misma
+clase: una regla que la pantalla prometía y el motor no exigía.
+
+- **`request_offers_update_participants` tenía `with check (true)`.** Cualquiera de los
+  dos participantes podía escribir cualquier estado salvo `ACCEPTED` —incluso devolver una
+  oferta rechazada a `PROPOSED`— y también `expires_at`. HU-18 es la primera historia que
+  escribe `status` desde el cliente, así que la política se reemplaza por una que solo
+  admite `PROPOSED → REJECTED` y solo a la contraparte del emisor, y el guardia de solo
+  agregar congela además `expires_at`. No estorba a HU-19: la aceptación atómica irá en un
+  definidor, que no pasa por políticas.
+- **La rama profesional de la inserción no miraba el padre.** La respuesta del profesional
+  a una contraoferta entraba por su rama sin validar nada, porque
+  `offer_continues_thread` exigía que el padre fuera del profesional. Con el cuarto
+  argumento, cada rama valida el padre que le corresponde.
+- **Nada impedía dos primeras ofertas del mismo profesional.** Solo lo evitaba
+  `alreadyOffered` en la pantalla, y la copia ya prometía la regla («Solo puedes hacer una
+  oferta»). Ahora la política la exige, con el definidor
+  `professional_already_offered_on`.
+- **La política de inserción no miraba `status` ni `expires_at`.** Los dos guardias que
+  reservan `ACCEPTED` a la operación atómica son `before update`, así que un cliente podía
+  insertar una oferta **ya aceptada** y rodear por completo la transacción que HU-19 va a
+  construir. Una oferta nace `PROPOSED` y sin vencimiento, y eso lo exige ahora el
+  `with check`.
+- **La fecha de la oferta la ponía el cliente.** El hilo se lee en el orden en que el
+  motor lo registró, de modo que el reloj tiene que ser del motor: un disparador
+  `before insert` sella `created_at` cuando hay un llamante, y deja la suya a un definidor
+  o al barrido, que no lo tienen. Sin eso, quien insertaba podía reordenar el hilo que ve
+  la contraparte. De paso, `guard_offer_is_append_only` congela también el `id`.
+- **Las reglas del hilo eran una lectura seguida de una escritura.** Con dos escritores a
+  la vez las dos lecturas pasan, y quedaban dos hijos del mismo padre —un hilo
+  ramificado— o dos primeras ofertas del mismo profesional. Dos índices únicos parciales
+  son lo que las hace ciertas: uno sobre `parent_offer_id`, que deja una sola respuesta
+  por oferta, y otro sobre `(request_id, professional_id)` para las filas sin padre. La
+  política sigue explicando la regla; el índice es el que la sostiene.
+
+**Razonamiento.** La pantalla de hilo se prefiere a mostrar cada cadena dentro de la
+negociación porque contraofertar obliga a elegir con quién se negocia, y eso es una
+pantalla: la lista queda legible con tres profesionales, el hilo queda legible con diez
+ofertas, y HU-19 pone «Aceptar» en el mismo lugar donde está el monto que se acepta. Que
+la misma pantalla sirva a los dos roles sale de que la cadena es la misma fila a fila, y
+que el lado se deduzca del `professional_id` evita consultar el rol activo para algo que
+el dato ya dice. El turno único no es una comodidad de interfaz: sin él las dos partes
+pueden responder a la misma oferta y el «hilo» deja de ser uno. El evento aparte, en vez
+de aflojar el rol de `OFFER_RECEIVED`, es lo que RF-09.5 nombra —«oferta recibida,
+contraoferta recibida y oferta aceptada»—, deja distinto el texto de cada uno y conserva
+la correspondencia 1 a 1 que vigila `NotificationEventParityTest`. El tema por persona
+repite el patrón del 2026-10-23 y mantiene la política de Realtime sin consultar tablas,
+que es justo lo que un tema por solicitud obligaría a hacer. Los dos definidores nuevos
+van en funciones y no en subconsultas de la política para no releer `request_offers`
+dentro de su propia política: es la recursión del 2026-10-02.
+
+**Consecuencia.**
+
+- `offer_continues_thread(uuid, uuid, uuid)` desaparece; queda la de cuatro argumentos.
+  Cualquier política futura sobre el hilo la usa con el emisor que espera.
+- `request_offers` conserva tres políticas: las dos de lectura, la de inserción y la de
+  rechazo. No hay política de borrado, porque el hilo es evidencia (INV-06).
+- `my_request_offers` devuelve además `parent_offer_id` y `status`. El profesional no gana
+  ninguna función: lee su propia cadena por la API, que es lo que su política de lectura
+  ya permitía, y esa lectura no trae ningún dato del paciente (RF-08.6).
+- `request_push_body` queda con seis ramas y hay que reescribirla entera otra vez cuando
+  aparezca la séptima, porque la prueba de paridad solo mira la última migración que la
+  define.
+- `send-push` gana `professionalId` en su lista permitida, así que la función hay que
+  redesplegarla; sin eso el aviso llega sin con qué abrir el hilo.
+- La caducidad de una oferta sigue sin llenarse y ahora además queda congelada. Si HU-19
+  la necesita, la llenará su definidor.
+
+---
+
+## 2026-10-27 · HT-24: las ofertas aparecen donde el paciente ya espera, y el profesional oferta y negocia en una sola pantalla
+
+**Contexto.** El autor recorrió HU-18 en emuladores. Funcionaba, pero negociar costaba
+demasiadas pantallas: el paciente pasaba por «Buscando profesional», «Ofertas recibidas» y
+el hilo; el profesional por «Hacer una oferta», «Oferta enviada» y otra vez la bandeja para
+llegar al hilo. El mensaje era obligatorio, el paciente podía contraofertar por debajo de lo
+que ya había propuesto, y en «Atención ahora» una cuenta de prueba veía solo «Consultorio»
+bajo «Dónde necesitas la atención»: era el alias de su única dirección, y la pantalla
+mostraba solo el alias, así que se leía como un tipo de lugar y no como una casa.
+
+**Decisión.**
+
+1. **Las ofertas aparecen solas en «Buscando profesional»,** como tarjetas tipo InDrive:
+   nombre, calificación, distancia, el monto sobre la mesa y de quién es el turno. Tocar una
+   abre el hilo con ese profesional. «Ofertas recibidas» desaparece: cada aviso de oferta
+   abre directo el hilo de ese profesional, y «Mis solicitudes» lleva a la espera si la
+   inmediata sigue activa, o al hilo si es una agendada en negociación. Un hilo rechazado
+   sale de la espera, como en InDrive; sigue en el motor y en su hilo.
+2. **El profesional oferta y negocia en una sola pantalla.** La fila de la bandeja abre el
+   detalle de la solicitud con el formulario de la primera oferta; al enviarla, esa misma
+   pantalla pasa a ser la negociación y la respuesta del paciente aparece ahí. «Hacer una
+   oferta» y «Oferta enviada» desaparecen.
+3. **El paciente nunca contraoferta por debajo de lo que ya ofreció:** el mínimo es el mayor
+   entre su presupuesto sugerido y su propuesta más alta en ese hilo. El presupuesto cuenta
+   porque es su primera oferta, como el precio que publica el pasajero en InDrive; el
+   mínimo es por hilo y no global, porque cada profesional negocia aparte. Lo dice la
+   pantalla y lo exige el motor con `guard_patient_counter_floor`. Solo para el paciente.
+4. **El selector de dirección muestra el alias y la calle,** bajo «¿Dónde te atendemos?»,
+   con «Agregar otra dirección» en el mismo lugar. Vale para «Atención ahora» y para
+   «Agendar».
+5. **El aviso de una solicitud para el profesional abre la solicitud, no la bandeja.** Cambia
+   la decisión del 2026-10-16 («el aviso se abre en la bandeja»): con la pantalla única, si
+   la solicitud ya no está disponible, esa pantalla lo dice, y el resaltado de la bandeja
+   (`InboxHighlight`, `FindInboxRequestUseCase`) deja de tener uso y se retira.
+6. **El mensaje de la oferta y de la contraoferta es opcional,** por pedido del autor.
+   Modifica el criterio 1 de HU-17, que pedía «monto y mensaje».
+
+**La distancia de la tarjeta.** Es la del **punto publicado** de la base del profesional
+—la base redondeada a la cuadrícula de 0,001°, la misma que la búsqueda dibuja— a la
+ubicación de la solicitud, redondeada a la centena de metros. No abre un canal nuevo
+(2026-10-11): el punto ya es público y el origen es la dirección del propio paciente, no un
+parámetro libre. Es la distancia a la base, no a donde está el profesional en ese momento,
+que el sistema no guarda. Y sale solo mientras el profesional está en
+`professional_directory`: uno desactivado ya no tiene un punto publicado, así que tampoco
+distancia.
+
+**Razonamiento.** El paciente ya está mirando la espera cuando llega una oferta: mostrarla
+ahí es eliminar el paso, no esconderlo. El hilo se conserva como pantalla porque es donde se
+contraoferta, se rechaza y, desde HU-19, se acepta, y porque su historial es un criterio de
+HU-18. Del lado del profesional la pantalla de detalle, el formulario y el hilo eran tres
+vistas de lo mismo, la solicitud que está negociando, y fundirlas es lo que hace el conductor
+en InDrive: oferta y espera en el mismo lugar. Se prefirió no poner contraoferta y rechazo
+sobre la tarjeta misma, que habría ahorrado una pantalla más, porque esconde el historial y
+duplica la lógica del hilo en dos modelos de vista. HT-24 va como historia técnica y no
+dentro de HU-18, como HT-23 en su momento, porque cambia un criterio de una historia
+cerrada, agrega una regla de negocio y retira pantallas: mezclarlo borraría la evidencia de
+qué se construyó en cada una.
+
+**Consecuencia.**
+
+- Se retiran `MakeOfferScreen`, `NegotiationScreen`, sus modelos de vista y sus rutas, el
+  destino `NotificationDestination.Negotiation`, el resaltado de la bandeja y
+  `InboxRoute.highlightRequestId`.
+- `my_request_offers` devuelve además la distancia y el presupuesto; `my_service_requests`,
+  el `professional_id` de una agendada; el aviso `OFFER_RECEIVED` lleva el `professionalId`.
+- `OfferError.MessageRequired` desaparece y nace `OfferError.BelowMinimum`.
+- HU-19 pone «Aceptar» en el hilo, y puede ponerlo también sobre la tarjeta de la espera.
+- **La señal de ofertas es un flujo compartido por tema.** La espera y el hilo que se abre
+  desde ella escuchan el mismo tema, y el cliente de Supabase les entrega el mismo canal: el
+  que se cerraba primero lo cortaba para el otro. La fuente de datos guarda un flujo por tema
+  en el alcance de la aplicación, que se suscribe con el primero que escucha y se va con el
+  último.
+- **La ruta dice de qué lado se negocia:** toda entrada del profesional llega sin
+  `professionalId` (la bandeja, el aviso de una solicitud y el de una contraoferta), y toda
+  entrada del paciente llega con el del profesional. Así la pantalla escucha por su lado desde
+  antes de leer nada.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
