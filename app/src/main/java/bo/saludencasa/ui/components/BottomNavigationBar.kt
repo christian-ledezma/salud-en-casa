@@ -167,7 +167,11 @@ private fun NavigationLabel(
     selected: Boolean,
 ) {
     val style = MaterialTheme.typography.labelSmall
-    val floor = with(LocalDensity.current) { style.fontSize.value.dp.toSp() }
+    val floor =
+        with(LocalDensity.current) {
+            style.fontSize.value.dp
+                .toSp()
+        }
     val color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
 
     BasicText(
