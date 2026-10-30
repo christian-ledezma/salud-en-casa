@@ -10,11 +10,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import bo.saludencasa.features.auth.presentation.AccountScreen
 import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
 import bo.saludencasa.features.availability.presentation.AvailabilityScreen
 import bo.saludencasa.features.catalog.presentation.MyServicesScreen
+import bo.saludencasa.features.home.presentation.HomeNavigation
+import bo.saludencasa.features.home.presentation.HomeShell
 import bo.saludencasa.features.location.presentation.AddressListScreen
 import bo.saludencasa.features.location.presentation.AddressScreen
 import bo.saludencasa.features.notifications.domain.model.PushPayload
@@ -65,7 +66,7 @@ fun SaludEnCasaNavHost(
                 playIntro = entry.toRoute<StartupRoute>().playIntro,
                 onSignIn = { navController.replaceCurrentWith(WelcomeRoute) },
                 onChooseRole = { navController.replaceCurrentWith(RoleSelectionRoute) },
-                onHome = { navController.replaceCurrentWith(AccountRoute) },
+                onHome = { navController.replaceCurrentWith(HomeRoute) },
             )
         }
 
@@ -79,22 +80,26 @@ fun SaludEnCasaNavHost(
 
         composable<RoleSelectionRoute> {
             RoleSelectionScreen(
-                onRoleAssigned = { navController.replaceCurrentWith(AccountRoute) },
+                onRoleAssigned = { navController.replaceCurrentWith(HomeRoute) },
             )
         }
 
-        composable<AccountRoute> {
-            AccountScreen(
+        composable<HomeRoute> {
+            HomeShell(
                 onSignedOut = { navController.replaceCurrentWith(WelcomeRoute) },
-                onOpenProfile = { navController.navigate(ProfileRoute) },
-                onOpenImmediateCare = { navController.navigate(ImmediateCareRoute) },
-                onOpenScheduling = { navController.navigate(ProfessionalSearchRoute) },
-                onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
-                onOpenInbox = { navController.navigate(InboxRoute) },
-                onOpenAvailability = { navController.navigate(AvailabilityRoute) },
-                onOpenAddress = { navController.navigate(AddressListRoute) },
-                onOpenVerification = { navController.navigate(VerificationRoute) },
-                onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
+                navigation =
+                    HomeNavigation(
+                        onOpenImmediateCare = { navController.navigate(ImmediateCareRoute) },
+                        onOpenScheduling = { navController.navigate(ProfessionalSearchRoute) },
+                        onOpenNegotiation = navController::openNegotiation,
+                        onOpenInboxRequest = { requestId -> navController.navigate(OfferThreadRoute(requestId)) },
+                        onOpenProfile = { navController.navigate(ProfileRoute) },
+                        onOpenMyServices = { navController.navigate(MyServicesRoute) },
+                        onOpenAvailability = { navController.navigate(AvailabilityRoute) },
+                        onOpenAddresses = { navController.navigate(AddressListRoute) },
+                        onOpenVerification = { navController.navigate(VerificationRoute) },
+                        onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
+                    ),
             )
         }
 
@@ -138,28 +143,7 @@ fun SaludEnCasaNavHost(
                 justCreated = entry.toRoute<MyRequestsRoute>().justCreated,
                 onBack = { navController.popBackStack() },
                 onCreateRequest = { navController.navigate(ImmediateCareRoute) },
-                // docs/decisions.md, 2026-10-27, HT-24: no list between the card
-                // and the negotiation.
-                onOpenRequest = { negotiation ->
-                    when (negotiation) {
-                        // Back to the wait already on the stack, if this list was
-                        // opened from it, instead of a second one on top.
-                        NegotiationEntry.ImmediateCare -> {
-                            navController.navigate(ImmediateCareRoute) {
-                                popUpTo<ImmediateCareRoute>()
-                                launchSingleTop = true
-                            }
-                        }
-
-                        is NegotiationEntry.Thread -> {
-                            navController.navigate(OfferThreadRoute(negotiation.requestId, negotiation.professionalId))
-                        }
-
-                        is NegotiationEntry.Attention -> {
-                            navController.navigate(AttentionRoute(negotiation.requestId))
-                        }
-                    }
-                },
+                onOpenRequest = navController::openNegotiation,
             )
         }
 
@@ -282,6 +266,29 @@ fun SaludEnCasaNavHost(
                 profileId = entry.toRoute<DocumentReviewRoute>().profileId,
                 onBack = { navController.popBackStack() },
             )
+        }
+    }
+}
+
+// docs/decisions.md, 2026-10-27, HT-24: no list between the card and the
+// negotiation. Shared by "Mis solicitudes" on its own and as a tab of the home screen.
+private fun NavHostController.openNegotiation(negotiation: NegotiationEntry) {
+    when (negotiation) {
+        // Back to the wait already on the stack, if the list was opened from it,
+        // instead of a second one on top.
+        NegotiationEntry.ImmediateCare -> {
+            navigate(ImmediateCareRoute) {
+                popUpTo<ImmediateCareRoute>()
+                launchSingleTop = true
+            }
+        }
+
+        is NegotiationEntry.Thread -> {
+            navigate(OfferThreadRoute(negotiation.requestId, negotiation.professionalId))
+        }
+
+        is NegotiationEntry.Attention -> {
+            navigate(AttentionRoute(negotiation.requestId))
         }
     }
 }

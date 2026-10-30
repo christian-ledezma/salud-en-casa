@@ -89,6 +89,13 @@ class AccountViewModel(
         signOutError.value = null
     }
 
+    // The home screen cannot choose its destinations without a role, so a read
+    // that failed has to be retried from it.
+    fun reloadRoles() {
+        roleSection.value = roleSection.value.copy(error = null)
+        loadRoles()
+    }
+
     fun switchTo(role: UserRole) {
         val current = roleSection.value
         if (current.busy || current.roles.active == role) return

@@ -13,12 +13,10 @@ internal fun UserRole.labelRes(): Int =
         UserRole.ADMIN -> R.string.profile_role_admin
     }
 
-// The segmented control holds two options across the width of a phone, and
-// docs/design-system.md section 5 warns that long labels clip there -- it is why
-// the professional type uses a radio group instead. "Profesional de salud" broke
-// out of its segment at 200 % font size on a device; these shorter labels are
-// unambiguous under the heading that already says "Estás usando la aplicación
-// como". ADMIN never reaches the control, but the when has to be exhaustive.
+// "Profesional de salud" broke out of the old segmented control at 200 % font
+// size on a device. The short labels stayed for the pill beside the greeting and
+// the account menu, which already says "Usar la aplicación como"
+// (docs/decisions.md, 2026-10-30, HT-25).
 @StringRes
 internal fun UserRole.shortLabelRes(): Int =
     when (this) {

@@ -8,7 +8,8 @@
     <string name="common_delete">Eliminar</string>
     <string name="common_nav_home">Inicio</string>
     <string name="common_nav_requests">Solicitudes</string>
-    <string name="common_nav_profile">Perfil</string>
+    <string name="common_nav_settings">Ajustes</string>
+    <string name="common_nav_account">Cuenta</string>
 
     <!-- Parts of the day, shared by the appointment carousel and the availability editor -->
     <string name="common_part_morning">Mañana</string>
@@ -29,18 +30,54 @@
     <string name="auth_welcome_terms">Términos y condiciones</string>
     <string name="auth_welcome_privacy">Política de privacidad</string>
 
-    <string name="auth_account_title">Mi cuenta</string>
     <string name="auth_account_email_unavailable">Tu cuenta de Google no entregó un correo electrónico.</string>
     <string name="auth_account_open_profile">Mi perfil</string>
-    <string name="auth_account_open_address">Mis direcciones</string>
-    <string name="auth_account_open_verification">Mi verificación</string>
     <string name="auth_account_role_short_patient">Paciente</string>
     <string name="auth_account_role_short_professional">Profesional</string>
-    <string name="auth_account_role_switch_label">Estás usando la aplicación como</string>
     <string name="auth_account_activate_patient">Activar mi perfil de paciente</string>
     <string name="auth_account_activate_professional">Activar mi perfil profesional</string>
     <string name="auth_account_sign_out">Cerrar sesión</string>
     <string name="auth_account_keep_session">Seguir con la sesión abierta</string>
+
+    <string name="cd_account_menu">Abrir el menú de tu cuenta</string>
+    <string name="home_greeting">Hola,</string>
+    <string name="home_greeting_alone">Hola</string>
+    <string name="home_what_do_you_need">¿Qué necesitas?</string>
+    <string name="home_immediate_care_title">Atención ahora</string>
+    <string name="home_immediate_care_body">Recibe ofertas de los profesionales que están cerca.</string>
+    <string name="home_schedule_title">Agendar cita</string>
+    <string name="home_schedule_body">Elige al profesional, el día y la hora.</string>
+    <string name="home_in_progress_title">En curso</string>
+    <string name="home_available_now">Disponible ahora</string>
+    <string name="home_available_now_on">Sí</string>
+    <string name="home_available_now_off">No</string>
+    <string name="home_verification_pending_title">Verificación pendiente</string>
+    <string name="home_verification_pending_body">Mientras no estés verificado no apareces en las búsquedas.</string>
+    <string name="home_nearby_requests_title">Solicitudes cerca de ti</string>
+    <string name="home_nearby_requests_empty_title">Ninguna por ahora</string>
+    <string name="home_nearby_requests_empty_body">Te avisamos en cuanto alguien pida atención cerca.</string>
+    <string name="home_nearby_requests_see_all">Ver todas</string>
+    <string name="home_nearby_request_place">%1$s · %2$s</string>
+    <string name="home_review_section_title">Documentos por revisar</string>
+    <string name="home_review_documents_title">Revisar documentos</string>
+    <string name="home_review_documents_body">Aprueba o rechaza lo que espera tu veredicto.</string>
+    <string name="home_menu_use_as">Usar la aplicación como</string>
+    <string name="home_menu_hint_patient">Pedir atención en tu domicilio</string>
+    <string name="home_menu_hint_professional">Atender solicitudes de tu zona</string>
+    <string name="home_settings_title">Configuración</string>
+    <string name="home_settings_verification">Mi verificación</string>
+    <string name="home_settings_verification_body">Tus documentos y su estado</string>
+    <string name="home_settings_verified">Verificado</string>
+    <string name="home_settings_pending">Pendiente</string>
+    <string name="home_settings_services">Mis servicios</string>
+    <string name="home_settings_services_body">Lo que atiendes y su precio</string>
+    <string name="home_settings_availability">Mi disponibilidad</string>
+    <string name="home_settings_availability_body">Las horas en que recibes citas</string>
+    <string name="home_settings_addresses">Mis direcciones</string>
+    <string name="home_settings_addresses_body_patient">Dónde recibes la atención</string>
+    <string name="home_settings_addresses_body_professional">Tu domicilio y tu base profesional</string>
+    <string name="home_account_profile_body_patient">Teléfono, contacto de emergencia y notas médicas</string>
+    <string name="home_account_profile_body_professional">Especialidad, tarifa base y biografía</string>
 
     <string name="profile_title">Mi perfil</string>
     <string name="profile_verified_badge">Verificado</string>
@@ -251,7 +288,6 @@
     <string name="cd_address_map">Mapa para marcar tu dirección</string>
     <string name="cd_address_marker">Marcador de tu dirección</string>
 
-    <string name="auth_account_open_document_review">Revisar documentos</string>
 
     <string name="review_queue_title">Documentos por revisar</string>
     <string name="review_queue_subtitle">Un usuario por tarjeta, con lo que falta hacer.</string>
@@ -389,13 +425,6 @@
     <string name="error_search_unreadable_result">Un resultado llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
     <string name="error_reviews_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_reviews_unreadable_result">Un comentario llegó incompleto. Actualiza la aplicación e inténtalo de nuevo.</string>
-    <string name="auth_account_open_my_requests">Mis solicitudes</string>
-    <string name="auth_account_immediate_care_title">Atención ahora</string>
-    <string name="auth_account_immediate_care_body">Pide atención a los profesionales disponibles cerca de ti.</string>
-    <string name="auth_account_schedule_title">Agendar una cita</string>
-    <string name="auth_account_schedule_body">Elige a un profesional, el día y la hora.</string>
-    <string name="auth_account_open_inbox">Solicitudes de mi zona</string>
-    <string name="auth_account_open_availability">Mi disponibilidad</string>
 
     <string name="request_create_service_type_label">Tipo de atención</string>
     <string name="request_create_address_label">¿Dónde te atendemos?</string>

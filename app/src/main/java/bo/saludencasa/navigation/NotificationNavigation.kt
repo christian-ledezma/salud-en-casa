@@ -32,8 +32,8 @@ internal fun NotificationTapEffect(
 
 // docs/decisions.md, 2026-10-16, "el teléfono se identifica por su instalación", 8.
 private fun NavHostController.openFromNotification(destination: NotificationDestination) {
-    navigate(AccountRoute) {
-        popUpTo<AccountRoute> { inclusive = true }
+    navigate(HomeRoute) {
+        popUpTo<HomeRoute> { inclusive = true }
     }
     navigate(
         when (destination) {

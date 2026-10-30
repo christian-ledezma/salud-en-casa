@@ -18,6 +18,7 @@ import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.AddRoleResult
 import bo.saludencasa.features.profile.domain.model.AssignableRole
 import bo.saludencasa.features.profile.domain.model.ProfileError
+import bo.saludencasa.features.profile.domain.model.RoleResult
 import bo.saludencasa.features.profile.domain.model.SwitchRoleResult
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.domain.usecase.AddRoleUseCase
@@ -58,10 +59,9 @@ class AccountViewModelTest {
 
     // Fixes the contract the «Reintentar» button of the failure state leans on:
     // asking again after a failure has to reach the repository a second time and
-    // clear the failure only when it succeeds. This does not catch the wiring of
-    // the button itself, which is what the review of pull request #2 found
-    // broken; only a Compose test over AccountContent would. Noted as debt in
-    // plan.md, HU-01.
+    // clear the failure only when it succeeds. The wiring of the button itself,
+    // which the review of pull request #2 found broken, is
+    // HomeShellLargeFontTest.retryingAFailedSignOutAsksForItAgain.
     @Test
     fun `retrying after a failed sign out runs the sign out again`() =
         runTest {
@@ -241,6 +241,29 @@ class AccountViewModelTest {
                 val content = expectMostRecentItem() as AccountUiState.Content
                 assertEquals(setOf(UserRole.PATIENT), content.roleSection.roles.held)
                 assertEquals(ProfileError.NetworkUnavailable, content.roleSection.error)
+            }
+        }
+
+    // Without a role the home screen has no destinations to draw, so a read that
+    // failed has to be recoverable from it instead of leaving a spinner forever.
+    @Test
+    fun aRoleReadThatFailedCanBeRetried() =
+        runTest {
+            val profiles = FakeProfileRepository(roleResult = RoleResult.Failure(ProfileError.NetworkUnavailable))
+            val viewModel = viewModel(signedInRepository(SignOutResult.Success), profiles)
+
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                val failed = expectMostRecentItem() as AccountUiState.Content
+                assertEquals(ProfileError.NetworkUnavailable, failed.roleSection.error)
+
+                profiles.roleResult = loadedRoles()
+                viewModel.reloadRoles()
+                advanceUntilIdle()
+
+                val content = expectMostRecentItem() as AccountUiState.Content
+                assertEquals(UserRole.PATIENT, content.roleSection.roles.active)
+                assertNull(content.roleSection.error)
             }
         }
 

@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
@@ -47,16 +48,23 @@ import org.koin.androidx.compose.koinViewModel
 import java.math.BigDecimal
 import java.time.Instant
 
+// onBack is null when the list is a tab of the home screen, which shows the
+// title itself (docs/decisions.md, 2026-10-30, HT-25).
 @Composable
 fun MyRequestsScreen(
     justCreated: Boolean,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onCreateRequest: () -> Unit,
     onOpenRequest: (NegotiationEntry) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyRequestsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refresh()
+        onPauseOrDispose {}
+    }
 
     MyRequestsContent(
         uiState = uiState,
@@ -88,7 +96,7 @@ internal data class MyRequestsActions(
 @Composable
 internal fun MyRequestsContent(
     uiState: MyRequestsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     actions: MyRequestsActions,
     modifier: Modifier = Modifier,
     permissionPrompt: @Composable () -> Unit = {},
@@ -96,7 +104,7 @@ internal fun MyRequestsContent(
     val loadingDescription = stringResource(R.string.cd_loading)
     val header: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale16)) {
-            ScreenHeader(title = stringResource(R.string.request_list_title), onBack = onBack)
+            onBack?.let { ScreenHeader(title = stringResource(R.string.request_list_title), onBack = it) }
             permissionPrompt()
         }
     }

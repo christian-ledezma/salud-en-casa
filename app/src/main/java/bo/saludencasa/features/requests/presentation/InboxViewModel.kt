@@ -61,8 +61,9 @@ class InboxViewModel(
 
     // A signal-driven refresh never flashes the loading spinner or blanks the
     // screen: a dropped background refetch leaves the current list in place, and
-    // the next signal or a manual retry recovers it.
-    private fun refresh() {
+    // the next signal or a manual retry recovers it. The screen also calls it on
+    // every resume, now that the inbox is a tab of the home screen.
+    fun refresh() {
         viewModelScope.launch {
             val result = getInbox(offset = 0)
             if (result is InboxPageResult.Loaded) {

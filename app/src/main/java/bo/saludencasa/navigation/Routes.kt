@@ -16,8 +16,9 @@ data object RoleSelectionRoute
 @Serializable
 data object ProfileRoute
 
+// The home screen with its navigation bar (docs/decisions.md, 2026-10-30, HT-25).
 @Serializable
-data object AccountRoute
+data object HomeRoute
 
 @Serializable
 data class PublicProfileRoute(

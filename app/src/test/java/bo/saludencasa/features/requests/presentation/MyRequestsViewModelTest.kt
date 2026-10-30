@@ -107,4 +107,38 @@ class MyRequestsViewModelTest {
             assertEquals(GetMyRequestsUseCase.PAGE_SIZE + 1, content.requests.size)
             assertTrue(content.endReached)
         }
+
+    // A tab of the home screen lives as long as the shell, so the list is read
+    // again on every resume and has to show what was published since.
+    @Test
+    fun aRefreshShowsARequestPublishedSinceTheListWasRead() =
+        runTest {
+            repository.requestsResult = MyRequestsResult.Loaded(listOf(serviceRequest(id = "r1")))
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            repository.requestsResult =
+                MyRequestsResult.Loaded(listOf(serviceRequest(id = "r2"), serviceRequest(id = "r1")))
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            val content = viewModel.uiState.value as MyRequestsUiState.Content
+            assertEquals(listOf("r2", "r1"), content.requests.map { it.id })
+        }
+
+    // The inbox rule: a background read that fails never blanks the list.
+    @Test
+    fun aRefreshThatFailsKeepsTheListOnScreen() =
+        runTest {
+            repository.requestsResult = MyRequestsResult.Loaded(listOf(serviceRequest(id = "r1")))
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            repository.requestsResult = MyRequestsResult.Failure(RequestError.NetworkUnavailable)
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            val content = viewModel.uiState.value as MyRequestsUiState.Content
+            assertEquals(listOf("r1"), content.requests.map { it.id })
+        }
 }

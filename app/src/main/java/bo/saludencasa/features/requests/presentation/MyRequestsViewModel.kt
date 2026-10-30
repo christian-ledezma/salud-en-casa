@@ -129,4 +129,32 @@ class MyRequestsViewModel(
     fun onRetry() {
         load()
     }
+
+    // On every resume, now that the list is a tab of the home screen and lives as
+    // long as it does. Like the inbox, a refresh never blanks the screen: a read
+    // that fails leaves the list in place, and so does one that lands mid-cancel.
+    fun refresh() {
+        val current = state.value
+        if (current is MyRequestsUiState.Loading) return
+        if (current is MyRequestsUiState.Content && current.cancellingId != null) return
+
+        viewModelScope.launch {
+            val result = getMyRequests(offset = 0)
+            if (result !is MyRequestsPageResult.Loaded) return@launch
+            if ((state.value as? MyRequestsUiState.Content)?.cancellingId != null) return@launch
+            loadMoreJob?.cancel()
+            state.value =
+                if (result.requests.isEmpty()) {
+                    MyRequestsUiState.Empty
+                } else {
+                    MyRequestsUiState.Content(
+                        requests = result.requests,
+                        loadingMore = false,
+                        endReached = result.endReached,
+                        notice = null,
+                        cancellingId = null,
+                    )
+                }
+        }
+    }
 }

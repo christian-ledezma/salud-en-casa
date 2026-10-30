@@ -66,7 +66,7 @@ class ScreenCatalog(
                 "bo.saludencasa.features.auth.presentation.StartupScreenKt",
                 "bo.saludencasa.features.auth.presentation.WelcomeScreenKt",
                 "bo.saludencasa.features.profile.presentation.RoleSelectionScreenKt",
-                "bo.saludencasa.features.auth.presentation.AccountScreenKt",
+                "bo.saludencasa.features.home.presentation.HomeShellKt",
                 "bo.saludencasa.features.profile.presentation.ProfileScreenKt",
                 "bo.saludencasa.features.profile.presentation.PublicProfileScreenKt",
                 "bo.saludencasa.features.location.presentation.AddressListScreenKt",

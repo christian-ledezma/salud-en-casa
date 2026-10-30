@@ -34,6 +34,14 @@ object Spacing {
     // docs/design-system.md, section 5, the date and time carousel.
     val dayCardMinWidth: Dp = 64.dp
 
+    // docs/design-system.md, section 5, the navigation bar: the stroke above the
+    // selected destination, a thickness like borderWidth and not a spacing.
+    val navIndicatorThickness: Dp = 3.dp
+
+    // The wordmark in the home header. A logotype does not grow with the font
+    // scale, and at this height it leaves room for the avatar on a 320 dp phone.
+    val headerWordmarkHeight: Dp = 18.dp
+
     val scale4: Dp = 4.dp
     val scale8: Dp = 8.dp
     val scale12: Dp = 12.dp

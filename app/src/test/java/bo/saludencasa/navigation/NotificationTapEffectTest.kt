@@ -46,7 +46,7 @@ class NotificationTapEffectTest {
             )
             NavHost(navController = navController, startDestination = StartupRoute()) {
                 composable<StartupRoute> { Text("startup") }
-                composable<AccountRoute> { Text("account") }
+                composable<HomeRoute> { Text("account") }
                 composable<InboxRoute> { Text("inbox") }
                 composable<MyRequestsRoute> { Text("requests") }
                 composable<OfferThreadRoute> { Text("thread") }
@@ -57,7 +57,7 @@ class NotificationTapEffectTest {
 
     private fun finishStartup() {
         composeRule.runOnIdle {
-            navController.navigate(AccountRoute) { popUpTo<StartupRoute> { inclusive = true } }
+            navController.navigate(HomeRoute) { popUpTo<StartupRoute> { inclusive = true } }
         }
         composeRule.waitForIdle()
     }
@@ -80,7 +80,7 @@ class NotificationTapEffectTest {
         val route = navController.currentBackStackEntry!!.toRoute<OfferThreadRoute>()
         assertEquals(REQUEST_ID, route.requestId)
         assertNull(route.professionalId)
-        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<AccountRoute>())
+        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<HomeRoute>())
     }
 
     // Recomposition must not open the inbox a second time, nor ask the server
@@ -96,7 +96,7 @@ class NotificationTapEffectTest {
 
         assertEquals(1, resolves)
         assertNull(pending)
-        assertTrue(navController.currentDestination!!.hasRoute<AccountRoute>())
+        assertTrue(navController.currentDestination!!.hasRoute<HomeRoute>())
     }
 
     // HU-18: a counter-offer opens the thread it answers, with the account
@@ -110,7 +110,7 @@ class NotificationTapEffectTest {
         val route = navController.currentBackStackEntry!!.toRoute<OfferThreadRoute>()
         assertEquals(REQUEST_ID, route.requestId)
         assertEquals("professional-1", route.professionalId)
-        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<AccountRoute>())
+        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<HomeRoute>())
     }
 
     // HU-19: an accepted offer opens the attention of its request, with the
@@ -123,7 +123,7 @@ class NotificationTapEffectTest {
 
         val route = navController.currentBackStackEntry!!.toRoute<AttentionRoute>()
         assertEquals(REQUEST_ID, route.requestId)
-        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<AccountRoute>())
+        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<HomeRoute>())
     }
 
     // Signed out, or meant for another account: the tap is spent and the
@@ -135,6 +135,6 @@ class NotificationTapEffectTest {
         finishStartup()
 
         assertNull(pending)
-        assertTrue(navController.currentDestination!!.hasRoute<AccountRoute>())
+        assertTrue(navController.currentDestination!!.hasRoute<HomeRoute>())
     }
 }

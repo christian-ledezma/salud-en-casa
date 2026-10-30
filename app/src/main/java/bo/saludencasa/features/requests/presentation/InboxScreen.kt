@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
@@ -44,14 +45,21 @@ import org.koin.androidx.compose.koinViewModel
 import java.math.BigDecimal
 import java.time.Instant
 
+// onBack is null when the inbox is a tab of the home screen, which shows the
+// title itself (docs/decisions.md, 2026-10-30, HT-25).
 @Composable
 fun InboxScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpenRequest: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: InboxViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LifecycleResumeEffect(viewModel) {
+        viewModel.refresh()
+        onPauseOrDispose {}
+    }
 
     InboxContent(
         uiState = uiState,
@@ -80,7 +88,7 @@ internal data class InboxActions(
 @Composable
 internal fun InboxContent(
     uiState: InboxUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     actions: InboxActions,
     modifier: Modifier = Modifier,
     permissionPrompt: @Composable () -> Unit = {},
@@ -162,11 +170,11 @@ internal fun InboxContent(
 
 @Composable
 private fun InboxHeader(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     permissionPrompt: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale16)) {
-        ScreenHeader(title = stringResource(R.string.request_inbox_title), onBack = onBack)
+        onBack?.let { ScreenHeader(title = stringResource(R.string.request_inbox_title), onBack = it) }
         permissionPrompt()
     }
 }
