@@ -197,7 +197,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` |
-| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 26 | `[ ]` |
+| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 34 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` |
@@ -6901,9 +6901,98 @@ realizado y la atención se completa.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 26. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
+**Puntos:** 34. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
 como FA-11. Va al final del sprint: es la de menor prioridad y la primera que se
-traslada si el corte muerde.
+traslada si el corte muerde. El 2026-10-30 se sumó HT-25, con 8 puntos, que va
+primero porque cambia la pantalla desde la que se llega a todo lo demás.
+
+### HT-25 · La pantalla de inicio y la barra de navegación `[ ]` — 8 puntos
+
+> Como **paciente y como profesional**, quiero **una pantalla de inicio con la barra
+> de navegación de una aplicación móvil**, para **llegar a lo que uso sin recorrer una
+> lista de botones iguales**.
+
+**Origen.** `AccountScreen` apilaba ocho botones del mismo peso y el rol activo decidía
+cuáles. El autor pidió el 2026-10-29 una barra inferior y una pantalla de inicio con la
+marca, y la diseñó con el agente en cinco vueltas de prototipo, la última aprobada el
+2026-10-30. `FloatingNavigationBar`, del Sprint 0, existía sin que ninguna pantalla la
+usara. El razonamiento y las decisiones están en `docs/decisions.md`, 2026-10-30, HT-25.
+
+**Dónde queda cada cosa.** Ninguna pantalla que `AccountScreen` alcanzaba se queda sin
+entrada, y dos ganan una.
+
+| Hoy en `AccountScreen` | Dónde queda | Ruta |
+|---|---|---|
+| Atención ahora | Inicio del paciente, primera acción | `ImmediateCareRoute` |
+| Agendar una cita | Inicio del paciente, segunda acción | `ProfessionalSearchRoute` |
+| Mis solicitudes | Destino «Solicitudes» del paciente | `MyRequestsRoute`, como pestaña |
+| Solicitudes de mi zona | Destino «Solicitudes» del profesional, y las tres primeras en su Inicio | `InboxRoute`, como pestaña |
+| Mi disponibilidad | Ajustes del profesional, y el interruptor «Disponible ahora» en su Inicio | `AvailabilityRoute` |
+| Mi verificación | Ajustes, con su estado para el profesional, y una fila en su Inicio mientras falte | `VerificationRoute` |
+| Mis direcciones | Ajustes | `AddressListRoute` |
+| Mi perfil | Cuenta | `ProfileRoute` |
+| Revisar documentos | Inicio del administrador, sin barra | `DocumentReviewQueueRoute` |
+| Cambiar de rol | Menú de las iniciales, desde los cuatro destinos | — |
+| Activar el otro rol | Cuenta | — |
+| Cerrar sesión | Menú de las iniciales y pie de Cuenta | — |
+| Mis servicios, **gana entrada** | Ajustes del profesional; antes solo desde «Mi perfil» | `MyServicesRoute` |
+
+**Criterios de aceptación**
+
+- [ ] Dado que ingreso con cualquier rol que no sea administrador, cuando se abre la
+      aplicación, entonces veo Inicio con la marca arriba y una barra con Inicio,
+      Ajustes, Solicitudes y Cuenta.
+- [ ] Dado que estoy en cualquier destino, cuando toco mis iniciales, entonces se abre un
+      menú con mi nombre, los roles a los que puedo cambiar y «Cerrar sesión».
+- [ ] Dado que tengo un solo rol, cuando abro el menú, entonces no se me ofrece cambiar de
+      rol, y Cuenta me ofrece activar el otro.
+- [ ] Dado que soy paciente, cuando abro Inicio, entonces encuentro primero «Atención
+      ahora» y «Agendar cita», y debajo mi solicitud inmediata en curso si la tengo.
+- [ ] Dado que soy profesional, cuando abro Inicio, entonces puedo cambiar «Disponible
+      ahora», veo las primeras solicitudes de mi zona y, si no estoy verificado, por qué
+      no aparezco en las búsquedas.
+- [ ] Dado que vuelvo a Inicio o a Solicitudes desde otra pantalla, cuando la pantalla se
+      reanuda, entonces muestra lo que cambió mientras no estaba.
+- [ ] Dado que soy administrador, cuando abro la aplicación, entonces llego a la revisión
+      de documentos sin barra de navegación.
+- [ ] Al 200 % de fuente y a 320 dp, cada control se alcanza, se muestra y no se sale de
+      los bordes, y el rótulo «Solicitudes» de la barra no termina en puntos suspensivos.
+
+**Requisitos:** RF-01.8, RF-02.5, RF-07.4, RNF-07, RNF-08.
+
+**Tareas**
+
+- [x] `HomeShell`, con la cabecera, el menú de las iniciales, el cuerpo por destino y la
+      barra; `HomeRoute` reemplaza a `AccountRoute`.
+- [x] `BottomNavigationBar` en `ui/components`, y el retiro de `FloatingNavigationBar`.
+- [x] Inicio, Ajustes y Cuenta en `features/home/presentation`, con
+      `PatientHomeViewModel` y `ProfessionalHomeViewModel`; el retiro de `AccountScreen`.
+- [x] `FloatingCircles` y `StaggeredEntrance` en `ui/animations`.
+- [x] «Mis solicitudes» y la bandeja como pestañas: cabecera opcional y lectura al
+      reanudarse. `AccountViewModel.reloadRoles`.
+- [x] Cadenas en `values/` y `values-es/`; las trece que quedaron sin uso, retiradas.
+- [x] Pruebas: `HomeShellLargeFontTest` (doce), `ProfessionalHomeViewModelTest`,
+      `PatientHomeViewModelTest`, y las nuevas de `MyRequestsViewModelTest` y
+      `AccountViewModelTest`. `AccountScreenLargeFontTest` se retira con su pantalla.
+- [ ] `./gradlew build` en verde. **No se pudo correr al escribir la historia**: el entorno
+      del agente no tenía el SDK de Android, porque su red no alcanza `dl.google.com`.
+- [ ] Mirar las previsualizaciones de `HomeShell.kt` en claro, oscuro y al 200 %, o
+      generarlas con `ScreenCatalog`.
+- [ ] Recorrido del autor en emulador con los dos roles y el de administrador.
+
+**Pruebas obligatorias**
+
+- Prueba de interfaz al 200 % y 320 dp para la pantalla nueva:
+  `HomeShellLargeFontTest`. El rótulo largo de la barra se prueba leyendo su
+  `TextLayoutResult`, que es la única forma de ver un recorte dentro de su propio
+  contenedor sin mirar.
+- `switchFailureKeepsThePreviousActiveRole` y
+  `theSwitchIsHiddenForSomeoneWithASingleRole` siguen valiendo: el modelo de vista del
+  cambio de rol es el mismo; la segunda tiene ahora su par de interfaz,
+  `someoneWithOneRoleIsNotOfferedASwitch`.
+
+**Deuda que salda.** La de HU-01: el botón «Reintentar» del cierre de sesión fallido no
+tenía prueba de interfaz. La tiene, `retryingAFailedSignOutAsksForItAgain`.
 
 ### HU-21 · Conversar sobre la atención `[ ]` — 10 puntos
 

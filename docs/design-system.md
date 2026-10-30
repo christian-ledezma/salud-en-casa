@@ -195,7 +195,7 @@ texto debe fluir, nunca recortarse.
 | Chip y píldora | Completo | 0 dp |
 | Campo de formulario | 12 dp | 0 dp |
 | Hoja inferior | 28 dp arriba | 3 dp |
-| Barra de navegación flotante | Completo | 3 dp |
+| Barra de navegación | 16 dp el destino activo | 0 dp, divisor arriba |
 | Avatar | Circular | 0 dp |
 
 El borde, el relleno, el radio y la sombra indican «objeto separado». Se gastan
@@ -229,15 +229,53 @@ nunca con márgenes individuales que se dupliquen o se colapsen.
 
 ## 5. Componentes derivados de la referencia
 
-### Barra de navegación flotante
+### Barra de navegación
 
-Píldora flotante sobre el contenido, con separación de 16 dp respecto del borde
-inferior. El destino activo se marca con un círculo relleno en `surface` sobre el
-fondo primario, con el icono en `primary`. Los inactivos van en `onPrimary` con
-opacidad reducida.
+`BottomNavigationBar` (`ui/components/`). Reemplazó el 2026-10-30 a la píldora flotante
+de tres destinos solo con iconos que se especificaba aquí, y que nunca llegó a usarse.
+Ver `docs/decisions.md`, 2026-10-30, HT-25.
 
-Adaptada al producto: **tres destinos**, no cuatro. Inicio, Solicitudes, Perfil.
-La referencia incluye un destino de llamadas que este producto no tiene.
+- **Anclada al pie**, sobre `surface`, con un divisor `outlineVariant` arriba: la misma
+  forma que `BottomActionBar`.
+- **Cuatro destinos, con rótulo:** Inicio, Ajustes, Solicitudes y Cuenta, iguales para
+  paciente y profesional. El administrador no lleva barra.
+- **El destino activo** tiene el fondo en `primary` al 12 % con forma `shapes.medium`,
+  una barra de 3 dp en `primary` sobre el icono que crece de 0 a 32 dp, y el icono en
+  `primary`, relleno y un 12 % más grande. Los inactivos van en contorno y en
+  `onSurfaceVariant`.
+- **El movimiento** es un resorte que pasa de largo y vuelve, y queda quieto con «quitar
+  animaciones».
+- **El rótulo** va en `labelSmall`, en una línea, y se achica hasta caber en su columna,
+  nunca por debajo del tamaño que tiene al 100 %.
+
+### Pantalla de inicio
+
+`HomeShell` (`features/home/presentation/`), la pantalla que se abre después del
+ingreso.
+
+- **Cabecera** sobre el fondo de la aplicación. En Inicio, el logo y el nombre dibujado
+  a 18 dp de alto; en los otros destinos, el título de la pantalla en `headlineSmall` en
+  el mismo lugar. A la derecha, las iniciales en un círculo de 48 dp en
+  `primaryContainer`, que abren el menú de la cuenta: nombre y correo, los roles a los
+  que se puede cambiar con la marca en el activo, y «Cerrar sesión» en `error`.
+- **Saludo.** «Hola,» en `bodyLarge` sobre `onSurfaceVariant`, con el rol activo en una
+  píldora `secondaryContainer` en la misma línea, bajo las iniciales; debajo, el nombre
+  en `headlineSmall`.
+- **Acciones del paciente.** Dos filas de ancho completo con forma `shapes.large`: un
+  cuadrado de 48 dp con el icono, el título en `titleMedium`, una línea en `labelMedium`
+  y el chevrón. «Atención ahora» va rellena en `primary`, con el radar dentro del
+  cuadrado; «Agendar cita», en `surface`.
+- **Filas.** El resto de la pantalla son filas agrupadas en una superficie con forma
+  `shapes.large` y divisores: un cuadrado de 40 dp en el contenedor de su tono, el
+  título en `labelLarge` hasta dos líneas y sus detalles en `labelSmall`. El tono
+  pendiente usa `surfaceVariant` con el ámbar de estado; el peligroso, `errorContainer`.
+- **«Disponible ahora»** es una fila de 48 dp sobre `surface` con el punto en `primary`
+  y un halo del mismo color, el estado en palabras y el interruptor. **No va en el verde
+  de estado**, que es de lo aprobado.
+- **Fondo de Inicio.** Dos círculos rellenos, en `primary` y en el verde del corazón de
+  la marca, y un anillo en `primary`, al 10–18 % de opacidad, que derivan con periodos de
+  6,2, 8,4 y 10,6 s. Solo en Inicio.
+- **Entrada.** Cada bloque sube 16 dp y aparece en 450 ms, 60 ms después del de arriba.
 
 ### Chip de especialidad
 

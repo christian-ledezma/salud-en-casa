@@ -5915,6 +5915,85 @@ componentes.
 
 ---
 
+## 2026-10-30 · HT-25: una pantalla de inicio con barra de navegación, los mismos cuatro destinos para los dos roles
+
+**Contexto.** `AccountScreen` era la pantalla de después del ingreso y apilaba hasta ocho
+botones del mismo peso; el rol activo decidía cuáles. El autor pidió una barra inferior
+típica de aplicación móvil y una pantalla de inicio con la marca, y el diseño se cerró con
+él en cinco vueltas de prototipo entre el 2026-10-29 y el 2026-10-30. `docs/design-system.md`
+especificaba una píldora flotante de tres destinos solo con iconos, y
+`FloatingNavigationBar` la implementaba desde el Sprint 0 sin que ninguna pantalla la
+usara.
+
+**Decisión.** Un shell, `HomeShell` en `HomeRoute`, con cabecera, cuerpo por destino y una
+barra anclada con rótulos: **Inicio, Ajustes, Solicitudes y Cuenta**, iguales para paciente
+y profesional. El administrador no lleva barra.
+
+**Razonamiento.**
+
+1. **La barra vive en el shell, no en una pantalla.** Una barra dibujada solo en Inicio
+   desaparece en cuanto se usa. Las pantallas de detalle —la ficha, el hilo, agendar,
+   una dirección— se abren encima a pantalla completa y la tapan, como antes.
+2. **Anclada y con rótulos, no flotante con iconos.** Parte de los usuarios son adultos
+   mayores, y un icono sin rótulo hay que aprenderlo. La flotante, además, tapa la última
+   fila de una lista si no se le reserva el espacio.
+3. **Los mismos cuatro destinos para los dos roles.** Los eligió el autor. Lo que cambia
+   con el rol es el contenido de cada uno, no la barra, así que cambiar de rol no mueve
+   los destinos de lugar. Se descartó «Buscar» como destino del paciente: abría la misma
+   ruta que «Agendar cita», `ProfessionalSearchRoute`, y era el mismo botón dos veces.
+4. **Ajustes reúne lo que se configura una vez y se vuelve a cambiar**: la verificación,
+   los servicios, la disponibilidad y las direcciones. **Cuenta**, la identidad y la
+   sesión. «Mis servicios» gana una entrada propia; antes solo se llegaba desde «Mi
+   perfil». Las pantallas legales no van, porque no tienen destino todavía (2026-10-14).
+5. **El administrador, sin barra.** Tiene un destino real, la cola de revisión; Material
+   pide de tres a cinco.
+6. **El cambio de rol y el cierre de sesión, en un menú sobre las iniciales.** Se alcanza
+   desde los cuatro destinos, y no gasta alto en el cuerpo, que al 200 % es lo escaso. El
+   rol queda a la vista como una píldora en la línea del saludo, bajo las iniciales,
+   porque decide qué contiene cada destino. «Cerrar sesión» queda además al pie de Cuenta,
+   que es donde se la busca.
+7. **«Solicitudes» y no «Pedidos», con el rótulo que se achica para caber.** El autor
+   eligió la palabra. Once caracteres no caben en una columna de unos 75 dp al 200 %, y
+   el recorte dentro del propio contenedor es la forma de defecto que ninguna prueba de
+   límites ve (2026-10-08). El rótulo usa `TextAutoSize` y se achica hasta caber, **nunca
+   por debajo del tamaño que tiene al 100 %**: así no contradice la regla de responder al
+   tamaño de fuente del sistema, solo deja de crecer donde no hay ancho. La prueba lo lee
+   en su `TextLayoutResult`.
+8. **Texto un escalón más chico en las filas, y los nombres largos en dos líneas.** Lo
+   pidió el autor para prevenir desbordes. Los títulos de fila usan `labelLarge` y sus
+   detalles `labelSmall`; el nombre de un tipo de servicio envuelve una vez y termina en
+   puntos suspensivos, de modo que una fila nunca empuja al resto fuera de la pantalla. Al
+   150 % o más el monto baja debajo del título, la regla de la ficha del profesional.
+9. **«Disponible ahora», discreto y en el teal del tema.** El autor observó que el verde
+   no armonizaba. El verde de estado queda para lo aprobado y lo completado; un
+   interruptor de presencia no es una aprobación. Es una fila de 48 dp sobre `surface`.
+10. **El movimiento del referente del autor, con variantes propias.** El autor pidió
+    animaciones al estilo de otra aplicación suya: círculos decorativos que flotan,
+    entrada en cascada y un indicador que se estira con rebote. Las variantes: un anillo
+    entre los círculos, que además respira; tres periodos que no comparten pulso; y el
+    icono del destino que pasa de contorno a relleno. Todo queda quieto con «quitar
+    animaciones». Los círculos son solo de Inicio.
+11. **Las listas que pasan a ser pestañas se leen al reanudarse.** Antes «Mis solicitudes»
+    y la bandeja se creaban cada vez que se abrían; como pestañas viven lo que vive el
+    shell. Se leen otra vez en cada reanudación, sin borrar la lista si la lectura falla,
+    la regla que la bandeja ya seguía con sus señales. Inicio hace lo mismo.
+12. **Un atajo que falla se oculta.** «En curso» del paciente es un atajo a lo que
+    «Solicitudes» siempre alcanza. Si su lectura falla, conserva lo que mostraba o no se
+    dibuja, en vez de poner un error en la pantalla de inicio.
+13. **Sin contadores en la barra.** No hay de dónde sacar el número sin una consulta nueva
+    en el shell; queda como trabajo futuro.
+
+**Consecuencia.** `AccountRoute`, `AccountScreen` y `FloatingNavigationBar` desaparecen;
+`AccountViewModel` queda como el modelo de vista del shell y gana `reloadRoles`, porque
+sin rol no hay barra que dibujar. `InboxScreen` y `MyRequestsScreen` aceptan `onBack` nulo
+para ir dentro del shell sin cabecera propia, y siguen existiendo como rutas sueltas para
+los avisos y los flujos que ya las abrían. La cabecera va sobre el fondo de la aplicación
+y no sobre `surface`: `MainActivity` aplica el margen de las barras del sistema por fuera
+de la navegación, y una cabecera blanca dejaría una franja del otro color bajo la barra de
+estado. La sección 5 de `docs/design-system.md` se reescribe.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

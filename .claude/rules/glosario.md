@@ -100,6 +100,15 @@ que lo introduce.
 | Carrusel de días | `DayCarousel` | Fila de tarjetas de día que se detiene en cada una al deslizar; reemplazó a `DatePickerRow` |
 | Fila de horas | `TimeChipRow` | Fila de píldoras de hora, agrupadas por parte del día, que se detiene en cada una al deslizar. La comparten la pantalla de agendar y el editor de franjas |
 | Barra de acción al pie | `BottomActionBar` | El botón principal fijo al pie, fuera del contenido que se desplaza |
+| Pantalla de inicio | `HomeShell` / `HomeRoute` | La pantalla de después del ingreso: cabecera, cuerpo por destino y barra. Reemplazó a `AccountScreen` y `AccountRoute` en HT-25 |
+| Destino de la barra | `HomeTab` | `HOME`, `SETTINGS`, `REQUESTS`, `ACCOUNT`: Inicio, Ajustes, Solicitudes y Cuenta, los mismos para los dos roles. El administrador no tiene |
+| Barra de navegación | `BottomNavigationBar` | La barra anclada al pie con los destinos y sus rótulos. Reemplazó a `FloatingNavigationBar`, que nunca se usó |
+| Menú de la cuenta | `AccountMenu` | El menú de las iniciales en la cabecera: la persona, el cambio de rol y «Cerrar sesión» |
+| Ajustes | `SettingsContent` | Lo que se configura una vez y se vuelve a cambiar: verificación, servicios, disponibilidad y direcciones. Su pantalla se titula «Configuración» |
+| Solicitudes cerca de ti | `NearbyRequests` | Las primeras tres de la bandeja en el Inicio del profesional, con «Ver todas» hacia el destino |
+| En curso | `PatientHomeUiState.InProgress` | La solicitud inmediata activa del paciente en su Inicio. Un atajo: si su lectura falla, no se dibuja |
+| Círculos del fondo | `FloatingCircles` | Los dos círculos y el anillo que derivan detrás de Inicio |
+| Entrada en cascada | `StaggeredEntrance` | Cada bloque de Inicio sube a su lugar un paso después del de arriba |
 | Aviso de la bandeja | `inboxSignals` / `notify_immediate_inbox` | El Broadcast sin datos que dispara un trigger al tema `immediate_inbox` para que el cliente re-consulte. No transporta la fila |
 | Notificación push | `PushPayload` / `features/notifications/` | Lo que llega al teléfono: el evento, a quién y lo necesario para abrirlo. Nunca texto escrito por un usuario (RF-09.10). El texto lo compone el teléfono |
 | Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`, `OFFER_RECEIVED`, `COUNTER_OFFER_RECEIVED`, `OFFER_ACCEPTED`. Los mismos nombres en SQL y en Kotlin; `NotificationEventParityTest` lo vigila, y solo mira la última migración que define `request_push_body`, así que esa función se reescribe entera cada vez |
