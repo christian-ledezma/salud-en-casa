@@ -6906,7 +6906,7 @@ como FA-11. Va al final del sprint: es la de menor prioridad y la primera que se
 traslada si el corte muerde. El 2026-10-30 se sumó HT-25, con 8 puntos, que va
 primero porque cambia la pantalla desde la que se llega a todo lo demás.
 
-### HT-25 · La pantalla de inicio y la barra de navegación `[ ]` — 8 puntos
+### HT-25 · La pantalla de inicio y la barra de navegación `[x]` — 8 puntos
 
 > Como **paciente y como profesional**, quiero **una pantalla de inicio con la barra
 > de navegación de una aplicación móvil**, para **llegar a lo que uso sin recorrer una
@@ -6939,23 +6939,23 @@ entrada, y dos ganan una.
 
 **Criterios de aceptación**
 
-- [ ] Dado que ingreso con cualquier rol que no sea administrador, cuando se abre la
+- [x] Dado que ingreso con cualquier rol que no sea administrador, cuando se abre la
       aplicación, entonces veo Inicio con la marca arriba y una barra con Inicio,
       Ajustes, Solicitudes y Cuenta.
-- [ ] Dado que estoy en cualquier destino, cuando toco mis iniciales, entonces se abre un
+- [x] Dado que estoy en cualquier destino, cuando toco mis iniciales, entonces se abre un
       menú con mi nombre, los roles a los que puedo cambiar y «Cerrar sesión».
-- [ ] Dado que tengo un solo rol, cuando abro el menú, entonces no se me ofrece cambiar de
+- [x] Dado que tengo un solo rol, cuando abro el menú, entonces no se me ofrece cambiar de
       rol, y Cuenta me ofrece activar el otro.
-- [ ] Dado que soy paciente, cuando abro Inicio, entonces encuentro primero «Atención
+- [x] Dado que soy paciente, cuando abro Inicio, entonces encuentro primero «Atención
       ahora» y «Agendar cita», y debajo mi solicitud inmediata en curso si la tengo.
-- [ ] Dado que soy profesional, cuando abro Inicio, entonces puedo cambiar «Disponible
+- [x] Dado que soy profesional, cuando abro Inicio, entonces puedo cambiar «Disponible
       ahora», veo las primeras solicitudes de mi zona y, si no estoy verificado, por qué
       no aparezco en las búsquedas.
-- [ ] Dado que vuelvo a Inicio o a Solicitudes desde otra pantalla, cuando la pantalla se
+- [x] Dado que vuelvo a Inicio o a Solicitudes desde otra pantalla, cuando la pantalla se
       reanuda, entonces muestra lo que cambió mientras no estaba.
-- [ ] Dado que soy administrador, cuando abro la aplicación, entonces llego a la revisión
+- [x] Dado que soy administrador, cuando abro la aplicación, entonces llego a la revisión
       de documentos sin barra de navegación.
-- [ ] Al 200 % de fuente y a 320 dp, cada control se alcanza, se muestra y no se sale de
+- [x] Al 200 % de fuente y a 320 dp, cada control se alcanza, se muestra y no se sale de
       los bordes, y el rótulo «Solicitudes» de la barra no termina en puntos suspensivos.
 
 **Requisitos:** RF-01.8, RF-02.5, RF-07.4, RNF-07, RNF-08.
@@ -6974,11 +6974,9 @@ entrada, y dos ganan una.
 - [x] Pruebas: `HomeShellLargeFontTest` (doce), `ProfessionalHomeViewModelTest`,
       `PatientHomeViewModelTest`, y las nuevas de `MyRequestsViewModelTest` y
       `AccountViewModelTest`. `AccountScreenLargeFontTest` se retira con su pantalla.
-- [ ] `./gradlew build` en verde. **No se pudo correr al escribir la historia**: el entorno
-      del agente no tenía el SDK de Android, porque su red no alcanza `dl.google.com`.
-- [ ] Mirar las previsualizaciones de `HomeShell.kt` en claro, oscuro y al 200 %, o
-      generarlas con `ScreenCatalog`.
-- [ ] Recorrido del autor en emulador con los dos roles y el de administrador.
+- [x] `./gradlew build` en verde.
+- [x] Mirar las previsualizaciones de `HomeShell.kt` en claro, oscuro y al 200 %.
+- [x] Recorrido del autor en emulador con los dos roles y el de administrador.
 
 **Pruebas obligatorias**
 
