@@ -14,6 +14,8 @@ enum class NotificationEvent {
     COUNTER_OFFER_RECEIVED,
     OFFER_ACCEPTED,
     MESSAGE_RECEIVED,
+    PROFESSIONAL_ARRIVED,
+    SERVICE_COMPLETED,
 }
 
 data class PushSubject(
@@ -97,6 +99,22 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.MESSAGE_RECEIVED
     }
 
+    // Both reach the patient and open the attention. The name is the professional's,
+    // a profile attribute (RF-09.10).
+    data class ProfessionalArrived(
+        override val subject: PushSubject,
+        val senderName: String,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.PROFESSIONAL_ARRIVED
+    }
+
+    data class ServiceCompleted(
+        override val subject: PushSubject,
+        val senderName: String,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.SERVICE_COMPLETED
+    }
+
     fun toMap(): Map<String, String> =
         buildMap {
             put(KEY_EVENT, event.name)
@@ -136,6 +154,14 @@ sealed interface PushPayload {
                 }
 
                 is MessageReceived -> {
+                    put(KEY_SENDER_NAME, senderName)
+                }
+
+                is ProfessionalArrived -> {
+                    put(KEY_SENDER_NAME, senderName)
+                }
+
+                is ServiceCompleted -> {
                     put(KEY_SENDER_NAME, senderName)
                 }
             }
@@ -217,13 +243,23 @@ sealed interface PushPayload {
                 }
 
                 NotificationEvent.MESSAGE_RECEIVED -> {
-                    val senderName =
-                        data[KEY_SENDER_NAME]?.takeIf(String::isNotBlank)
-                            ?: return failure("push_payload_missing_sender_name")
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
                     Result.success(MessageReceived(subject, senderName))
+                }
+
+                NotificationEvent.PROFESSIONAL_ARRIVED -> {
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
+                    Result.success(ProfessionalArrived(subject, senderName))
+                }
+
+                NotificationEvent.SERVICE_COMPLETED -> {
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
+                    Result.success(ServiceCompleted(subject, senderName))
                 }
             }
         }
+
+        private fun Map<String, String>.senderNameOrNull(): String? = this[KEY_SENDER_NAME]?.takeIf(String::isNotBlank)
 
         private fun Map<String, String>.professionalIdOrNull(): String? =
             this[KEY_PROFESSIONAL_ID]?.takeIf(UUID_PATTERN::matches)

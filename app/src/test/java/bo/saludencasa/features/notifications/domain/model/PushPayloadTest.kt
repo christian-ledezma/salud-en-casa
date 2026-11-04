@@ -236,6 +236,30 @@ class PushPayloadTest {
         assertEquals("Ana Quispe", message.senderName)
     }
 
+    @Test
+    fun parsesTheProgressOfAnAttentionWithTheProfessionalsName() {
+        val arrived = messageWire("event" to "PROFESSIONAL_ARRIVED")
+        val completed = messageWire("event" to "SERVICE_COMPLETED")
+
+        assertEquals(
+            "Ana Quispe",
+            (PushPayload.parse(arrived).getOrThrow() as PushPayload.ProfessionalArrived).senderName,
+        )
+        assertEquals(
+            "Ana Quispe",
+            (PushPayload.parse(completed).getOrThrow() as PushPayload.ServiceCompleted).senderName,
+        )
+    }
+
+    @Test
+    fun rejectsTheProgressOfAnAttentionWithoutAName() {
+        val arrived = messageWire("event" to "PROFESSIONAL_ARRIVED", "senderName" to null)
+        val completed = messageWire("event" to "SERVICE_COMPLETED", "senderName" to " ")
+
+        assertEquals("push_payload_missing_sender_name", failureKey(arrived))
+        assertEquals("push_payload_missing_sender_name", failureKey(completed))
+    }
+
     // The unlocked text names who wrote; without a name there is nothing to say.
     @Test
     fun rejectsAMessageWithoutASenderName() {

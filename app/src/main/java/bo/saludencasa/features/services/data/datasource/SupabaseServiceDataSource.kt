@@ -1,13 +1,18 @@
 package bo.saludencasa.features.services.data.datasource
 
+import bo.saludencasa.core.network.broadcastSignals
 import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionRequestIdParam
 import bo.saludencasa.features.services.data.model.AttentionSummaryDto
 import bo.saludencasa.features.services.data.model.MyAttentionsParams
+import bo.saludencasa.features.services.data.model.ServiceStatusRow
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
+import kotlinx.coroutines.flow.Flow
 
 class SupabaseServiceDataSource(
     private val supabase: SupabaseClient,
@@ -31,7 +36,28 @@ class SupabaseServiceDataSource(
             .rpc(MY_ATTENTIONS_AS_PROFESSIONAL, MyAttentionsParams(limit = limit, offset = offset))
             .decodeList<AttentionSummaryDto>()
 
+    // No dates: stamp_service_progress owns them. Returns how many rows the policy
+    // let through, which is none for someone who is not a party of the service.
+    suspend fun updateStatus(
+        requestId: String,
+        status: String,
+    ): Int =
+        supabase
+            .from(SERVICES)
+            .update({ set("status", status) }) {
+                filter { eq("request_id", requestId) }
+                select(Columns.list("status"))
+            }.decodeList<ServiceStatusRow>()
+            .size
+
+    // notify_attention_changed sends to this topic, and attention_listen lets only
+    // the two parties of the service hear it.
+    fun signals(requestId: String): Flow<Unit> = supabase.broadcastSignals(TOPIC_PREFIX + requestId, EVENT)
+
     private companion object {
+        const val SERVICES = "services"
+        const val TOPIC_PREFIX = "attention:"
+        const val EVENT = "attention_changed"
         const val MY_ATTENTION = "my_attention"
         const val MY_ATTENTIONS_AS_PROFESSIONAL = "my_attentions_as_professional"
     }

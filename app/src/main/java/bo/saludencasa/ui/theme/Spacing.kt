@@ -38,6 +38,10 @@ object Spacing {
     // selected destination, a thickness like borderWidth and not a spacing.
     val navIndicatorThickness: Dp = 3.dp
 
+    // The line between the steps of the attention's progress: a stroke, like
+    // borderWidth, and not a spacing.
+    val timelineStroke: Dp = 2.dp
+
     // The wordmark in the home header. A logotype does not grow with the font
     // scale, and at this height it leaves room for the avatar on a 320 dp phone.
     val headerWordmarkHeight: Dp = 18.dp

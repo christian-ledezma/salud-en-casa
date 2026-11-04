@@ -2,6 +2,7 @@ package bo.saludencasa.features.services.data.mapper
 
 import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionSummaryDto
+import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -25,6 +26,7 @@ class AttentionMapperTest {
         counterpartName = "María Quispe",
         counterpartPhotoUrl = null,
         iAmPatient = iAmPatient,
+        city = "La Paz",
     )
 
     @Test
@@ -89,5 +91,43 @@ class AttentionMapperTest {
     fun aSummaryWithAnUnknownStatusOrADateItCannotReadIsRejected() {
         assertNull(summaryDto(status = "ARCHIVED").toAttentionSummary())
         assertNull(summaryDto(scheduledAt = "not-a-timestamp").toAttentionSummary())
+    }
+
+    // docs/decisions.md, 2026-11-04, HU-23: the engine leaves these out for a
+    // professional once the attention ended, and that is a row like any other.
+    @Test
+    fun readsARowWithoutTheAddress() {
+        val place = dto().toAttention()!!.place
+
+        assertEquals("La Paz", place.city)
+        assertNull(place.addressText)
+        assertNull(place.latitude)
+    }
+
+    @Test
+    fun readsTheDatesOfTheProgress() {
+        val attention =
+            dto()
+                .copy(startedAt = "2026-11-04T14:02:00+00:00", finishedAt = "2026-11-04T15:40:00+00:00")
+                .toAttention()!!
+
+        assertEquals(Instant.parse("2026-11-04T14:02:00Z"), attention.startedAt)
+        assertEquals(Instant.parse("2026-11-04T15:40:00Z"), attention.finishedAt)
+    }
+
+    @Test
+    fun rejectsAnUnparseableStartDate() {
+        assertNull(dto().copy(startedAt = "ayer").toAttention())
+    }
+
+    // The engine refused the jump: the screen rereads instead of showing an error.
+    @Test
+    fun aRefusedTransitionMeansTheAttentionChanged() {
+        val terminal = IllegalStateException("service_status_is_terminal")
+        val invalid = IllegalStateException("invalid_service_transition")
+
+        assertEquals(ServiceError.AttentionChanged, terminal.toServiceError())
+        assertEquals(ServiceError.AttentionChanged, invalid.toServiceError())
+        assertEquals(ServiceError.Unexpected, IllegalStateException("boom").toServiceError())
     }
 }

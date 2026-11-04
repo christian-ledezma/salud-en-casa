@@ -7,6 +7,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.ProjectSources
 import bo.saludencasa.features.notifications.domain.model.NotificationEvent
 import bo.saludencasa.features.notifications.everyPayload
+import bo.saludencasa.features.notifications.professionalArrived
+import bo.saludencasa.features.notifications.serviceCompleted
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -67,5 +69,13 @@ class NotificationContentTest {
             assertFalse(public.body.contains(payload.subject.serviceTypeName))
             assertTrue(payload.text(resources, locale).body.contains(payload.subject.serviceTypeName))
         }
+    }
+
+    // A channel is what the person silences: the progress of an attention must not
+    // go quiet along with the requests (docs/decisions.md, 2026-11-04, HU-23).
+    @Test
+    fun theProgressOfAnAttentionHasItsOwnChannel() {
+        assertEquals(NotificationChannelSpec.ATTENTIONS, professionalArrived().channel())
+        assertEquals(NotificationChannelSpec.ATTENTIONS, serviceCompleted().channel())
     }
 }

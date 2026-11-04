@@ -3,6 +3,7 @@ package bo.saludencasa.features.services.data.mapper
 import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionSummaryDto
 import bo.saludencasa.features.services.domain.model.Attention
+import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.Counterpart
 import bo.saludencasa.features.services.domain.model.ServiceError
@@ -33,6 +34,18 @@ internal fun AttentionDto.toAttention(): Attention? {
             ),
         iAmThePatient = iAmPatient,
         createdAt = parsedCreatedAt,
+        scheduledAt = scheduledAt?.let { parseInstant(it) ?: return null },
+        startedAt = startedAt?.let { parseInstant(it) ?: return null },
+        finishedAt = finishedAt?.let { parseInstant(it) ?: return null },
+        description = description,
+        place =
+            AttentionPlace(
+                city = city,
+                addressText = addressText,
+                reference = reference,
+                latitude = latitude,
+                longitude = longitude,
+            ),
     )
 }
 
@@ -53,7 +66,19 @@ internal fun AttentionSummaryDto.toAttentionSummary(): AttentionSummary? {
 private fun parseInstant(text: String): Instant? = runCatching { OffsetDateTime.parse(text).toInstant() }.getOrNull()
 
 internal fun Throwable.toServiceError(): ServiceError =
-    when (this) {
-        is HttpRequestTimeoutException, is HttpRequestException, is IOException -> ServiceError.NetworkUnavailable
-        else -> ServiceError.Unexpected
+    when {
+        TRANSITION_REFUSALS.any { message?.contains(it) == true } -> {
+            ServiceError.AttentionChanged
+        }
+
+        this is HttpRequestTimeoutException || this is HttpRequestException || this is IOException -> {
+            ServiceError.NetworkUnavailable
+        }
+
+        else -> {
+            ServiceError.Unexpected
+        }
     }
+
+// Raised by guard_service_transition.
+private val TRANSITION_REFUSALS = listOf("invalid_service_transition", "service_status_is_terminal")

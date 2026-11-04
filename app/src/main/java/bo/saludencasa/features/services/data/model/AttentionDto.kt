@@ -46,4 +46,18 @@ data class AttentionDto(
     @SerialName("counterpart_name") val counterpartName: String,
     @SerialName("counterpart_photo_url") val counterpartPhotoUrl: String? = null,
     @SerialName("i_am_patient") val iAmPatient: Boolean,
+    @SerialName("scheduled_at") val scheduledAt: String? = null,
+    @SerialName("started_at") val startedAt: String? = null,
+    @SerialName("finished_at") val finishedAt: String? = null,
+    val description: String? = null,
+    val city: String,
+    @SerialName("address_text") val addressText: String? = null,
+    val reference: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+)
+
+@Serializable
+data class ServiceStatusRow(
+    val status: String,
 )

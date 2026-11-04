@@ -248,7 +248,7 @@ private fun MessageColumn(
 private fun ServiceError.listMessageRes(): Int =
     when (this) {
         ServiceError.NetworkUnavailable -> R.string.error_network_unavailable
-        ServiceError.NotSignedIn, ServiceError.Unexpected -> R.string.error_unexpected
+        ServiceError.NotSignedIn, ServiceError.AttentionChanged, ServiceError.Unexpected -> R.string.error_unexpected
     }
 
 private val previewAttentions =

@@ -82,5 +82,14 @@ class OpenNotificationUseCase(
             is PushPayload.MessageReceived -> {
                 NotificationDestination.Conversation(subject.requestId)
             }
+
+            is PushPayload.ProfessionalArrived -> {
+                NotificationDestination.Attention(subject.requestId)
+            }
+
+            // docs/decisions.md, 2026-11-04, HU-23.
+            is PushPayload.ServiceCompleted -> {
+                NotificationDestination.Attention(subject.requestId)
+            }
         }
 }

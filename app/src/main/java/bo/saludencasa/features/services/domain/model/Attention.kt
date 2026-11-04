@@ -33,4 +33,40 @@ data class Attention(
     val counterpart: Counterpart,
     val iAmThePatient: Boolean,
     val createdAt: Instant,
+    val scheduledAt: Instant?,
+    val startedAt: Instant?,
+    val finishedAt: Instant?,
+    val description: String?,
+    val place: AttentionPlace,
+) {
+    val nextStepForMe: AttentionStep? get() = if (iAmThePatient) null else status.nextStep()
+}
+
+// docs/decisions.md, 2026-11-04, HU-23: the engine leaves out what this reader may
+// no longer see, so everything but the city can be absent.
+data class AttentionPlace(
+    val city: String,
+    val addressText: String?,
+    val reference: String?,
+    val latitude: Double?,
+    val longitude: Double?,
 )
+
+sealed interface AttentionStep {
+    val targetStatus: ServiceStatus
+
+    data object MarkArrival : AttentionStep {
+        override val targetStatus: ServiceStatus get() = ServiceStatus.IN_PROGRESS
+    }
+
+    data object MarkCompleted : AttentionStep {
+        override val targetStatus: ServiceStatus get() = ServiceStatus.COMPLETED
+    }
+}
+
+fun ServiceStatus.nextStep(): AttentionStep? =
+    when (this) {
+        ServiceStatus.ASSIGNED -> AttentionStep.MarkArrival
+        ServiceStatus.IN_PROGRESS -> AttentionStep.MarkCompleted
+        ServiceStatus.COMPLETED, ServiceStatus.CANCELLED -> null
+    }

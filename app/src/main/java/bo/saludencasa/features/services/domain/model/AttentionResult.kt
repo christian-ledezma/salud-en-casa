@@ -7,7 +7,18 @@ sealed interface ServiceError {
 
     data object NetworkUnavailable : ServiceError
 
+    // Somebody moved the attention first: the engine refused the jump.
+    data object AttentionChanged : ServiceError
+
     data object Unexpected : ServiceError
+}
+
+sealed interface AdvanceAttentionResult {
+    data object Advanced : AdvanceAttentionResult
+
+    data class Failure(
+        val error: ServiceError,
+    ) : AdvanceAttentionResult
 }
 
 sealed interface AttentionResult {

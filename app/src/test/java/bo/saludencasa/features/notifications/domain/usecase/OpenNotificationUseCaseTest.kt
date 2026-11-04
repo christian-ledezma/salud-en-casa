@@ -13,7 +13,9 @@ import bo.saludencasa.features.notifications.messageReceived
 import bo.saludencasa.features.notifications.nearbyRequest
 import bo.saludencasa.features.notifications.offerAccepted
 import bo.saludencasa.features.notifications.offerReceived
+import bo.saludencasa.features.notifications.professionalArrived
 import bo.saludencasa.features.notifications.requestExpired
+import bo.saludencasa.features.notifications.serviceCompleted
 import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.SwitchRoleResult
@@ -180,4 +182,16 @@ class OpenNotificationUseCaseTest {
         }
 
     private fun UserRole.other(): UserRole = if (this == UserRole.PATIENT) UserRole.PROFESSIONAL else UserRole.PATIENT
+
+    // HU-23: both open the attention, where the patient sees the progress and, from
+    // HU-25 on, pays.
+    @Test
+    fun theProgressOfAnAttentionOpensTheAttention() =
+        runTest {
+            val profiles = FakeProfileRepository(roleResult = loadedRoles())
+            val attention = NotificationOpenResult.Open(NotificationDestination.Attention(REQUEST_ID))
+
+            assertEquals(attention, useCase(profiles)(professionalArrived()))
+            assertEquals(attention, useCase(profiles)(serviceCompleted()))
+        }
 }

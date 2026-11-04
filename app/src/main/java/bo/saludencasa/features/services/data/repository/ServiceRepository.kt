@@ -4,11 +4,15 @@ import bo.saludencasa.features.services.data.datasource.SupabaseServiceDataSourc
 import bo.saludencasa.features.services.data.mapper.toAttention
 import bo.saludencasa.features.services.data.mapper.toAttentionSummary
 import bo.saludencasa.features.services.data.mapper.toServiceError
+import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionResult
+import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 class ServiceRepository(
     private val dataSource: SupabaseServiceDataSource,
@@ -48,5 +52,31 @@ class ServiceRepository(
         } catch (failure: Exception) {
             MyAttentionsResult.Failure(failure.toServiceError())
         }
+    }
+
+    override suspend fun advance(
+        requestId: String,
+        step: AttentionStep,
+    ): AdvanceAttentionResult {
+        if (dataSource.currentUserId() == null) {
+            return AdvanceAttentionResult.Failure(ServiceError.NotSignedIn)
+        }
+
+        return try {
+            if (dataSource.updateStatus(requestId, step.targetStatus.name) == 0) {
+                AdvanceAttentionResult.Failure(ServiceError.Unexpected)
+            } else {
+                AdvanceAttentionResult.Advanced
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            AdvanceAttentionResult.Failure(failure.toServiceError())
+        }
+    }
+
+    override fun attentionSignals(requestId: String): Flow<Unit> {
+        if (dataSource.currentUserId() == null) return emptyFlow()
+        return dataSource.signals(requestId)
     }
 }

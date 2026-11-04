@@ -1,7 +1,10 @@
 package bo.saludencasa.features.services.domain.repository
 
+import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionResult
+import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import kotlinx.coroutines.flow.Flow
 
 interface IServiceRepository {
     // The sealed agreement of a request, read by whichever of its two parties
@@ -12,4 +15,11 @@ interface IServiceRepository {
         offset: Int,
         limit: Int,
     ): MyAttentionsResult
+
+    suspend fun advance(
+        requestId: String,
+        step: AttentionStep,
+    ): AdvanceAttentionResult
+
+    fun attentionSignals(requestId: String): Flow<Unit>
 }
