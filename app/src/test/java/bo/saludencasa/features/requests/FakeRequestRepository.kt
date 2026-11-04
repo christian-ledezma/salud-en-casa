@@ -36,6 +36,7 @@ class FakeRequestRepository : IRequestRepository {
     var cancelResult: CancelRequestResult = CancelRequestResult.Success
     var activeResult: ActiveRequestResult = ActiveRequestResult.None
     var activeReads = 0
+    var activeGate: CompletableDeferred<Unit>? = null
 
     // Lets a test hold the cancellation back to look at the screen while it runs.
     var cancelGate: CompletableDeferred<Unit>? = null
@@ -88,7 +89,9 @@ class FakeRequestRepository : IRequestRepository {
 
     override suspend fun getActiveImmediate(): ActiveRequestResult {
         activeReads++
-        return activeResult
+        val answer = activeResult
+        activeGate?.await()
+        return answer
     }
 
     override suspend fun cancel(requestId: String): CancelRequestResult {

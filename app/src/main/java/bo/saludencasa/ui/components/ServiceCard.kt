@@ -46,6 +46,7 @@ fun ServiceCard(
     statusTone: StatusTone,
     date: String,
     modifier: Modifier = Modifier,
+    highlight: String? = null,
     counterpart: String? = null,
     distance: String? = null,
     place: String? = null,
@@ -76,6 +77,9 @@ fun ServiceCard(
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         ) {
             CardTitle(title = title, statusLabel = statusLabel, statusTone = statusTone)
+            highlight?.let {
+                Text(text = it, style = typography.labelLarge, color = colors.primary)
+            }
             counterpart?.let {
                 CardLine(rememberVectorPainter(Icons.Filled.Person), it, typography.labelLarge)
             }

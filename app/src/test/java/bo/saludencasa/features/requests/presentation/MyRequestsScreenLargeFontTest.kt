@@ -21,6 +21,7 @@ import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
+import bo.saludencasa.ui.plural
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
 import org.junit.Assert.assertEquals
@@ -40,6 +41,7 @@ class MyRequestsScreenLargeFontTest {
         id: String,
         status: RequestStatus,
         scheduledAt: Instant? = null,
+        openOfferCount: Int = 0,
     ): ServiceRequest =
         ServiceRequest(
             id = id,
@@ -54,6 +56,7 @@ class MyRequestsScreenLargeFontTest {
             createdAt = Instant.parse("2026-10-12T12:00:00Z"),
             scheduledAt = scheduledAt,
             professionalName = "Ana Quispe Mamani de la Fuente".takeIf { scheduledAt != null },
+            openOfferCount = openOfferCount,
         )
 
     private fun show(
@@ -144,6 +147,24 @@ class MyRequestsScreenLargeFontTest {
                 string(R.string.request_list_with_professional, "Ana Quispe Mamani de la Fuente"),
             ),
         )
+    }
+
+    // HT-28: the list says how many offers wait there before the card is opened.
+    @Test
+    fun aCardSaysHowManyOffersItsRequestHas() {
+        show(listOf(request("r1", RequestStatus.NEGOTIATING, openOfferCount = 2)))
+        scrollTo(1)
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(plural(R.plurals.request_list_offer_count, 2, 2)))
+    }
+
+    // The rule that hides it lives in the model; this is the card obeying it.
+    @Test
+    fun aCardWithNoOffersDoesNotMentionThem() {
+        show(listOf(request("r1", RequestStatus.PUBLISHED)))
+        scrollTo(1)
+
+        composeRule.onNodeWithText(plural(R.plurals.request_list_offer_count, 0, 0)).assertDoesNotExist()
     }
 
     // Before an agreement the amount is only a budget, and it says so.

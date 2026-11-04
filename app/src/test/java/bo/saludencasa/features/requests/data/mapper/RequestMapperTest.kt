@@ -180,6 +180,14 @@ class RequestMapperTest {
             professionalName = professionalName,
         )
 
+    // HT-28: the card's count travels from the view to the model.
+    @Test
+    fun theCountOfOpenOffersReachesTheModel() {
+        val request = requireNotNull(dto().copy(openOfferCount = 3).toServiceRequest())
+
+        assertEquals(3, request.openOfferCount)
+    }
+
     private fun inboxDto(
         status: String = "PUBLISHED",
         createdAt: String = "2026-10-13T12:00:00+00:00",

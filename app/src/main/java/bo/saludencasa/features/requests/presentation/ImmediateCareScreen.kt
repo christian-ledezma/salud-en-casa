@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -43,6 +44,7 @@ import bo.saludencasa.features.catalog.domain.model.ServiceType
 import bo.saludencasa.features.location.domain.model.Address
 import bo.saludencasa.features.notifications.presentation.NotificationPermissionPrompt
 import bo.saludencasa.features.profile.domain.model.ProfessionalType
+import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
@@ -72,13 +74,17 @@ import java.time.Instant
 fun ImmediateCareScreen(
     onBack: () -> Unit,
     onOpenProfessional: (String) -> Unit,
-    onOpenMyRequests: () -> Unit,
     onRegisterAddress: () -> Unit,
     onOpenThread: (requestId: String, professionalId: String) -> Unit,
+    onAccepted: (requestId: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ImmediateCareViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(uiState) {
+        (uiState as? ImmediateCareUiState.Accepted)?.let { onAccepted(it.requestId) }
+    }
 
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
@@ -100,8 +106,10 @@ fun ImmediateCareScreen(
                 onRetry = viewModel::refresh,
                 onRegisterAddress = onRegisterAddress,
                 onOpenProfessional = onOpenProfessional,
-                onOpenMyRequests = onOpenMyRequests,
                 onOpenThread = onOpenThread,
+                onAccept = viewModel::onAcceptClicked,
+                onAcceptConfirmed = viewModel::onAcceptConfirmed,
+                onAcceptDismissed = viewModel::onAcceptDismissed,
             ),
         modifier = modifier,
         map = { model, mapModifier ->
@@ -127,8 +135,10 @@ internal data class ImmediateCareActions(
     val onRetry: () -> Unit = {},
     val onRegisterAddress: () -> Unit = {},
     val onOpenProfessional: (String) -> Unit = {},
-    val onOpenMyRequests: () -> Unit = {},
     val onOpenThread: (requestId: String, professionalId: String) -> Unit = { _, _ -> },
+    val onAccept: (OfferThread) -> Unit = {},
+    val onAcceptConfirmed: () -> Unit = {},
+    val onAcceptDismissed: () -> Unit = {},
 )
 
 // The map is a slot, so the preview and the Robolectric test never reach the
@@ -144,7 +154,8 @@ internal fun ImmediateCareContent(
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (uiState) {
-            ImmediateCareUiState.Loading -> {
+            // On its way to the attention, which is what comes next on screen.
+            ImmediateCareUiState.Loading, is ImmediateCareUiState.Accepted -> {
                 CenteredProgress()
             }
 
@@ -183,12 +194,16 @@ internal fun ImmediateCareContent(
             }
 
             is ImmediateCareUiState.Waiting -> {
-                WaitingPanel(
-                    waiting = uiState,
-                    onBack = onBack,
-                    actions = actions,
-                    permissionPrompt = permissionPrompt,
-                )
+                if (uiState.offersRead) {
+                    WaitingPanel(
+                        waiting = uiState,
+                        onBack = onBack,
+                        actions = actions,
+                        permissionPrompt = permissionPrompt,
+                    )
+                } else {
+                    CenteredProgress()
+                }
             }
         }
     }
@@ -376,6 +391,7 @@ private fun NearbyLine(
     )
 }
 
+// docs/decisions.md, 2026-11-04, HT-28: the offers first, where they can be accepted.
 @Composable
 private fun WaitingPanel(
     waiting: ImmediateCareUiState.Waiting,
@@ -385,22 +401,33 @@ private fun WaitingPanel(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val request = waiting.request
+    val searching = waiting.threads.isEmpty()
+    val scrollState = rememberScrollState()
+
+    // The notice is above the cards, and the button that failed may be far below it.
+    LaunchedEffect(waiting.acceptError) {
+        if (waiting.acceptError != null) scrollState.scrollTo(0)
+    }
 
     Column(
         modifier =
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = Spacing.screenMargin, vertical = Spacing.sectionGap),
         verticalArrangement = Arrangement.spacedBy(Spacing.scale16),
     ) {
-        ScreenHeader(title = stringResource(R.string.immediate_title), onBack = onBack)
+        ScreenHeader(
+            title =
+                stringResource(
+                    if (searching) R.string.immediate_waiting_title else R.string.immediate_offers_title,
+                ),
+            onBack = onBack,
+        )
 
-        // The radar while nobody has offered. Once someone has, the offers take
-        // its place, so the first card is on screen without scrolling.
-        if (waiting.threads.isEmpty()) {
+        if (searching) {
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                // Decorative: the title below says the same in words.
+                // Decorative: the title above says the same in words.
                 RadarPulse(modifier = Modifier.size(Spacing.radarHeroSize))
                 Box(
                     modifier =
@@ -410,42 +437,26 @@ private fun WaitingPanel(
                             .background(MaterialTheme.colorScheme.primary),
                 )
             }
+            Text(
+                text = stringResource(R.string.immediate_waiting_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
-        Text(
-            text = stringResource(R.string.immediate_waiting_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = stringResource(R.string.immediate_waiting_body),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        waiting.acceptError?.let { error -> AcceptFailedNotice(error) }
 
         // The offers appear here by themselves, stacked as InDrive stacks its
-        // drivers, and each one opens its negotiation (docs/decisions.md,
-        // 2026-10-27, HT-24).
-        if (waiting.threads.isNotEmpty()) {
-            Text(
-                text =
-                    pluralStringResource(
-                        R.plurals.immediate_waiting_offers,
-                        waiting.threads.size,
-                        waiting.threads.size,
-                    ),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            // Keyed by professional, so a card keeps its place and state when
-            // another one arrives above it.
-            waiting.threads.forEach { thread ->
-                key(thread.professionalId) {
-                    OfferCard(
-                        thread = thread,
-                        onClick = { actions.onOpenThread(request.id, thread.professionalId) },
-                    )
-                }
+        // drivers (docs/decisions.md, 2026-10-27, HT-24). Keyed by professional, so
+        // a card keeps its place and state when another one arrives above it.
+        waiting.threads.forEach { thread ->
+            key(thread.professionalId) {
+                OfferCard(
+                    thread = thread,
+                    enabled = !waiting.accepting && !waiting.cancelling,
+                    onOpen = { actions.onOpenThread(request.id, thread.professionalId) },
+                    onAccept = { actions.onAccept(thread) },
+                )
             }
         }
 
@@ -460,13 +471,8 @@ private fun WaitingPanel(
             ) {
                 Text(
                     text = request.serviceTypeName,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = request.addressText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 request.expiresAt?.let { expiresAt ->
                     Text(
@@ -475,8 +481,8 @@ private fun WaitingPanel(
                                 R.string.immediate_waiting_expires,
                                 formatTime(expiresAt.atZone(AppointmentZone).toLocalTime(), locale),
                             ),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -493,14 +499,44 @@ private fun WaitingPanel(
         }
         OutlinedButton(
             onClick = actions.onCancel,
-            enabled = !waiting.cancelling,
+            enabled = !waiting.cancelling && !waiting.accepting,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(text = stringResource(R.string.request_list_cancel_action))
         }
-        TextButton(onClick = actions.onOpenMyRequests, modifier = Modifier.fillMaxWidth()) {
-            Text(text = stringResource(R.string.immediate_waiting_my_requests))
-        }
+    }
+
+    waiting.confirmingAcceptance?.let { thread ->
+        val amount = thread.lastOffer?.amountBob
+        AcceptOfferDialog(
+            body =
+                stringResource(
+                    R.string.offer_accept_confirm_body_named,
+                    amount?.let { formatBob(it, locale) }.orEmpty(),
+                    thread.displayName(),
+                ),
+            onConfirm = actions.onAcceptConfirmed,
+            onDismiss = actions.onAcceptDismissed,
+        )
+    }
+}
+
+@Composable
+private fun AcceptFailedNotice(error: OfferError) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    ) {
+        Text(
+            text =
+                stringResource(
+                    if (error == OfferError.NotAllowed) R.string.immediate_offer_changed else error.messageRes(),
+                ),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(Spacing.scale12),
+        )
     }
 }
 
@@ -679,13 +715,13 @@ private fun ImmediateWaitingLargeFontPreview() {
     PreviewScreen(previewWaiting())
 }
 
-@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Buscando profesional con ofertas")
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Ofertas recibidas, claro")
 @Composable
 private fun ImmediateWaitingWithOffersPreview() {
     PreviewScreen(previewWaiting(threads = previewThreads()))
 }
 
-@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Buscando profesional con ofertas, oscuro")
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Ofertas recibidas, oscuro")
 @Composable
 private fun ImmediateWaitingWithOffersDarkPreview() {
     PreviewScreen(previewWaiting(threads = previewThreads()), darkTheme = true)
@@ -696,11 +732,24 @@ private fun ImmediateWaitingWithOffersDarkPreview() {
     widthDp = 320,
     heightDp = 2000,
     fontScale = 2f,
-    name = "Buscando profesional con ofertas, 200 %",
+    name = "Ofertas recibidas, 200 %",
 )
 @Composable
 private fun ImmediateWaitingWithOffersLargeFontPreview() {
     PreviewScreen(previewWaiting(threads = previewThreads()))
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Ofertas, confirmar")
+@Composable
+private fun ImmediateWaitingConfirmPreview() {
+    val threads = previewThreads()
+    PreviewScreen(previewWaiting(threads = threads).copy(confirmingAcceptance = threads.first()))
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Ofertas, aceptar falló")
+@Composable
+private fun ImmediateWaitingAcceptFailedPreview() {
+    PreviewScreen(previewWaiting(threads = previewThreads()).copy(acceptError = OfferError.NotAllowed))
 }
 
 @Preview(showBackground = true, widthDp = 320, name = "Atención ahora sin dirección")

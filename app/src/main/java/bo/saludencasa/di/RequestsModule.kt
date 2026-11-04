@@ -61,7 +61,7 @@ val requestsModule =
         // nearby search through the use cases of the features that own them
         // (catalogModule, locationModule, searchModule), which Koin resolves
         // across modules.
-        viewModel { ImmediateCareViewModel(get(), get(), get(), get(), get(), get(), get(), get()) }
+        viewModel { ImmediateCareViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         viewModel { MyRequestsViewModel(get(), get()) }
         viewModel { InboxViewModel(get(), get()) }
         viewModel { (professionalId: String, serviceTypeId: String?) ->

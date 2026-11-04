@@ -23,4 +23,10 @@ data class ServiceRequest(
     // The professional a scheduled request is for, so "Mis solicitudes" can open
     // that thread straight away (docs/decisions.md, 2026-10-27, HT-24).
     val professionalId: String? = null,
-)
+    val openOfferCount: Int = 0,
+) {
+    // A scheduled request has one addressee, already named on its card, and offers
+    // left on a closed request can no longer be answered.
+    val showsOfferCount: Boolean
+        get() = modality == RequestModality.IMMEDIATE && status.isCancellable && openOfferCount > 0
+}

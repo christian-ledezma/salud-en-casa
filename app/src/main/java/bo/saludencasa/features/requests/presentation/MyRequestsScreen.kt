@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -223,6 +224,16 @@ private fun RequestCard(
         statusLabel = stringResource(request.status.labelRes()),
         statusTone = request.status.tone(),
         date = requestDateText(request.scheduledAt, request.createdAt),
+        highlight =
+            if (request.showsOfferCount) {
+                pluralStringResource(
+                    R.plurals.request_list_offer_count,
+                    request.openOfferCount,
+                    request.openOfferCount,
+                )
+            } else {
+                null
+            },
         counterpart = request.professionalName?.let { stringResource(R.string.request_list_with_professional, it) },
         place = request.addressText,
         amount =
@@ -320,6 +331,7 @@ private fun previewRequest(
     status: RequestStatus,
     budget: BigDecimal? = BigDecimal("150.00"),
     scheduledAt: Instant? = null,
+    openOfferCount: Int = 0,
 ): ServiceRequest =
     ServiceRequest(
         id = id,
@@ -334,13 +346,14 @@ private fun previewRequest(
         createdAt = Instant.parse("2026-10-12T12:00:00Z"),
         scheduledAt = scheduledAt,
         professionalName = "Ana Quispe".takeIf { scheduledAt != null },
+        openOfferCount = openOfferCount,
     )
 
 private fun previewContent(): MyRequestsUiState.Content =
     MyRequestsUiState.Content(
         requests =
             listOf(
-                previewRequest("r1", RequestStatus.PUBLISHED),
+                previewRequest("r1", RequestStatus.NEGOTIATING, openOfferCount = 2),
                 previewRequest("r3", RequestStatus.PUBLISHED, scheduledAt = Instant.parse("2026-10-16T13:30:00Z")),
                 previewRequest("r2", RequestStatus.EXPIRED, budget = null),
             ),

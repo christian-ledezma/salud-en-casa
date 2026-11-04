@@ -33,6 +33,7 @@ class FakeOfferRepository : IOfferRepository {
     val rejected = mutableListOf<String>()
     val accepted = mutableListOf<String>()
     val signalSides = mutableListOf<Boolean>()
+    var threadReads = 0
 
     var submitResult: OfferSubmitResult = OfferSubmitResult.Success
     var threadsResult: OfferThreadsResult = OfferThreadsResult.Loaded(emptyList())
@@ -48,6 +49,8 @@ class FakeOfferRepository : IOfferRepository {
     // Holds a submission in flight, so a test can see what the screen does while
     // the network has not answered yet.
     var holdSubmit: CompletableDeferred<Unit>? = null
+    var holdThreads: CompletableDeferred<Unit>? = null
+    var holdAccept: CompletableDeferred<Unit>? = null
 
     override suspend fun submitOffer(
         requestId: String,
@@ -71,7 +74,11 @@ class FakeOfferRepository : IOfferRepository {
         return submitResult
     }
 
-    override suspend fun getOfferThreads(requestId: String): OfferThreadsResult = threadsResult
+    override suspend fun getOfferThreads(requestId: String): OfferThreadsResult {
+        threadReads++
+        holdThreads?.await()
+        return threadsResult
+    }
 
     override suspend fun getOfferThread(
         requestId: String,
@@ -87,6 +94,7 @@ class FakeOfferRepository : IOfferRepository {
 
     override suspend fun acceptOffer(offerId: String): OfferActionResult {
         accepted += offerId
+        holdAccept?.await()
         return acceptResult
     }
 

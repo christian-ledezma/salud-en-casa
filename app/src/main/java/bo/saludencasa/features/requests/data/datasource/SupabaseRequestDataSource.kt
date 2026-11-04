@@ -127,6 +127,7 @@ class SupabaseRequestDataSource(
                 "scheduled_at",
                 "professional_name",
                 "professional_id",
+                "open_offer_count",
             )
     }
 }

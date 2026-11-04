@@ -333,28 +333,14 @@ private fun ThreadBody(
     if (content.confirmingAcceptance) {
         val locale = LocalConfiguration.current.locales[0]
         val amount = content.thread.lastOffer?.amountBob
-        AlertDialog(
-            onDismissRequest = actions.onAcceptDismissed,
-            title = { Text(text = stringResource(R.string.offer_accept_confirm_title)) },
-            text = {
-                Text(
-                    text =
-                        stringResource(
-                            R.string.offer_accept_confirm_body,
-                            amount?.let { formatBob(it, locale) }.orEmpty(),
-                        ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = actions.onAcceptConfirmed) {
-                    Text(text = stringResource(R.string.offer_accept_confirm_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = actions.onAcceptDismissed) {
-                    Text(text = stringResource(R.string.common_cancel))
-                }
-            },
+        AcceptOfferDialog(
+            body =
+                stringResource(
+                    R.string.offer_accept_confirm_body,
+                    amount?.let { formatBob(it, locale) }.orEmpty(),
+                ),
+            onConfirm = actions.onAcceptConfirmed,
+            onDismiss = actions.onAcceptDismissed,
         )
     }
 }

@@ -10,11 +10,14 @@ import bo.saludencasa.features.location.domain.model.AddressListResult
 import bo.saludencasa.features.location.domain.usecase.GetMyAddressesUseCase
 import bo.saludencasa.features.requests.domain.model.ActiveRequestResult
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
+import bo.saludencasa.features.requests.domain.model.OfferActionResult
+import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.domain.model.OfferThreadsResult
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
+import bo.saludencasa.features.requests.domain.usecase.AcceptOfferUseCase
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.CreateImmediateRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.FindProfessionalsAvailableNowUseCase
@@ -85,6 +88,18 @@ sealed interface ImmediateCareUiState {
         // and updated from the offer signal. A rejected negotiation leaves the
         // list, as in InDrive (docs/decisions.md, 2026-10-27, HT-24).
         val threads: List<OfferThread> = emptyList(),
+        // False until the first read answers, so the screen does not say that it is
+        // still looking for a professional when the offers are on their way.
+        val offersRead: Boolean = true,
+        // The offer the dialog names, held apart from threads: a signal that replaces
+        // the list cannot change what the patient is confirming.
+        val confirmingAcceptance: OfferThread? = null,
+        val accepting: Boolean = false,
+        val acceptError: OfferError? = null,
+    ) : ImmediateCareUiState
+
+    data class Accepted(
+        val requestId: String,
     ) : ImmediateCareUiState
 }
 
@@ -97,6 +112,7 @@ class ImmediateCareViewModel(
     private val findProfessionalsAvailableNow: FindProfessionalsAvailableNowUseCase,
     private val getOfferThreads: GetOfferThreadsUseCase,
     private val observeOfferSignals: ObserveOfferSignalsUseCase,
+    private val acceptOffer: AcceptOfferUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<ImmediateCareUiState>(ImmediateCareUiState.Loading)
     val uiState: StateFlow<ImmediateCareUiState> = state.asStateFlow()
@@ -216,7 +232,7 @@ class ImmediateCareViewModel(
 
     fun onCancel() {
         val waiting = state.value as? ImmediateCareUiState.Waiting ?: return
-        if (waiting.cancelling) return
+        if (waiting.cancelling || waiting.accepting) return
 
         state.value = waiting.copy(cancelling = true, cancelError = null)
         viewModelScope.launch {
@@ -226,8 +242,54 @@ class ImmediateCareViewModel(
                 }
 
                 is CancelRequestResult.Failure -> {
-                    state.value =
-                        waiting.copy(cancelling = false, cancelError = result.error)
+                    state.update { current ->
+                        if (current is ImmediateCareUiState.Waiting) {
+                            current.copy(cancelling = false, cancelError = result.error)
+                        } else {
+                            current
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun onAcceptClicked(thread: OfferThread) {
+        val waiting = state.value as? ImmediateCareUiState.Waiting ?: return
+        if (waiting.cancelling || waiting.accepting || !thread.isMyTurn) return
+        state.value = waiting.copy(confirmingAcceptance = thread, acceptError = null)
+    }
+
+    fun onAcceptDismissed() {
+        state.update { current ->
+            if (current is ImmediateCareUiState.Waiting) current.copy(confirmingAcceptance = null) else current
+        }
+    }
+
+    fun onAcceptConfirmed() {
+        val waiting = state.value as? ImmediateCareUiState.Waiting ?: return
+        val offer = waiting.confirmingAcceptance?.lastOffer ?: return
+
+        state.value = waiting.copy(confirmingAcceptance = null, accepting = true, acceptError = null)
+        viewModelScope.launch {
+            when (val result = acceptOffer(offer.id)) {
+                // A read still travelling would find no open request and bring the
+                // form back on the way to the attention.
+                OfferActionResult.Success -> {
+                    loadJob?.cancel()
+                    state.value = ImmediateCareUiState.Accepted(waiting.request.id)
+                }
+
+                is OfferActionResult.Failure -> {
+                    state.update { current ->
+                        if (current is ImmediateCareUiState.Waiting) {
+                            current.copy(accepting = false, acceptError = result.error)
+                        } else {
+                            current
+                        }
+                    }
+                    // A refusal means the screen was behind the engine.
+                    if (result.error == OfferError.NotAllowed) refresh()
                 }
             }
         }
@@ -261,7 +323,7 @@ class ImmediateCareViewModel(
             if (onScreen?.request?.id == request.id) {
                 onScreen.copy(request = request)
             } else {
-                ImmediateCareUiState.Waiting(request, cancelling = false, cancelError = null)
+                ImmediateCareUiState.Waiting(request, cancelling = false, cancelError = null, offersRead = false)
             }
         viewModelScope.launch { loadOffers(request.id) }
     }
@@ -270,13 +332,17 @@ class ImmediateCareViewModel(
     // and an empty list would say no one has offered when someone has.
     private suspend fun loadOffers(requestId: String) {
         val result = getOfferThreads(requestId)
-        if (result is OfferThreadsResult.Loaded) {
-            state.update { current ->
-                if (current is ImmediateCareUiState.Waiting && current.request.id == requestId) {
-                    current.copy(threads = result.threads.filterNot { it.isClosed })
-                } else {
-                    current
-                }
+        state.update { current ->
+            if (current is ImmediateCareUiState.Waiting && current.request.id == requestId) {
+                val threads =
+                    if (result is OfferThreadsResult.Loaded) {
+                        result.threads.filterNot { it.isClosed }
+                    } else {
+                        current.threads
+                    }
+                current.copy(threads = threads, offersRead = true)
+            } else {
+                current
             }
         }
     }
@@ -375,7 +441,8 @@ class ImmediateCareViewModel(
     private fun isBusy(): Boolean =
         when (val current = state.value) {
             is ImmediateCareUiState.Form -> current.submitting
-            is ImmediateCareUiState.Waiting -> current.cancelling
+            is ImmediateCareUiState.Waiting -> current.cancelling || current.accepting
+            is ImmediateCareUiState.Accepted -> true
             else -> false
         }
 

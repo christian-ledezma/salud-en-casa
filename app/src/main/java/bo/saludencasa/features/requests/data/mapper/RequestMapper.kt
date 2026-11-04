@@ -37,6 +37,7 @@ internal fun ServiceRequestDto.toServiceRequest(): ServiceRequest? {
         scheduledAt = scheduled,
         professionalName = professionalName?.takeIf { it.isNotBlank() },
         professionalId = professionalId,
+        openOfferCount = openOfferCount,
     )
 }
 

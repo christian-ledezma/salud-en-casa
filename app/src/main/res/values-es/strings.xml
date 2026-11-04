@@ -461,11 +461,12 @@
     <string name="immediate_submit">Pedir atención</string>
     <string name="immediate_waiting_title">Buscando profesional</string>
     <string name="immediate_waiting_body">Tu solicitud ya está publicada. Cuando un profesional cercano oferte, su oferta aparecerá aquí.</string>
-    <string name="immediate_waiting_expires">Sigue publicada hasta las %1$s</string>
-    <string name="immediate_waiting_my_requests">Ver mis solicitudes</string>
-    <plurals name="immediate_waiting_offers">
-        <item quantity="one">%d oferta recibida</item>
-        <item quantity="other">%d ofertas recibidas</item>
+    <string name="immediate_waiting_expires">Publicada hasta las %1$s</string>
+    <string name="immediate_offers_title">Ofertas recibidas</string>
+    <string name="immediate_offer_changed">Esta oferta cambió. Revisa el monto actual antes de aceptar.</string>
+    <plurals name="request_list_offer_count">
+        <item quantity="one">%d oferta</item>
+        <item quantity="other">%d ofertas</item>
     </plurals>
     <string name="search_subtitle">Elige al profesional. Después eliges el día y la hora.</string>
     <string name="search_schedule_action">Agendar</string>
@@ -562,8 +563,13 @@
     <!-- HU-19: aceptar una oferta y la atención -->
     <string name="offer_accept_button">Aceptar</string>
     <string name="offer_accept_confirm_title">Aceptar la oferta</string>
-    <string name="offer_accept_confirm_body">Vas a aceptar %1$s. Se creará la atención y verás los datos de contacto de la otra persona.</string>
+    <string name="offer_accept_confirm_body">Vas a aceptar %1$s. Se creará la atención y las demás ofertas se cerrarán.</string>
+    <string name="offer_accept_confirm_body_named">Vas a aceptar %1$s de %2$s. Se creará la atención y las demás ofertas se cerrarán.</string>
     <string name="offer_accept_confirm_action">Aceptar</string>
+    <string name="offer_accept_confirm_back">Volver</string>
+    <string name="offer_card_accept">Aceptar %1$s</string>
+    <string name="offer_card_negotiate">Negociar</string>
+    <string name="offer_card_view">Ver negociación</string>
     <string name="attention_title">Atención</string>
     <string name="attention_counterpart_professional">Profesional</string>
     <string name="attention_counterpart_patient">Paciente</string>
@@ -649,10 +655,6 @@
     <string name="conversation_older_loading">Cargando mensajes anteriores</string>
     <string name="conversation_older_failed">No pudimos cargar los mensajes anteriores.</string>
     <string name="conversation_load_failed">No pudimos cargar la conversación</string>
-    <plurals name="negotiation_thread_rounds">
-        <item quantity="one">%d propuesta</item>
-        <item quantity="other">%d propuestas</item>
-    </plurals>
 
     <!-- HU-15 availability -->
     <string name="availability_title">Mi disponibilidad</string>

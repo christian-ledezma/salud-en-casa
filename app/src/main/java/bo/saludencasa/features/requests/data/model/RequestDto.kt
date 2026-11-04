@@ -63,6 +63,7 @@ data class ServiceRequestDto(
     @SerialName("scheduled_at") val scheduledAt: String? = null,
     @SerialName("professional_name") val professionalName: String? = null,
     @SerialName("professional_id") val professionalId: String? = null,
+    @SerialName("open_offer_count") val openOfferCount: Int = 0,
 )
 
 // The named arguments of request_inbox. A field equal to its default never

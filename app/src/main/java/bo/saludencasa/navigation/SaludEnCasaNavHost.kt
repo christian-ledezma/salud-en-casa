@@ -132,10 +132,15 @@ fun SaludEnCasaNavHost(
             ImmediateCareScreen(
                 onBack = { navController.popBackStack() },
                 onOpenProfessional = { professionalId -> navController.navigate(PublicProfileRoute(professionalId)) },
-                onOpenMyRequests = { navController.navigate(MyRequestsRoute()) },
                 onRegisterAddress = { navController.navigate(AddressRoute()) },
                 onOpenThread = { requestId, professionalId ->
                     navController.navigate(OfferThreadRoute(requestId, professionalId))
+                },
+                // The request is no longer open, so back does not return to its offers.
+                onAccepted = { requestId ->
+                    navController.navigate(AttentionRoute(requestId)) {
+                        popUpTo<ImmediateCareRoute> { inclusive = true }
+                    }
                 },
             )
         }
