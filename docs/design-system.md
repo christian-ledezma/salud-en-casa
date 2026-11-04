@@ -408,6 +408,17 @@ dónde y cuánto, con el monto en `titleLarge` y `primary`; sigue la línea de t
 La acción del profesional va en el botón fijo al pie. Con la fuente agrandada la píldora baja bajo el título, y al 150 %
 o más el avatar se retira (`docs/decisions.md`, 2026-11-04, HU-23).
 
+### Tarjeta de solicitud y de atención
+
+`ServiceCard`, la misma en «Mis solicitudes», «Mis atenciones» y «Disponibles» (HT-27). Arriba el servicio y, a su
+derecha, el estado en `StatusBadge`, la misma píldora de la atención; con la fuente agrandada baja bajo el título. Debajo,
+líneas con icono en `primary`: la contraparte, o la distancia y la ciudad si todavía no hay acuerdo; la fecha, que dice de
+qué es («Cita», «Inmediata», «Inició», «Acordada»); y la dirección, en «Mis solicitudes». Al pie, separado por una línea,
+el rótulo y el monto: en `primary` si es lo acordado, en `onSurface` si es un presupuesto.
+
+Las tres listas se actualizan al deslizar hacia abajo, también vacías o con error. Si falla, un aviso sobre
+`errorContainer` encabeza la lista, que queda como estaba.
+
 ### Grupo de opciones exclusivas
 
 Lista vertical de opciones con un círculo de selección a la izquierda y la

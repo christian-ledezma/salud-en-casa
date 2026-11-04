@@ -197,7 +197,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` |
-| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 50 | `[ ]` |
+| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 53 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` |
@@ -6901,7 +6901,7 @@ realizado y la atención se completa.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 50. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
+**Puntos:** 53. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
 como FA-11. Va al final del sprint: es la de menor prioridad y la primera que se
 traslada si el corte muerde. El 2026-10-30 se sumó HT-25, con 8 puntos, que va
 primero porque cambia la pantalla desde la que se llega a todo lo demás. El 2026-11-03
@@ -6910,6 +6910,7 @@ pasó de 3 a 5 al planificarse: la decisión del autor le agregó una migración
 entrada del paciente. El 2026-11-04 se sumó HT-27, con 8 puntos, que el recorrido de HU-22 reveló. Con 47
 puntos, HU-37 sigue siendo la primera que se traslada; HU-31 baja cuando se la replanifique. Ese mismo día HU-23
 pasó de 5 a 8, al sumarle el rediseño de la atención, sus datos nuevos, el cierre de permisos y la lectura en vivo.
+También ese día se sumó HT-28, con 3 puntos, a pedido del autor al revisar HT-27.
 
 ### HT-25 · La pantalla de inicio y la barra de navegación `[x]` — 8 puntos
 
@@ -7316,7 +7317,7 @@ y la señal entre dos partes se apoyan en los experimentos. **Cerrada el 2026-11
 **A tener en cuenta en HU-24.** Cancelar todavía no mueve la solicitud, y las columnas de cancelación se pueden escribir
 sin cambiar el estado. Le corresponde cerrarlo a esa historia.
 
-### HT-27 · Las listas se actualizan y las tarjetas dicen lo mismo a los dos lados `[ ]` — 8 puntos
+### HT-27 · Las listas se actualizan y las tarjetas dicen lo mismo a los dos lados `[x]` — 8 puntos
 
 > Como **paciente y como profesional**, quiero **actualizar mis listas deslizando y ver en cada tarjeta la
 > fecha y el precio acordado**, para **encontrar mis atenciones y confiar en lo que dicen**.
@@ -7348,6 +7349,93 @@ no llega ahí.
 **Fuera de esta historia.** Buscar y elegir el orden: FA-16.
 
 **Relación con HU-31.** HU-31 agrega la calificación sobre esta lista; ya no tiene que construirla.
+
+**Planificación (2026-11-04).** Decidida con el autor y registrada en `docs/decisions.md`, 2026-11-04, HT-27. Prototipo
+aprobado el mismo día, en el lienzo «Listas HT-27»: las listas de los dos roles, Inicio, deslizar, el fallo, el vacío, oscuro
+y 200 % a 320 dp. Se mantuvo en 8 puntos.
+
+- **Una tarjeta aceptada pasa a «Mis atenciones» y sale de «Mis solicitudes».**
+- **Inicio gana «Tu atención» en los dos roles**: la que está en curso o la próxima asignada. No estaba en el alcance.
+- **«Mis solicitudes» muestra primero lo abierto.** Corrige la línea de arriba, que decía no agregar un orden.
+- **Un fallo al deslizar se dice**, con un aviso arriba de la lista; al volver a la pantalla sigue siendo silencioso.
+- **`my_attentions`, con un parámetro de rol, reemplaza a `my_attentions_as_patient`** de la línea de arriba.
+- **La sección «En curso» de Inicio se llama «Tu solicitud»**, porque esa palabra ya nombra el estado de una atención.
+
+**Tareas**
+
+- [x] Migración `20261104135622_ht27_lists`: `has_attention` e `is_open` en `my_service_requests`, `my_attentions` y
+      `my_active_attention`.
+- [x] Experimentos SQL contra el remoto, antes del `db push` (abajo).
+- [x] `ServiceCard`, `StatusBadge` y `RefreshableContent`; `ListRefresher` en los tres modelos de vista.
+- [x] Las dos vistas del paciente, `RequestsTabContent`, y la fila «Tu atención» en los dos Inicios.
+- [x] «Bs 150» con espacio que no se parte, e iniciales que no crecen con la fuente.
+- [x] Cadenas en `values/` y `values-es/`, glosario y sistema de diseño. Se retiraron `ModalityBadge` y
+      `NegotiationEntry.Attention`, que quedaron sin uso.
+- [x] Pruebas: `ListRefresherTest`, `AttentionSummaryTest`, `InitialsTextTest`, `RequestsTabContentLargeFontTest`, y las
+      nuevas de los modelos de vista, las pantallas, `AttentionMapperTest` y `MoneyFormatTest`.
+      `anEmptyListCanBePulled` se comprobó por mutación: sin el desplazamiento de la columna, falla.
+- [x] Revisión de código: encontró que una página en camino caía sobre la lista recién leída de la bandeja. Corregido, con
+      `aPageStillOnItsWayDoesNotLandOnTheListAPullReplaced`.
+- [x] Mirar las previsualizaciones: generadas con `ScreenCatalog` y revisadas el 2026-11-04 (claro, oscuro, 200 % y vacío).
+      Sin recortes.
+- [x] Hecho por el autor el 2026-11-04: `supabase db push` y el recorrido en los dos lados.
+
+**Experimentos SQL (2026-11-04, remoto, dentro de una transacción revertida, sobre la migración sin aplicar).** Cada caso
+se ejecutó con la identidad indicada. Después se confirmó que no quedó residuo: las funciones nuevas no existen, la anterior
+sigue y los 2 servicios siguen `ASSIGNED`.
+
+| Caso | Resultado |
+|---|---|
+| El paciente y el profesional leen sus 4 atenciones, cada uno con el nombre del otro | Pasa |
+| Cada uno pide el lado que no tiene | 0 filas |
+| Un ajeno en los dos lados, el administrador con `ADMIN` y un rol nulo | 0 filas |
+| `anon` ejecuta `my_attentions` o `my_active_attention` | Sin permiso |
+| Activa: sin fecha, la acordada primero; con citas, la más próxima | Pasa |
+| Activa: la que está en curso gana a una cita más próxima | Pasa |
+| Activa: completada y cancelada no cuentan; un ajeno y el administrador | Ninguna |
+| La vista marca las 4 filas con servicio de las 27 del paciente | Coincide con la tabla |
+| Una fila antigua reabierta va primero | Pasa |
+| Una atención cancelada, con su solicitud cancelada, no está en «Mis solicitudes» y sí en «Mis atenciones» | Pasa |
+| Escribir por la vista, también la columna nueva | Rechazado |
+| Un ajeno lee las filas del paciente en la vista | 0 filas |
+
+**Confirmado por el autor (2026-11-04).** Aplicó la migración e hizo las pruebas. El remoto lo respalda sin leer ningún
+contenido: la migración está registrada, las dos funciones y las dos columnas existen, y `my_attentions_as_professional` ya
+no está. Hay una atención nueva en curso, como pedía el recorrido, y `61eb5448` y `54b5c052` siguen `ASSIGNED` para HU-24.
+**Cerrada el 2026-11-04.** No es una historia crítica.
+
+**A tener en cuenta.** `05adae36` sigue con la solicitud en `COMPLETED` y el servicio en `IN_PROGRESS`, de modo que ocupa
+«Tu atención» de esa pareja. Son datos de prueba; desde HU-23 los dos estados se mueven juntos.
+
+### HT-28 · Aceptar una oferta desde donde se comparan `[ ]` — 3 puntos
+
+> Como **paciente**, quiero **aceptar una oferta inmediata desde la pantalla donde veo todas**, para **no abrir otra
+> pantalla solo para decir que sí**.
+
+**Origen.** Al revisar HT-27 el 2026-11-04, el autor sintió que aceptar una oferta seguía costando demasiados pasos:
+tarjeta, oferta, «Aceptar» y confirmar. Pidió evaluar «Aceptar» en la lista y fusionar la pantalla intermedia. Aprobó esta
+recomendación el mismo día.
+
+**Por qué no en la lista ni sin pantalla intermedia.** Una inmediata puede tener varias ofertas, y la tarjeta de la lista
+representa la solicitud, de modo que «Aceptar» no diría a quién ni por cuánto. Aceptar crea la atención y el pago pendiente
+con el monto congelado, así que se hace viendo al profesional. La pantalla intermedia sigue siendo donde las ofertas llegan
+en vivo y se comparan.
+
+**Alcance acordado, a precisar al planificarla, con prototipo antes de programar**
+
+- «Aceptar» con su monto en cada oferta, cuando le toca responder al paciente, con la confirmación actual. Tocar el resto de
+  la tarjeta abre la negociación, que queda para contraofertar, rechazar o leer los mensajes.
+- Se quita «Ver mis solicitudes»: la flecha de volver ya cumple esa función.
+- El título dice «Buscando profesional» solo sin ofertas, y «Ofertas recibidas» después.
+- Las ofertas van arriba, con el resumen de la solicitud más abajo y más corto.
+- La tarjeta de «Mis solicitudes» muestra cuántas ofertas tiene.
+
+**Resultado esperado.** De 4 a 3 toques para aceptar una inmediata, sin cambiar de pantalla antes de «Aceptar». La
+confirmación se conserva. Las citas agendadas no cambian: ya abren directo su negociación.
+
+**Requisitos:** RF-08.5.
+
+**Antes:** HT-27 cerrada, porque esta historia parte de su tarjeta.
 
 ### HU-24 · Cancelar una atención `[ ]` — 5 puntos
 

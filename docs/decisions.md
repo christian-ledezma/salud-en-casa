@@ -6269,6 +6269,54 @@ subtítulo de la conversación se actualiza al volver a ella, no en vivo.
 
 ---
 
+## 2026-11-04 · HT-27: una atención aparece una sola vez, las tarjetas dicen lo mismo a los dos lados y las listas se actualizan al deslizar
+
+**Contexto.** Al recorrer HU-22, el autor no encontró en «Mis solicitudes» la atención que el aviso sí le abría: la
+tarjeta decía «Aceptada», no mostraba fecha y quedaba debajo de solicitudes canceladas. Cada lista tenía además su
+propia tarjeta, y el paciente perdía en Inicio el acceso a lo que acababa de acordar. Buscar y elegir el orden se
+descartaron como FA-16.
+
+**Decisión.** El autor eligió el 2026-11-04, con el prototipo aprobado:
+
+1. **Una tarjeta aceptada pasa a «Mis atenciones» y sale de «Mis solicitudes».** Cada atención se ve una sola vez.
+2. **Inicio tiene la fila «Tu atención» en los dos roles:** la que está en curso y, si no hay, la próxima asignada.
+3. **«Mis solicitudes» muestra primero lo abierto** y, dentro de cada grupo, lo más reciente. Esto corrige el plan, que
+   decía no agregar un orden. «Mis atenciones» conserva el de RF-13.4.
+4. **Una sola tarjeta, `ServiceCard`, en las tres listas.** «Disponibles» muestra la distancia y la ciudad en lugar de la
+   contraparte, porque todavía no hay acuerdo.
+5. **La fecha es la de la cita; si no hay, la de inicio; antes de iniciar, la del acuerdo.** Y dice cuál es.
+6. **El precio acordado reemplaza al sugerido**, y cada monto lleva su rótulo.
+
+**Razonamiento.**
+
+- **Se filtra por si existe un servicio, no por el estado.** Con el estado, una atención cancelada en HU-24 quedaría
+  con la solicitud en `CANCELLED` y aparecería en las dos vistas.
+- **`has_attention` e `is_open` viven en la vista** porque PostgREST filtra y ordena por columna, no por expresión. Y
+  ordenar en el teléfono no sirve con una lista paginada (RNF-08).
+- **`my_attentions` reemplaza a `my_attentions_as_professional`, con un parámetro de rol**, en lugar de sumar una función
+  casi idéntica. El parámetro solo elige entre filas propias: las dos ramas comparan con `auth.uid()`, y `ADMIN` o nulo
+  no devuelven nada. El plan había nombrado `my_attentions_as_patient`; se cambió al implementar.
+- **El modelo de vista de «Mis atenciones» lleva como clave el lado.** Los dos roles comparten el almacén de la pantalla
+  de inicio: sin clave, quien cambia de rol seguiría leyendo la lista del otro lado.
+- **Deslizar relee la primera página y descarta el resto.** Así ninguna tarjeta queda con datos viejos, que era lo que
+  el autor pidió; lo demás vuelve con «Ver más». Una página que venía en camino se cancela, para no caer sobre la lista
+  nueva con un desplazamiento que ya no vale.
+- **Un fallo al deslizar se dice; al volver a la pantalla, no.** Quien desliza pidió algo y merece la respuesta. Por eso
+  el aviso encabeza la lista, donde está el dedo, y se retira con la siguiente lectura correcta.
+- **Las listas no se actualizan en vivo.** Un tema por persona agregaría un disparador y una política para ganar poco: el
+  aviso ya llega, la atención abierta ya se actualiza sola, y al volver se relee. «Disponibles» conserva su señal.
+- **Deslizar también es una acción de accesibilidad**, porque con un lector de pantalla el gesto no siempre está
+  disponible.
+- **«Bs 150» lleva un espacio que no se parte**, puesto en el formateador: un monto no queda cortado entre dos líneas.
+- **Las iniciales no crecen con la fuente**, porque el círculo tampoco. El nombre siempre está escrito al lado, a
+  tamaño completo.
+- **La fecha se escribe siempre completa.** El prototipo mostraba «Hoy, 10:02», pero exigiría un reloj en cada tarjeta
+  y la pantalla de la atención tampoco lo hace; se dejó igual en las dos.
+
+**Consecuencia.** HU-24 abre las atenciones canceladas desde «Mis atenciones» y `NegotiationEntry.Attention` desaparece,
+porque nada de «Mis solicitudes» lleva ya a una atención. HU-31 agrega la calificación sobre esta lista. Una aplicación
+instalada antes de esta migración deja de leer «Mis atenciones» hasta actualizarse.
+
 ## Plantilla para entradas nuevas
 
 ```
