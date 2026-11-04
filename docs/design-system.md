@@ -392,6 +392,22 @@ tamaño que tiene al 100 %, la regla del rótulo de la barra de navegación. Eso
 apto para etiquetas largas: al 100 % tienen que caber, y por eso sigue pidiendo palabras
 cortas (`docs/decisions.md`, 2026-10-02 y 2026-11-03, HT-26).
 
+### Registro de la atención
+
+Un mensaje marcado (HU-22), que no se lee como un lado del intercambio: ocupa todo el ancho de la lista,
+sobre `secondaryContainer`, con la forma `medium`, el icono y el rótulo arriba. El pie conserva el lado de quien
+lo escribió. Se activa con una ficha de filtro en la barra de mensajes, que al enviar vuelve a modo mensaje;
+activa, muestra lo que no se puede deshacer y agranda el campo. Con fuente grande y el teclado abierto la barra
+se desplaza dentro de su alto (`docs/decisions.md`, 2026-11-03, HU-22).
+
+### Pantalla de la atención
+
+Sin degradado. Arriba, el estado como píldora —neutra asignada, ámbar en curso, verde completada, roja cancelada— y una
+frase que dice qué pasa y qué hacer, distinta para cada lado. Debajo, una sola tarjeta destacada responde quién, cuándo,
+dónde y cuánto, con el monto en `titleLarge` y `primary`; sigue la línea de tiempo «Avance», sin tarjeta, y lo pedido.
+La acción del profesional va en el botón fijo al pie. Con la fuente agrandada la píldora baja bajo el título, y al 150 %
+o más el avatar se retira (`docs/decisions.md`, 2026-11-04, HU-23).
+
 ### Grupo de opciones exclusivas
 
 Lista vertical de opciones con un círculo de selección a la izquierda y la

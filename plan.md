@@ -197,7 +197,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` |
-| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 37 | `[ ]` |
+| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 50 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` |
@@ -6901,11 +6901,15 @@ realizado y la atención se completa.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 37. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
+**Puntos:** 50. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
 como FA-11. Va al final del sprint: es la de menor prioridad y la primera que se
 traslada si el corte muerde. El 2026-10-30 se sumó HT-25, con 8 puntos, que va
 primero porque cambia la pantalla desde la que se llega a todo lo demás. El 2026-11-03
-se sumó HT-26, con 3 puntos, que el recorrido de HU-21 reveló y que HU-22 y HU-23 necesitan.
+se sumó HT-26, con 3 puntos, que el recorrido de HU-21 reveló y que HU-22 y HU-23 necesitan, y HU-22
+pasó de 3 a 5 al planificarse: la decisión del autor le agregó una migración, un modo de escritura y la
+entrada del paciente. El 2026-11-04 se sumó HT-27, con 8 puntos, que el recorrido de HU-22 reveló. Con 47
+puntos, HU-37 sigue siendo la primera que se traslada; HU-31 baja cuando se la replanifique. Ese mismo día HU-23
+pasó de 5 a 8, al sumarle el rediseño de la atención, sus datos nuevos, el cierre de permisos y la lectura en vivo.
 
 ### HT-25 · La pantalla de inicio y la barra de navegación `[x]` — 8 puntos
 
@@ -7137,18 +7141,18 @@ historial de salidas lo distinguirá.
 **Relación con HU-32.** HU-32 agrega el ingreso, la comisión, el resumen y el filtro de fechas sobre
 esta misma lista; ya no tiene que construirla.
 
-### HU-22 · Registrar lo realizado en la atención `[ ]` — 3 puntos
+### HU-22 · Registrar lo realizado en la atención `[x]` — 5 puntos
 
 > Como **profesional**, quiero **dejar constancia de lo que hice durante la
 > atención**, para **que el paciente y yo tengamos el registro**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que la atención está en curso, cuando registro lo realizado, entonces
+- [x] Dado que la atención está en curso, cuando registro lo realizado, entonces
       queda en la conversación de la solicitud.
-- [ ] Dado que la atención finalizó, cuando consulto el historial, entonces accedo
+- [x] Dado que la atención finalizó, cuando consulto el historial, entonces accedo
       a esa conversación.
-- [ ] Dado que soy estudiante, cuando registro, entonces puedo describir lo
+- [x] Dado que soy estudiante, cuando registro, entonces puedo describir lo
       realizado pero la aplicación no ofrece emitir diagnóstico.
 
 **Requisitos:** RF-09.3, RN-03, FA-01.
@@ -7158,35 +7162,192 @@ esta misma lista; ya no tiene que construirla.
 > No crear campos improvisados en otras tablas para este propósito: eso
 > comprometería la incorporación aditiva del registro clínico en una fase posterior.
 
-### HU-23 · Marcar el avance de la atención `[ ]` — 5 puntos
+**Planificación (2026-11-03).** Decidida con el autor y registrada en `docs/decisions.md`, 2026-11-03,
+HU-22. Prototipo aprobado el mismo día, en el lienzo «Registro HU-22»: claro, oscuro, 200 % a 320 dp, el
+estudiante, el paciente, la atención asignada y el registro no enviado. Subió de 3 a 5 puntos.
+
+- **Un mensaje marcado**, `messages.is_work_record`, que se dibuja como tarjeta. Solo lo pone el
+  profesional de esa atención; lo exige el motor. El texto sigue en `content`, con su autor y su fecha.
+- **Con la atención en curso o completada.** Antes de llegar se rechaza; un mensaje común conserva la regla
+  de HU-21.
+- **El estudiante ve un aviso**, que informa y no impide. Nadie tiene campo de diagnóstico (FA-01).
+- **Corregir es agregar otro registro.** Lo avisa la barra.
+- **La tarjeta del paciente abre la atención también en curso y completada.** Cancelada queda para HU-24.
+- **Va antes que HU-23.** Se recorre poniendo a mano una atención de prueba en curso.
+
+**Tareas**
+
+- [x] Migración `20261104034405_work_record_messages`: la columna y las dos políticas de inserción.
+- [x] Experimentos SQL contra el remoto, antes del `db push` (abajo).
+- [x] Conversación: la marca en dominio, datos y modelo de vista; `canRecord` y `showsStudentNotice` en la
+      cabecera; `MessageError.WorkRecordNotAllowed`.
+- [x] Pantalla: la tarjeta, el control, los avisos y el campo en modo registro. La barra se desplaza dentro de
+      su alto, para que guardar se alcance con fuente grande y el teclado abierto.
+- [x] `negotiationEntry`: la atención también en `IN_PROGRESS` y `COMPLETED`.
+- [x] Cadenas en `values/` y `values-es/`, `ic_work_record`, glosario y sistema de diseño.
+- [x] Pruebas: `MessageMapperTest`, y las nuevas de `GetConversationHeaderUseCaseTest`,
+      `SendMessageUseCaseTest`, `ConversationViewModelTest`, `ConversationScreenLargeFontTest` y
+      `NegotiationEntryTest`. Tres se comprobaron por mutación: `aRetriedRecordIsStillARecord`,
+      `aRefusedRecordAsksAgainWhatTheAttentionAllows` y `savingARecordStaysReachableWithTheKeyboardUp`.
+- [x] Mirar las previsualizaciones: generadas con `ScreenCatalog` y revisadas el 2026-11-03 (claro, oscuro,
+      estudiante, paciente, no permitido y 200 %, también a 320 dp). Sin recortes.
+- [x] `./gradlew build` en verde el 2026-11-03: 963 pruebas, ninguna omitida, análisis estático y lint incluidos.
+- [x] Hecho por el autor el 2026-11-04: `supabase db push` y el recorrido en los dos lados.
+
+**Experimentos SQL (2026-11-03, remoto, dentro de una transacción revertida, sobre la migración sin aplicar).**
+Cada caso se ejecutó con la identidad indicada, y los estados se pusieron como dueño dentro de la misma
+transacción. Después se confirmó que no quedó residuo: la columna no existe y los 4 servicios siguen `ASSIGNED`.
+
+| Caso | Resultado |
+|---|---|
+| El profesional registra en curso y en completada | Pasa |
+| El profesional registra en asignada y en cancelada | Rechazado por la política |
+| El profesional escribe un mensaje común en asignada | Pasa, de modo que la regla discrimina |
+| El profesional escribe un mensaje común en cancelada | Rechazado, como en HU-21 |
+| El paciente registra, también dándole el rol profesional, y haciéndose pasar por el profesional | Rechazado |
+| El paciente escribe un mensaje común en curso | Pasa |
+| Un profesional ajeno, y uno ajeno con los dos roles, registran | Rechazado |
+| El paciente marca un mensaje común, desmarca un registro o edita su contenido; el profesional marca el suyo | `permission denied` |
+| El profesional borra su registro | 0 filas |
+| La marca explícita en nulo | Rechazada por `not null` |
+| `conversation_page` devuelve la marca a las dos partes, sin reescribirse | Pasa |
+| `mark_conversation_read` marca leído un registro | Pasa |
+| El administrador y un ajeno leen la conversación | 0 filas |
+| El cuerpo del aviso de un registro | `MESSAGE_RECEIVED` con el nombre, sin el contenido |
+| Los mensajes existentes | Ninguno queda marcado |
+
+**Confirmado por el autor (2026-11-04).** Recorrió el ejercicio en los dos lados. El remoto lo respalda sin
+leer ningún contenido: la migración está aplicada, y la atención de prueba tiene un registro escrito por su
+profesional y leído por el paciente. **Cerrada el 2026-11-04.** No es una historia crítica.
+
+Dos cosas no salieron del recorrido. Registrar con la atención completada y el caso del estudiante se apoyan en
+los experimentos, las pruebas y las previsualizaciones: en el remoto no hay ninguna cuenta de estudiante, y esa
+atención quedó con la solicitud en `COMPLETED` y el servicio en `IN_PROGRESS`, porque ambos estados se movieron
+a mano. HU-23 es la que los mueve juntos.
+
+### HU-23 · Marcar el avance de la atención `[x]` — 8 puntos
 
 > Como **profesional**, quiero **indicar que llegué y que terminé**, para **que el
 > paciente conozca el estado y se habilite el pago**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que la atención está asignada, cuando marco mi llegada, entonces pasa a
+- [x] Dado que la atención está asignada, cuando marco mi llegada, entonces pasa a
       en curso y el paciente lo ve.
-- [ ] Dado que la atención está en curso, cuando la marco completada, entonces se
+- [x] Dado que la atención está en curso, cuando la marco completada, entonces se
       habilita la confirmación de pago.
-- [ ] Dado que intento marcar llegada en una atención cancelada, cuando lo intento,
+- [x] Dado que intento marcar llegada en una atención cancelada, cuando lo intento,
       entonces se rechaza.
-- [ ] Dado que la atención se completó, cuando consulto sus tiempos, entonces
+- [x] Dado que la atención se completó, cuando consulto sus tiempos, entonces
       figuran el inicio y el fin.
-- [ ] Dado que el profesional marca su llegada, cuando ocurre, entonces al
+- [x] Dado que el profesional marca su llegada, cuando ocurre, entonces al
       paciente le llega una notificación.
-- [ ] Dado que el profesional marca la atención completada, cuando ocurre,
+- [x] Dado que el profesional marca la atención completada, cuando ocurre,
       entonces al paciente le llega una notificación que lo lleva a confirmar el
-      pago.
+      pago. El aviso abre la atención; la acción de pagar la pone ahí HU-25.
 
 **Requisitos:** RF-10.1, RF-10.2, RF-10.4, RF-09.6, RF-09.10.
 
 **Tareas técnicas.** Máquina de estados modelada como jerarquía sellada · prueba
 de las transiciones válidas e inválidas.
 
-**A tener en cuenta (2026-11-03).** `negotiationEntry` solo abre la atención con la solicitud en `ACCEPTED`.
-Si esta historia mueve la solicitud a `IN_PROGRESS` o `COMPLETED`, la tarjeta del paciente en «Mis
-solicitudes» se queda sin destino: es el mismo hueco de HT-26, del otro lado.
+**Planificación (2026-11-04).** Decidida con el autor y registrada en `docs/decisions.md`, 2026-11-04, HU-23.
+Prototipo aprobado en su segunda vuelta, en el lienzo «Avance HU-23», sin el degradado de la cabecera. Subió de 5 a 8.
+
+- **Se marca en la atención**, con confirmación en las dos marcas y sin regla de horario para una cita.
+- **El motor sella las fechas y mueve la solicitud** dentro de la misma transacción. Los clientes solo escriben
+  `status` y las columnas de cancelación.
+- **El paciente lo ve al instante**, con una señal sin datos en un tema privado propio, y le llega un aviso en el canal
+  «Atenciones».
+- **La atención dice a dónde ir:** dirección, referencia, «Cómo llegar», hora de la cita y lo pedido. El profesional
+  ve la dirección exacta solo con la atención asignada o en curso.
+- **El aviso de atención completada abre la atención.** Lo que falta del último criterio es la acción de pagar, que
+  HU-25 pone en esa misma pantalla.
+
+**Tareas**
+
+- [x] Migración `20261104053310_service_progress`: permisos de columna, `stamp_service_progress`,
+      `guard_request_lifecycle` reescrita, `move_request_with_service`, `notify_attention_changed`, `attention_listen`, `request_push_body`
+      reescrita con `PROFESSIONAL_ARRIVED` y `SERVICE_COMPLETED`, `queue_service_progress_push` y `my_attention` con
+      los datos nuevos.
+- [x] Experimentos SQL contra el remoto, antes del `db push` (abajo).
+- [x] Dominio: `AttentionStep`, `nextStep`, `AttentionPlace`, `AdvanceAttentionUseCase` y `ObserveAttentionUseCase`.
+- [x] Pantalla de la atención rediseñada, con la línea de tiempo, el botón y los diálogos; lectura en vivo y al volver.
+- [x] Notificaciones: los dos eventos, su destino y el canal «Atenciones».
+- [x] Cadenas en `values/` y `values-es/`, `ic_payments`, `ic_near_me`, glosario y sistema de diseño.
+- [x] Pruebas: `AttentionTest` (`serviceStateTransitionsRejectInvalidJumps` y `cannotMarkArrivalOnCancelledService`, del
+      lado del teléfono), `AttentionTimelineTest`, las nuevas de `AttentionViewModelTest`, `AttentionMapperTest`,
+      `PushPayloadTest`, `OpenNotificationUseCaseTest` y `NotificationContentTest`, y
+      `AttentionScreenLargeFontTest` reescrita. Se comprobaron por mutación: que el paciente no tenga paso, el orden de
+      latitud y longitud, la segunda confirmación y la señal.
+- [x] Mirar las previsualizaciones: generadas con `ScreenCatalog` y revisadas el 2026-11-04 (claro, oscuro, paciente y
+      200 % a 320 dp). El diálogo no se puede capturar, porque abre otra ventana: lo cubre `theDialogKeepsBothAnswersOnScreen`.
+- [x] `./gradlew build` en verde el 2026-11-04: 1000 pruebas, ninguna omitida, análisis estático y lint incluidos.
+- [x] Hecho por el autor el 2026-11-04: `supabase db push` y el recorrido en los dos lados, en los emuladores.
+
+**Experimentos SQL (2026-11-04, remoto, dentro de una transacción revertida, sobre la migración sin aplicar).**
+
+| Caso | Resultado |
+|---|---|
+| El paciente marca llegada o fin | `arrival_and_completion_are_recorded_by_the_professional` |
+| Un profesional ajeno marca llegada | 0 filas |
+| Saltar de asignada a completada, y volver a asignada | `invalid_service_transition` |
+| Marcar llegada en una atención completada o cancelada (`cannotMarkArrivalOnCancelledService`) | `service_status_is_terminal` |
+| Cualquiera de las partes escribe una fecha o el monto | `permission denied` |
+| El paciente mueve su solicitud a en curso | `request_status_change_requires_the_atomic_operation` |
+| El profesional marca llegada | Sella el inicio, la solicitud pasa a `IN_PROGRESS`, 1 aviso y 1 señal |
+| Marca llegada otra vez | Pasa, sin aviso ni señal nuevos |
+| El profesional marca el fin | Sella el fin, la solicitud pasa a `COMPLETED`, 1 aviso, las atenciones realizadas suben 1 |
+| Marca el fin otra vez | Pasa, sin contar otra atención |
+| Cancelar, el camino de HU-24 | Sigue pasando con los permisos nuevos |
+| `my_attention` del profesional, en curso | Con dirección y punto |
+| `my_attention` del profesional, completada o cancelada | Sin dirección, referencia ni punto; con la ciudad |
+| `my_attention` del paciente, completada | Con su dirección, inicio y fin |
+| `my_attention` de un ajeno y del administrador | 0 filas |
+| Cuerpo de los dos avisos | Solo para el paciente, con el nombre del profesional y el tipo de servicio |
+| `anon` | No puede actualizar `services` |
+| Escuchar el tema de la atención | Las dos partes reciben la señal; un ajeno y el administrador, no |
+
+**Confirmado por el autor (2026-11-04).** Recorrió el ejercicio en los emuladores. El remoto lo respalda sin leer ningún
+contenido: la migración está aplicada, y una atención quedó completada con su inicio y su fin en orden y la solicitud en
+`COMPLETED`. `send-push` respondió 2 veces con 200, cada una con 1 enviado y 0 fallidos. Marcar en una atención cancelada
+y la señal entre dos partes se apoyan en los experimentos. **Cerrada el 2026-11-04.** No es una historia crítica.
+
+**A tener en cuenta en HU-24.** Cancelar todavía no mueve la solicitud, y las columnas de cancelación se pueden escribir
+sin cambiar el estado. Le corresponde cerrarlo a esa historia.
+
+### HT-27 · Las listas se actualizan y las tarjetas dicen lo mismo a los dos lados `[ ]` — 8 puntos
+
+> Como **paciente y como profesional**, quiero **actualizar mis listas deslizando y ver en cada tarjeta la
+> fecha y el precio acordado**, para **encontrar mis atenciones y confiar en lo que dicen**.
+
+**Origen.** Al recorrer HU-22 el 2026-11-04, el autor no encontró en «Mis solicitudes» la atención que el
+aviso sí le abría: la tarjeta decía «Aceptada», tenía otras dos iguales, no mostraba fecha y quedaba debajo de
+solicitudes canceladas. Pidió actualizar deslizando, más información en las tarjetas y coherencia entre los dos
+lados, y aprobó el alcance y el momento el mismo día.
+
+**Por qué después de HU-23 y antes de HU-24.** HU-23 crea las fechas reales de inicio y fin, y mueve juntos los
+dos estados, de modo que la tarjeta tiene algo cierto que decir. HU-24 tiene que abrir atenciones canceladas
+desde la lista del paciente, y en «Mis atenciones» todas tienen servicio: una cita cancelada antes de aceptarse
+no llega ahí.
+
+**Alcance acordado, a precisar al planificarla, con prototipo antes de programar**
+
+- Deslizar hacia abajo actualiza, con su animación de carga, «Mis solicitudes», la bandeja y «Mis atenciones».
+  **Se vuelven a leer todos los datos de cada tarjeta**, no solo el estado. La recarga al volver a la pantalla
+  se conserva; una lectura fallida deja la lista como estaba.
+- El paciente gana las mismas dos vistas que el profesional: «Solicitudes» y «Mis atenciones», con
+  `my_attentions_as_patient`. Así una atención activa ya no queda entre solicitudes canceladas, sin agregar un
+  orden: el historial conserva el de RF-13.4.
+- Un mismo diseño de tarjeta a los dos lados: servicio, estado, contraparte, fecha y monto. La bandeja sigue sin
+  mostrar la identidad del paciente, porque todavía no hay acuerdo.
+- La fecha es la hora de la cita si es agendada y, si no, la de inicio; antes de iniciar, la de creación.
+- El precio acordado reemplaza al sugerido una vez aceptada. Antes de aceptarse sigue el presupuesto, rotulado.
+- Dos detalles de HU-19: el monto que se lee «Bs150» y las iniciales que tocan el borde del círculo al 200 %.
+
+**Fuera de esta historia.** Buscar y elegir el orden: FA-16.
+
+**Relación con HU-31.** HU-31 agrega la calificación sobre esta lista; ya no tiene que construirla.
 
 ### HU-24 · Cancelar una atención `[ ]` — 5 puntos
 
@@ -7202,8 +7363,19 @@ solicitudes» se queda sin destino: es el mismo hueco de HT-26, del otro lado.
 - [ ] Dado que la atención ya se completó, cuando intento cancelar, entonces se rechaza.
 - [ ] Dado que la contraparte cancela, cuando ocurre, entonces me llega una
       notificación **sin el motivo**, que me lleva a la atención, donde sí lo veo.
+- [ ] Dado que la atención se completó, cuando abro la conversación, entonces veo en esa misma
+      pantalla hasta qué fecha puedo escribir.
+- [ ] Dado que pasaron 7 días desde que se completó, cuando intento escribir o registrar, entonces
+      se rechaza, y la conversación se sigue pudiendo leer.
 
-**Requisitos:** RF-10.3, RF-09.6, RF-09.10, INV-05.
+**Requisitos:** RF-10.3, RF-09.3, RF-09.6, RF-09.10, INV-05.
+
+**Agregado el 2026-11-04.** Los dos últimos criterios. El autor decidió que la conversación de una atención completada
+admita mensajes durante 7 días y después quede solo para leer, y que la misma pantalla lo diga. Desde HU-21 quedaba abierta
+sin fecha de cierre, para coordinar el pago. Lo exige la política de inserción, contra `finished_at`; la lectura no cambia,
+porque HU-22 y HU-31 acceden a la conversación desde el historial. El texto y la disposición los propone el agente en el
+prototipo de esta historia; la propuesta de partida es la fecha exacta, «Puedes escribir hasta el lun 16 nov, 15:40», porque
+una cuenta de días envejece con la pantalla abierta. Sin puntos adicionales.
 
 ### HU-37 · Enterarme del veredicto de mi verificación `[ ]` — 3 puntos
 
@@ -7270,6 +7442,9 @@ ambas partes y la comisión queda controlada.
       llega una notificación que lo lleva a confirmar el cobro.
 
 **Requisitos:** RF-11.2, RF-11.4, RF-09.7, RF-09.10, INV-09.
+
+**A tener en cuenta (2026-11-04).** El aviso `SERVICE_COMPLETED` de HU-23 ya abre la pantalla de la atención. Esta historia
+pone ahí la acción de pagar, con lo que se termina de cumplir su último criterio, y puede sumar el pago a la línea de tiempo.
 
 ### HU-26 · Confirmar que cobré `[ ]` — 8 puntos
 

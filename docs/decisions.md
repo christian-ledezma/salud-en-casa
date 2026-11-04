@@ -6161,6 +6161,114 @@ describe la segunda vista.
 
 ---
 
+## 2026-11-03 · HU-22: el registro de lo realizado es un mensaje marcado, y solo el profesional lo escribe con la atención en curso o completada
+
+**Contexto.** RF-09.3 y la decisión del 2026-09-08 ponen el detalle de la atención en la conversación,
+y prohíben un campo suelto en otra tabla. Desde HU-21 un mensaje ya guarda autor y fecha y ningún
+cliente puede editarlo ni borrarlo, pero un registro escrito como mensaje común no se distingue de «ya
+llegué». Tres hechos condicionaron el plan: ninguna atención podía estar en curso antes de HU-23, no hay
+ningún profesional estudiante en el remoto, y la tarjeta del paciente solo abría la atención en `ACCEPTED`.
+
+**Decisión.** El autor eligió el 2026-11-03, y aprobó el prototipo el mismo día:
+
+1. **Un mensaje marcado.** `messages.is_work_record`, que el motor solo deja poner al profesional de esa
+   atención. Se dibuja como una tarjeta con su rótulo. El texto sigue en `content`.
+2. **Se registra con la atención en curso o completada.** Con solo «en curso», quien marcara completada
+   antes de escribir ya no podría dejar constancia. Antes de llegar se rechaza, porque registraría algo que
+   todavía no ocurrió. Un mensaje común conserva la regla de HU-21.
+3. **El estudiante ve un aviso:** que describa lo que hizo sin incluir un diagnóstico.
+4. **HU-22 va antes que HU-23**, y se recorre poniendo a mano una atención de prueba en curso.
+
+**Razonamiento.**
+
+- **Por qué la marca no contradice la condición del 2026-09-08.** Esa condición prohíbe dispersar el detalle
+  en campos de otras tablas, porque se migraría sin autoría, sin fecha y sin garantía de no haber sido
+  alterado. La marca no guarda detalle: el detalle sigue en una fila con esas tres garantías. Y la vuelve
+  más aditiva: FA-01 podrá copiar lo marcado a su tabla, mientras que un mensaje común no se puede separar
+  de la coordinación.
+- **Marca de sí o no, no un enumerado.** Hay dos clases de mensaje y ningún requisito pide una tercera.
+- **La marca no se puede cambiar después.** Los clientes solo actualizan `read_at`, por la concesión de
+  columna de 2026-09-12. Importa porque la contraparte sí puede actualizar la fila para marcarla leída: sin esa
+  concesión, un paciente convertiría en registro un mensaje del profesional, o al revés.
+- **Corregir es agregar otro registro.** No hay edición, porque un registro editable no serviría de
+  constancia; la barra lo avisa antes de guardar.
+- **Un registro rechazado no cierra la conversación.** `MessageError.WorkRecordNotAllowed` es distinto de
+  `ConversationClosed`, y la cabecera se vuelve a consultar. Leer ese rechazo como «cerrada» habría sido falso,
+  porque los mensajes comunes siguen permitidos.
+- **Con el tipo de profesional desconocido, se muestra el aviso.** Si falla la lectura del perfil, a un
+  enfermero le sobra una línea por un momento; a un estudiante, perderla le quitaría la única advertencia que
+  tiene. El perfil solo se lee cuando se puede registrar.
+- **El modo vive en la barra de mensajes**, no en una hoja aparte: reutiliza el manejo del teclado y el
+  reintento que ya funcionan. Con fuente grande y el teclado abierto, la barra se desplaza dentro de su alto,
+  para que guardar siga alcanzable.
+- **Un registro reintentado sigue siendo registro**, y vuelve al campo en modo registro si el texto era
+  inválido. Perder la marca en esos caminos dejaría una constancia convertida en un mensaje común con el
+  mismo identificador.
+- **Sin evento nuevo.** Un registro llega como `MESSAGE_RECEIVED`: «te escribió», nunca el contenido
+  (RF-09.10). `request_push_body` no se reescribe.
+- **La tarjeta del paciente abre la atención también en `IN_PROGRESS` y `COMPLETED`.** Lo pide el segundo criterio.
+  `CANCELLED` queda para HU-24, porque una cita cancelada antes de aceptarse no tiene atención que abrir. La
+  lista completa sigue siendo de HU-31.
+
+**Límite que se declara.** RN-03 no se hace cumplir: un texto libre no se puede filtrar de forma fiable. El
+criterio del estudiante se cumple porque nadie tiene un campo de diagnóstico en esta fase (FA-01), y el aviso
+informa, no impide. La responsabilidad clínica es del profesional (RN-12).
+
+**Consecuencia.** Migración `work_record_messages`. Un profesional que registra después de completar la
+atención también le genera un aviso al paciente.
+
+---
+
+## 2026-11-04 · HU-23: el avance lo marca el profesional en la atención, el motor sella y arrastra lo demás, y la atención dice a dónde ir
+
+**Contexto.** Los guardias de `services` existen desde el Sprint 1 y conocen el orden de los estados y quién los
+mueve, pero nada los usaba. Al planificar aparecieron tres problemas. Cualquiera de las dos partes podía reescribir
+cualquier columna de su servicio: se comprobó que un paciente cambiaba la hora de inicio. El estado de la solicitud
+no seguía al de la atención, de modo que la tarjeta del paciente decía «Aceptada» con la atención en curso. Y la
+pantalla de la atención no mostraba la dirección, la hora de la cita ni lo pedido: el profesional tenía que preguntar
+a dónde ir por la conversación.
+
+**Decisión.** El autor eligió el 2026-11-04:
+
+1. **Se marca en la atención**, con un botón fijo al pie que cambia según el estado.
+2. **Las dos marcas piden confirmación.** Ninguna se deshace, y la llegada avisa al paciente.
+3. **Sin regla de horario para una cita.** Un límite bloquearía justo a quien llega antes de hora.
+4. **El paciente lo ve al instante**, con una señal sin datos en un tema privado propio.
+5. **El profesional ve la dirección exacta solo con la atención asignada o en curso.** Al completarse o cancelarse,
+   solo la ciudad; lo exige `my_attention`. El paciente siempre ve la suya.
+6. **La pantalla se rediseñó**, en dos vueltas de prototipo: una tarjeta con quién, cuándo, dónde y cuánto, la línea
+   de tiempo del avance y lo pedido. Sin degradado en la cabecera.
+
+**Razonamiento.**
+
+- **Por qué el cliente actualiza la fila y no llama a una función.** Las políticas y los guardias ya deciden, y
+  `.claude/rules/supabase.md` reserva las funciones para lo que una consulta no pueda resolver. Lo que tiene que ser
+  atómico son los efectos, y un disparador corre dentro de la misma transacción.
+- **Por qué la solicitud la mueve un disparador.** Así no hay forma de mover la atención sin mover la solicitud. El
+  guardia solo lo admite si el servicio ya está en ese estado: esa fila es la prueba, como la del 2026-10-29.
+- **Por qué se limitan las columnas.** Las fechas son la constancia de cuándo ocurrió la atención, y escribirlas no
+  podía quedar en manos de un cliente. Quedan `status` y las tres de cancelación que HU-24 usa.
+- **Un tema propio y no el de la conversación.** Se planificó reutilizarlo, y se descartó al implementar: el cliente
+  entrega un mismo canal por tema (`docs/decisions.md`, 2026-10-27, HT-24), de modo que salir de la conversación cortaría
+  la señal de la atención que queda debajo. Lo escuchan las mismas dos partes, con `attention_listen`.
+- **Marcar dos veces no hace nada.** Un reintento tras perder la respuesta no sella otra hora ni avisa otra vez: los
+  efectos solo ocurren si el estado cambió. Por eso reintentar es seguro.
+- **Si otro cambió el estado, la pantalla se relee.** `ServiceError.AttentionChanged` es el motor rechazando el salto;
+  no se le pide nada a la persona, salvo que tampoco se pueda releer. Un diálogo abierto sobre un paso que ya pasó se
+  cierra: el mismo botón habría confirmado el paso siguiente.
+- **Por qué el motor oculta la dirección y no la pantalla.** Una dirección unida a información de salud no debe
+  acumularse en el historial de otra persona, y un filtro en el teléfono no lo impediría. La ciudad se conserva.
+- **«Cómo llegar» abre la aplicación de mapas del teléfono**, con una intención `geo:`. No usa ningún servicio de pago.
+- **El aviso de atención completada abre la atención y no dice «confirma el pago»**, porque esa acción no existe hasta
+  HU-25. Esa parte del último criterio se termina de cumplir ahí.
+- **No se verifica la ubicación al marcar la llegada ni se exige un registro para completar.** Lo primero exigiría
+  seguir al profesional (FA-05), y HU-22 permite registrar después.
+
+**Consecuencia.** Migración `service_progress`. Cancelar sigue sin arrastrar la solicitud: es trabajo de HU-24. El
+subtítulo de la conversación se actualiza al volver a ella, no en vivo.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
