@@ -10,6 +10,7 @@ const SHARED_KEYS = [
   "scheduledAt",
   "amountBob",
   "professionalId",
+  "senderName",
 ];
 const TARGET_KEYS = ["recipientId", "distanceM"];
 
