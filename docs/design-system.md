@@ -419,6 +419,20 @@ el rótulo y el monto: en `primary` si es lo acordado, en `onSurface` si es un p
 Las tres listas se actualizan al deslizar hacia abajo, también vacías o con error. Si falla, un aviso sobre
 `errorContainer` encabeza la lista, que queda como estaba.
 
+En «Mis solicitudes», una inmediata abierta con ofertas dice cuántas bajo el título, en `labelLarge` y `primary` (HT-28).
+
+### Tarjeta de oferta
+
+`OfferCard`, en «Ofertas recibidas» (HT-28). Arriba el avatar, el nombre, la calificación y la distancia. Debajo, el monto en
+`headlineSmall` y `primary`, con el estado de la negociación a la derecha. Al pie, si le toca responder al paciente,
+«Negociar», contorneado, y «Aceptar Bs 120», relleno, cada uno de la mitad del ancho y al menos 48 dp; con la fuente
+agrandada se apilan, con «Aceptar» arriba. Si espera la respuesta, solo «Ver negociación», a todo el ancho. Tocar el resto de
+la tarjeta abre la negociación.
+
+La pantalla se titula «Buscando profesional» solo sin ofertas, con el radar, y «Ofertas recibidas» después. Las ofertas van
+primero; debajo, el servicio y hasta cuándo sigue publicada, y al final «Cancelar solicitud». Si aceptar falla, un aviso sobre
+`errorContainer` encabeza las ofertas.
+
 ### Grupo de opciones exclusivas
 
 Lista vertical de opciones con un círculo de selección a la izquierda y la

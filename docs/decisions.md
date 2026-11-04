@@ -6317,6 +6317,45 @@ descartaron como FA-16.
 porque nada de «Mis solicitudes» lleva ya a una atención. HU-31 agrega la calificación sobre esta lista. Una aplicación
 instalada antes de esta migración deja de leer «Mis atenciones» hasta actualizarse.
 
+## 2026-11-04 · HT-28: aceptar una oferta inmediata desde donde se comparan
+
+**Contexto.** Al revisar HT-27, el autor sintió que aceptar seguía costando demasiados pasos: tarjeta, oferta, «Aceptar» y
+confirmar. Pidió evaluar «Aceptar» en la lista y fusionar la pantalla intermedia.
+
+**Decisión.** El autor aprobó el 2026-11-04, con el prototipo:
+
+1. **«Aceptar» con su monto en cada oferta, no en la lista.** La tarjeta de la lista representa la solicitud y puede tener
+   varias ofertas, de modo que ahí no diría a quién ni por cuánto.
+2. **La pantalla de ofertas se conserva**, porque es donde llegan en vivo y se comparan. Se le quita «Ver mis solicitudes», y
+   la confirmación se mantiene: aceptar congela el monto y crea el pago.
+3. **«Negociar» a la vista, junto a «Aceptar».** Tocar la tarjeta también abre la negociación, pero sin el botón habría que
+   adivinarlo.
+4. **«Mis solicitudes» dice cuántas ofertas tiene una inmediata abierta**, con `open_offer_count`.
+
+**Razonamiento.**
+
+- **La oferta queda fijada al abrir el diálogo.** La lista se reemplaza con cada señal, y el monto que se confirma tiene que
+  ser el que se leyó. Si cambió, el motor la rechaza y la pantalla lo dice, sin elegir otra por su cuenta.
+- **El rechazo del motor dice «Esta oferta cambió»; la falta de conexión, no.** Sin conexión nada cambió, y decirlo mandaría a
+  buscar una diferencia que no existe.
+- **`offersRead` deja una rueda durante la primera lectura.** Sin ella, quien llega desde una tarjeta con «2 ofertas» leería
+  «Buscando profesional» hasta que responda. Leer primero y entrar después lo evitaba sin un campo nuevo, pero la señal de una
+  oferta que llega durante esa lectura se perdía: la pantalla solo escucha estando en la espera.
+- **Se cuentan las negociaciones, no las ofertas:** la última de cada cadena, propuesta y sin respuesta. Una contraoferta no
+  suma, y es lo mismo que la pantalla apila.
+- **El contador no se limita en el motor a las solicitudes abiertas.** Aceptar no toca las demás ofertas, que siguen `PROPOSED`
+  y ya no se pueden aceptar, así que «las demás ofertas se cerrarán» es cierto en efecto y no en su estado. La regla de qué
+  tarjeta lo muestra va en `ServiceRequest.showsOfferCount`, que también deja fuera las agendadas: ya nombran a su profesional.
+- **La confirmación del hilo también cambió de texto.** Decía «verás los datos de contacto», que dejó de ser cierto el
+  2026-10-30, cuando se quitó el teléfono. Solo el de la tarjeta nombra al profesional: en el hilo, quien acepta puede ser el
+  profesional, que aún no conoce el nombre del paciente.
+- **Los botones se apilan con cualquier fuente agrandada, no por medición.** Es la misma regla de `badgeFitsBesideTitle`, y un
+  texto que envuelve dentro del botón a 320 dp sigue siendo legible.
+
+**Consecuencia.** El cliente pide `open_offer_count`, de modo que la migración va antes que la aplicación: una versión nueva sin
+ella no lee «Mis solicitudes» ni la solicitud activa. Las citas agendadas no cambian. Se retiró la línea de cuántas propuestas
+lleva una negociación, que el prototipo aprobado no incluye; sigue viéndose en el hilo.
+
 ## Plantilla para entradas nuevas
 
 ```

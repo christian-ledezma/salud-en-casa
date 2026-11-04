@@ -7407,7 +7407,7 @@ no está. Hay una atención nueva en curso, como pedía el recorrido, y `61eb544
 **A tener en cuenta.** `05adae36` sigue con la solicitud en `COMPLETED` y el servicio en `IN_PROGRESS`, de modo que ocupa
 «Tu atención» de esa pareja. Son datos de prueba; desde HU-23 los dos estados se mueven juntos.
 
-### HT-28 · Aceptar una oferta desde donde se comparan `[ ]` — 3 puntos
+### HT-28 · Aceptar una oferta desde donde se comparan `[x]` — 3 puntos
 
 > Como **paciente**, quiero **aceptar una oferta inmediata desde la pantalla donde veo todas**, para **no abrir otra
 > pantalla solo para decir que sí**.
@@ -7436,6 +7436,67 @@ confirmación se conserva. Las citas agendadas no cambian: ya abren directo su n
 **Requisitos:** RF-08.5.
 
 **Antes:** HT-27 cerrada, porque esta historia parte de su tarjeta.
+
+**Planificación (2026-11-04).** Registrada en `docs/decisions.md`, 2026-11-04, HT-28. Prototipo aprobado el mismo día, en el
+lienzo «Ofertas HT-28»: la lista, las ofertas, la confirmación, sin ofertas, aceptar fallido, oscuro y 200 % a 320 dp. Se
+mantuvo en 3 puntos. Respecto del alcance de arriba, el prototipo sumó «Negociar» junto a «Aceptar», para que contraofertar
+se vea sin adivinar, y «Volver» en el diálogo, para no confundirlo con cancelar la solicitud.
+
+**Criterios de aceptación**
+
+- [x] Dado que me toca responder una oferta, cuando abro «Ofertas recibidas», entonces la tarjeta ofrece «Aceptar» con su
+      monto y «Negociar».
+- [x] Dado que acepto, cuando se abre la confirmación, entonces nombra el monto y al profesional; al confirmar voy a la
+      atención, y volver no regresa a las ofertas.
+- [x] Dado que el diálogo está abierto y llega otra oferta, cuando confirmo, entonces se acepta la oferta que el diálogo
+      nombra.
+- [x] Dado que la oferta cambió antes de confirmar, cuando el motor rechaza, entonces la pantalla lo dice y muestra la oferta
+      vigente.
+- [x] Dado que espero la respuesta del profesional, cuando veo su tarjeta, entonces solo puedo abrir la negociación.
+- [x] Dado que no hay ofertas, cuando abro la pantalla, entonces dice «Buscando profesional», y no lo dice mientras la primera
+      lectura no responde.
+- [x] Dado que una inmediata abierta tiene ofertas, cuando veo «Mis solicitudes», entonces la tarjeta dice cuántas.
+
+**Experimento contra el remoto (2026-11-04), con la migración aplicada dentro de una transacción con `rollback`**
+
+| Caso | Resultado |
+|---|---|
+| Sin ofertas | 0 |
+| Una oferta sin responder | 1 |
+| Dos profesionales | 2 |
+| Una contraoferta sobre una de ellas | 2: es la misma negociación |
+| Un tercer profesional | 3 |
+| Se rechaza su oferta | 2: sale de la cuenta, como de la pantalla |
+| Un ajeno y el profesional leen la fila | 0 filas |
+| Escribir por la vista, también el contador | Rechazado, `55000` |
+| `anon` lee, `authenticated` actualiza | No y no |
+| El paciente acepta una oferta | Pasa, y la solicitud queda `ACCEPTED`, con `has_attention` |
+| Otro profesional acepta la que le quedaba abierta | Rechazado, `request_not_open` |
+| La oferta de ese otro profesional | Sigue `PROPOSED`, sin poder aceptarse |
+
+La última fila es la razón de `showsOfferCount`: el motor seguiría contando esa oferta, y es el modelo el que limita la cuenta a
+las inmediatas abiertas.
+
+**Mutaciones comprobadas (2026-11-04).** Las cinco hacen fallar exactamente una prueba de `ImmediateCareViewModelTest`: aceptar
+la oferta de la lista en vez de la del diálogo, no tratar `Accepted` como ocupado, no cancelar la lectura en curso al aceptar,
+no comprobar el turno, y no marcar la primera lectura como pendiente.
+
+**Previsualizaciones (2026-11-04).** Abiertas y miradas: ofertas en claro, oscuro y 200 %, sin ofertas, aceptar fallido y la
+lista con «2 ofertas». **El diálogo no se ve en ellas:** es una ventana aparte, que `ScreenCatalog` no captura. Lo cubre la
+prueba a 320 dp y 200 %, que no ve el texto recortado dentro de su contenedor.
+
+**Cerrada el 2026-11-04, con recorrido del autor en emuladores.** El autor aplicó la migración y luego hizo el ejercicio contra el
+remoto, sin informar defectos. No figura en la tabla de historias críticas, de modo que el recorrido no era obligatorio, aunque
+usa la misma aceptación que HU-19, que sí lo es.
+
+**Lo que respalda el remoto, sin leer ningún contenido.** La migración está registrada y es la última, la columna existe, `anon`
+no lee la vista y `authenticated` no la actualiza. La solicitud inmediata `b5a319f2` nació a las 18:15 UTC y llegó al acuerdo a las
+18:21, con un profesional y tres ofertas: la suya, la contraoferta del paciente y otra suya, que el paciente aceptó. Quedó con un
+servicio `ASSIGNED`, un pago y el monto final igual al de la oferta aceptada.
+
+**Lo que solo respalda el recorrido.** Que el texto del diálogo no quede recortado, que tras aceptar se llegue a la atención y que
+volver no regrese a las ofertas: la navegación no tiene prueba automática. El remoto tampoco distingue si se aceptó desde la
+tarjeta o desde el hilo. Estos puntos no se anotaron uno por uno: quedan cubiertos por el ejercicio del autor en conjunto.
 
 ### HU-24 · Cancelar una atención `[ ]` — 5 puntos
 
