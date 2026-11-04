@@ -12,12 +12,13 @@ class SendMessageUseCase(
         requestId: String,
         messageId: String,
         text: String,
+        isWorkRecord: Boolean = false,
     ): SendMessageResult {
         val content =
             MessageContent.create(text).getOrElse { failure ->
                 val error = if (failure.message == "message_empty") MessageError.Empty else MessageError.TooLong
                 return SendMessageResult.Failure(error)
             }
-        return repository.send(requestId, messageId, content)
+        return repository.send(requestId, messageId, content, isWorkRecord)
     }
 }

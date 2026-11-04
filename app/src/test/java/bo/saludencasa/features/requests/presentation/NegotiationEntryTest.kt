@@ -67,4 +67,15 @@ class NegotiationEntryTest {
             scheduled(RequestStatus.ACCEPTED).negotiationEntry(),
         )
     }
+
+    // HU-22: the conversation holds the record of what was done, so the card keeps
+    // opening the attention while it runs and after it ends.
+    @Test
+    fun anAttentionUnderWayOrFinishedStaysReachable() {
+        listOf(RequestStatus.IN_PROGRESS, RequestStatus.COMPLETED).forEach { status ->
+            val entry = NegotiationEntry.Attention(requestId = "r1")
+            assertEquals(entry, immediate(status).negotiationEntry())
+            assertEquals(entry, scheduled(status).negotiationEntry())
+        }
+    }
 }

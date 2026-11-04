@@ -18,17 +18,21 @@ sealed interface NegotiationEntry {
     ) : NegotiationEntry
 
     // Once an offer is accepted there is nothing left to negotiate: the card opens
-    // the sealed agreement (HU-19).
+    // the sealed agreement (HU-19), also while it runs and after it ends (HU-22).
     data class Attention(
         val requestId: String,
     ) : NegotiationEntry
 }
 
-// Null when there is nothing to open: the request was cancelled or expired, or a
-// scheduled one is still waiting for its first offer.
+private val STATUSES_WITH_AN_ATTENTION =
+    setOf(RequestStatus.ACCEPTED, RequestStatus.IN_PROGRESS, RequestStatus.COMPLETED)
+
+// Null when there is nothing to open: the request expired or was cancelled
+// (docs/decisions.md, 2026-11-03, HU-22), or a scheduled one is still waiting for
+// its first offer.
 internal fun ServiceRequest.negotiationEntry(): NegotiationEntry? =
     when {
-        status == RequestStatus.ACCEPTED -> {
+        status in STATUSES_WITH_AN_ATTENTION -> {
             NegotiationEntry.Attention(id)
         }
 

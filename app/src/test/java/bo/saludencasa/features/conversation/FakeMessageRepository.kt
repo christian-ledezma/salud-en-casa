@@ -23,6 +23,7 @@ const val REQUEST_ID = "61eb5448-0000-4000-8000-000000000000"
 class FakeMessageRepository : IMessageRepository {
     val stored = mutableListOf<Message>()
     val sent = mutableListOf<Pair<String, String>>()
+    val sentAsRecord = mutableListOf<Boolean>()
     var markReadCalls = 0
     var fetchError: MessageError? = null
     var sendError: MessageError? = null
@@ -43,8 +44,9 @@ class FakeMessageRepository : IMessageRepository {
         content: String,
         sentByMe: Boolean,
         id: String = "m-${stored.size.toString().padStart(4, '0')}",
+        isWorkRecord: Boolean = false,
     ): Message {
-        val message = Message(id, content, sentByMe, nextInstant(), readAt = null)
+        val message = Message(id, content, sentByMe, nextInstant(), readAt = null, isWorkRecord = isWorkRecord)
         stored += message
         return message
     }
@@ -77,11 +79,13 @@ class FakeMessageRepository : IMessageRepository {
         requestId: String,
         messageId: String,
         content: MessageContent,
+        isWorkRecord: Boolean,
     ): SendMessageResult {
         sent += messageId to content.value
+        sentAsRecord += isWorkRecord
         sendError?.let { return SendMessageResult.Failure(it) }
         val existing = stored.firstOrNull { it.id == messageId }
-        val message = existing ?: store(content.value, sentByMe = true, id = messageId)
+        val message = existing ?: store(content.value, sentByMe = true, id = messageId, isWorkRecord = isWorkRecord)
         // The engine has the row; only the reply is late.
         holdSend?.await()
         return SendMessageResult.Sent(message)

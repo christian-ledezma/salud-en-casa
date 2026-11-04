@@ -18,13 +18,16 @@ internal fun MessageDto.toMessage(signedInUserId: String): Message? {
         sentByMe = senderId == signedInUserId,
         createdAt = created,
         readAt = read,
+        isWorkRecord = isWorkRecord,
     )
 }
 
-// The insert policy refuses a cancelled attention with the platform's row-level
-// security error; it is the only refusal a party of the service can meet.
-internal fun Throwable.toMessageError(): MessageError {
-    if (message?.contains(ROW_LEVEL_SECURITY) == true) return MessageError.ConversationClosed
+// The insert policies refuse with the platform's row-level security error, and what
+// it means depends on what was sent (docs/decisions.md, 2026-11-03, HU-22).
+internal fun Throwable.toMessageError(isWorkRecord: Boolean = false): MessageError {
+    if (message?.contains(ROW_LEVEL_SECURITY) == true) {
+        return if (isWorkRecord) MessageError.WorkRecordNotAllowed else MessageError.ConversationClosed
+    }
     return when (this) {
         is HttpRequestTimeoutException, is HttpRequestException, is IOException -> MessageError.NetworkUnavailable
         else -> MessageError.Unexpected

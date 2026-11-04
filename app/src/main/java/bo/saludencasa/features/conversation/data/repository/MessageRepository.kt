@@ -70,9 +70,17 @@ class MessageRepository(
         requestId: String,
         messageId: String,
         content: MessageContent,
+        isWorkRecord: Boolean,
     ): SendMessageResult {
         val me = dataSource.currentUserId() ?: return SendMessageResult.Failure(MessageError.NotSignedIn)
-        val row = NewMessageRow(id = messageId, requestId = requestId, senderId = me, content = content.value)
+        val row =
+            NewMessageRow(
+                id = messageId,
+                requestId = requestId,
+                senderId = me,
+                content = content.value,
+                isWorkRecord = isWorkRecord,
+            )
 
         return try {
             dataSource.insert(row).toSent(me)
@@ -80,7 +88,7 @@ class MessageRepository(
             throw cancellation
         } catch (failure: Exception) {
             if (failure.isAlreadyStored()) return alreadyStored(messageId, me)
-            SendMessageResult.Failure(failure.toMessageError())
+            SendMessageResult.Failure(failure.toMessageError(isWorkRecord))
         }
     }
 

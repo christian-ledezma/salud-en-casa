@@ -10,6 +10,7 @@ data class MessageDto(
     val content: String,
     @SerialName("read_at") val readAt: String? = null,
     @SerialName("created_at") val createdAt: String,
+    @SerialName("is_work_record") val isWorkRecord: Boolean = false,
 )
 
 // No dates: stamp_message_created_at and stamp_message_read_at own them.
@@ -19,6 +20,7 @@ data class NewMessageRow(
     @SerialName("request_id") val requestId: String,
     @SerialName("sender_id") val senderId: String,
     val content: String,
+    @SerialName("is_work_record") val isWorkRecord: Boolean,
 )
 
 @Serializable

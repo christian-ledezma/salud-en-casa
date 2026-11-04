@@ -37,4 +37,13 @@ class SendMessageUseCaseTest {
 
             assertEquals(listOf("id-1" to "Llego en diez minutos"), repository.sent)
         }
+
+    @Test
+    fun aMessageIsOrdinaryUnlessMarkedAsARecord() =
+        runTest {
+            send(REQUEST_ID, "id-1", "Llego en diez minutos")
+            send(REQUEST_ID, "id-2", "Cambio de apósito", isWorkRecord = true)
+
+            assertEquals(listOf(false, true), repository.sentAsRecord)
+        }
 }

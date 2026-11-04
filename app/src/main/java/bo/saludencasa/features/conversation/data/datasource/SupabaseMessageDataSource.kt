@@ -52,6 +52,6 @@ class SupabaseMessageDataSource(
         const val MARK_CONVERSATION_READ = "mark_conversation_read"
         const val TOPIC_PREFIX = "conversation:"
         const val EVENT = "conversation_changed"
-        val COLUMNS = Columns.list("id", "sender_id", "content", "read_at", "created_at")
+        val COLUMNS = Columns.list("id", "sender_id", "content", "read_at", "created_at", "is_work_record")
     }
 }

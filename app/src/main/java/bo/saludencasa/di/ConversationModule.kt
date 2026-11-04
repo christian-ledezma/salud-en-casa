@@ -18,7 +18,7 @@ val conversationModule =
         single { SupabaseMessageDataSource(supabase = get()) }
         single<IMessageRepository> { MessageRepository(get()) }
 
-        factory { GetConversationHeaderUseCase(get()) }
+        factory { GetConversationHeaderUseCase(get(), get()) }
         factory { GetMessagesUseCase(get()) }
         factory { CatchUpMessagesUseCase(get()) }
         factory { SendMessageUseCase(get()) }

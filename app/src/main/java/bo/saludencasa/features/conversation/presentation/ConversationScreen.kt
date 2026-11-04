@@ -20,12 +20,17 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,6 +83,7 @@ internal data class ConversationActions(
     val onBack: () -> Unit = {},
     val onRetry: () -> Unit = {},
     val onDraftChange: (String) -> Unit = {},
+    val onRecordingChange: (Boolean) -> Unit = {},
     val onSend: () -> Unit = {},
     val onRetrySend: (String) -> Unit = {},
     val onLoadOlder: () -> Unit = {},
@@ -106,6 +112,7 @@ fun ConversationScreen(
                 onBack = onBack,
                 onRetry = viewModel::retry,
                 onDraftChange = viewModel::onDraftChange,
+                onRecordingChange = viewModel::onRecordingChange,
                 onSend = viewModel::send,
                 onRetrySend = viewModel::retrySend,
                 onLoadOlder = viewModel::loadOlder,
@@ -326,6 +333,10 @@ private fun BubbleRow(
     onRetrySend: (String) -> Unit,
 ) {
     val mine = item.sentByMe
+    if (item.isWorkRecord) {
+        WorkRecordRow(item = item, showsReceipt = showsReceipt, locale = locale, onRetrySend = onRetrySend)
+        return
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
@@ -335,12 +346,6 @@ private fun BubbleRow(
             horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
         ) {
-            val text =
-                when (item) {
-                    is ConversationItem.Delivered -> item.message.content
-                    is ConversationItem.Sending -> item.text
-                    is ConversationItem.NotSent -> item.text
-                }
             Surface(
                 shape = if (mine) ExtraShapes.myBubble else ExtraShapes.theirBubble,
                 color = if (mine) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
@@ -357,7 +362,7 @@ private fun BubbleRow(
                     },
             ) {
                 Text(
-                    text = text,
+                    text = item.text(),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(horizontal = Spacing.scale12, vertical = Spacing.scale8),
                 )
@@ -366,6 +371,57 @@ private fun BubbleRow(
         }
     }
 }
+
+// docs/design-system.md, «Registro de la atención».
+@Composable
+private fun WorkRecordRow(
+    item: ConversationItem,
+    showsReceipt: Boolean,
+    locale: Locale,
+    onRetrySend: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (item.sentByMe) Alignment.End else Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = Spacing.cardPadding, vertical = Spacing.scale12),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_work_record),
+                        contentDescription = null,
+                        modifier = Modifier.size(Spacing.scale20),
+                    )
+                    Text(
+                        text = stringResource(R.string.conversation_work_record_label),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+                Text(text = item.text(), style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        BubbleFooter(item = item, showsReceipt = showsReceipt, locale = locale, onRetrySend = onRetrySend)
+    }
+}
+
+private fun ConversationItem.text(): String =
+    when (this) {
+        is ConversationItem.Delivered -> message.content
+        is ConversationItem.Sending -> text
+        is ConversationItem.NotSent -> text
+    }
 
 @Composable
 private fun BubbleFooter(
@@ -413,9 +469,17 @@ private fun BubbleFooter(
         is ConversationItem.NotSent -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = stringResource(R.string.conversation_not_sent),
+                    text =
+                        stringResource(
+                            if (item.error == MessageError.WorkRecordNotAllowed) {
+                                R.string.error_work_record_not_allowed
+                            } else {
+                                R.string.conversation_not_sent
+                            },
+                        ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
                 TextButton(
                     onClick = { onRetrySend(item.key) },
@@ -542,7 +606,18 @@ private fun Composer(
     content: ConversationUiState.Content,
     actions: ConversationActions,
 ) {
-    val inputDescription = stringResource(R.string.cd_message_input, content.header.counterpartName)
+    val recording = content.recording
+    val inputDescription =
+        stringResource(
+            if (recording) R.string.cd_work_record_input else R.string.cd_message_input,
+            content.header.counterpartName,
+        )
+    val minLines =
+        when {
+            !recording -> 1
+            LocalDensity.current.fontScale >= LARGE_FONT_SCALE -> RECORD_MIN_LINES_LARGE_FONT
+            else -> RECORD_MIN_LINES
+        }
     val maxLength =
         NumberFormat
             .getIntegerInstance(
@@ -552,49 +627,118 @@ private fun Composer(
     // window no longer resizes for it: the bar rises by the keyboard less the
     // navigation bar already padded.
     BottomActionBar(modifier = Modifier.windowInsetsPadding(WindowInsets.ime.exclude(WindowInsets.navigationBars))) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
-            verticalAlignment = Alignment.Bottom,
+        // docs/decisions.md, 2026-11-03, HU-22: saving stays within reach.
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         ) {
-            OutlinedTextField(
-                value = content.draft,
-                onValueChange = actions.onDraftChange,
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .semantics { contentDescription = inputDescription },
-                placeholder = {
-                    Text(
-                        text = stringResource(R.string.conversation_input_placeholder),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                textStyle = MaterialTheme.typography.bodyLarge,
-                shape = MaterialTheme.shapes.small,
-                maxLines = COMPOSER_MAX_LINES,
-                isError = content.draftError != null,
-                supportingText =
-                    content.draftError?.let { error ->
-                        {
-                            Text(
-                                text = stringResource(error.messageRes(), maxLength),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    },
-            )
-            FilledIconButton(
-                onClick = actions.onSend,
-                enabled = content.canSend,
-                modifier = Modifier.size(Spacing.minTouchTarget),
+            if (content.header.canRecord) {
+                WorkRecordToggle(selected = recording, onSelectedChange = actions.onRecordingChange)
+            }
+            if (recording) {
+                WorkRecordNotices(showsStudentNotice = content.header.showsStudentNotice)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+                verticalAlignment = Alignment.Bottom,
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = stringResource(R.string.cd_send_message),
+                OutlinedTextField(
+                    value = content.draft,
+                    onValueChange = actions.onDraftChange,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .semantics { contentDescription = inputDescription },
+                    placeholder = {
+                        Text(
+                            text =
+                                stringResource(
+                                    if (recording) {
+                                        R.string.conversation_work_record_placeholder
+                                    } else {
+                                        R.string.conversation_input_placeholder
+                                    },
+                                ),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    },
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    shape = MaterialTheme.shapes.small,
+                    minLines = minLines,
+                    maxLines = COMPOSER_MAX_LINES,
+                    isError = content.draftError != null,
+                    supportingText =
+                        content.draftError?.let { error ->
+                            {
+                                Text(
+                                    text = stringResource(error.messageRes(), maxLength),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        },
                 )
+                FilledIconButton(
+                    onClick = actions.onSend,
+                    enabled = content.canSend,
+                    modifier = Modifier.size(Spacing.minTouchTarget),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription =
+                            stringResource(if (recording) R.string.cd_save_work_record else R.string.cd_send_message),
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun WorkRecordToggle(
+    selected: Boolean,
+    onSelectedChange: (Boolean) -> Unit,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = { onSelectedChange(!selected) },
+        label = {
+            Text(
+                text = stringResource(R.string.conversation_work_record_label),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        },
+        leadingIcon = {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_work_record),
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                )
+            }
+        },
+    )
+}
+
+@Composable
+private fun WorkRecordNotices(showsStudentNotice: Boolean) {
+    if (showsStudentNotice) {
+        Text(
+            text = stringResource(R.string.conversation_work_record_student_notice),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+    Text(
+        text = stringResource(R.string.conversation_work_record_hint),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -652,6 +796,7 @@ private fun MessageError.messageRes(): Int =
         MessageError.Empty -> R.string.error_message_empty
         MessageError.TooLong -> R.string.error_message_too_long
         MessageError.ConversationClosed -> R.string.conversation_closed_notice
+        MessageError.WorkRecordNotAllowed -> R.string.error_work_record_not_allowed
         MessageError.NetworkUnavailable -> R.string.error_network_unavailable
         MessageError.NotSignedIn, MessageError.Unexpected -> R.string.error_unexpected
     }
@@ -659,6 +804,8 @@ private fun MessageError.messageRes(): Int =
 private const val LARGE_FONT_SCALE = 1.5f
 private const val OLDER_PAGE_THRESHOLD = 3
 private const val COMPOSER_MAX_LINES = 5
+private const val RECORD_MIN_LINES = 3
+private const val RECORD_MIN_LINES_LARGE_FONT = 2
 
 private val previewToday: LocalDate = LocalDate.parse("2026-11-03")
 
@@ -708,6 +855,23 @@ private val previewContent =
         header = previewHeader,
         messages = previewMessages,
         older = OlderMessages.EXHAUSTED,
+    )
+
+private val previewWorkRecord =
+    Message(
+        id = "m5",
+        content = "Curación de la herida de la pierna derecha. Limpieza con suero y cambio de apósito.",
+        sentByMe = true,
+        createdAt = Instant.parse("2026-11-03T15:40:00Z"),
+        readAt = Instant.parse("2026-11-03T15:41:00Z"),
+        isWorkRecord = true,
+    )
+
+private val previewRecording =
+    previewContent.copy(
+        header = previewHeader.copy(status = ServiceStatus.IN_PROGRESS, canRecord = true),
+        messages = previewMessages + previewWorkRecord,
+        recordRequested = true,
     )
 
 @Composable
@@ -762,6 +926,79 @@ private fun ConversationNotSentPreview() {
             outbox =
                 listOf(
                     ConversationItem.NotSent("n1", "Muchas gracias por todo.", MessageError.NetworkUnavailable),
+                ),
+        ),
+    )
+}
+
+@Preview(name = "Conversation recording", showBackground = true)
+@Composable
+private fun ConversationRecordingPreview() {
+    ConversationPreviewFrame(previewRecording)
+}
+
+@Preview(
+    name = "Conversation recording dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun ConversationRecordingDarkPreview() {
+    ConversationPreviewFrame(previewRecording)
+}
+
+@Preview(name = "Conversation recording large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun ConversationRecordingLargeFontPreview() {
+    ConversationPreviewFrame(previewRecording.copy(messages = listOf(previewWorkRecord)))
+}
+
+@Preview(name = "Conversation recording student", showBackground = true)
+@Composable
+private fun ConversationRecordingStudentPreview() {
+    ConversationPreviewFrame(
+        previewRecording.copy(
+            header = previewRecording.header.copy(showsStudentNotice = true),
+        ),
+    )
+}
+
+@Preview(name = "Conversation recording student large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun ConversationRecordingStudentLargeFontPreview() {
+    ConversationPreviewFrame(
+        previewRecording.copy(
+            header = previewRecording.header.copy(showsStudentNotice = true),
+            messages = listOf(previewWorkRecord),
+        ),
+    )
+}
+
+@Preview(name = "Conversation record as the patient", showBackground = true)
+@Composable
+private fun ConversationRecordAsThePatientPreview() {
+    ConversationPreviewFrame(
+        previewContent.copy(
+            header = previewHeader.copy(counterpartName = "María Flores", status = ServiceStatus.COMPLETED),
+            messages = previewMessages + previewWorkRecord.copy(sentByMe = false),
+        ),
+    )
+}
+
+@Preview(name = "Conversation record not allowed", showBackground = true)
+@Composable
+private fun ConversationRecordNotAllowedPreview() {
+    ConversationPreviewFrame(
+        previewContent.copy(
+            header = previewHeader.copy(status = ServiceStatus.IN_PROGRESS, canRecord = true),
+            outbox =
+                listOf(
+                    ConversationItem.NotSent(
+                        key = "n1",
+                        text = "Curación de la herida de la pierna derecha.",
+                        error = MessageError.WorkRecordNotAllowed,
+                        isWorkRecord = true,
+                    ),
                 ),
         ),
     )

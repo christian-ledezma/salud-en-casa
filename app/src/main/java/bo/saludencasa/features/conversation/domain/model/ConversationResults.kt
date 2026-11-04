@@ -10,6 +10,9 @@ sealed interface MessageError {
     // The attention was cancelled: the engine refuses new messages.
     data object ConversationClosed : MessageError
 
+    // The engine refuses this record; ordinary messages may still be allowed.
+    data object WorkRecordNotAllowed : MessageError
+
     data object NotSignedIn : MessageError
 
     data object NetworkUnavailable : MessageError
@@ -23,6 +26,8 @@ data class ConversationHeader(
     val serviceTypeName: String,
     val status: ServiceStatus,
     val canWrite: Boolean,
+    val canRecord: Boolean = false,
+    val showsStudentNotice: Boolean = false,
 )
 
 sealed interface ConversationHeaderResult {

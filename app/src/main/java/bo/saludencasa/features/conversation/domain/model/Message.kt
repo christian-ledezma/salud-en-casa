@@ -8,6 +8,7 @@ data class Message(
     val sentByMe: Boolean,
     val createdAt: Instant,
     val readAt: Instant?,
+    val isWorkRecord: Boolean = false,
 )
 
 // docs/decisions.md, 2026-11-03, HU-21: the id breaks a tie in time.

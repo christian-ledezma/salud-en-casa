@@ -20,6 +20,7 @@ interface IMessageRepository {
         requestId: String,
         messageId: String,
         content: MessageContent,
+        isWorkRecord: Boolean,
     ): SendMessageResult
 
     suspend fun markRead(requestId: String): MarkReadResult

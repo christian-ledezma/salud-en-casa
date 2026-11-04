@@ -40,17 +40,20 @@ enum class OlderMessages {
 sealed interface ConversationItem {
     val key: String
     val sentByMe: Boolean
+    val isWorkRecord: Boolean
 
     data class Delivered(
         val message: Message,
     ) : ConversationItem {
         override val key: String get() = message.id
         override val sentByMe: Boolean get() = message.sentByMe
+        override val isWorkRecord: Boolean get() = message.isWorkRecord
     }
 
     data class Sending(
         override val key: String,
         val text: String,
+        override val isWorkRecord: Boolean = false,
     ) : ConversationItem {
         override val sentByMe: Boolean get() = true
     }
@@ -59,6 +62,7 @@ sealed interface ConversationItem {
         override val key: String,
         val text: String,
         val error: MessageError,
+        override val isWorkRecord: Boolean = false,
     ) : ConversationItem {
         override val sentByMe: Boolean get() = true
     }
@@ -81,12 +85,15 @@ sealed interface ConversationUiState {
         val older: OlderMessages,
         val draft: String = "",
         val draftError: MessageError? = null,
+        val recordRequested: Boolean = false,
     ) : ConversationUiState {
         // Oldest first; what is still on its way goes after what the engine has.
         val items: List<ConversationItem>
             get() = messages.map(ConversationItem::Delivered) + outbox
 
         val canSend: Boolean get() = header.canWrite && draft.isNotBlank()
+
+        val recording: Boolean get() = recordRequested && header.canRecord
     }
 }
 
@@ -150,13 +157,24 @@ class ConversationViewModel(
         updateContent { it.copy(draft = text, draftError = null) }
     }
 
+    fun onRecordingChange(enabled: Boolean) {
+        updateContent { if (it.header.canRecord) it.copy(recordRequested = enabled) else it }
+    }
+
     fun send() {
         val content = state.value as? ConversationUiState.Content ?: return
         if (!content.canSend) return
         val key = UUID.randomUUID().toString()
         val text = content.draft
-        updateContent { it.copy(draft = "", outbox = it.outbox + ConversationItem.Sending(key, text)) }
-        deliver(key, text)
+        val isWorkRecord = content.recording
+        updateContent {
+            it.copy(
+                draft = "",
+                recordRequested = false,
+                outbox = it.outbox + ConversationItem.Sending(key, text, isWorkRecord),
+            )
+        }
+        deliver(key, text, isWorkRecord)
     }
 
     fun retrySend(key: String) {
@@ -169,14 +187,14 @@ class ConversationViewModel(
                         if (it.key ==
                             key
                         ) {
-                            ConversationItem.Sending(key, failed.text)
+                            ConversationItem.Sending(key, failed.text, failed.isWorkRecord)
                         } else {
                             it
                         }
                     },
             )
         }
-        deliver(key, failed.text)
+        deliver(key, failed.text, failed.isWorkRecord)
     }
 
     fun loadOlder() {
@@ -258,15 +276,17 @@ class ConversationViewModel(
     private fun deliver(
         key: String,
         text: String,
+        isWorkRecord: Boolean,
     ) {
         viewModelScope.launch {
-            when (val result = sendMessage(requestId, key, text)) {
+            when (val result = sendMessage(requestId, key, text, isWorkRecord)) {
                 is SendMessageResult.Sent -> {
                     updateContent { it.withMessages(listOf(result.message)) }
                 }
 
                 is SendMessageResult.Failure -> {
-                    onSendFailed(key, text, result.error)
+                    onSendFailed(key, text, isWorkRecord, result.error)
+                    if (result.error == MessageError.WorkRecordNotAllowed) refreshHeader()
                 }
             }
         }
@@ -275,6 +295,7 @@ class ConversationViewModel(
     private fun onSendFailed(
         key: String,
         text: String,
+        isWorkRecord: Boolean,
         error: MessageError,
     ) {
         updateContent { current ->
@@ -285,11 +306,12 @@ class ConversationViewModel(
                         outbox = current.outbox.filterNot { it.key == key },
                         draft = text,
                         draftError = error,
+                        recordRequested = isWorkRecord,
                     )
                 }
 
                 else -> {
-                    val notSent = ConversationItem.NotSent(key, text, error)
+                    val notSent = ConversationItem.NotSent(key, text, error, isWorkRecord)
                     current.copy(
                         outbox = current.outbox.map { if (it.key == key) notSent else it },
                         header =

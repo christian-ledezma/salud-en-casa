@@ -14,9 +14,12 @@ import bo.saludencasa.features.conversation.domain.vo.MessageContent
 import bo.saludencasa.features.notifications.FakeNotificationRepository
 import bo.saludencasa.features.notifications.domain.usecase.EnterConversationUseCase
 import bo.saludencasa.features.notifications.domain.usecase.LeaveConversationUseCase
+import bo.saludencasa.features.profile.FakeProfileRepository
+import bo.saludencasa.features.profile.domain.usecase.GetProfileUseCase
 import bo.saludencasa.features.services.FakeServiceRepository
 import bo.saludencasa.features.services.attention
 import bo.saludencasa.features.services.domain.model.AttentionResult
+import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.TestScope
@@ -39,12 +42,21 @@ class ConversationViewModelTest {
     private val services =
         FakeServiceRepository().apply { result = AttentionResult.Loaded(attention(requestId = REQUEST_ID)) }
 
+    private fun attentionUnderWay(status: ServiceStatus = ServiceStatus.IN_PROGRESS) {
+        services.result =
+            AttentionResult.Loaded(attention(requestId = REQUEST_ID, status = status, iAmThePatient = false))
+    }
+
     private fun TestScope.viewModel(): ConversationViewModel {
         val getMessages = GetMessagesUseCase(messages)
         val viewModel =
             ConversationViewModel(
                 requestId = REQUEST_ID,
-                getHeader = GetConversationHeaderUseCase(GetAttentionUseCase(services)),
+                getHeader =
+                    GetConversationHeaderUseCase(
+                        GetAttentionUseCase(services),
+                        GetProfileUseCase(FakeProfileRepository()),
+                    ),
                 getMessages = getMessages,
                 catchUpMessages = CatchUpMessagesUseCase(getMessages),
                 sendMessage = SendMessageUseCase(messages),
@@ -181,6 +193,172 @@ class ConversationViewModelTest {
             assertFalse(viewModel.content().header.canWrite)
             viewModel.onDraftChange("Otra vez")
             assertFalse(viewModel.content().canSend)
+        }
+
+    // docs/decisions.md, 2026-11-03, HU-22.
+    @Test
+    fun aRecordIsSentAsARecordAndTheBarGoesBackToMessages() =
+        runTest {
+            attentionUnderWay()
+            val viewModel = viewModel()
+
+            viewModel.onRecordingChange(true)
+            viewModel.onDraftChange("Cambio de apósito")
+            viewModel.send()
+            advanceUntilIdle()
+            assertTrue(
+                viewModel
+                    .content()
+                    .messages
+                    .single()
+                    .isWorkRecord,
+            )
+            assertFalse(viewModel.content().recording)
+
+            viewModel.onDraftChange("Hasta mañana")
+            viewModel.send()
+            advanceUntilIdle()
+
+            assertEquals(listOf(true, false), messages.sentAsRecord)
+        }
+
+    // The row must not turn into a bubble the moment the engine answers, nor start
+    // as one while it is on its way.
+    @Test
+    fun aRecordOnItsWayAlreadyShowsAsARecord() =
+        runTest {
+            attentionUnderWay()
+            val hold = CompletableDeferred<Unit>()
+            messages.holdSend = hold
+            val viewModel = viewModel()
+
+            viewModel.onRecordingChange(true)
+            viewModel.onDraftChange("Cambio de apósito")
+            viewModel.send()
+            advanceUntilIdle()
+
+            assertTrue(
+                viewModel
+                    .content()
+                    .items
+                    .single()
+                    .isWorkRecord,
+            )
+            hold.complete(Unit)
+        }
+
+    // The same id with the mark lost would be a record stored as a common message.
+    @Test
+    fun aRetriedRecordIsStillARecord() =
+        runTest {
+            attentionUnderWay()
+            messages.sendError = MessageError.NetworkUnavailable
+            val viewModel = viewModel()
+            viewModel.onRecordingChange(true)
+            viewModel.onDraftChange("Cambio de apósito")
+            viewModel.send()
+            advanceUntilIdle()
+
+            val notSent = viewModel.content().outbox.single() as ConversationItem.NotSent
+            assertTrue(notSent.isWorkRecord)
+
+            messages.sendError = null
+            viewModel.retrySend(notSent.key)
+            advanceUntilIdle()
+
+            assertEquals(listOf(true, true), messages.sentAsRecord)
+            assertTrue(
+                viewModel
+                    .content()
+                    .messages
+                    .single()
+                    .isWorkRecord,
+            )
+        }
+
+    @Test
+    fun aRecordOverTheLimitGoesBackToTheFieldStillARecord() =
+        runTest {
+            attentionUnderWay()
+            val viewModel = viewModel()
+            val tooLong = "a".repeat(MessageContent.MAX_LENGTH + 1)
+            viewModel.onRecordingChange(true)
+            viewModel.onDraftChange(tooLong)
+            viewModel.send()
+            advanceUntilIdle()
+
+            assertEquals(tooLong, viewModel.content().draft)
+            assertTrue(viewModel.content().recording)
+        }
+
+    // docs/decisions.md, 2026-11-03, HU-22: ordinary messages may still be allowed.
+    @Test
+    fun aRefusedRecordDoesNotCloseTheConversation() =
+        runTest {
+            attentionUnderWay()
+            messages.sendError = MessageError.WorkRecordNotAllowed
+            val viewModel = viewModel()
+            viewModel.onRecordingChange(true)
+            viewModel.onDraftChange("Cambio de apósito")
+            viewModel.send()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.content().header.canWrite)
+            val notSent = viewModel.content().outbox.single() as ConversationItem.NotSent
+            assertEquals(MessageError.WorkRecordNotAllowed, notSent.error)
+        }
+
+    // The record was refused because the attention was cancelled meanwhile: asking
+    // again is what closes the conversation, and what stops offering the record.
+    @Test
+    fun aRefusedRecordAsksAgainWhatTheAttentionAllows() =
+        runTest {
+            attentionUnderWay()
+            messages.sendError = MessageError.WorkRecordNotAllowed
+            val viewModel = viewModel()
+            viewModel.onRecordingChange(true)
+            viewModel.onDraftChange("Cambio de apósito")
+
+            attentionUnderWay(ServiceStatus.CANCELLED)
+            viewModel.send()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.content().header.canWrite)
+            assertFalse(viewModel.content().header.canRecord)
+        }
+
+    @Test
+    fun aPatientCannotTurnOnTheRecord() =
+        runTest {
+            services.result =
+                AttentionResult.Loaded(
+                    attention(requestId = REQUEST_ID, status = ServiceStatus.IN_PROGRESS, iAmThePatient = true),
+                )
+            val viewModel = viewModel()
+
+            viewModel.onRecordingChange(true)
+            viewModel.onDraftChange("Muchas gracias")
+            viewModel.send()
+            advanceUntilIdle()
+
+            assertEquals(listOf(false), messages.sentAsRecord)
+        }
+
+    // A resume brings a header that no longer allows it: what was asked for stops
+    // counting, so the next send is not a record the engine would refuse.
+    @Test
+    fun theRecordModeEndsWhenTheAttentionNoLongerAllowsIt() =
+        runTest {
+            attentionUnderWay()
+            val viewModel = viewModel()
+            viewModel.onRecordingChange(true)
+            assertTrue(viewModel.content().recording)
+
+            attentionUnderWay(ServiceStatus.CANCELLED)
+            viewModel.onResumed()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.content().recording)
         }
 
     @Test
