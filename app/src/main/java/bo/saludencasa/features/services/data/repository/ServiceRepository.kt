@@ -2,8 +2,10 @@ package bo.saludencasa.features.services.data.repository
 
 import bo.saludencasa.features.services.data.datasource.SupabaseServiceDataSource
 import bo.saludencasa.features.services.data.mapper.toAttention
+import bo.saludencasa.features.services.data.mapper.toAttentionSummary
 import bo.saludencasa.features.services.data.mapper.toServiceError
 import bo.saludencasa.features.services.domain.model.AttentionResult
+import bo.saludencasa.features.services.domain.model.MyAttentionsResult
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
 import kotlinx.coroutines.CancellationException
@@ -24,6 +26,27 @@ class ServiceRepository(
             throw cancellation
         } catch (failure: Exception) {
             AttentionResult.Failure(failure.toServiceError())
+        }
+    }
+
+    override suspend fun getMyAttentions(
+        offset: Int,
+        limit: Int,
+    ): MyAttentionsResult {
+        if (dataSource.currentUserId() == null) {
+            return MyAttentionsResult.Failure(ServiceError.NotSignedIn)
+        }
+
+        return try {
+            val attentions =
+                dataSource.fetchMyAttentions(offset, limit).map { dto ->
+                    dto.toAttentionSummary() ?: return MyAttentionsResult.Failure(ServiceError.Unexpected)
+                }
+            MyAttentionsResult.Loaded(attentions)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            MyAttentionsResult.Failure(failure.toServiceError())
         }
     }
 }

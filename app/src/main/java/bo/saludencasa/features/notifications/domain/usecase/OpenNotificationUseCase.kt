@@ -78,5 +78,9 @@ class OpenNotificationUseCase(
             is PushPayload.OfferAccepted -> {
                 NotificationDestination.Attention(subject.requestId)
             }
+
+            is PushPayload.MessageReceived -> {
+                NotificationDestination.Conversation(subject.requestId)
+            }
         }
 }

@@ -213,9 +213,43 @@ class PushPayloadTest {
         )
     }
 
+    // A name no event can take: the one this used before, MESSAGE_RECEIVED, became
+    // a real event in HU-21 and turned the test red for the wrong reason.
     @Test
     fun rejectsAnUnknownEvent() {
-        assertEquals("push_payload_unknown_event", failureKey(wire("event" to "MESSAGE_RECEIVED")))
+        assertEquals("push_payload_unknown_event", failureKey(wire("event" to "NOT_AN_EVENT")))
+    }
+
+    private fun messageWire(vararg overrides: Pair<String, String?>): Map<String, String> =
+        wire(
+            "event" to "MESSAGE_RECEIVED",
+            "distanceM" to null,
+            "recipientRole" to "PATIENT",
+            "senderName" to "Ana Quispe",
+            *overrides,
+        )
+
+    @Test
+    fun parsesAMessageWithItsSenderName() {
+        val message = PushPayload.parse(messageWire()).getOrThrow() as PushPayload.MessageReceived
+
+        assertEquals("Ana Quispe", message.senderName)
+    }
+
+    // The unlocked text names who wrote; without a name there is nothing to say.
+    @Test
+    fun rejectsAMessageWithoutASenderName() {
+        assertEquals("push_payload_missing_sender_name", failureKey(messageWire("senderName" to null)))
+        assertEquals("push_payload_missing_sender_name", failureKey(messageWire("senderName" to " ")))
+    }
+
+    // RF-09.10: whatever the wire carries besides, the text of the message is not
+    // part of what the phone keeps.
+    @Test
+    fun aMessageKeepsNoTextOfTheMessageEvenIfTheWireCarriedIt() {
+        val message = PushPayload.parse(messageWire("content" to "Me duele la herida")).getOrThrow()
+
+        assertEquals(false, message.toMap().values.any { it.contains("herida") })
     }
 
     @Test

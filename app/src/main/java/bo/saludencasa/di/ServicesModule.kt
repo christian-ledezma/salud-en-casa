@@ -4,7 +4,9 @@ import bo.saludencasa.features.services.data.datasource.SupabaseServiceDataSourc
 import bo.saludencasa.features.services.data.repository.ServiceRepository
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
+import bo.saludencasa.features.services.domain.usecase.GetMyAttentionsUseCase
 import bo.saludencasa.features.services.presentation.AttentionViewModel
+import bo.saludencasa.features.services.presentation.MyAttentionsViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -14,8 +16,10 @@ val servicesModule =
         single<IServiceRepository> { ServiceRepository(get()) }
 
         factory { GetAttentionUseCase(get()) }
+        factory { GetMyAttentionsUseCase(get()) }
 
         viewModel { (requestId: String) ->
             AttentionViewModel(requestId, get())
         }
+        viewModel { MyAttentionsViewModel(get()) }
     }

@@ -19,6 +19,14 @@ enum class NotificationChannelSpec(
         descriptionRes = R.string.notification_channel_requests_description,
         importance = NotificationManagerCompat.IMPORTANCE_HIGH,
     ),
+
+    // docs/decisions.md, 2026-11-03, HU-21: silenced apart from the requests.
+    MESSAGES(
+        id = "messages",
+        nameRes = R.string.notification_channel_messages_name,
+        descriptionRes = R.string.notification_channel_messages_description,
+        importance = NotificationManagerCompat.IMPORTANCE_HIGH,
+    ),
     ;
 
     companion object {

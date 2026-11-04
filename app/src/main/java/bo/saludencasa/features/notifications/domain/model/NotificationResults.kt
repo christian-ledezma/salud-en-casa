@@ -20,12 +20,20 @@ sealed interface NotificationDestination {
     data class Attention(
         val requestId: String,
     ) : NotificationDestination
+
+    // HU-21: opened over the attention of its request.
+    data class Conversation(
+        val requestId: String,
+    ) : NotificationDestination
 }
 
 enum class DiscardReason {
     MALFORMED,
     NO_SESSION,
     OTHER_ACCOUNT,
+
+    // docs/decisions.md, 2026-11-03, HU-21: the message is already on screen.
+    CONVERSATION_OPEN,
 }
 
 sealed interface IncomingNotification {

@@ -24,4 +24,9 @@ object ExtraShapes {
     val featuredCard: Shape = RoundedCornerShape(24.dp)
     val pill: Shape = RoundedCornerShape(percent = 50)
     val avatar: Shape = CircleShape
+
+    // A message bubble: the button radius, with the corner toward its writer's
+    // side tightened so the side reads at a glance.
+    val myBubble: Shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 4.dp, bottomStart = 16.dp)
+    val theirBubble: Shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp)
 }

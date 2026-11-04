@@ -35,6 +35,11 @@ private fun NavHostController.openFromNotification(destination: NotificationDest
     navigate(HomeRoute) {
         popUpTo<HomeRoute> { inclusive = true }
     }
+    // docs/decisions.md, 2026-11-03, HU-21: back from the conversation lands on
+    // its attention.
+    if (destination is NotificationDestination.Conversation) {
+        navigate(AttentionRoute(destination.requestId))
+    }
     navigate(
         when (destination) {
             NotificationDestination.Inbox -> {
@@ -51,6 +56,10 @@ private fun NavHostController.openFromNotification(destination: NotificationDest
 
             is NotificationDestination.Attention -> {
                 AttentionRoute(destination.requestId)
+            }
+
+            is NotificationDestination.Conversation -> {
+                ConversationRoute(destination.requestId)
             }
         },
     )

@@ -7,6 +7,8 @@ import bo.saludencasa.features.notifications.data.datasource.SupabaseDeviceDataS
 import bo.saludencasa.features.notifications.data.repository.NotificationRepository
 import bo.saludencasa.features.notifications.domain.repository.INotificationRepository
 import bo.saludencasa.features.notifications.domain.usecase.AnswerNotificationPromptUseCase
+import bo.saludencasa.features.notifications.domain.usecase.EnterConversationUseCase
+import bo.saludencasa.features.notifications.domain.usecase.LeaveConversationUseCase
 import bo.saludencasa.features.notifications.domain.usecase.ObserveNotificationPromptAnsweredUseCase
 import bo.saludencasa.features.notifications.domain.usecase.OpenNotificationUseCase
 import bo.saludencasa.features.notifications.domain.usecase.RegisterDeviceUseCase
@@ -38,6 +40,8 @@ val notificationsModule =
         factory { OpenNotificationUseCase(get(), get(), get()) }
         factory { ObserveNotificationPromptAnsweredUseCase(get()) }
         factory { AnswerNotificationPromptUseCase(get()) }
+        factory { EnterConversationUseCase(get()) }
+        factory { LeaveConversationUseCase(get()) }
 
         viewModel { NotificationPermissionViewModel(get(), get()) }
         viewModel { OpenNotificationViewModel(get()) }

@@ -42,6 +42,10 @@ object Spacing {
     // scale, and at this height it leaves room for the avatar on a 320 dp phone.
     val headerWordmarkHeight: Dp = 18.dp
 
+    // A message bubble leaves the rest of the row empty, so the side it sits on
+    // says who wrote it. A fraction and not a spacing, like borderWidth.
+    val bubbleMaxWidthFraction: Float = 0.8f
+
     val scale4: Dp = 4.dp
     val scale8: Dp = 8.dp
     val scale12: Dp = 12.dp

@@ -60,6 +60,12 @@ data class AttentionRoute(
     val requestId: String,
 )
 
+// HU-21: the conversation of an attention, opened from it.
+@Serializable
+data class ConversationRoute(
+    val requestId: String,
+)
+
 @Serializable
 data object AvailabilityRoute
 

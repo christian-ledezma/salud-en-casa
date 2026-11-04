@@ -14,6 +14,7 @@ import bo.saludencasa.features.auth.presentation.StartupScreen
 import bo.saludencasa.features.auth.presentation.WelcomeScreen
 import bo.saludencasa.features.availability.presentation.AvailabilityScreen
 import bo.saludencasa.features.catalog.presentation.MyServicesScreen
+import bo.saludencasa.features.conversation.presentation.ConversationScreen
 import bo.saludencasa.features.home.presentation.HomeNavigation
 import bo.saludencasa.features.home.presentation.HomeShell
 import bo.saludencasa.features.location.presentation.AddressListScreen
@@ -93,6 +94,7 @@ fun SaludEnCasaNavHost(
                         onOpenScheduling = { navController.navigate(ProfessionalSearchRoute) },
                         onOpenNegotiation = navController::openNegotiation,
                         onOpenInboxRequest = { requestId -> navController.navigate(OfferThreadRoute(requestId)) },
+                        onOpenAttention = { requestId -> navController.navigate(AttentionRoute(requestId)) },
                         onOpenProfile = { navController.navigate(ProfileRoute) },
                         onOpenMyServices = { navController.navigate(MyServicesRoute) },
                         onOpenAvailability = { navController.navigate(AvailabilityRoute) },
@@ -174,12 +176,21 @@ fun SaludEnCasaNavHost(
         // HU-19: the sealed agreement, for both parties. The patient opens the
         // professional's existing public profile from here.
         composable<AttentionRoute> { entry ->
+            val requestId = entry.toRoute<AttentionRoute>().requestId
             AttentionScreen(
-                requestId = entry.toRoute<AttentionRoute>().requestId,
+                requestId = requestId,
                 onBack = { navController.popBackStack() },
                 onOpenProfessionalProfile = { professionalId ->
                     navController.navigate(PublicProfileRoute(professionalId))
                 },
+                onOpenConversation = { navController.navigate(ConversationRoute(requestId)) },
+            )
+        }
+
+        composable<ConversationRoute> { entry ->
+            ConversationScreen(
+                requestId = entry.toRoute<ConversationRoute>().requestId,
+                onBack = { navController.popBackStack() },
             )
         }
 

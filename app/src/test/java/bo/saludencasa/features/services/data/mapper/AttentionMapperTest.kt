@@ -1,11 +1,13 @@
 package bo.saludencasa.features.services.data.mapper
 
 import bo.saludencasa.features.services.data.model.AttentionDto
+import bo.saludencasa.features.services.data.model.AttentionSummaryDto
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.math.BigDecimal
+import java.time.Instant
 
 class AttentionMapperTest {
     private fun dto(
@@ -47,5 +49,45 @@ class AttentionMapperTest {
     @Test
     fun rejectsAnUnparseableCreatedAt() {
         assertNull(dto(createdAt = "not-a-timestamp").toAttention())
+    }
+
+    // What PostgREST really writes: microseconds and +00:00, not a Z.
+    @Test
+    fun readsTheOffsetPostgrestWrites() {
+        val attention = dto(createdAt = "2026-10-29T12:00:00.123456+00:00").toAttention()
+
+        assertEquals(Instant.parse("2026-10-29T12:00:00.123456Z"), attention?.createdAt)
+    }
+
+    private fun summaryDto(
+        status: String = "COMPLETED",
+        scheduledAt: String? = null,
+    ) = AttentionSummaryDto(
+        requestId = "r1",
+        status = status,
+        finalAmountBob = BigDecimal("45.00"),
+        serviceTypeName = "Inyectables",
+        patientName = "María Quispe",
+        createdAt = "2026-10-29T12:00:00.123456+00:00",
+        scheduledAt = scheduledAt,
+    )
+
+    @Test
+    fun anImmediateAttentionHasNoAppointment() {
+        assertNull(summaryDto().toAttentionSummary()?.scheduledAt)
+    }
+
+    @Test
+    fun aScheduledAttentionKeepsItsAppointment() {
+        val summary = summaryDto(scheduledAt = "2026-11-05T14:30:00+00:00").toAttentionSummary()
+
+        assertEquals(Instant.parse("2026-11-05T14:30:00Z"), summary?.scheduledAt)
+    }
+
+    // One unreadable row fails the page instead of showing a card with a hole.
+    @Test
+    fun aSummaryWithAnUnknownStatusOrADateItCannotReadIsRejected() {
+        assertNull(summaryDto(status = "ARCHIVED").toAttentionSummary())
+        assertNull(summaryDto(scheduledAt = "not-a-timestamp").toAttentionSummary())
     }
 }

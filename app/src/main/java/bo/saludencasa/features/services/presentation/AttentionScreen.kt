@@ -8,10 +8,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +54,7 @@ fun AttentionScreen(
     requestId: String,
     onBack: () -> Unit,
     onOpenProfessionalProfile: (String) -> Unit,
+    onOpenConversation: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AttentionViewModel = koinViewModel { parametersOf(requestId) },
 ) {
@@ -59,6 +65,7 @@ fun AttentionScreen(
         onBack = onBack,
         onRetry = viewModel::refresh,
         onOpenProfessionalProfile = onOpenProfessionalProfile,
+        onOpenConversation = onOpenConversation,
         modifier = modifier,
     )
 }
@@ -69,6 +76,7 @@ internal fun AttentionContent(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onOpenProfessionalProfile: (String) -> Unit,
+    onOpenConversation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -110,6 +118,7 @@ internal fun AttentionContent(
                     attention = uiState.attention,
                     onBack = onBack,
                     onOpenProfessionalProfile = onOpenProfessionalProfile,
+                    onOpenConversation = onOpenConversation,
                 )
             }
         }
@@ -121,6 +130,7 @@ private fun AttentionBody(
     attention: Attention,
     onBack: () -> Unit,
     onOpenProfessionalProfile: (String) -> Unit,
+    onOpenConversation: () -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val margin = Modifier.padding(horizontal = Spacing.screenMargin)
@@ -152,6 +162,7 @@ private fun AttentionBody(
             counterpart = attention.counterpart,
             iAmThePatient = attention.iAmThePatient,
             onOpenProfessionalProfile = onOpenProfessionalProfile,
+            onOpenConversation = onOpenConversation,
             modifier = margin,
         )
 
@@ -176,6 +187,7 @@ private fun CounterpartCard(
     counterpart: Counterpart,
     iAmThePatient: Boolean,
     onOpenProfessionalProfile: (String) -> Unit,
+    onOpenConversation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val roleLabel =
@@ -228,6 +240,27 @@ private fun CounterpartCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
+
+            FilledTonalButton(
+                onClick = onOpenConversation,
+                modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.minTouchTarget),
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chat),
+                        contentDescription = null,
+                        modifier = Modifier.size(Spacing.scale20),
+                    )
+                    Text(
+                        text = stringResource(R.string.attention_open_conversation),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
         }
     }
 }
@@ -271,7 +304,7 @@ private fun MessageColumn(
 }
 
 @StringRes
-private fun ServiceStatus.labelRes(): Int =
+internal fun ServiceStatus.labelRes(): Int =
     when (this) {
         ServiceStatus.ASSIGNED -> R.string.attention_status_assigned
         ServiceStatus.IN_PROGRESS -> R.string.attention_status_in_progress
@@ -312,6 +345,7 @@ private fun AttentionPreview() {
             onBack = {},
             onRetry = {},
             onOpenProfessionalProfile = {},
+            onOpenConversation = {},
         )
     }
 }
@@ -325,6 +359,7 @@ private fun AttentionDarkPreview() {
             onBack = {},
             onRetry = {},
             onOpenProfessionalProfile = {},
+            onOpenConversation = {},
         )
     }
 }
@@ -338,6 +373,7 @@ private fun AttentionLargeFontPreview() {
             onBack = {},
             onRetry = {},
             onOpenProfessionalProfile = {},
+            onOpenConversation = {},
         )
     }
 }

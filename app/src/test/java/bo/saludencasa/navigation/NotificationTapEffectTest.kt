@@ -51,6 +51,7 @@ class NotificationTapEffectTest {
                 composable<MyRequestsRoute> { Text("requests") }
                 composable<OfferThreadRoute> { Text("thread") }
                 composable<AttentionRoute> { Text("attention") }
+                composable<ConversationRoute> { Text("conversation") }
             }
         }
     }
@@ -124,6 +125,18 @@ class NotificationTapEffectTest {
         val route = navController.currentBackStackEntry!!.toRoute<AttentionRoute>()
         assertEquals(REQUEST_ID, route.requestId)
         assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<HomeRoute>())
+    }
+
+    // HU-21: a message opens its conversation, and back lands on the attention of
+    // the same request before the home screen.
+    @Test
+    fun aMessageTapOpensTheConversationOverItsAttention() {
+        pending = nearbyRequest()
+        show(NotificationDestination.Conversation(REQUEST_ID))
+        finishStartup()
+
+        assertEquals(REQUEST_ID, navController.currentBackStackEntry!!.toRoute<ConversationRoute>().requestId)
+        assertEquals(REQUEST_ID, navController.previousBackStackEntry!!.toRoute<AttentionRoute>().requestId)
     }
 
     // Signed out, or meant for another account: the tap is spent and the

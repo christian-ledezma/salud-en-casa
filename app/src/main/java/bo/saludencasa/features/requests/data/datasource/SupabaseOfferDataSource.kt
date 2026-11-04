@@ -1,5 +1,6 @@
 package bo.saludencasa.features.requests.data.datasource
 
+import bo.saludencasa.core.network.broadcastSignals
 import bo.saludencasa.features.requests.data.model.NewOfferRow
 import bo.saludencasa.features.requests.data.model.OfferIdParam
 import bo.saludencasa.features.requests.data.model.OfferableRequestDto
@@ -12,21 +13,11 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.rpc
-import io.github.jan.supabase.realtime.broadcastFlow
-import io.github.jan.supabase.realtime.channel
-import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
 import java.util.concurrent.ConcurrentHashMap
 
 class SupabaseOfferDataSource(
@@ -118,26 +109,7 @@ class SupabaseOfferDataSource(
         }
     }
 
-    private fun topicSignals(topic: String): Flow<Unit> =
-        flow {
-            val channel = supabase.realtime.channel(topic) { isPrivate = true }
-            try {
-                emitAll(
-                    channel
-                        .broadcastFlow<JsonObject>(OFFERS_EVENT)
-                        .map { }
-                        .onStart { channel.subscribe() },
-                )
-            } finally {
-                // The collection ends by cancellation, and a suspending call in a
-                // cancelled coroutine throws before it does anything: without
-                // NonCancellable the channel would never be left.
-                withContext(NonCancellable) {
-                    runCatching { channel.unsubscribe() }
-                    runCatching { supabase.realtime.removeChannel(channel) }
-                }
-            }
-        }
+    private fun topicSignals(topic: String): Flow<Unit> = supabase.broadcastSignals(topic, OFFERS_EVENT)
 
     private companion object {
         const val REQUEST_OFFERS = "request_offers"

@@ -9,14 +9,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import bo.saludencasa.ui.theme.ExtraShapes
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
@@ -56,19 +61,37 @@ fun <T> SegmentedControl(
                         ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = optionLabel(option),
-                    style = MaterialTheme.typography.labelLarge,
-                    color =
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                )
+                SegmentLabel(text = optionLabel(option), selected = isSelected)
             }
         }
     }
+}
+
+// docs/decisions.md, 2026-11-03, HT-26: one line that shrinks to fit its segment,
+// never below its size at 100 %, the rule of the navigation bar's label.
+@Composable
+private fun SegmentLabel(
+    text: String,
+    selected: Boolean,
+) {
+    val style = MaterialTheme.typography.labelLarge
+    val floor =
+        with(LocalDensity.current) {
+            style.fontSize.value.dp
+                .toSp()
+        }
+    BasicText(
+        text = text,
+        modifier = Modifier.padding(horizontal = Spacing.scale4),
+        style =
+            style.copy(
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            ),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        autoSize = TextAutoSize.StepBased(minFontSize = floor, maxFontSize = style.fontSize),
+    )
 }
 
 private enum class PreviewModality { IMMEDIATE, SCHEDULED }

@@ -24,7 +24,13 @@ class AttentionScreenLargeFontTest {
 
     private fun show(uiState: AttentionUiState) {
         composeRule.setContentAtDoubleFontScale {
-            AttentionContent(uiState = uiState, onBack = {}, onRetry = {}, onOpenProfessionalProfile = {})
+            AttentionContent(
+                uiState = uiState,
+                onBack = {},
+                onRetry = {},
+                onOpenProfessionalProfile = {},
+                onOpenConversation = {},
+            )
         }
     }
 
@@ -41,6 +47,7 @@ class AttentionScreenLargeFontTest {
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(formatBob(BigDecimal("150.00"), Locale.getDefault())),
         )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_open_conversation)))
     }
 
     @Test

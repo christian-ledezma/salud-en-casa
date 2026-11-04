@@ -18,10 +18,18 @@ class ResolveIncomingNotificationUseCase(
             repository.awaitSignedInUserId()
                 ?: return IncomingNotification.Discarded(DiscardReason.NO_SESSION)
 
-        return if (userId == payload.subject.recipientId) {
-            IncomingNotification.Show(payload)
-        } else {
-            IncomingNotification.Discarded(DiscardReason.OTHER_ACCOUNT)
+        return when {
+            userId != payload.subject.recipientId -> {
+                IncomingNotification.Discarded(DiscardReason.OTHER_ACCOUNT)
+            }
+
+            payload is PushPayload.MessageReceived && repository.openConversation() == payload.subject.requestId -> {
+                IncomingNotification.Discarded(DiscardReason.CONVERSATION_OPEN)
+            }
+
+            else -> {
+                IncomingNotification.Show(payload)
+            }
         }
     }
 }

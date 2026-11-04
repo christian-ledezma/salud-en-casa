@@ -13,6 +13,7 @@ enum class NotificationEvent {
     OFFER_RECEIVED,
     COUNTER_OFFER_RECEIVED,
     OFFER_ACCEPTED,
+    MESSAGE_RECEIVED,
 }
 
 data class PushSubject(
@@ -87,6 +88,15 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.OFFER_ACCEPTED
     }
 
+    // Reaches the other party of the service. The sender's name is a profile
+    // attribute, not text of the message, which never travels (RF-09.10).
+    data class MessageReceived(
+        override val subject: PushSubject,
+        val senderName: String,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.MESSAGE_RECEIVED
+    }
+
     fun toMap(): Map<String, String> =
         buildMap {
             put(KEY_EVENT, event.name)
@@ -124,6 +134,10 @@ sealed interface PushPayload {
                 is OfferAccepted -> {
                     put(KEY_AMOUNT_BOB, amountBob.toPlainString())
                 }
+
+                is MessageReceived -> {
+                    put(KEY_SENDER_NAME, senderName)
+                }
             }
         }
 
@@ -137,6 +151,7 @@ sealed interface PushPayload {
         const val KEY_SCHEDULED_AT = "scheduledAt"
         const val KEY_AMOUNT_BOB = "amountBob"
         const val KEY_PROFESSIONAL_ID = "professionalId"
+        const val KEY_SENDER_NAME = "senderName"
 
         private val UUID_PATTERN = Regex("^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
         private val RECIPIENT_ROLES = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
@@ -199,6 +214,13 @@ sealed interface PushPayload {
                 NotificationEvent.OFFER_ACCEPTED -> {
                     val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
                     Result.success(OfferAccepted(subject, amount))
+                }
+
+                NotificationEvent.MESSAGE_RECEIVED -> {
+                    val senderName =
+                        data[KEY_SENDER_NAME]?.takeIf(String::isNotBlank)
+                            ?: return failure("push_payload_missing_sender_name")
+                    Result.success(MessageReceived(subject, senderName))
                 }
             }
         }

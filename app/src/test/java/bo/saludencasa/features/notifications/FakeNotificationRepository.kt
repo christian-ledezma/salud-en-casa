@@ -62,6 +62,18 @@ class FakeNotificationRepository(
         calls += "markPromptAnswered"
         promptAnswered.value = true
     }
+
+    var openConversation: String? = null
+
+    override fun enterConversation(requestId: String) {
+        openConversation = requestId
+    }
+
+    override fun leaveConversation(requestId: String) {
+        if (openConversation == requestId) openConversation = null
+    }
+
+    override fun openConversation(): String? = openConversation
 }
 
 fun pushSubject(
@@ -121,6 +133,16 @@ fun offerAccepted(
         amountBob,
     )
 
+fun messageReceived(
+    recipientId: String = SIGNED_IN_USER,
+    recipientRole: UserRole = UserRole.PATIENT,
+    senderName: String = "Ana Quispe",
+): PushPayload =
+    PushPayload.MessageReceived(
+        pushSubject(recipientId = recipientId, recipientRole = recipientRole),
+        senderName,
+    )
+
 // One of each, so a test that walks every event cannot miss one: the sealed
 // hierarchy is compared against this list.
 fun everyPayload(): List<PushPayload> =
@@ -132,4 +154,5 @@ fun everyPayload(): List<PushPayload> =
         offerReceived(),
         counterOfferReceived(),
         offerAccepted(),
+        messageReceived(),
     )

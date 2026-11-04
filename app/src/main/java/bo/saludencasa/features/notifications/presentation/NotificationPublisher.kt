@@ -10,6 +10,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import bo.saludencasa.R
 import bo.saludencasa.features.notifications.domain.model.PushPayload
+import bo.saludencasa.features.notifications.domain.model.slot
 
 class NotificationPublisher(
     private val context: Context,
@@ -28,10 +29,13 @@ class NotificationPublisher(
         val text = payload.text(context.resources, locale)
         val publicText = payload.publicText(context.resources)
         val channelId = payload.channel().id
+        val slot = payload.slot().ordinal
+        // Two slots of one request share the intent's data URI, so the request
+        // code is what keeps each tap opening its own event.
         val tap =
             PendingIntent.getActivity(
                 context,
-                0,
+                slot,
                 notificationIntent(context, payload),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
@@ -57,10 +61,6 @@ class NotificationPublisher(
                 .setPublicVersion(publicVersion)
                 .build()
 
-        manager.notify(payload.subject.requestId, NOTIFICATION_ID, notification)
-    }
-
-    private companion object {
-        const val NOTIFICATION_ID = 0
+        manager.notify(payload.subject.requestId, slot, notification)
     }
 }

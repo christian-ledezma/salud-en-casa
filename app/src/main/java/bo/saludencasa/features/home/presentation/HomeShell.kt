@@ -74,7 +74,6 @@ import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
-import bo.saludencasa.features.requests.presentation.InboxScreen
 import bo.saludencasa.features.requests.presentation.MyRequestsScreen
 import bo.saludencasa.features.requests.presentation.NegotiationEntry
 import bo.saludencasa.ui.components.BottomNavigationBar
@@ -105,6 +104,7 @@ data class HomeNavigation(
     val onOpenScheduling: () -> Unit = {},
     val onOpenNegotiation: (NegotiationEntry) -> Unit = {},
     val onOpenInboxRequest: (String) -> Unit = {},
+    val onOpenAttention: (String) -> Unit = {},
     val onOpenProfile: () -> Unit = {},
     val onOpenMyServices: () -> Unit = {},
     val onOpenAvailability: () -> Unit = {},
@@ -181,7 +181,7 @@ fun HomeShell(
         requestsTab = {
             // Embedded without a header of their own: the shell already shows the title.
             if (activeRole == UserRole.PROFESSIONAL) {
-                InboxScreen(onBack = null, onOpenRequest = navigation.onOpenInboxRequest)
+                ProfessionalRequestsTab(navigation = navigation)
             } else {
                 MyRequestsScreen(
                     justCreated = false,
@@ -368,7 +368,7 @@ private fun topBarTitleRes(
         }
 
         HomeTab.REQUESTS -> {
-            if (active == UserRole.PROFESSIONAL) R.string.request_inbox_title else R.string.request_list_title
+            if (active == UserRole.PROFESSIONAL) R.string.common_nav_requests else R.string.request_list_title
         }
 
         HomeTab.ACCOUNT -> {

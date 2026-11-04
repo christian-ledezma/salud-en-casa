@@ -9,6 +9,7 @@ import bo.saludencasa.features.notifications.appointmentScheduled
 import bo.saludencasa.features.notifications.counterOfferReceived
 import bo.saludencasa.features.notifications.domain.model.NotificationDestination
 import bo.saludencasa.features.notifications.domain.model.NotificationOpenResult
+import bo.saludencasa.features.notifications.messageReceived
 import bo.saludencasa.features.notifications.nearbyRequest
 import bo.saludencasa.features.notifications.offerAccepted
 import bo.saludencasa.features.notifications.offerReceived
@@ -137,6 +138,19 @@ class OpenNotificationUseCaseTest {
                 NotificationOpenResult.Open(NotificationDestination.Attention(REQUEST_ID)),
                 useCase(profiles)(offerAccepted()),
             )
+        }
+
+    // HU-21: a message opens the conversation, with the role it was sent to
+    // activated first, whichever role the reader was in.
+    @Test
+    fun aMessageOpensTheConversationAsTheRoleItWasSentTo() =
+        runTest {
+            val profiles = FakeProfileRepository(roleResult = loadedRoles(held = bothRoles, active = UserRole.PATIENT))
+
+            val result = useCase(profiles)(messageReceived(recipientRole = UserRole.PROFESSIONAL))
+
+            assertEquals(UserRole.PROFESSIONAL, profiles.lastActiveRole)
+            assertEquals(NotificationOpenResult.Open(NotificationDestination.Conversation(REQUEST_ID)), result)
         }
 
     // HU-18's criterion 5: the counter-offer reaches either side, and each one

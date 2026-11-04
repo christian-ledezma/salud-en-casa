@@ -7,9 +7,11 @@ import bo.saludencasa.features.notifications.data.datasource.SupabaseDeviceDataS
 import bo.saludencasa.features.notifications.data.mapper.toNotificationError
 import bo.saludencasa.features.notifications.domain.model.DeviceResult
 import bo.saludencasa.features.notifications.domain.model.NotificationError
+import bo.saludencasa.features.notifications.domain.model.NotificationSlot
 import bo.saludencasa.features.notifications.domain.repository.INotificationRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import java.util.concurrent.atomic.AtomicReference
 
 class NotificationRepository(
     private val deviceDataSource: SupabaseDeviceDataSource,
@@ -17,6 +19,8 @@ class NotificationRepository(
     private val preferences: NotificationPreferencesDataSource,
     private val shownNotifications: ShownNotificationsDataSource,
 ) : INotificationRepository {
+    private val openConversation = AtomicReference<String?>(null)
+
     override suspend fun awaitSignedInUserId(): String? = deviceDataSource.awaitUserId()
 
     override fun requestRegistration() {
@@ -51,6 +55,19 @@ class NotificationRepository(
     override suspend fun markPromptAnswered() {
         preferences.markPromptAnswered()
     }
+
+    override fun enterConversation(requestId: String) {
+        openConversation.set(requestId)
+        shownNotifications.clear(requestId, NotificationSlot.MESSAGE)
+    }
+
+    // Only the screen that entered clears it: a conversation opened over another
+    // pauses the first after the second has already entered.
+    override fun leaveConversation(requestId: String) {
+        openConversation.compareAndSet(requestId, null)
+    }
+
+    override fun openConversation(): String? = openConversation.get()
 
     private inline fun device(call: () -> Unit): DeviceResult =
         try {

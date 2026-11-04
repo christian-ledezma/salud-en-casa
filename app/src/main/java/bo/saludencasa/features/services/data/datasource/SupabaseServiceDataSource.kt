@@ -2,6 +2,8 @@ package bo.saludencasa.features.services.data.datasource
 
 import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionRequestIdParam
+import bo.saludencasa.features.services.data.model.AttentionSummaryDto
+import bo.saludencasa.features.services.data.model.MyAttentionsParams
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
@@ -21,7 +23,16 @@ class SupabaseServiceDataSource(
             .decodeList<AttentionDto>()
             .firstOrNull()
 
+    suspend fun fetchMyAttentions(
+        offset: Int,
+        limit: Int,
+    ): List<AttentionSummaryDto> =
+        supabase.postgrest
+            .rpc(MY_ATTENTIONS_AS_PROFESSIONAL, MyAttentionsParams(limit = limit, offset = offset))
+            .decodeList<AttentionSummaryDto>()
+
     private companion object {
         const val MY_ATTENTION = "my_attention"
+        const val MY_ATTENTIONS_AS_PROFESSIONAL = "my_attentions_as_professional"
     }
 }

@@ -21,4 +21,11 @@ interface INotificationRepository {
     fun observePromptAnswered(): Flow<Boolean>
 
     suspend fun markPromptAnswered()
+
+    // docs/decisions.md, 2026-11-03, HU-21: the conversation on screen, if any.
+    fun enterConversation(requestId: String)
+
+    fun leaveConversation(requestId: String)
+
+    fun openConversation(): String?
 }

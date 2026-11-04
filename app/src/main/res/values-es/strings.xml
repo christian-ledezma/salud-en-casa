@@ -208,6 +208,8 @@
     <string name="error_sign_in_token_rejected">Supabase no aceptó el ingreso. Revisa la configuración del proveedor de Google.</string>
     <string name="error_network_unavailable">No hay conexión. Revisa tu red e inténtalo de nuevo.</string>
     <string name="error_unexpected">Ocurrió un error inesperado. Inténtalo de nuevo.</string>
+    <string name="error_message_empty">Escribe un mensaje antes de enviarlo.</string>
+    <string name="error_message_too_long">El mensaje no puede superar los %1$s caracteres.</string>
 
     <string name="error_profile_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_profile_not_found">No encontramos tu perfil. Cierra sesión y vuelve a ingresar.</string>
@@ -346,6 +348,8 @@
 
     <string name="cd_document_image">Imagen del documento</string>
     <string name="cd_back_button">Volver</string>
+    <string name="cd_message_input">Mensaje para %1$s</string>
+    <string name="cd_send_message">Enviar mensaje</string>
     <string name="cd_expand_document_image">Ver el documento en pantalla completa</string>
     <string name="cd_close_full_image">Cerrar la imagen</string>
     <string name="cd_select_document">Seleccionar %1$s</string>
@@ -574,6 +578,32 @@
     <string name="attention_status_cancelled">Cancelada</string>
     <string name="attention_not_found_title">Esta atención ya no está disponible</string>
     <string name="attention_not_found_description">No encontramos la atención de esta solicitud.</string>
+    <string name="attention_open_conversation">Abrir conversación</string>
+
+    <string name="home_requests_view_available">Disponibles</string>
+    <string name="home_requests_view_my_attentions">Mis atenciones</string>
+
+    <string name="my_attentions_empty_title">Todavía no tienes atenciones</string>
+    <string name="my_attentions_empty_description">Cuando se acuerde una oferta tuya, la atención aparecerá aquí, con su conversación.</string>
+    <string name="my_attentions_agreed_on">Acordada el %1$s</string>
+    <string name="my_attentions_load_more">Ver más atenciones</string>
+
+    <string name="conversation_title">Conversación</string>
+    <string name="conversation_header_subtitle">%1$s · %2$s</string>
+    <string name="conversation_start_notice">Aquí empieza la conversación de esta atención. Solo tú y %1$s pueden leerla.</string>
+    <string name="conversation_empty_title">Todavía no hay mensajes</string>
+    <string name="conversation_empty_body">Escribe para coordinar la llegada y los detalles de la atención. Solo tú y %1$s pueden leer esta conversación.</string>
+    <string name="conversation_day_today">Hoy</string>
+    <string name="conversation_day_yesterday">Ayer</string>
+    <string name="conversation_input_placeholder">Escribe un mensaje</string>
+    <string name="conversation_status_sending">Enviando…</string>
+    <string name="conversation_status_sent">%1$s · Enviado</string>
+    <string name="conversation_status_read">%1$s · Leído</string>
+    <string name="conversation_not_sent">No se envió.</string>
+    <string name="conversation_closed_notice">Esta atención se canceló. Puedes leer la conversación, pero ya no enviar mensajes.</string>
+    <string name="conversation_older_loading">Cargando mensajes anteriores</string>
+    <string name="conversation_older_failed">No pudimos cargar los mensajes anteriores.</string>
+    <string name="conversation_load_failed">No pudimos cargar la conversación</string>
     <plurals name="negotiation_thread_rounds">
         <item quantity="one">%d propuesta</item>
         <item quantity="other">%d propuestas</item>
@@ -606,6 +636,8 @@
     <!-- HU-20 notifications -->
     <string name="notification_channel_requests_name">Solicitudes</string>
     <string name="notification_channel_requests_description">Solicitudes cerca de ti, citas que te agendan o cancelan, propuestas de la negociación y solicitudes tuyas que vencen sin acuerdo.</string>
+    <string name="notification_channel_messages_name">Mensajes</string>
+    <string name="notification_channel_messages_description">Mensajes nuevos en la conversación de cada atención. Nunca muestran el texto del mensaje.</string>
     <string name="notification_request_nearby_title">Nueva solicitud cerca</string>
     <string name="notification_request_nearby_body">%1$s · %2$s</string>
     <string name="notification_appointment_scheduled_title">Te agendaron una cita</string>
@@ -620,6 +652,8 @@
     <string name="notification_counter_offer_received_body">%1$s · %2$s</string>
     <string name="notification_offer_accepted_title">Aceptaron tu oferta</string>
     <string name="notification_offer_accepted_body">%1$s · %2$s</string>
+    <string name="notification_message_received_title">Mensaje nuevo</string>
+    <string name="notification_message_received_body">%1$s te escribió · %2$s</string>
     <string name="notification_public_body">Desbloquea el teléfono para ver el detalle.</string>
     <string name="notification_permission_title">Activa los avisos</string>
     <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti, cuando un paciente te agende una cita y cuando responda tu oferta, aunque no tengas la aplicación abierta.</string>

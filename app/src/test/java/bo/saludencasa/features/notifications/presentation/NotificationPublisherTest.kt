@@ -10,7 +10,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.features.notifications.REQUEST_ID
 import bo.saludencasa.features.notifications.appointmentCancelled
 import bo.saludencasa.features.notifications.appointmentScheduled
+import bo.saludencasa.features.notifications.messageReceived
 import bo.saludencasa.features.notifications.nearbyRequest
+import bo.saludencasa.features.notifications.offerAccepted
 import bo.saludencasa.features.notifications.pushSubject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,6 +49,46 @@ class NotificationPublisherTest {
         publisher.show(appointmentCancelled())
 
         assertEquals(1, posted().size)
+    }
+
+    // HU-21: a message has its own slot, so it does not erase the acceptance of
+    // the same request, and each tap still opens its own event.
+    @Test
+    fun aMessageNeverReplacesAnotherEventOfTheSameRequest() {
+        grant()
+        val publisher = NotificationPublisher(context)
+        val accepted = offerAccepted()
+        val message = messageReceived()
+
+        publisher.show(accepted)
+        publisher.show(message)
+
+        val opened = posted().map { shadowOf(it.contentIntent).savedIntent.toPushPayload() }.toSet()
+        assertEquals(setOf(accepted, message), opened)
+    }
+
+    // A second message replaces the first instead of piling up.
+    @Test
+    fun twoMessagesOfTheSameConversationLeaveOneNotification() {
+        grant()
+        val publisher = NotificationPublisher(context)
+
+        publisher.show(messageReceived(senderName = "Ana Quispe"))
+        publisher.show(messageReceived(senderName = "Ana Quispe"))
+
+        assertEquals(1, posted().size)
+    }
+
+    // The lock screen says a message arrived, never who wrote it.
+    @Test
+    fun theLockScreenVersionOfAMessageNamesNoSender() {
+        grant()
+
+        NotificationPublisher(context).show(messageReceived(senderName = "Ana Quispe"))
+
+        val publicVersion = posted().single().publicVersion.extras
+        assertFalse(publicVersion.getCharSequence(Notification.EXTRA_TITLE).toString().contains("Ana"))
+        assertFalse(publicVersion.getCharSequence(Notification.EXTRA_TEXT).toString().contains("Ana"))
     }
 
     // RF-09.13: a denied permission is a phone that keeps working, quietly.
