@@ -197,7 +197,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` |
-| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 34 | `[ ]` |
+| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 37 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` |
@@ -6901,10 +6901,11 @@ realizado y la atención se completa.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 34. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
+**Puntos:** 37. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
 como FA-11. Va al final del sprint: es la de menor prioridad y la primera que se
 traslada si el corte muerde. El 2026-10-30 se sumó HT-25, con 8 puntos, que va
-primero porque cambia la pantalla desde la que se llega a todo lo demás.
+primero porque cambia la pantalla desde la que se llega a todo lo demás. El 2026-11-03
+se sumó HT-26, con 3 puntos, que el recorrido de HU-21 reveló y que HU-22 y HU-23 necesitan.
 
 ### HT-25 · La pantalla de inicio y la barra de navegación `[x]` — 8 puntos
 
@@ -6992,26 +6993,26 @@ entrada, y dos ganan una.
 **Deuda que salda.** La de HU-01: el botón «Reintentar» del cierre de sesión fallido no
 tenía prueba de interfaz. La tiene, `retryingAFailedSignOutAsksForItAgain`.
 
-### HU-21 · Conversar sobre la atención `[ ]` — 10 puntos
+### HU-21 · Conversar sobre la atención `[x]` — 10 puntos
 
 > Como **cualquiera de las partes**, quiero **intercambiar mensajes dentro de la
 > solicitud**, para **coordinar los detalles sin salir de la aplicación**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que la oferta fue aceptada, cuando abro la atención, entonces puedo
+- [x] Dado que la oferta fue aceptada, cuando abro la atención, entonces puedo
       enviar y recibir mensajes.
-- [ ] Dado que la contraparte envía un mensaje, cuando estoy en la conversación,
+- [x] Dado que la contraparte envía un mensaje, cuando estoy en la conversación,
       entonces lo veo aparecer sin recargar.
-- [ ] Dado que leo un mensaje, cuando la contraparte consulta, entonces ve que fue leído.
-- [ ] Dado que no estoy en la aplicación, cuando recibo un mensaje, entonces me
+- [x] Dado que leo un mensaje, cuando la contraparte consulta, entonces ve que fue leído.
+- [x] Dado que no estoy en la aplicación, cuando recibo un mensaje, entonces me
       llega una notificación con el nombre de quien escribe y **sin el contenido
       del mensaje**, que me lleva a la conversación.
-- [ ] Dado que tengo la conversación abierta, cuando llega un mensaje, entonces no
+- [x] Dado que tengo la conversación abierta, cuando llega un mensaje, entonces no
       me llega además la notificación.
-- [ ] Dado que soy administrador, cuando intento leer una conversación, entonces
+- [x] Dado que soy administrador, cuando intento leer una conversación, entonces
       el acceso se deniega.
-- [ ] La conversación se carga paginada, del mensaje más reciente hacia atrás.
+- [x] La conversación se carga paginada, del mensaje más reciente hacia atrás.
 
 **Requisitos:** RF-09.1, RF-09.2, RF-09.6, RF-09.10, RN-11, INV-12, RNF-08.
 
@@ -7019,6 +7020,122 @@ tenía prueba de interfaz. La tiene, `retryingAFailedSignOutAsksForItAgain`.
 > detalle de la atención (RF-09.3), que es información de salud. Un aviso pasa por
 > los servidores de Google y se lee en la pantalla bloqueada de un teléfono que
 > puede ser compartido. Ver `docs/decisions.md`, 2026-10-15, «Notificaciones push».
+
+**Planificación (2026-11-03).** Decidida con el autor y registrada en `docs/decisions.md`,
+2026-11-03, HU-21. Prototipo aprobado el mismo día, en el lienzo «Conversación HU-21»:
+claro, oscuro, 200 % a 320 dp, la entrada desde la atención con los dos avisos, y los
+estados cargando, vacío, error, cancelada y envío fallido.
+
+- La conversación es una **pantalla propia**, que se abre con «Abrir conversación» desde
+  la atención. El aviso abre la conversación con la atención debajo.
+- **Se escribe mientras la atención no esté cancelada.** Cancelada, queda solo para leer;
+  completada, sigue abierta para coordinar el pago. Lo exige la política del motor.
+- **Con el teléfono bloqueado el aviso no muestra el nombre**; desbloqueado, «<nombre> te
+  escribió · <tipo de servicio>». Nunca el contenido.
+- **Paginación por cursor `(created_at, id)`**, no por desplazamiento; el motor sella
+  `created_at` y `read_at`.
+- **El aviso no se muestra con la conversación abierta**: lo descarta el teléfono.
+
+**Tareas**
+
+- [x] Migración `20261103183624_conversation`: índice por cursor, `conversation_page`, sellos
+      de `created_at` y `read_at`, inserción cerrada en atención cancelada,
+      `mark_conversation_read`, señales `notify_conversation_message` y
+      `notify_conversation_read`, política `conversation_listen`, `request_push_body` reescrita
+      con `MESSAGE_RECEIVED` y `queue_message_push`.
+- [x] Experimentos SQL contra el remoto, antes del `db push` (abajo).
+- [x] `features/conversation`: dominio, datos, modelo de vista y pantalla.
+- [x] Ayudante de canal privado en `core/network`, usado también por las ofertas y la bandeja.
+- [x] «Abrir conversación» en la atención y `ConversationRoute`.
+- [x] Notificaciones: `MESSAGE_RECEIVED`, canal «Mensajes», destino `Conversation`,
+      descarte con la conversación abierta, espacio de aviso propio; `senderName` en
+      `send-push`.
+- [x] Cadenas en `values/` y `values-es/`, glosario.
+- [x] Pruebas: `MessageContentTest`, `MessageTest`, `CatchUpMessagesUseCaseTest`,
+      `SendMessageUseCaseTest`, `GetConversationHeaderUseCaseTest`, `ConversationRowsTest`,
+      `ConversationViewModelTest`, `ConversationScreenLargeFontTest`, y las nuevas de
+      `ResolveIncomingNotificationUseCaseTest`, `PushPayloadTest`, `NotificationPublisherTest`,
+      `OpenNotificationUseCaseTest`, `NotificationTapEffectTest` y `AttentionScreenLargeFontTest`.
+      Las dos más delicadas se comprobaron por mutación. Previsualizaciones en claro, oscuro, 200 %,
+      vacía, cerrada, no enviada y con error; `ScreenCatalog` gana la conversación y la atención.
+- [x] Mirar las previsualizaciones de `ConversationScreen.kt` y `AttentionScreen.kt`: generadas con
+      `ScreenCatalog` y revisadas el 2026-11-03 (claro, oscuro, 200 % a 320 dp, vacía, cancelada,
+      no enviada, con error, y la atención al 200 % con «Abrir conversación»). Sin recortes.
+- [x] `./gradlew build` en verde el 2026-11-03: 913 pruebas, ninguna omitida, análisis estático y
+      lint incluidos.
+- [x] Hecho por el autor el 2026-11-03: `supabase db push` y el redespliegue de `send-push` (22:48).
+
+**Confirmado por el autor (2026-11-03).** Recorrió el ejercicio con los dos lados, en el Nubia y en
+el emulador, sin observaciones sobre la conversación. El remoto lo respalda sin leer ningún contenido:
+una conversación con 3 mensajes de 2 personas, los 3 leídos, y 6 envíos de `send-push` respondidos con
+200, cada uno con 1 enviado y 0 fallidos. La paginación y el descarte del aviso con la conversación
+abierta se verificaron además con pruebas, porque 3 mensajes no alcanzan para llenar una página.
+**Cerrada el 2026-11-03.** No es una historia crítica, así que no exigía recorrido.
+
+### HT-26 · Mis atenciones: el profesional vuelve a lo que acordó `[x]` — 3 puntos
+
+> Como **profesional**, quiero **encontrar las atenciones que acordé**, para **volver a
+> ellas y a su conversación cuando lo necesite, y no solo en el momento de aceptar**.
+
+**Origen.** El autor lo encontró el 2026-11-03 al recorrer HU-21. Una solicitud aceptada sale
+de la bandeja, y el profesional solo llegaba a la atención al aceptar desde el hilo o tocando el
+aviso: si volvía atrás o descartaba el aviso, no tenía cómo regresar. Su lista estaba prevista
+recién en HU-32, en el Sprint 9, y sin ella tampoco funcionarían HU-22 ni HU-23. El paciente no
+tiene el problema: su tarjeta de «Mis solicitudes» abre la atención. Es la misma clase de hueco que
+«El hueco del 09/10»: un camino que nadie había caminado. Registrado en `docs/decisions.md`,
+2026-11-03, HT-26.
+
+**Criterios de aceptación**
+
+- [x] Dado que soy profesional, cuando abro «Solicitudes», entonces elijo entre «Disponibles», que
+      es la bandeja, y «Mis atenciones».
+- [x] Dado que acordé una atención, cuando abro «Mis atenciones», entonces la veo con el servicio,
+      su estado, el paciente, el monto y, si es agendada, la hora de la cita.
+- [x] Dado que toco una atención, cuando se abre, entonces llego a su pantalla y desde ahí a la
+      conversación, también si está completada o cancelada.
+- [x] Dado que tengo los dos roles, cuando abro «Mis atenciones», entonces solo veo las que atiendo
+      como profesional.
+- [x] La lista está paginada, de la más reciente a la más antigua.
+- [x] Al 200 % de fuente y a 320 dp, los rótulos del control caben en una línea y cada control se
+      alcanza.
+
+**Requisitos:** RF-13.4, RF-09.1, RNF-08, INV-13, INV-17.
+
+**Tareas**
+
+- [x] Migración `20261104022210_professional_attentions`: `my_attentions_as_professional`.
+- [x] `AttentionSummary`, `GetMyAttentionsUseCase`, `MyAttentionsViewModel` y `MyAttentionsScreen` en
+      `features/services`; `AttentionMapper` lee la fecha con `OffsetDateTime`.
+- [x] `ProfessionalRequestsTab` en el shell, con el control de dos vistas.
+- [x] `SegmentedControl`: el rótulo se achica hasta caber, con el piso de HT-25.
+- [x] Pruebas: `GetMyAttentionsUseCaseTest`, `MyAttentionsViewModelTest`,
+      `MyAttentionsScreenLargeFontTest`, `ProfessionalRequestsContentLargeFontTest` y las nuevas de
+      `AttentionMapperTest`. La del rótulo se comprobó por mutación: sin el achique falla con
+      «Disponibles ends in an ellipsis». Previsualizaciones generadas y mirando las imágenes.
+- [x] `./gradlew build` en verde el 2026-11-03: 935 pruebas, ninguna omitida.
+- [x] Hecho por el autor el 2026-11-03: `supabase db push` y el recorrido en los dos lados.
+
+**Experimentos SQL (2026-11-03, remoto, `begin … rollback`, sobre la migración sin aplicar).** El
+profesional `chris.ledezma.s` lee sus 4 atenciones, de la más reciente a la más antigua, con el nombre
+de la paciente, y las páginas no se repiten. Una atención cancelada sigue en la lista con su estado. La
+paciente de esos mismos servicios, una persona ajena y el administrador leen 0: la función filtra por
+`professional_id`, no por ser parte. `anon` no puede ejecutarla.
+
+**Confirmado por el autor (2026-11-03).** Recorrió el camino en los dos lados. **Cerrada el
+2026-11-03.**
+
+**El cierre de la aplicación en el Nubia, 22:50.** El autor observó que la aplicación se cerró al entrar
+por primera vez a la atención. **No fue un fallo de la aplicación**, según lo que el sistema registró.
+De 16 salidas guardadas en `exit-info`, ninguna es `CRASH`, `CRASH_NATIVE` ni `ANR`, y el búfer de fallos
+está vacío. El proceso abierto a las 22:49:53 terminó a las 22:50:09 con motivo `PACKAGE UPDATED` y en
+primer plano, sin pasar por `PAUSED`; la misma versión llegó al emulador a las 22:50:14, y la aplicación
+se volvió a abrir sola a las 22:50:15 y siguió sin cierres. Es lo que deja una instalación lanzada con la
+aplicación en uso. La causa se dedujo de esos registros y no se reprodujo: el log general del teléfono
+tiene un búfer de 256 KiB y terminaba a las 22:20. Si vuelve a ocurrir fuera de una instalación, el
+historial de salidas lo distinguirá.
+
+**Relación con HU-32.** HU-32 agrega el ingreso, la comisión, el resumen y el filtro de fechas sobre
+esta misma lista; ya no tiene que construirla.
 
 ### HU-22 · Registrar lo realizado en la atención `[ ]` — 3 puntos
 
@@ -7066,6 +7183,10 @@ tenía prueba de interfaz. La tiene, `retryingAFailedSignOutAsksForItAgain`.
 
 **Tareas técnicas.** Máquina de estados modelada como jerarquía sellada · prueba
 de las transiciones válidas e inválidas.
+
+**A tener en cuenta (2026-11-03).** `negotiationEntry` solo abre la atención con la solicitud en `ACCEPTED`.
+Si esta historia mueve la solicitud a `IN_PROGRESS` o `COMPLETED`, la tarjeta del paciente en «Mis
+solicitudes» se queda sin destino: es el mismo hueco de HT-26, del otro lado.
 
 ### HU-24 · Cancelar una atención `[ ]` — 5 puntos
 

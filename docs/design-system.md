@@ -384,7 +384,13 @@ declara el desde y el hasta con dos de estas filas y ningún selector de reloj
 ### Control segmentado
 
 Dos o tres opciones excluyentes en una píldora. La activa se rellena en `primary`.
-Se usa para modalidad de atención y para filtros de historial.
+Se usa para modalidad de atención y para filtros de historial, y desde HT-26 para las dos
+vistas de «Solicitudes» del profesional.
+
+El rótulo va en una línea y se achica hasta caber en su segmento, nunca por debajo del
+tamaño que tiene al 100 %, la regla del rótulo de la barra de navegación. Eso no lo vuelve
+apto para etiquetas largas: al 100 % tienen que caber, y por eso sigue pidiendo palabras
+cortas (`docs/decisions.md`, 2026-10-02 y 2026-11-03, HT-26).
 
 ### Grupo de opciones exclusivas
 

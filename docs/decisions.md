@@ -5994,6 +5994,173 @@ estado. La sección 5 de `docs/design-system.md` se reescribe.
 
 ---
 
+## 2026-11-03 · HU-21: la conversación pagina por cursor, el motor sella sus fechas y el teléfono calla el aviso de la conversación abierta
+
+**Contexto.** La tabla `messages` existe desde el Sprint 1 con sus políticas: las dos partes
+leen y escriben desde que existe el servicio, solo el destinatario toca `read_at` y nadie más
+lee, tampoco el administrador (INV-12). Al planificar HU-21 aparecieron cinco huecos: se podía
+escribir en una atención cancelada; `created_at` y `read_at` los fijaba el cliente; el nombre
+de quien escribe no tenía cómo llegar al teléfono; nada sabía si la conversación estaba abierta;
+y el teléfono tiene un solo aviso por solicitud. El autor decidió el 2026-11-03 cuatro puntos y
+aprobó el prototipo el mismo día.
+
+**Decisión.**
+
+1. **Pantalla propia**, abierta desde la atención con «Abrir conversación». El aviso la abre
+   con la atención debajo. Lo eligió el autor.
+2. **Se escribe mientras la atención no esté cancelada.** Cancelada, solo se lee; completada,
+   sigue abierta. Lo exige la política de inserción, no la pantalla. Lo eligió el autor.
+3. **Con el teléfono bloqueado el aviso dice solo «Mensaje nuevo»**; desbloqueado, el nombre
+   de quien escribe y el tipo de servicio. Nunca el contenido. Lo eligió el autor.
+4. **Paginación por cursor `(created_at, id)`, no por desplazamiento.** Es la única lista del
+   proyecto que pagina así.
+5. **El motor sella `created_at` al insertar y `read_at` la primera vez que se marca**, y no
+   deja cambiarla ni borrarla después. Se marca leído con `mark_conversation_read`, que corre
+   con los permisos de quien llama.
+6. **El aviso de la conversación abierta lo descarta el teléfono**, no el servidor.
+7. **El aviso de mensaje tiene su propio espacio en la bandeja del sistema** y su propio canal,
+   «Mensajes».
+8. **El mensaje nace con un identificador que genera el teléfono.**
+
+**Razonamiento.**
+
+- **Por cursor.** El desplazamiento cuenta filas sobre una lista cuya cabeza se mueve con cada
+  mensaje. Repite filas, que la bandeja ya tolera, y sobre todo **salta las que faltan**: si
+  mientras el teléfono estaba en segundo plano llegaron más mensajes que una página, el tramo
+  del medio no se carga nunca y nada lo delata. El cursor se ancla a un mensaje real en las dos
+  direcciones: los anteriores al más viejo que se tiene y los posteriores al más nuevo. El `id`
+  desempata dos mensajes con la misma hora; sin él, el gemelo del ancla se saltaría. En una
+  conversación que guarda el detalle de una atención (RF-09.3), un mensaje perdido sin aviso es
+  un defecto serio.
+- **El motor sella las fechas.** El orden del hilo y el cursor dependen de `created_at`; si la
+  pone el cliente, un mensaje puede nacer en el pasado y desordenarlo. `read_at` es lo que el
+  remitente ve como «Leído», y el destinatario podía escribir cualquier fecha o borrarla. Es la
+  misma razón que `stamp_offer_created_at` (2026-10-27). Marcar leído con una función de
+  invocador, y no con un `update` directo, evita que el cliente mande una fecha que el motor
+  tendría que ignorar; y al ser de invocador las políticas siguen decidiendo, sin abrir una
+  puerta de definidor.
+- **Se cierra al cancelar y no al completar.** El pago se confirma después de completar
+  (HU-25, HU-26) y las partes pueden necesitar coordinarlo; en una cancelada no queda nada que
+  coordinar. Los mensajes son de solo agregar, así que mantenerla abierta no altera lo escrito.
+- **Sin nombre con el teléfono bloqueado.** Es la regla de 2026-10-16, punto 5: el tipo de
+  servicio no se ve bloqueado porque puede delatar qué le pasa al paciente, y el nombre de un
+  profesional de salud delata lo mismo en un teléfono compartido. El nombre de quien escribe es
+  un dato de su perfil, no texto de un mensaje: RF-09.10 sigue en pie.
+- **El teléfono calla el aviso.** Solo el teléfono sabe qué pantalla está en primer plano; el
+  servidor tendría que adivinarlo con presencia de tiempo real, que se pierde con la red. La
+  pantalla se declara abierta mientras está reanudada y deja de estarlo al pausarse, de modo que
+  la aplicación en segundo plano con la conversación encima sigue recibiendo avisos. La regla
+  queda en `ResolveIncomingNotificationUseCase`, junto a la barrera del destinatario, y se
+  prueba en la máquina virtual.
+- **Espacio de aviso propio.** El aviso de cada solicitud usa la solicitud como etiqueta, y un
+  mensaje habría reemplazado en silencio al de «oferta aceptada». Un canal propio deja silenciar
+  los mensajes sin silenciar las solicitudes.
+- **Identificador del teléfono.** Si el envío falla por la red después de que el motor lo
+  guardó, el reintento choca contra la clave primaria en vez de duplicar el mensaje, y ese
+  choque se lee como enviado.
+
+**Consecuencia.**
+
+- Migración `conversation`: índice `(request_id, created_at desc, id desc)`;
+  `stamp_message_created_at` y `stamp_message_read_at`; las dos políticas de inserción exigen un
+  servicio no cancelado; `mark_conversation_read`; `notify_conversation` envía un Broadcast sin
+  datos al tema privado `conversation:<request_id>`, al insertar y al leer por primera vez, y
+  `conversation_listen` deja escucharlo solo a las dos partes; `request_push_body` pasa a cuatro
+  parámetros, con `p_message_id`, y suma `MESSAGE_RECEIVED`; `queue_message_push` encola el aviso
+  dentro de la transacción. La versión de tres parámetros se borra, porque dos firmas volverían
+  ambigua la llamada de tres argumentos.
+- `send-push` agrega `senderName` a su lista de claves y se vuelve a desplegar.
+- Nace `features/conversation`. Lee su encabezado con `GetAttentionUseCase`, sin una función de
+  servidor nueva. El ciclo del canal privado pasa a un ayudante de `core/network` que comparten
+  la conversación y las ofertas.
+- El repositorio de notificaciones sabe qué conversación está abierta; al entrar se retira el
+  aviso de esa conversación de la bandeja del sistema.
+- No se construyen adjuntos, el indicador de «escribiendo», la edición ni el borrado de mensajes,
+  ni el contador de no leídos: ningún requisito los pide.
+
+**Decidido al construir (2026-11-03).**
+
+- **Las páginas se leen con `conversation_page`, una función de invocador, y no con un filtro de
+  PostgREST.** El filtro que PostgREST sabe escribir (`created_at.lt … or … id.lt`) no recorre el
+  índice en orden: el plan de ejecución mostró que lee todos los mensajes anteriores y los ordena
+  para quedarse con la página. La comparación por fila `(created_at, id) < (…)` usa el índice y se
+  detiene en el límite, pero PostgREST no la expresa. De paso, la fecha del cursor viaja como
+  parámetro y no dentro de la URL, donde el `+` de la zona y los microsegundos eran un riesgo. Al
+  ser de invocador, las políticas de lectura siguen decidiendo.
+- **«Leído» se refresca recorriendo desde mi último mensaje sin leer.** La señal no trae datos, y
+  pedir solo lo posterior al más nuevo nunca devolvería una fila que ya está en pantalla. Mientras
+  mi último mensaje siga sin leer, el recorrido empieza en el inicio de su instante —el
+  identificador nulo, que el motor ordena antes que cualquier otro—, de modo que una sola consulta
+  trae lo nuevo y la lectura, incluso si la conversación es un único mensaje mío.
+- **La señal de lectura es una por sentencia y por conversación**, no una por fila: marcar treinta
+  mensajes leídos es un solo `update` y habría enviado treinta avisos.
+- **El aviso de mensaje llega a la contraparte del servicio esté o no en el directorio**, como la
+  cancelación de una cita: es parte de un acuerdo cerrado.
+- **El espacio del aviso es también el código de petición del `PendingIntent`.** Dos avisos de la
+  misma solicitud comparten la URI de la intención, y Android los habría tratado como el mismo: con
+  `FLAG_UPDATE_CURRENT`, tocar el de «oferta aceptada» habría abierto el mensaje.
+- **La prueba `rejectsAnUnknownEvent` se corrigió, no se apagó.** Usaba `MESSAGE_RECEIVED` como
+  ejemplo de evento inexistente, y esta historia lo volvió real: la prueba expresaba mal la regla,
+  porque dependía de un nombre que algún día iba a existir. Ahora usa uno que no puede serlo.
+- **La prueba de que un mensaje largo envuelve exige una línea entera más.** La versión «más alta
+  que la burbuja corta» siguió pasando con el texto forzado a una línea: una sola línea mide 70 px
+  con un texto y 66 con otro. Mutar el código es lo que lo mostró, como en HU-11 (2026-10-09).
+
+---
+
+## 2026-11-03 · HT-26: el profesional encuentra sus atenciones en «Solicitudes», y el control segmentado achica su rótulo
+
+**Contexto.** Al recorrer HU-21, el autor no encontró cómo volver a una solicitud aceptada desde el
+lado del profesional. `request_inbox` solo devuelve solicitudes publicadas o en negociación, así que
+la aceptada sale de la bandeja, y las únicas entradas a la atención eran el hilo en el momento de
+aceptar y el aviso `OFFER_ACCEPTED`. La lista del profesional estaba en HU-32, en el Sprint 9. Sin
+ella, la conversación de HU-21 y las acciones de HU-22 y HU-23 quedaban inalcanzables. La
+planificación de HU-21 no lo vio: revisó cómo se entra a la conversación desde la atención, no cómo
+se llega a la atención.
+
+**Decisión.** El autor eligió el 2026-11-03:
+
+1. **«Solicitudes» del profesional gana un control con dos vistas**, «Disponibles» y «Mis atenciones».
+2. **La lista muestra todas sus atenciones, con su estado**, de la más reciente a la más antigua.
+3. **Es una historia propia, HT-26.**
+
+**Razonamiento.**
+
+- **En «Solicitudes».** Es donde el paciente ya encuentra sus aceptadas, y no agrega un destino a la
+  barra, que HT-25 fijó en cuatro e iguales para los dos roles. Se descartó un bloque en Inicio: es
+  otra consulta en una pantalla que al 200 % ya es larga, y dejaría al profesional buscando en un
+  lugar distinto del que usa el paciente.
+- **Todas, no solo las activas.** Una completada sigue abierta para coordinar el pago y una cancelada
+  se puede leer (2026-11-03, HU-21). Con solo las activas, esas conversaciones quedarían inalcanzables
+  hasta el Sprint 9.
+- **Solo las que atiende como profesional.** La reputación y el historial son por rol (INV-17), y las
+  que recibe como paciente ya están en su «Mis solicitudes». Por eso la función filtra por
+  `professional_id` y no por «soy parte».
+- **Por desplazamiento, no por cursor.** Una atención nueva entra pocas veces, y una repetida se
+  descarta por identificador, como en la bandeja. Lo que obligó al cursor en la conversación —una
+  cabeza que se mueve con cada mensaje y un hueco invisible— no se da aquí, y el índice
+  `(professional_id, created_at desc)` ya existe.
+- **Sin señal de tiempo real.** La lista se lee al reanudarse, como las otras pestañas (2026-10-30).
+  Una atención nueva ya avisa con `OFFER_ACCEPTED`.
+- **El rótulo del control se achica hasta caber.** `docs/design-system.md` advierte que el control no
+  admite etiquetas largas, y su recorte fue el primer defecto de disposición del proyecto
+  (2026-10-02). A 320 dp y 200 % cada segmento mide unos 136 dp, y ninguna palabra que nombre estas
+  dos vistas cabe a ese tamaño. Se aplica lo de la barra (2026-10-30, HT-25): una línea que se achica,
+  nunca por debajo de su tamaño al 100 %. Ninguna otra pantalla usa hoy el control.
+- **La fila de la lista es un modelo propio, `AttentionSummary`.** Lleva solo lo que la tarjeta muestra:
+  ni el identificador ni la foto del paciente salen del motor. Reutilizar `Attention` habría obligado a
+  darle una hora de cita que su pantalla no recibe.
+- **`AttentionMapper` lee la fecha con `OffsetDateTime`.** Usaba `Instant.parse`, que no toma el
+  `+00:00` de PostgREST en todas las versiones de Android: la tarjeta abriría una atención que falla
+  con «error inesperado». Es la convención de los otros mapeadores.
+
+**Consecuencia.** Migración `my_attentions_as_professional`. HU-32 ya no
+construye la lista: agrega el ingreso, la comisión, el resumen y el filtro de fechas sobre ella. El
+título del destino para el profesional pasa a «Solicitudes», porque «Solicitudes de mi zona» no
+describe la segunda vista.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```
