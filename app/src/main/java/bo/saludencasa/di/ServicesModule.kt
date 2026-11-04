@@ -2,8 +2,10 @@ package bo.saludencasa.di
 
 import bo.saludencasa.features.services.data.datasource.SupabaseServiceDataSource
 import bo.saludencasa.features.services.data.repository.ServiceRepository
+import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
+import bo.saludencasa.features.services.domain.usecase.GetActiveAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetMyAttentionsUseCase
 import bo.saludencasa.features.services.domain.usecase.ObserveAttentionUseCase
@@ -19,6 +21,7 @@ val servicesModule =
 
         factory { GetAttentionUseCase(get()) }
         factory { GetMyAttentionsUseCase(get()) }
+        factory { GetActiveAttentionUseCase(get()) }
         factory { AdvanceAttentionUseCase(get()) }
         factory { ObserveAttentionUseCase(get()) }
 
@@ -30,5 +33,5 @@ val servicesModule =
                 observeAttention = get(),
             )
         }
-        viewModel { MyAttentionsViewModel(get()) }
+        viewModel { (side: AttentionSide) -> MyAttentionsViewModel(side, get()) }
     }

@@ -13,11 +13,17 @@ data class AttentionRequestIdParam(
 
 @Serializable
 data class MyAttentionsParams(
+    @SerialName("p_role") val role: String,
     @SerialName("p_limit") val limit: Int,
     @SerialName("p_offset") val offset: Int,
 )
 
-// A row of my_attentions_as_professional.
+@Serializable
+data class ActiveAttentionParams(
+    @SerialName("p_role") val role: String,
+)
+
+// A row of my_attentions and of my_active_attention.
 @Serializable
 data class AttentionSummaryDto(
     @SerialName("request_id") val requestId: String,
@@ -25,9 +31,10 @@ data class AttentionSummaryDto(
     @Serializable(with = BigDecimalSerializer::class)
     @SerialName("final_amount_bob") val finalAmountBob: BigDecimal,
     @SerialName("service_type_name") val serviceTypeName: String,
-    @SerialName("patient_name") val patientName: String,
+    @SerialName("counterpart_name") val counterpartName: String,
     @SerialName("created_at") val createdAt: String,
     @SerialName("scheduled_at") val scheduledAt: String? = null,
+    @SerialName("started_at") val startedAt: String? = null,
 )
 
 // A row of my_attention: the service, the frozen amount and the counterpart

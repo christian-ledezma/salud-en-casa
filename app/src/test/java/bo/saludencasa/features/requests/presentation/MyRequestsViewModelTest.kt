@@ -3,6 +3,7 @@
 package bo.saludencasa.features.requests.presentation
 
 import bo.saludencasa.MainDispatcherRule
+import bo.saludencasa.core.util.ListRefresh
 import bo.saludencasa.features.requests.FakeRequestRepository
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.MyRequestsResult
@@ -10,6 +11,7 @@ import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.usecase.CancelRequestUseCase
 import bo.saludencasa.features.requests.domain.usecase.GetMyRequestsUseCase
 import bo.saludencasa.features.requests.serviceRequest
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -36,6 +38,60 @@ class MyRequestsViewModelTest {
             advanceUntilIdle()
 
             assertEquals(MyRequestsUiState.Empty, viewModel.uiState.value)
+        }
+
+    // Pulling is what makes «Mis solicitudes» an empty list come alive, so an empty
+    // list has to answer it too.
+    @Test
+    fun pullingAnEmptyListBringsWhatAppearedMeanwhile() =
+        runTest {
+            repository.requestsResult = MyRequestsResult.Loaded(emptyList())
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            repository.requestsResult = MyRequestsResult.Loaded(listOf(serviceRequest(id = "r1")))
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            val content = viewModel.uiState.value as MyRequestsUiState.Content
+            assertEquals(listOf("r1"), content.requests.map { it.id })
+            assertEquals(ListRefresh(), viewModel.listRefresh.value)
+        }
+
+    @Test
+    fun aFailedPullKeepsTheListAndSaysSo() =
+        runTest {
+            repository.requestsResult = MyRequestsResult.Loaded(listOf(serviceRequest(id = "r1")))
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            repository.requestsResult = MyRequestsResult.Failure(RequestError.NetworkUnavailable)
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            assertEquals(1, (viewModel.uiState.value as MyRequestsUiState.Content).requests.size)
+            assertEquals(ListRefresh(failed = true), viewModel.listRefresh.value)
+        }
+
+    // A pull during a cancel must not wipe the row being cancelled, and its indicator
+    // still has to close.
+    @Test
+    fun aPullDuringACancelLeavesTheCancelAlone() =
+        runTest {
+            repository.requestsResult = MyRequestsResult.Loaded(listOf(serviceRequest(id = "r1")))
+            val gate = CompletableDeferred<Unit>()
+            repository.cancelGate = gate
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            viewModel.onCancel("r1")
+            advanceUntilIdle()
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            assertEquals("r1", (viewModel.uiState.value as MyRequestsUiState.Content).cancellingId)
+            assertEquals(ListRefresh(), viewModel.listRefresh.value)
+            gate.complete(Unit)
         }
 
     @Test

@@ -1,10 +1,16 @@
 package bo.saludencasa.features.services.presentation
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
@@ -56,7 +62,8 @@ class MyAttentionsScreenLargeFontTest {
             string(R.string.attention_status_assigned),
             "María Quispe",
             formatBob(BigDecimal("150.00"), locale),
-            string(R.string.request_scheduled_for, formatAppointment(appointment, locale)),
+            string(R.string.service_card_amount_agreed),
+            string(R.string.service_card_appointment, formatAppointment(appointment, locale)),
         ).forEach { text ->
             composeRule.assertFitsTheScreenWithoutScrolling(composeRule.onNodeWithText(text))
         }
@@ -104,6 +111,53 @@ class MyAttentionsScreenLargeFontTest {
         composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.my_attentions_load_more)),
         )
+    }
+
+    // The card and its list have to answer the gesture, and pulling from a card is
+    // where the finger usually starts.
+    @Test
+    fun aListCanBePulledFromACard() {
+        var pulled = 0
+        show(
+            MyAttentionsUiState.Content(listOf(attentionSummary()), endReached = true),
+            MyAttentionsActions(onPullToRefresh = { pulled++ }),
+        )
+
+        composeRule.onNodeWithText("María Quispe").performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(1, pulled)
+    }
+
+    @Test
+    fun anEmptyListCanBePulled() {
+        var pulled = 0
+        show(MyAttentionsUiState.Empty, MyAttentionsActions(onPullToRefresh = { pulled++ }))
+
+        composeRule.onRoot().performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(1, pulled)
+    }
+
+    // A screen reader cannot always pull, so the same refresh is an action.
+    @Test
+    fun theRefreshIsAlsoAnAccessibilityAction() {
+        var pulled = 0
+        show(MyAttentionsUiState.Empty, MyAttentionsActions(onPullToRefresh = { pulled++ }))
+
+        val label = string(R.string.cd_refresh_list)
+        composeRule
+            .onNode(
+                SemanticsMatcher("has the refresh action") { node ->
+                    node.config.getOrNull(SemanticsActions.CustomActions)?.any { it.label == label } == true
+                },
+            ).fetchSemanticsNode()
+            .config[SemanticsActions.CustomActions]
+            .single { it.label == label }
+            .action()
+
+        assertEquals(1, pulled)
     }
 
     @Test

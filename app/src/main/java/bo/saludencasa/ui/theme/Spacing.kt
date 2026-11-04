@@ -46,6 +46,9 @@ object Spacing {
     // scale, and at this height it leaves room for the avatar on a 320 dp phone.
     val headerWordmarkHeight: Dp = 18.dp
 
+    // The initials inside a small circle, which does not grow with the font scale.
+    val initialsText: Dp = 16.dp
+
     // A message bubble leaves the rest of the row empty, so the side it sits on
     // says who wrote it. A fraction and not a spacing, like borderWidth.
     val bubbleMaxWidthFraction: Float = 0.8f

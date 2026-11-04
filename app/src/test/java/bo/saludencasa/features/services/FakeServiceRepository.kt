@@ -1,9 +1,11 @@
 package bo.saludencasa.features.services
 
+import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
 import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionResult
+import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.Counterpart
@@ -21,6 +23,8 @@ class FakeServiceRepository : IServiceRepository {
     var result: AttentionResult = AttentionResult.NotFound
     var attentions: List<AttentionSummary> = emptyList()
     var attentionsError: ServiceError? = null
+    var activeAttention: ActiveAttentionResult = ActiveAttentionResult.None
+    val sidesRead = mutableListOf<AttentionSide>()
     var advanceError: ServiceError? = null
     var holdAdvance: CompletableDeferred<Unit>? = null
     val advances = mutableListOf<AttentionStep>()
@@ -29,11 +33,19 @@ class FakeServiceRepository : IServiceRepository {
     override suspend fun getAttention(requestId: String): AttentionResult = result
 
     override suspend fun getMyAttentions(
+        side: AttentionSide,
         offset: Int,
         limit: Int,
-    ): MyAttentionsResult =
-        attentionsError?.let(MyAttentionsResult::Failure)
+    ): MyAttentionsResult {
+        sidesRead += side
+        return attentionsError?.let(MyAttentionsResult::Failure)
             ?: MyAttentionsResult.Loaded(attentions.drop(offset).take(limit))
+    }
+
+    override suspend fun getActiveAttention(side: AttentionSide): ActiveAttentionResult {
+        sidesRead += side
+        return activeAttention
+    }
 
     // The engine moves the state and stamps its date, so the reread finds them.
     override suspend fun advance(
@@ -64,15 +76,17 @@ fun attentionSummary(
     requestId: String = "r1",
     status: ServiceStatus = ServiceStatus.ASSIGNED,
     scheduledAt: Instant? = null,
+    startedAt: Instant? = null,
 ): AttentionSummary =
     AttentionSummary(
         requestId = requestId,
         status = status,
         finalAmountBob = BigDecimal("150.00"),
         serviceTypeName = "Curación de heridas",
-        patientName = "María Quispe",
+        counterpartName = "María Quispe",
         createdAt = Instant.parse("2026-10-29T12:00:00Z"),
         scheduledAt = scheduledAt,
+        startedAt = startedAt,
     )
 
 fun attention(

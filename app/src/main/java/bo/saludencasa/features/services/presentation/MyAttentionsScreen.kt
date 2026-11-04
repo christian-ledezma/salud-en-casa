@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -30,17 +29,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
-import bo.saludencasa.core.util.AppointmentZone
+import bo.saludencasa.core.util.ListRefresh
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
-import bo.saludencasa.core.util.formatFullDate
+import bo.saludencasa.features.services.domain.model.AttentionDateKind
+import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.RefreshFailedNotice
+import bo.saludencasa.ui.components.RefreshableContent
+import bo.saludencasa.ui.components.ServiceCard
+import bo.saludencasa.ui.components.ServiceCardAmount
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 import java.math.BigDecimal
 import java.time.Instant
 
@@ -48,15 +53,19 @@ internal data class MyAttentionsActions(
     val onOpenAttention: (String) -> Unit = {},
     val onRetry: () -> Unit = {},
     val onLoadMore: () -> Unit = {},
+    val onPullToRefresh: () -> Unit = {},
 )
 
+// docs/decisions.md, 2026-11-04, HT-27, the view model is keyed on the side.
 @Composable
 fun MyAttentionsScreen(
+    side: AttentionSide,
     onOpenAttention: (String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: MyAttentionsViewModel = koinViewModel(),
+    viewModel: MyAttentionsViewModel = koinViewModel(key = side.name) { parametersOf(side) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listRefresh by viewModel.listRefresh.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
@@ -65,11 +74,13 @@ fun MyAttentionsScreen(
 
     MyAttentionsContent(
         uiState = uiState,
+        listRefresh = listRefresh,
         actions =
             MyAttentionsActions(
                 onOpenAttention = onOpenAttention,
                 onRetry = viewModel::load,
                 onLoadMore = viewModel::onLoadMore,
+                onPullToRefresh = viewModel::onPullToRefresh,
             ),
         modifier = modifier,
     )
@@ -80,55 +91,69 @@ internal fun MyAttentionsContent(
     uiState: MyAttentionsUiState,
     actions: MyAttentionsActions,
     modifier: Modifier = Modifier,
+    listRefresh: ListRefresh = ListRefresh(),
 ) {
-    when (uiState) {
-        MyAttentionsUiState.Loading -> {
-            val description = stringResource(R.string.cd_loading)
-            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(modifier = Modifier.semantics { contentDescription = description })
-            }
+    if (uiState is MyAttentionsUiState.Loading) {
+        val description = stringResource(R.string.cd_loading)
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(modifier = Modifier.semantics { contentDescription = description })
         }
+        return
+    }
 
-        MyAttentionsUiState.Empty -> {
-            MessageColumn(modifier = modifier) {
-                Text(
-                    text = stringResource(R.string.my_attentions_empty_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = stringResource(R.string.my_attentions_empty_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+    RefreshableContent(
+        refreshing = listRefresh.refreshing,
+        onRefresh = actions.onPullToRefresh,
+        modifier = modifier,
+    ) {
+        when (uiState) {
+            MyAttentionsUiState.Loading -> {}
 
-        is MyAttentionsUiState.Failed -> {
-            MessageColumn(modifier = modifier) {
-                Text(
-                    text = stringResource(uiState.error.listMessageRes()),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                PrimaryButton(text = stringResource(R.string.common_retry), onClick = actions.onRetry)
-            }
-        }
-
-        is MyAttentionsUiState.Content -> {
-            LazyColumn(
-                modifier = modifier.fillMaxSize().padding(horizontal = Spacing.screenMargin),
-                verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
-                contentPadding = PaddingValues(vertical = Spacing.scale16),
-            ) {
-                items(uiState.attentions, key = AttentionSummary::requestId) { attention ->
-                    AttentionCard(
-                        attention = attention,
-                        onClick = { actions.onOpenAttention(attention.requestId) },
+            MyAttentionsUiState.Empty -> {
+                MessageColumn {
+                    if (listRefresh.failed) RefreshFailedNotice()
+                    Text(
+                        text = stringResource(R.string.my_attentions_empty_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(R.string.my_attentions_empty_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                item(key = "footer") {
-                    Footer(content = uiState, onLoadMore = actions.onLoadMore)
+            }
+
+            is MyAttentionsUiState.Failed -> {
+                MessageColumn {
+                    Text(
+                        text = stringResource(uiState.error.listMessageRes()),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    PrimaryButton(text = stringResource(R.string.common_retry), onClick = actions.onRetry)
+                }
+            }
+
+            is MyAttentionsUiState.Content -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.screenMargin),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
+                    contentPadding = PaddingValues(vertical = Spacing.scale16),
+                ) {
+                    if (listRefresh.failed) {
+                        item(key = "refresh_failed") { RefreshFailedNotice() }
+                    }
+                    items(uiState.attentions, key = AttentionSummary::requestId) { attention ->
+                        AttentionCard(
+                            attention = attention,
+                            onClick = { actions.onOpenAttention(attention.requestId) },
+                        )
+                    }
+                    item(key = "footer") {
+                        Footer(content = uiState, onLoadMore = actions.onLoadMore)
+                    }
                 }
             }
         }
@@ -142,49 +167,34 @@ private fun AttentionCard(
 ) {
     val locale = LocalConfiguration.current.locales[0]
 
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.cardPadding),
-            verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        ) {
-            Text(
-                text = attention.serviceTypeName,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(attention.status.labelRes()),
-                style = MaterialTheme.typography.labelLarge,
-                color =
-                    if (attention.status == ServiceStatus.CANCELLED) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-            )
-            Text(
-                text = attention.patientName,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = formatBob(attention.finalAmountBob, locale),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text =
-                    attention.scheduledAt?.let { at ->
-                        stringResource(R.string.request_scheduled_for, formatAppointment(at, locale))
-                    } ?: stringResource(
-                        R.string.my_attentions_agreed_on,
-                        formatFullDate(attention.createdAt.atZone(AppointmentZone).toLocalDate(), locale),
-                    ),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    ServiceCard(
+        title = attention.serviceTypeName,
+        statusLabel = stringResource(attention.status.labelRes()),
+        statusTone = attention.status.tone(),
+        date = attention.cardDateText(),
+        counterpart = attention.counterpartName,
+        amount =
+            ServiceCardAmount(
+                label = stringResource(R.string.service_card_amount_agreed),
+                value = formatBob(attention.finalAmountBob, locale),
+                agreed = true,
+            ),
+        onClick = onClick,
+    )
+}
+
+@Composable
+internal fun AttentionSummary.cardDateText(): String {
+    val date = cardDate
+    val text = formatAppointment(date.at, LocalConfiguration.current.locales[0])
+    return stringResource(
+        when (date.kind) {
+            AttentionDateKind.APPOINTMENT -> R.string.service_card_appointment
+            AttentionDateKind.STARTED -> R.string.service_card_started
+            AttentionDateKind.AGREED -> R.string.service_card_agreed
+        },
+        text,
+    )
 }
 
 @Composable
@@ -258,18 +268,20 @@ private val previewAttentions =
             status = ServiceStatus.ASSIGNED,
             finalAmountBob = BigDecimal("150.00"),
             serviceTypeName = "Colocación y control de vía venosa",
-            patientName = "María Fernanda Quispe",
+            counterpartName = "María Fernanda Quispe",
             createdAt = Instant.parse("2026-11-03T13:00:00Z"),
             scheduledAt = Instant.parse("2026-11-05T14:30:00Z"),
+            startedAt = null,
         ),
         AttentionSummary(
             requestId = "r2",
             status = ServiceStatus.CANCELLED,
             finalAmountBob = BigDecimal("45.00"),
             serviceTypeName = "Aplicación de inyectables",
-            patientName = "Jorge Mamani",
+            counterpartName = "Jorge Mamani",
             createdAt = Instant.parse("2026-11-01T13:00:00Z"),
             scheduledAt = null,
+            startedAt = null,
         ),
     )
 

@@ -297,10 +297,6 @@ private fun NavHostController.openNegotiation(negotiation: NegotiationEntry) {
         is NegotiationEntry.Thread -> {
             navigate(OfferThreadRoute(negotiation.requestId, negotiation.professionalId))
         }
-
-        is NegotiationEntry.Attention -> {
-            navigate(AttentionRoute(negotiation.requestId))
-        }
     }
 }
 

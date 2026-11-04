@@ -74,11 +74,12 @@ import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
-import bo.saludencasa.features.requests.presentation.MyRequestsScreen
 import bo.saludencasa.features.requests.presentation.NegotiationEntry
+import bo.saludencasa.features.services.domain.model.AttentionSummary
+import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.ui.components.BottomNavigationBar
+import bo.saludencasa.ui.components.InitialsText
 import bo.saludencasa.ui.components.PrimaryButton
-import bo.saludencasa.ui.components.initialsOf
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -183,12 +184,7 @@ fun HomeShell(
             if (activeRole == UserRole.PROFESSIONAL) {
                 ProfessionalRequestsTab(navigation = navigation)
             } else {
-                MyRequestsScreen(
-                    justCreated = false,
-                    onBack = null,
-                    onCreateRequest = navigation.onOpenImmediateCare,
-                    onOpenRequest = navigation.onOpenNegotiation,
-                )
+                PatientRequestsTab(navigation = navigation)
             }
         },
     )
@@ -307,6 +303,7 @@ private fun SignedInShell(
                         greeting = greeting,
                         onOpenImmediateCare = navigation.onOpenImmediateCare,
                         onOpenScheduling = navigation.onOpenScheduling,
+                        onOpenAttention = navigation.onOpenAttention,
                     )
                 }
 
@@ -318,6 +315,7 @@ private fun SignedInShell(
                         onRetry = actions.onRetryProfessionalHome,
                         onOpenVerification = navigation.onOpenVerification,
                         onOpenRequest = navigation.onOpenInboxRequest,
+                        onOpenAttention = navigation.onOpenAttention,
                         onSeeAllRequests = { onTabSelected(HomeTab.REQUESTS) },
                     )
                 }
@@ -368,7 +366,7 @@ private fun topBarTitleRes(
         }
 
         HomeTab.REQUESTS -> {
-            if (active == UserRole.PROFESSIONAL) R.string.common_nav_requests else R.string.request_list_title
+            R.string.common_nav_requests
         }
 
         HomeTab.ACCOUNT -> {
@@ -462,12 +460,7 @@ private fun AccountMenu(
             val color =
                 if (expanded) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
             if (name != null) {
-                Text(
-                    text = initialsOf(name),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = color,
-                    modifier = Modifier.clearAndSetSemantics {},
-                )
+                InitialsText(name = name, color = color, modifier = Modifier.clearAndSetSemantics {})
             } else {
                 Icon(imageVector = Icons.Filled.Person, contentDescription = null, tint = color)
             }
@@ -633,22 +626,36 @@ private fun previewAccount(
 
 private val bothRoles = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
 
+private fun previewAttention(status: ServiceStatus = ServiceStatus.IN_PROGRESS): AttentionSummary =
+    AttentionSummary(
+        requestId = "r2",
+        status = status,
+        finalAmountBob = BigDecimal("150.00"),
+        serviceTypeName = "Colocación y control de vía venosa",
+        counterpartName = "María Flores",
+        createdAt = Instant.parse("2026-10-30T13:00:00Z"),
+        scheduledAt = null,
+        startedAt = Instant.parse("2026-10-30T14:02:00Z").takeIf { status == ServiceStatus.IN_PROGRESS },
+    )
+
 private fun previewInProgress(): PatientHomeUiState =
-    PatientHomeUiState.InProgress(
-        ServiceRequest(
-            id = "r1",
-            serviceTypeName = "Curación de herida",
-            addressText = "Av. 6 de Agosto 2170",
-            city = "La Paz",
-            status = RequestStatus.NEGOTIATING,
-            modality = RequestModality.IMMEDIATE,
-            description = null,
-            suggestedBudgetBob = BigDecimal("120.00"),
-            expiresAt = null,
-            createdAt = Instant.parse("2026-10-30T14:12:00Z"),
-            scheduledAt = null,
-            professionalName = null,
-        ),
+    PatientHomeUiState.Content(
+        activeAttention = previewAttention(),
+        activeRequest =
+            ServiceRequest(
+                id = "r1",
+                serviceTypeName = "Curación de herida",
+                addressText = "Av. 6 de Agosto 2170",
+                city = "La Paz",
+                status = RequestStatus.NEGOTIATING,
+                modality = RequestModality.IMMEDIATE,
+                description = null,
+                suggestedBudgetBob = BigDecimal("120.00"),
+                expiresAt = null,
+                createdAt = Instant.parse("2026-10-30T14:12:00Z"),
+                scheduledAt = null,
+                professionalName = null,
+            ),
     )
 
 private fun previewNearby(
@@ -682,6 +689,7 @@ private fun previewProfessional(
         availableNow = true,
         availabilityError = null,
         verified = verified,
+        activeAttention = previewAttention(ServiceStatus.ASSIGNED),
         nearby = nearby,
     )
 

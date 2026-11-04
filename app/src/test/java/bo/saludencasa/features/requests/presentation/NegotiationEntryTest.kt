@@ -52,30 +52,4 @@ class NegotiationEntryTest {
             assertNull(scheduled(status).negotiationEntry())
         }
     }
-
-    // HU-19: once accepted there is nothing left to negotiate, but the card now
-    // opens the sealed agreement instead of being inert. It holds for both
-    // modalities, since either can reach acceptance.
-    @Test
-    fun anAcceptedRequestOpensItsAttention() {
-        assertEquals(
-            NegotiationEntry.Attention(requestId = "r1"),
-            immediate(RequestStatus.ACCEPTED).negotiationEntry(),
-        )
-        assertEquals(
-            NegotiationEntry.Attention(requestId = "r1"),
-            scheduled(RequestStatus.ACCEPTED).negotiationEntry(),
-        )
-    }
-
-    // HU-22: the conversation holds the record of what was done, so the card keeps
-    // opening the attention while it runs and after it ends.
-    @Test
-    fun anAttentionUnderWayOrFinishedStaysReachable() {
-        listOf(RequestStatus.IN_PROGRESS, RequestStatus.COMPLETED).forEach { status ->
-            val entry = NegotiationEntry.Attention(requestId = "r1")
-            assertEquals(entry, immediate(status).negotiationEntry())
-            assertEquals(entry, scheduled(status).negotiationEntry())
-        }
-    }
 }

@@ -25,7 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
@@ -190,11 +192,7 @@ internal fun CardAvatar(
                 .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = initialsOf(name),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
+        InitialsText(name = name, color = MaterialTheme.colorScheme.onPrimaryContainer)
         if (photoUrl != null) {
             AsyncImage(
                 model = photoUrl,
@@ -204,6 +202,24 @@ internal fun CardAvatar(
             )
         }
     }
+}
+
+// The circle does not grow with the font scale, so neither do its initials, which
+// would touch its edge at 200 %. The name is written beside them, at full size.
+@Composable
+internal fun InitialsText(
+    name: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val fontSize = with(LocalDensity.current) { Spacing.initialsText.toSp() }
+
+    Text(
+        text = initialsOf(name),
+        style = MaterialTheme.typography.labelLarge.copy(fontSize = fontSize, lineHeight = fontSize),
+        color = color,
+        modifier = modifier,
+    )
 }
 
 internal fun initialsOf(name: String): String =

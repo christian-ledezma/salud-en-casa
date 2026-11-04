@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,10 +53,16 @@ import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.presentation.inboxDistanceText
 import bo.saludencasa.features.requests.presentation.labelRes
 import bo.saludencasa.features.requests.presentation.messageRes
+import bo.saludencasa.features.services.domain.model.AttentionSummary
+import bo.saludencasa.features.services.presentation.cardDateText
+import bo.saludencasa.features.services.presentation.labelRes
+import bo.saludencasa.features.services.presentation.tone
 import bo.saludencasa.ui.animations.FloatingCircles
 import bo.saludencasa.ui.animations.RadarPulse
 import bo.saludencasa.ui.animations.StaggeredEntrance
 import bo.saludencasa.ui.components.AvailabilityDot
+import bo.saludencasa.ui.components.StatusBadge
+import bo.saludencasa.ui.components.badgeFitsBesideTitle
 import bo.saludencasa.ui.theme.Spacing
 
 // The same threshold the welcome screen and the public profile use to move a
@@ -104,12 +111,18 @@ internal fun PatientHome(
     greeting: @Composable () -> Unit,
     onOpenImmediateCare: () -> Unit,
     onOpenScheduling: () -> Unit,
+    onOpenAttention: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val content = uiState as? PatientHomeUiState.Content
+
     HomeColumn(modifier = modifier) {
         StaggeredEntrance(index = 0, modifier = Modifier.fillMaxWidth()) { greeting() }
-        StaggeredEntrance(index = 1) { SectionTitle(text = stringResource(R.string.home_what_do_you_need)) }
-        StaggeredEntrance(index = 2, modifier = Modifier.fillMaxWidth()) {
+        content?.activeAttention?.let { attention ->
+            ActiveAttentionBlock(attention = attention, firstIndex = 1, onOpen = onOpenAttention)
+        }
+        StaggeredEntrance(index = 3) { SectionTitle(text = stringResource(R.string.home_what_do_you_need)) }
+        StaggeredEntrance(index = 4, modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap)) {
                 ActionRow(
                     title = stringResource(R.string.home_immediate_care_title),
@@ -142,13 +155,13 @@ internal fun PatientHome(
                 }
             }
         }
-        if (uiState is PatientHomeUiState.InProgress) {
-            StaggeredEntrance(index = 3) { SectionTitle(text = stringResource(R.string.home_in_progress_title)) }
-            StaggeredEntrance(index = 4, modifier = Modifier.fillMaxWidth()) {
+        content?.activeRequest?.let { request ->
+            StaggeredEntrance(index = 5) { SectionTitle(text = stringResource(R.string.home_active_request_title)) }
+            StaggeredEntrance(index = 6, modifier = Modifier.fillMaxWidth()) {
                 HomeRowGroup {
                     HomeRow(
-                        title = uiState.request.serviceTypeName,
-                        details = listOf(stringResource(uiState.request.status.labelRes())),
+                        title = request.serviceTypeName,
+                        details = listOf(stringResource(request.status.labelRes())),
                         icon = rememberVectorPainter(Icons.Filled.Notifications),
                         tone = RowTone.PENDING,
                         onClick = onOpenImmediateCare,
@@ -167,6 +180,7 @@ internal fun ProfessionalHome(
     onRetry: () -> Unit,
     onOpenVerification: () -> Unit,
     onOpenRequest: (String) -> Unit,
+    onOpenAttention: (String) -> Unit,
     onSeeAllRequests: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -202,10 +216,13 @@ internal fun ProfessionalHome(
                         }
                     }
                 }
-                StaggeredEntrance(index = 3) {
+                uiState.activeAttention?.let { attention ->
+                    ActiveAttentionBlock(attention = attention, firstIndex = 3, onOpen = onOpenAttention)
+                }
+                StaggeredEntrance(index = 5) {
                     SectionTitle(text = stringResource(R.string.home_nearby_requests_title))
                 }
-                StaggeredEntrance(index = 4, modifier = Modifier.fillMaxWidth()) {
+                StaggeredEntrance(index = 6, modifier = Modifier.fillMaxWidth()) {
                     NearbyRequestsBlock(
                         nearby = uiState.nearby,
                         onOpenRequest = onOpenRequest,
@@ -214,6 +231,42 @@ internal fun ProfessionalHome(
                     )
                 }
             }
+        }
+    }
+}
+
+// docs/decisions.md, 2026-11-04, HT-27, the way to the active attention.
+@Composable
+private fun ActiveAttentionBlock(
+    attention: AttentionSummary,
+    firstIndex: Int,
+    onOpen: (String) -> Unit,
+) {
+    val statusLabel = stringResource(attention.status.labelRes())
+    val badgeFits = badgeFitsBesideTitle()
+
+    StaggeredEntrance(index = firstIndex) {
+        SectionTitle(text = stringResource(R.string.home_active_attention_title))
+    }
+    StaggeredEntrance(index = firstIndex + 1, modifier = Modifier.fillMaxWidth()) {
+        HomeRowGroup {
+            HomeRow(
+                title = attention.serviceTypeName,
+                details =
+                    listOfNotNull(
+                        statusLabel.takeUnless { badgeFits },
+                        attention.counterpartName,
+                        attention.cardDateText(),
+                    ),
+                icon = rememberVectorPainter(Icons.Filled.Home),
+                onClick = { onOpen(attention.requestId) },
+                trailing =
+                    if (badgeFits) {
+                        { StatusBadge(label = statusLabel, tone = attention.status.tone()) }
+                    } else {
+                        null
+                    },
+            )
         }
     }
 }

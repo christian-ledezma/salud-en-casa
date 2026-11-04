@@ -16,6 +16,12 @@ import bo.saludencasa.features.requests.domain.model.InboxResult
 import bo.saludencasa.features.requests.domain.usecase.GetInboxUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveInboxSignalsUseCase
 import bo.saludencasa.features.requests.inboxRequest
+import bo.saludencasa.features.services.FakeServiceRepository
+import bo.saludencasa.features.services.attentionSummary
+import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
+import bo.saludencasa.features.services.domain.model.AttentionSide
+import bo.saludencasa.features.services.domain.model.ServiceError
+import bo.saludencasa.features.services.domain.usecase.GetActiveAttentionUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -31,6 +37,7 @@ class ProfessionalHomeViewModelTest {
     private val profiles =
         FakeProfileRepository(profileResult = ProfileResult.Success(professionalProfile()))
     private val requests = FakeRequestRepository()
+    private val services = FakeServiceRepository()
 
     private fun viewModel(): ProfessionalHomeViewModel =
         ProfessionalHomeViewModel(
@@ -38,6 +45,7 @@ class ProfessionalHomeViewModelTest {
             SetAvailabilityUseCase(profiles),
             GetInboxUseCase(requests),
             ObserveInboxSignalsUseCase(requests),
+            GetActiveAttentionUseCase(services),
         )
 
     private fun ProfessionalHomeViewModel.content(): ProfessionalHomeUiState.Content =
@@ -111,5 +119,33 @@ class ProfessionalHomeViewModelTest {
 
             val nearby = viewModel.content().nearby as NearbyRequests.Some
             assertEquals("fresh", nearby.requests.single().id)
+        }
+
+    // HT-27: the professional is who has to mark the arrival, on the day of the visit.
+    @Test
+    fun theAttentionUnderWayReachesInicioFromTheProfessionalSide() =
+        runTest {
+            services.activeAttention = ActiveAttentionResult.Found(attentionSummary(requestId = "r2"))
+            val viewModel = viewModel()
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertEquals("r2", viewModel.content().activeAttention?.requestId)
+            assertEquals(setOf(AttentionSide.PROFESSIONAL), services.sidesRead.toSet())
+        }
+
+    @Test
+    fun aFailedReadKeepsTheAttentionOnInicio() =
+        runTest {
+            services.activeAttention = ActiveAttentionResult.Found(attentionSummary(requestId = "r2"))
+            val viewModel = viewModel()
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            services.activeAttention = ActiveAttentionResult.Failure(ServiceError.NetworkUnavailable)
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertEquals("r2", viewModel.content().activeAttention?.requestId)
         }
 }

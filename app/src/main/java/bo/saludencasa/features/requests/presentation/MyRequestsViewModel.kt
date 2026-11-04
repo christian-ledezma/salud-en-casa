@@ -2,6 +2,8 @@ package bo.saludencasa.features.requests.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import bo.saludencasa.core.util.ListRefresh
+import bo.saludencasa.core.util.ListRefresher
 import bo.saludencasa.features.requests.domain.model.CancelRequestResult
 import bo.saludencasa.features.requests.domain.model.MyRequestsPageResult
 import bo.saludencasa.features.requests.domain.model.RequestError
@@ -40,6 +42,9 @@ class MyRequestsViewModel(
     private val state = MutableStateFlow<MyRequestsUiState>(MyRequestsUiState.Loading)
     val uiState: StateFlow<MyRequestsUiState> = state.asStateFlow()
 
+    private val refresher = ListRefresher(viewModelScope)
+    val listRefresh: StateFlow<ListRefresh> = refresher.state
+
     private var loadMoreJob: Job? = null
 
     init {
@@ -53,17 +58,7 @@ class MyRequestsViewModel(
             state.value =
                 when (val result = getMyRequests(offset = 0)) {
                     is MyRequestsPageResult.Loaded -> {
-                        if (result.requests.isEmpty()) {
-                            MyRequestsUiState.Empty
-                        } else {
-                            MyRequestsUiState.Content(
-                                requests = result.requests,
-                                loadingMore = false,
-                                endReached = result.endReached,
-                                notice = null,
-                                cancellingId = null,
-                            )
-                        }
+                        result.firstPageState()
                     }
 
                     is MyRequestsPageResult.Failure -> {
@@ -139,22 +134,34 @@ class MyRequestsViewModel(
         if (current is MyRequestsUiState.Content && current.cancellingId != null) return
 
         viewModelScope.launch {
-            val result = getMyRequests(offset = 0)
-            if (result !is MyRequestsPageResult.Loaded) return@launch
-            if ((state.value as? MyRequestsUiState.Content)?.cancellingId != null) return@launch
-            loadMoreJob?.cancel()
-            state.value =
-                if (result.requests.isEmpty()) {
-                    MyRequestsUiState.Empty
-                } else {
-                    MyRequestsUiState.Content(
-                        requests = result.requests,
-                        loadingMore = false,
-                        endReached = result.endReached,
-                        notice = null,
-                        cancellingId = null,
-                    )
-                }
+            if (readFirstPage()) refresher.clearFailure()
         }
     }
+
+    fun onPullToRefresh() {
+        refresher.pull(::readFirstPage)
+    }
+
+    private suspend fun readFirstPage(): Boolean {
+        val result = getMyRequests(offset = 0)
+        if (result !is MyRequestsPageResult.Loaded) return false
+        // The cancel in flight reads the list again itself when it ends.
+        if ((state.value as? MyRequestsUiState.Content)?.cancellingId != null) return true
+        loadMoreJob?.cancel()
+        state.value = result.firstPageState()
+        return true
+    }
+
+    private fun MyRequestsPageResult.Loaded.firstPageState(): MyRequestsUiState =
+        if (requests.isEmpty()) {
+            MyRequestsUiState.Empty
+        } else {
+            MyRequestsUiState.Content(
+                requests = requests,
+                loadingMore = false,
+                endReached = endReached,
+                notice = null,
+                cancellingId = null,
+            )
+        }
 }

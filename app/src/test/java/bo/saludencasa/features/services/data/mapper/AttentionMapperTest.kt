@@ -64,15 +64,32 @@ class AttentionMapperTest {
     private fun summaryDto(
         status: String = "COMPLETED",
         scheduledAt: String? = null,
+        startedAt: String? = null,
     ) = AttentionSummaryDto(
         requestId = "r1",
         status = status,
         finalAmountBob = BigDecimal("45.00"),
         serviceTypeName = "Inyectables",
-        patientName = "María Quispe",
+        counterpartName = "María Quispe",
         createdAt = "2026-10-29T12:00:00.123456+00:00",
         scheduledAt = scheduledAt,
+        startedAt = startedAt,
     )
+
+    // The start decides the date of the card: read wrong, the card says «Acordada»
+    // for an attention under way.
+    @Test
+    fun theStartOfTheAttentionReachesTheSummary() {
+        assertEquals(
+            Instant.parse("2026-11-04T14:02:00Z"),
+            summaryDto(startedAt = "2026-11-04T14:02:00+00:00").toAttentionSummary()?.startedAt,
+        )
+    }
+
+    @Test
+    fun anUnreadableStartIsAContractMismatch() {
+        assertNull(summaryDto(startedAt = "ayer").toAttentionSummary())
+    }
 
     @Test
     fun anImmediateAttentionHasNoAppointment() {

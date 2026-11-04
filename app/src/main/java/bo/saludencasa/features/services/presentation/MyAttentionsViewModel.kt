@@ -2,6 +2,9 @@ package bo.saludencasa.features.services.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import bo.saludencasa.core.util.ListRefresh
+import bo.saludencasa.core.util.ListRefresher
+import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.MyAttentionsPageResult
 import bo.saludencasa.features.services.domain.model.ServiceError
@@ -31,10 +34,14 @@ sealed interface MyAttentionsUiState {
 }
 
 class MyAttentionsViewModel(
+    private val side: AttentionSide,
     private val getMyAttentions: GetMyAttentionsUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<MyAttentionsUiState>(MyAttentionsUiState.Loading)
     val uiState: StateFlow<MyAttentionsUiState> = state.asStateFlow()
+
+    private val refresher = ListRefresher(viewModelScope)
+    val listRefresh: StateFlow<ListRefresh> = refresher.state
 
     private var loadMoreJob: Job? = null
 
@@ -47,7 +54,7 @@ class MyAttentionsViewModel(
         state.value = MyAttentionsUiState.Loading
         viewModelScope.launch {
             state.value =
-                when (val page = getMyAttentions(offset = 0)) {
+                when (val page = getMyAttentions(side, offset = 0)) {
                     is MyAttentionsPageResult.Loaded -> page.firstPageState()
                     is MyAttentionsPageResult.Failure -> MyAttentionsUiState.Failed(page.error)
                 }
@@ -58,12 +65,20 @@ class MyAttentionsViewModel(
     // the inbox follows (docs/decisions.md, 2026-10-30, HT-25).
     fun refresh() {
         viewModelScope.launch {
-            val page = getMyAttentions(offset = 0)
-            if (page is MyAttentionsPageResult.Loaded) {
-                loadMoreJob?.cancel()
-                state.value = page.firstPageState()
-            }
+            if (readFirstPage()) refresher.clearFailure()
         }
+    }
+
+    fun onPullToRefresh() {
+        refresher.pull(::readFirstPage)
+    }
+
+    private suspend fun readFirstPage(): Boolean {
+        val page = getMyAttentions(side, offset = 0)
+        if (page !is MyAttentionsPageResult.Loaded) return false
+        loadMoreJob?.cancel()
+        state.value = page.firstPageState()
+        return true
     }
 
     fun onLoadMore() {
@@ -73,7 +88,7 @@ class MyAttentionsViewModel(
         state.value = content.copy(loadingMore = true, notice = null)
         loadMoreJob =
             viewModelScope.launch {
-                val page = getMyAttentions(offset = content.attentions.size)
+                val page = getMyAttentions(side, offset = content.attentions.size)
                 state.update { current ->
                     if (current !is MyAttentionsUiState.Content) return@update current
                     when (page) {

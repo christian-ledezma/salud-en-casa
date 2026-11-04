@@ -53,6 +53,7 @@ class FakeRequestRepository : IRequestRepository {
 
     var inboxResult: InboxResult = InboxResult.Loaded(emptyList())
     var inboxResponder: ((offset: Int, limit: Int) -> InboxResult)? = null
+    val inboxPageGates = mutableMapOf<Int, CompletableDeferred<Unit>>()
 
     // A hot flow the test drives: emitting a Unit stands in for the broadcast
     // that tells the inbox to re-query.
@@ -101,6 +102,7 @@ class FakeRequestRepository : IRequestRepository {
         limit: Int,
     ): InboxResult {
         inboxPageRequests += offset to limit
+        inboxPageGates[offset]?.await()
         return inboxResponder?.invoke(offset, limit) ?: inboxResult
     }
 

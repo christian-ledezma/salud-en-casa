@@ -2,6 +2,7 @@ package bo.saludencasa.features.services.domain.usecase
 
 import bo.saludencasa.features.services.FakeServiceRepository
 import bo.saludencasa.features.services.attentionSummary
+import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.MyAttentionsPageResult
 import bo.saludencasa.features.services.domain.model.ServiceError
 import kotlinx.coroutines.test.runTest
@@ -22,7 +23,7 @@ class GetMyAttentionsUseCaseTest {
         runTest {
             repository.attentions = stored(GetMyAttentionsUseCase.PAGE_SIZE + 1)
 
-            val page = getMyAttentions(offset = 0) as MyAttentionsPageResult.Loaded
+            val page = getMyAttentions(AttentionSide.PROFESSIONAL, offset = 0) as MyAttentionsPageResult.Loaded
 
             assertEquals(GetMyAttentionsUseCase.PAGE_SIZE, page.attentions.size)
             assertFalse(page.endReached)
@@ -33,7 +34,11 @@ class GetMyAttentionsUseCaseTest {
         runTest {
             repository.attentions = stored(GetMyAttentionsUseCase.PAGE_SIZE + 1)
 
-            val page = getMyAttentions(offset = GetMyAttentionsUseCase.PAGE_SIZE) as MyAttentionsPageResult.Loaded
+            val page =
+                getMyAttentions(
+                    AttentionSide.PROFESSIONAL,
+                    offset = GetMyAttentionsUseCase.PAGE_SIZE,
+                ) as MyAttentionsPageResult.Loaded
 
             assertEquals(1, page.attentions.size)
             assertTrue(page.endReached)
@@ -46,7 +51,7 @@ class GetMyAttentionsUseCaseTest {
 
             assertEquals(
                 MyAttentionsPageResult.Failure(ServiceError.NetworkUnavailable),
-                getMyAttentions(offset = 0),
+                getMyAttentions(AttentionSide.PROFESSIONAL, offset = 0),
             )
         }
 }

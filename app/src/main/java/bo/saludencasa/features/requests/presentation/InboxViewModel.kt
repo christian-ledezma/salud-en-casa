@@ -2,6 +2,8 @@ package bo.saludencasa.features.requests.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import bo.saludencasa.core.util.ListRefresh
+import bo.saludencasa.core.util.ListRefresher
 import bo.saludencasa.features.requests.domain.model.InboxPageResult
 import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestError
@@ -38,6 +40,9 @@ class InboxViewModel(
     private val state = MutableStateFlow<InboxUiState>(InboxUiState.Loading)
     val uiState: StateFlow<InboxUiState> = state.asStateFlow()
 
+    private val refresher = ListRefresher(viewModelScope)
+    val listRefresh: StateFlow<ListRefresh> = refresher.state
+
     private var loadMoreJob: Job? = null
 
     init {
@@ -65,21 +70,20 @@ class InboxViewModel(
     // every resume, now that the inbox is a tab of the home screen.
     fun refresh() {
         viewModelScope.launch {
-            val result = getInbox(offset = 0)
-            if (result is InboxPageResult.Loaded) {
-                state.value =
-                    if (result.requests.isEmpty()) {
-                        InboxUiState.Empty
-                    } else {
-                        InboxUiState.Content(
-                            requests = result.requests,
-                            loadingMore = false,
-                            endReached = result.endReached,
-                            notice = null,
-                        )
-                    }
-            }
+            if (readFirstPage()) refresher.clearFailure()
         }
+    }
+
+    fun onPullToRefresh() {
+        refresher.pull(::readFirstPage)
+    }
+
+    private suspend fun readFirstPage(): Boolean {
+        val result = getInbox(offset = 0)
+        if (result !is InboxPageResult.Loaded) return false
+        loadMoreJob?.cancel()
+        state.value = firstPageState(result, onFailure = InboxUiState::Failed)
+        return true
     }
 
     fun onReachedEnd() {

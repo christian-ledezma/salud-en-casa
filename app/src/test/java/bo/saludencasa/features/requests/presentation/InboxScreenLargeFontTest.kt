@@ -7,7 +7,10 @@ import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
@@ -19,6 +22,7 @@ import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -103,17 +107,46 @@ class InboxScreenLargeFontTest {
     }
 
     // HU-16: a scheduled request names its appointment and says it is scheduled,
-    // and neither line may fall off a 320 dp card at a doubled font.
+    // and the line may not fall off a 320 dp card at a doubled font.
     @Test
-    fun aScheduledCardKeepsItsBadgeAndAppointmentOnScreen() {
+    fun aScheduledCardKeepsItsAppointmentOnScreen() {
         val at = Instant.parse("2026-10-16T13:30:00Z")
         show(listOf(request("r1", scheduledAt = at)))
         scrollTo(1)
 
-        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.request_modality_scheduled)))
         composeRule.assertFitsTheScreen(
-            composeRule.onNodeWithText(string(R.string.request_scheduled_for, formatAppointment(at, deviceLocale()))),
+            composeRule.onNodeWithText(
+                string(R.string.service_card_appointment, formatAppointment(at, deviceLocale())),
+            ),
         )
+    }
+
+    // There is no agreement yet: the distance and the city stand where the other
+    // lists show the counterpart, and the amount is only a budget.
+    @Test
+    fun aCardShowsWhereItIsAndItsBudget() {
+        show(listOf(request("r1")))
+        scrollTo(1)
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Cochabamba", substring = true))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.service_card_amount_budget)))
+    }
+
+    @Test
+    fun anEmptyInboxCanBePulled() {
+        var pulled = 0
+        composeRule.setContentAtDoubleFontScale {
+            InboxContent(
+                uiState = InboxUiState.Empty,
+                onBack = null,
+                actions = InboxActions(onPullToRefresh = { pulled++ }),
+            )
+        }
+
+        composeRule.onRoot().performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(1, pulled)
     }
 
     // The locale the card formats the appointment with.

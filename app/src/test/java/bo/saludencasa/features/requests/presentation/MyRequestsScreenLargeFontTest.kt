@@ -5,18 +5,25 @@ import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
+import bo.saludencasa.core.util.ListRefresh
 import bo.saludencasa.core.util.formatAppointment
+import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.notifications.presentation.NotificationRationale
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
 import bo.saludencasa.ui.assertFitsTheScreen
+import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -128,12 +135,69 @@ class MyRequestsScreenLargeFontTest {
         scrollTo(1)
 
         composeRule.assertFitsTheScreen(
-            composeRule.onNodeWithText(string(R.string.request_scheduled_for, formatAppointment(at, deviceLocale()))),
+            composeRule.onNodeWithText(
+                string(R.string.service_card_appointment, formatAppointment(at, deviceLocale())),
+            ),
         )
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(
                 string(R.string.request_list_with_professional, "Ana Quispe Mamani de la Fuente"),
             ),
+        )
+    }
+
+    // Before an agreement the amount is only a budget, and it says so.
+    @Test
+    fun aCardLabelsItsAmountAsABudget() {
+        show(listOf(request("r1", RequestStatus.PUBLISHED)))
+        scrollTo(1)
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.service_card_amount_budget)))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(formatBob(BigDecimal("150.00"), deviceLocale())),
+        )
+        composeRule.onNodeWithText(string(R.string.service_card_amount_agreed)).assertDoesNotExist()
+    }
+
+    // The empty state has to answer the gesture too, or a person with no requests
+    // has no way to read the list again without leaving it.
+    @Test
+    fun anEmptyListCanBePulled() {
+        var pulled = 0
+        composeRule.setContentAtDoubleFontScale {
+            MyRequestsContent(
+                uiState = MyRequestsUiState.Empty,
+                onBack = null,
+                actions = MyRequestsActions(onPullToRefresh = { pulled++ }),
+            )
+        }
+
+        composeRule.onRoot().performTouchInput { swipeDown() }
+        composeRule.waitForIdle()
+
+        assertEquals(1, pulled)
+    }
+
+    @Test
+    fun aFailedPullSaysSoAboveTheList() {
+        composeRule.setContentAtDoubleFontScale {
+            MyRequestsContent(
+                uiState =
+                    MyRequestsUiState.Content(
+                        requests = listOf(request("r1", RequestStatus.PUBLISHED)),
+                        loadingMore = false,
+                        endReached = true,
+                        notice = null,
+                        cancellingId = null,
+                    ),
+                onBack = null,
+                actions = MyRequestsActions(),
+                listRefresh = ListRefresh(failed = true),
+            )
+        }
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.common_refresh_failed)),
         )
     }
 

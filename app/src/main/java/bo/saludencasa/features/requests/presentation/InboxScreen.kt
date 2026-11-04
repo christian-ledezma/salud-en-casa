@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,7 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
-import bo.saludencasa.core.util.formatAppointment
+import bo.saludencasa.core.util.ListRefresh
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.notifications.presentation.NotificationPermissionPrompt
 import bo.saludencasa.features.notifications.presentation.NotificationRationale
@@ -38,7 +37,11 @@ import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.RefreshFailedNotice
+import bo.saludencasa.ui.components.RefreshableContent
 import bo.saludencasa.ui.components.ScreenHeader
+import bo.saludencasa.ui.components.ServiceCard
+import bo.saludencasa.ui.components.ServiceCardAmount
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -55,6 +58,7 @@ fun InboxScreen(
     viewModel: InboxViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listRefresh by viewModel.listRefresh.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
@@ -64,11 +68,13 @@ fun InboxScreen(
     InboxContent(
         uiState = uiState,
         onBack = onBack,
+        listRefresh = listRefresh,
         actions =
             InboxActions(
                 onReachedEnd = viewModel::onReachedEnd,
                 onRetry = viewModel::onRetry,
                 onOpenRequest = onOpenRequest,
+                onPullToRefresh = viewModel::onPullToRefresh,
             ),
         modifier = modifier,
         permissionPrompt = {
@@ -83,6 +89,7 @@ internal data class InboxActions(
     // The card opens the request, where the professional offers and negotiates
     // on the same screen (docs/decisions.md, 2026-10-27, HT-24).
     val onOpenRequest: (String) -> Unit = {},
+    val onPullToRefresh: () -> Unit = {},
 )
 
 @Composable
@@ -91,77 +98,92 @@ internal fun InboxContent(
     onBack: (() -> Unit)?,
     actions: InboxActions,
     modifier: Modifier = Modifier,
+    listRefresh: ListRefresh = ListRefresh(),
     permissionPrompt: @Composable () -> Unit = {},
 ) {
-    val loadingDescription = stringResource(R.string.cd_loading)
     val header: @Composable () -> Unit = {
         InboxHeader(onBack = onBack, permissionPrompt = permissionPrompt)
     }
 
-    when (uiState) {
-        InboxUiState.Loading -> {
-            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    modifier = Modifier.semantics { contentDescription = loadingDescription },
-                )
-            }
+    if (uiState is InboxUiState.Loading) {
+        val loadingDescription = stringResource(R.string.cd_loading)
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                modifier = Modifier.semantics { contentDescription = loadingDescription },
+            )
         }
+        return
+    }
 
-        InboxUiState.Empty -> {
-            InboxColumn(modifier = modifier) {
-                header()
-                Text(
-                    text = stringResource(R.string.request_inbox_empty_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = stringResource(R.string.request_inbox_empty_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+    RefreshableContent(
+        refreshing = listRefresh.refreshing,
+        onRefresh = actions.onPullToRefresh,
+        modifier = modifier,
+    ) {
+        when (uiState) {
+            InboxUiState.Loading -> {}
 
-        is InboxUiState.Failed -> {
-            InboxColumn(modifier = modifier) {
-                header()
-                Text(
-                    text = stringResource(uiState.error.messageRes()),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                PrimaryButton(text = stringResource(R.string.common_retry), onClick = actions.onRetry)
-            }
-        }
-
-        is InboxUiState.Content -> {
-            LazyColumn(
-                modifier =
-                    modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Spacing.screenMargin),
-                verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
-                contentPadding = PaddingValues(vertical = Spacing.sectionGap),
-            ) {
-                item(key = "header") {
+            InboxUiState.Empty -> {
+                InboxColumn {
                     header()
-                }
-
-                items(uiState.requests, key = InboxRequest::id) { request ->
-                    InboxCard(
-                        request = request,
-                        onClick = { actions.onOpenRequest(request.id) },
+                    if (listRefresh.failed) RefreshFailedNotice()
+                    Text(
+                        text = stringResource(R.string.request_inbox_empty_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(R.string.request_inbox_empty_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
 
-                item(key = "footer") {
-                    InboxFooter(
-                        loadingMore = uiState.loadingMore,
-                        endReached = uiState.endReached,
-                        notice = uiState.notice,
-                        onLoadMore = actions.onReachedEnd,
+            is InboxUiState.Failed -> {
+                InboxColumn {
+                    header()
+                    Text(
+                        text = stringResource(uiState.error.messageRes()),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
                     )
+                    PrimaryButton(text = stringResource(R.string.common_retry), onClick = actions.onRetry)
+                }
+            }
+
+            is InboxUiState.Content -> {
+                LazyColumn(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = Spacing.screenMargin),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
+                    contentPadding = PaddingValues(vertical = Spacing.sectionGap),
+                ) {
+                    item(key = "header") {
+                        header()
+                    }
+
+                    if (listRefresh.failed) {
+                        item(key = "refresh_failed") { RefreshFailedNotice() }
+                    }
+
+                    items(uiState.requests, key = InboxRequest::id) { request ->
+                        InboxCard(
+                            request = request,
+                            onClick = { actions.onOpenRequest(request.id) },
+                        )
+                    }
+
+                    item(key = "footer") {
+                        InboxFooter(
+                            loadingMore = uiState.loadingMore,
+                            endReached = uiState.endReached,
+                            notice = uiState.notice,
+                            onLoadMore = actions.onReachedEnd,
+                        )
+                    }
                 }
             }
         }
@@ -179,6 +201,8 @@ private fun InboxHeader(
     }
 }
 
+// The distance and the city stand where the other lists show the counterpart: there
+// is no agreement yet, so the patient stays unnamed.
 @Composable
 private fun InboxCard(
     request: InboxRequest,
@@ -186,53 +210,23 @@ private fun InboxCard(
 ) {
     val locale = LocalConfiguration.current.locales[0]
 
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.cardPadding),
-            verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        ) {
-            ModalityBadge(modality = request.modality)
-            Text(
-                text = request.serviceTypeName,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            request.scheduledAt?.let { at ->
-                Text(
-                    text = stringResource(R.string.request_scheduled_for, formatAppointment(at, locale)),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            Text(
-                text = inboxDistanceText(request.distanceM),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = request.city,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            request.description?.let { description ->
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+    ServiceCard(
+        title = request.serviceTypeName,
+        statusLabel = stringResource(request.status.labelRes()),
+        statusTone = request.status.tone(),
+        date = requestDateText(request.scheduledAt, request.createdAt),
+        distance = stringResource(R.string.request_inbox_near, inboxDistanceText(request.distanceM), request.city),
+        note = request.description,
+        amount =
             request.suggestedBudgetBob?.let { budget ->
-                Text(
-                    text = stringResource(R.string.request_inbox_budget, formatBob(budget, locale)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ServiceCardAmount(
+                    label = stringResource(R.string.service_card_amount_budget),
+                    value = formatBob(budget, locale),
+                    agreed = false,
                 )
-            }
-        }
-    }
+            },
+        onClick = onClick,
+    )
 }
 
 @Composable

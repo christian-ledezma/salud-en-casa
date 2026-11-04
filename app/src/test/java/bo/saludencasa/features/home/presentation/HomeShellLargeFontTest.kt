@@ -20,6 +20,8 @@ import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
+import bo.saludencasa.features.services.attentionSummary
+import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
 import bo.saludencasa.ui.setContentAtDoubleFontScale
@@ -46,6 +48,8 @@ class HomeShellLargeFontTest {
         tab: HomeTab = HomeTab.HOME,
         account: AccountUiState = signedIn(held, active),
         professionalHome: ProfessionalHomeUiState = professionalContent(verified = true),
+        patientHome: PatientHomeUiState = PatientHomeUiState.Content(activeAttention = null, activeRequest = null),
+        navigation: HomeNavigation = HomeNavigation(),
         actions: HomeActions = HomeActions(),
     ) {
         composeRule.setContentAtDoubleFontScale {
@@ -53,12 +57,59 @@ class HomeShellLargeFontTest {
                 uiState = account,
                 tab = tab,
                 onTabSelected = {},
-                patientHome = PatientHomeUiState.NothingInProgress,
+                patientHome = patientHome,
                 professionalHome = professionalHome,
-                navigation = HomeNavigation(),
+                navigation = navigation,
                 actions = actions,
             )
         }
+    }
+
+    // HT-27: the row is the short way to the attention, and at 200 % its state goes
+    // to a line of its own so the title keeps the row.
+    @Test
+    fun aPatientOpensTheirAttentionFromInicio() {
+        var opened: String? = null
+        show(
+            bothRoles,
+            UserRole.PATIENT,
+            patientHome =
+                PatientHomeUiState.Content(
+                    activeAttention = attentionSummary(requestId = "r9", status = ServiceStatus.IN_PROGRESS),
+                    activeRequest = null,
+                ),
+            navigation = HomeNavigation(onOpenAttention = { opened = it }),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_active_attention_title)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_status_in_progress)))
+        composeRule.onNodeWithText("María Quispe").performClick()
+
+        assertEquals("r9", opened)
+    }
+
+    @Test
+    fun aProfessionalOpensTheirAttentionFromInicio() {
+        var opened: String? = null
+        show(
+            bothRoles,
+            UserRole.PROFESSIONAL,
+            professionalHome =
+                (professionalContent(verified = true) as ProfessionalHomeUiState.Content)
+                    .copy(activeAttention = attentionSummary(requestId = "r9")),
+            navigation = HomeNavigation(onOpenAttention = { opened = it }),
+        )
+
+        composeRule.onNodeWithText("María Quispe").performClick()
+
+        assertEquals("r9", opened)
+    }
+
+    @Test
+    fun withNoActiveAttentionInicioDoesNotMentionIt() {
+        show(bothRoles, UserRole.PATIENT)
+
+        composeRule.onNodeWithText(string(R.string.home_active_attention_title)).assertDoesNotExist()
     }
 
     // HT-23, kept by HT-25: the two ways to get care are the first thing a
@@ -238,6 +289,7 @@ class HomeShellLargeFontTest {
             availableNow = true,
             availabilityError = null,
             verified = verified,
+            activeAttention = null,
             nearby = NearbyRequests.Some(listOf(nearby("n1"), nearby("n2"))),
         )
 

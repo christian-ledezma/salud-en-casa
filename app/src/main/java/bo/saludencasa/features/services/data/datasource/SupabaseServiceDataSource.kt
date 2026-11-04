@@ -1,6 +1,7 @@
 package bo.saludencasa.features.services.data.datasource
 
 import bo.saludencasa.core.network.broadcastSignals
+import bo.saludencasa.features.services.data.model.ActiveAttentionParams
 import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionRequestIdParam
 import bo.saludencasa.features.services.data.model.AttentionSummaryDto
@@ -29,12 +30,19 @@ class SupabaseServiceDataSource(
             .firstOrNull()
 
     suspend fun fetchMyAttentions(
+        role: String,
         offset: Int,
         limit: Int,
     ): List<AttentionSummaryDto> =
         supabase.postgrest
-            .rpc(MY_ATTENTIONS_AS_PROFESSIONAL, MyAttentionsParams(limit = limit, offset = offset))
+            .rpc(MY_ATTENTIONS, MyAttentionsParams(role = role, limit = limit, offset = offset))
             .decodeList<AttentionSummaryDto>()
+
+    suspend fun fetchActiveAttention(role: String): AttentionSummaryDto? =
+        supabase.postgrest
+            .rpc(MY_ACTIVE_ATTENTION, ActiveAttentionParams(role))
+            .decodeList<AttentionSummaryDto>()
+            .firstOrNull()
 
     // No dates: stamp_service_progress owns them. Returns how many rows the policy
     // let through, which is none for someone who is not a party of the service.
@@ -59,6 +67,7 @@ class SupabaseServiceDataSource(
         const val TOPIC_PREFIX = "attention:"
         const val EVENT = "attention_changed"
         const val MY_ATTENTION = "my_attention"
-        const val MY_ATTENTIONS_AS_PROFESSIONAL = "my_attentions_as_professional"
+        const val MY_ATTENTIONS = "my_attentions"
+        const val MY_ACTIVE_ATTENTION = "my_active_attention"
     }
 }

@@ -1,6 +1,5 @@
 package bo.saludencasa.features.requests.presentation
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -23,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -32,7 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
-import bo.saludencasa.core.util.formatAppointment
+import bo.saludencasa.core.util.ListRefresh
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.notifications.presentation.NotificationPermissionPrompt
 import bo.saludencasa.features.notifications.presentation.NotificationRationale
@@ -41,7 +37,11 @@ import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
 import bo.saludencasa.ui.components.PrimaryButton
+import bo.saludencasa.ui.components.RefreshFailedNotice
+import bo.saludencasa.ui.components.RefreshableContent
 import bo.saludencasa.ui.components.ScreenHeader
+import bo.saludencasa.ui.components.ServiceCard
+import bo.saludencasa.ui.components.ServiceCardAmount
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -60,6 +60,7 @@ fun MyRequestsScreen(
     viewModel: MyRequestsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val listRefresh by viewModel.listRefresh.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
@@ -69,6 +70,7 @@ fun MyRequestsScreen(
     MyRequestsContent(
         uiState = uiState,
         onBack = onBack,
+        listRefresh = listRefresh,
         actions =
             MyRequestsActions(
                 onCancel = viewModel::onCancel,
@@ -76,6 +78,7 @@ fun MyRequestsScreen(
                 onRetry = viewModel::onRetry,
                 onCreateRequest = onCreateRequest,
                 onOpenRequest = onOpenRequest,
+                onPullToRefresh = viewModel::onPullToRefresh,
             ),
         modifier = modifier,
         permissionPrompt = {
@@ -91,6 +94,7 @@ internal data class MyRequestsActions(
     val onCreateRequest: () -> Unit = {},
     // The card opens where the negotiation is: the waiting screen or the thread.
     val onOpenRequest: (NegotiationEntry) -> Unit = {},
+    val onPullToRefresh: () -> Unit = {},
 )
 
 @Composable
@@ -99,9 +103,9 @@ internal fun MyRequestsContent(
     onBack: (() -> Unit)?,
     actions: MyRequestsActions,
     modifier: Modifier = Modifier,
+    listRefresh: ListRefresh = ListRefresh(),
     permissionPrompt: @Composable () -> Unit = {},
 ) {
-    val loadingDescription = stringResource(R.string.cd_loading)
     val header: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale16)) {
             onBack?.let { ScreenHeader(title = stringResource(R.string.request_list_title), onBack = it) }
@@ -109,77 +113,93 @@ internal fun MyRequestsContent(
         }
     }
 
-    when (uiState) {
-        MyRequestsUiState.Loading -> {
-            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    modifier = Modifier.semantics { contentDescription = loadingDescription },
-                )
-            }
+    if (uiState is MyRequestsUiState.Loading) {
+        val loadingDescription = stringResource(R.string.cd_loading)
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                modifier = Modifier.semantics { contentDescription = loadingDescription },
+            )
         }
+        return
+    }
 
-        MyRequestsUiState.Empty -> {
-            RequestsColumn(modifier = modifier) {
-                header()
-                Text(
-                    text = stringResource(R.string.request_list_empty_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = stringResource(R.string.request_list_empty_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                PrimaryButton(
-                    text = stringResource(R.string.request_list_create_action),
-                    onClick = actions.onCreateRequest,
-                )
-            }
-        }
+    RefreshableContent(
+        refreshing = listRefresh.refreshing,
+        onRefresh = actions.onPullToRefresh,
+        modifier = modifier,
+    ) {
+        when (uiState) {
+            MyRequestsUiState.Loading -> {}
 
-        is MyRequestsUiState.Failed -> {
-            RequestsColumn(modifier = modifier) {
-                header()
-                Text(
-                    text = stringResource(uiState.error.messageRes()),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                PrimaryButton(text = stringResource(R.string.common_retry), onClick = actions.onRetry)
-            }
-        }
-
-        is MyRequestsUiState.Content -> {
-            LazyColumn(
-                modifier =
-                    modifier
-                        .fillMaxSize()
-                        .padding(horizontal = Spacing.screenMargin),
-                verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
-                contentPadding = PaddingValues(vertical = Spacing.sectionGap),
-            ) {
-                item(key = "header") {
+            MyRequestsUiState.Empty -> {
+                RequestsColumn {
                     header()
-                }
-
-                items(uiState.requests, key = ServiceRequest::id) { request ->
-                    RequestCard(
-                        request = request,
-                        cancelling = uiState.cancellingId == request.id,
-                        cancelEnabled = uiState.cancellingId == null,
-                        onCancel = { actions.onCancel(request.id) },
-                        onOpenRequest = request.negotiationEntry()?.let { entry -> { actions.onOpenRequest(entry) } },
+                    if (listRefresh.failed) RefreshFailedNotice()
+                    Text(
+                        text = stringResource(R.string.request_list_empty_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(R.string.request_list_empty_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    PrimaryButton(
+                        text = stringResource(R.string.request_list_create_action),
+                        onClick = actions.onCreateRequest,
                     )
                 }
+            }
 
-                item(key = "footer") {
-                    ListFooter(
-                        loadingMore = uiState.loadingMore,
-                        endReached = uiState.endReached,
-                        notice = uiState.notice,
-                        onLoadMore = actions.onReachedEnd,
+            is MyRequestsUiState.Failed -> {
+                RequestsColumn {
+                    header()
+                    Text(
+                        text = stringResource(uiState.error.messageRes()),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error,
                     )
+                    PrimaryButton(text = stringResource(R.string.common_retry), onClick = actions.onRetry)
+                }
+            }
+
+            is MyRequestsUiState.Content -> {
+                LazyColumn(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = Spacing.screenMargin),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.listItemGap),
+                    contentPadding = PaddingValues(vertical = Spacing.sectionGap),
+                ) {
+                    item(key = "header") {
+                        header()
+                    }
+
+                    if (listRefresh.failed) {
+                        item(key = "refresh_failed") { RefreshFailedNotice() }
+                    }
+
+                    items(uiState.requests, key = ServiceRequest::id) { request ->
+                        RequestCard(
+                            request = request,
+                            cancelling = uiState.cancellingId == request.id,
+                            cancelEnabled = uiState.cancellingId == null,
+                            onCancel = { actions.onCancel(request.id) },
+                            onOpenRequest =
+                                request.negotiationEntry()?.let { entry -> { actions.onOpenRequest(entry) } },
+                        )
+                    }
+
+                    item(key = "footer") {
+                        ListFooter(
+                            loadingMore = uiState.loadingMore,
+                            endReached = uiState.endReached,
+                            notice = uiState.notice,
+                            onLoadMore = actions.onReachedEnd,
+                        )
+                    }
                 }
             }
         }
@@ -198,77 +218,43 @@ private fun RequestCard(
     val locale = LocalConfiguration.current.locales[0]
     val loadingDescription = stringResource(R.string.cd_loading)
 
-    Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .then(
-                    // Clipped to the card's own shape, so the ripple keeps its corners.
-                    if (onOpenRequest != null) {
-                        Modifier.clip(CardDefaults.shape).clickable(onClick = onOpenRequest)
-                    } else {
-                        Modifier
-                    },
-                ),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.cardPadding),
-            verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
-        ) {
-            ModalityBadge(modality = request.modality)
-            Text(
-                text = request.serviceTypeName,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            request.scheduledAt?.let { at ->
-                Text(
-                    text = stringResource(R.string.request_scheduled_for, formatAppointment(at, locale)),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            request.professionalName?.let { name ->
-                Text(
-                    text = stringResource(R.string.request_list_with_professional, name),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                text = stringResource(request.status.labelRes()),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = request.addressText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    ServiceCard(
+        title = request.serviceTypeName,
+        statusLabel = stringResource(request.status.labelRes()),
+        statusTone = request.status.tone(),
+        date = requestDateText(request.scheduledAt, request.createdAt),
+        counterpart = request.professionalName?.let { stringResource(R.string.request_list_with_professional, it) },
+        place = request.addressText,
+        amount =
             request.suggestedBudgetBob?.let { budget ->
-                Text(
-                    text = stringResource(R.string.request_list_budget, formatBob(budget, locale)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ServiceCardAmount(
+                    label = stringResource(R.string.service_card_amount_budget),
+                    value = formatBob(budget, locale),
+                    agreed = false,
                 )
-            }
+            },
+        onClick = onOpenRequest,
+        footer =
             if (request.status.isCancellable) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    enabled = cancelEnabled,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    if (cancelling) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.semantics { contentDescription = loadingDescription },
-                        )
-                    } else {
-                        Text(text = stringResource(R.string.request_list_cancel_action))
+                {
+                    OutlinedButton(
+                        onClick = onCancel,
+                        enabled = cancelEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (cancelling) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.semantics { contentDescription = loadingDescription },
+                            )
+                        } else {
+                            Text(text = stringResource(R.string.request_list_cancel_action))
+                        }
                     }
                 }
-            }
-        }
-    }
+            } else {
+                null
+            },
+    )
 }
 
 @Composable

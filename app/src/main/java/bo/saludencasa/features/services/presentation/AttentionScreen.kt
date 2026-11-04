@@ -67,6 +67,9 @@ import bo.saludencasa.ui.components.BottomActionBar
 import bo.saludencasa.ui.components.CardAvatar
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ScreenHeader
+import bo.saludencasa.ui.components.StatusBadge
+import bo.saludencasa.ui.components.StatusTone
+import bo.saludencasa.ui.components.badgeFitsBesideTitle
 import bo.saludencasa.ui.theme.ExtraShapes
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
@@ -180,7 +183,7 @@ private fun AttentionBody(
     val fontScale = LocalDensity.current.fontScale
     val large = fontScale >= LARGE_FONT_SCALE
     // On a 320 dp phone, any enlarged font breaks the title in the middle of a word.
-    val pillFitsBesideTitle = fontScale <= 1f
+    val pillFitsBesideTitle = badgeFitsBesideTitle()
     val margin = Modifier.padding(horizontal = Spacing.screenMargin)
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -237,22 +240,7 @@ private fun AttentionBody(
 
 @Composable
 private fun StatusPill(status: ServiceStatus) {
-    val statusColors = SaludEnCasaTheme.statusColors
-    val colors = MaterialTheme.colorScheme
-    val (container, onContainer) =
-        when (status) {
-            ServiceStatus.ASSIGNED -> colors.surfaceVariant to colors.onSurface
-            ServiceStatus.IN_PROGRESS -> colors.tertiaryContainer to colors.onTertiaryContainer
-            ServiceStatus.COMPLETED -> statusColors.positiveContainer to statusColors.onPositiveContainer
-            ServiceStatus.CANCELLED -> colors.errorContainer to colors.onErrorContainer
-        }
-    Surface(shape = ExtraShapes.pill, color = container, contentColor = onContainer) {
-        Text(
-            text = stringResource(status.labelRes()),
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = Spacing.scale12, vertical = Spacing.scale4),
-        )
-    }
+    StatusBadge(label = stringResource(status.labelRes()), tone = status.tone())
 }
 
 @Composable
@@ -769,6 +757,14 @@ private fun AttentionStep.actionRes(): Int =
     when (this) {
         AttentionStep.MarkArrival -> R.string.attention_mark_arrival
         AttentionStep.MarkCompleted -> R.string.attention_mark_completed
+    }
+
+internal fun ServiceStatus.tone(): StatusTone =
+    when (this) {
+        ServiceStatus.ASSIGNED -> StatusTone.NEUTRAL
+        ServiceStatus.IN_PROGRESS -> StatusTone.RUNNING
+        ServiceStatus.COMPLETED -> StatusTone.POSITIVE
+        ServiceStatus.CANCELLED -> StatusTone.NEGATIVE
     }
 
 @StringRes

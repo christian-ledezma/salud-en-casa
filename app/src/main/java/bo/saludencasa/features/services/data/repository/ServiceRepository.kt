@@ -4,8 +4,10 @@ import bo.saludencasa.features.services.data.datasource.SupabaseServiceDataSourc
 import bo.saludencasa.features.services.data.mapper.toAttention
 import bo.saludencasa.features.services.data.mapper.toAttentionSummary
 import bo.saludencasa.features.services.data.mapper.toServiceError
+import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionResult
+import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
 import bo.saludencasa.features.services.domain.model.ServiceError
@@ -34,6 +36,7 @@ class ServiceRepository(
     }
 
     override suspend fun getMyAttentions(
+        side: AttentionSide,
         offset: Int,
         limit: Int,
     ): MyAttentionsResult {
@@ -43,7 +46,7 @@ class ServiceRepository(
 
         return try {
             val attentions =
-                dataSource.fetchMyAttentions(offset, limit).map { dto ->
+                dataSource.fetchMyAttentions(side.name, offset, limit).map { dto ->
                     dto.toAttentionSummary() ?: return MyAttentionsResult.Failure(ServiceError.Unexpected)
                 }
             MyAttentionsResult.Loaded(attentions)
@@ -51,6 +54,22 @@ class ServiceRepository(
             throw cancellation
         } catch (failure: Exception) {
             MyAttentionsResult.Failure(failure.toServiceError())
+        }
+    }
+
+    override suspend fun getActiveAttention(side: AttentionSide): ActiveAttentionResult {
+        if (dataSource.currentUserId() == null) {
+            return ActiveAttentionResult.Failure(ServiceError.NotSignedIn)
+        }
+
+        return try {
+            val dto = dataSource.fetchActiveAttention(side.name) ?: return ActiveAttentionResult.None
+            dto.toAttentionSummary()?.let(ActiveAttentionResult::Found)
+                ?: ActiveAttentionResult.Failure(ServiceError.Unexpected)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            ActiveAttentionResult.Failure(failure.toServiceError())
         }
     }
 

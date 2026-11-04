@@ -4,14 +4,17 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import bo.saludencasa.R
 import bo.saludencasa.core.util.distanceText
+import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferIssuer
 import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.domain.model.RequestError
-import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
+import bo.saludencasa.ui.components.StatusTone
+import java.time.Instant
 
 @StringRes
 internal fun RequestError.messageRes(): Int =
@@ -71,12 +74,27 @@ internal fun RequestStatus.labelRes(): Int =
         RequestStatus.EXPIRED -> R.string.request_status_expired
     }
 
-@StringRes
-internal fun RequestModality.labelRes(): Int =
+internal fun RequestStatus.tone(): StatusTone =
     when (this) {
-        RequestModality.IMMEDIATE -> R.string.request_modality_immediate
-        RequestModality.SCHEDULED -> R.string.request_modality_scheduled
+        RequestStatus.PUBLISHED, RequestStatus.NEGOTIATING -> StatusTone.OPEN
+        RequestStatus.ACCEPTED, RequestStatus.EXPIRED -> StatusTone.NEUTRAL
+        RequestStatus.IN_PROGRESS -> StatusTone.RUNNING
+        RequestStatus.COMPLETED -> StatusTone.POSITIVE
+        RequestStatus.CANCELLED -> StatusTone.NEGATIVE
     }
+
+@Composable
+internal fun requestDateText(
+    scheduledAt: Instant?,
+    createdAt: Instant,
+): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return if (scheduledAt != null) {
+        stringResource(R.string.service_card_appointment, formatAppointment(scheduledAt, locale))
+    } else {
+        stringResource(R.string.service_card_immediate, formatAppointment(createdAt, locale))
+    }
+}
 
 @Composable
 internal fun inboxDistanceText(distanceM: Int): String =

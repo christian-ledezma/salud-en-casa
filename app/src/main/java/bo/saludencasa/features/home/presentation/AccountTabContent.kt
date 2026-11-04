@@ -34,7 +34,7 @@ import bo.saludencasa.features.profile.domain.model.AssignableRole
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.profile.presentation.activateRes
 import bo.saludencasa.features.profile.presentation.messageRes
-import bo.saludencasa.ui.components.initialsOf
+import bo.saludencasa.ui.components.InitialsText
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import bo.saludencasa.ui.theme.Spacing
 
@@ -131,11 +131,7 @@ private fun IdentityCard(session: AuthSession) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (name != null) {
-                    Text(
-                        text = initialsOf(name),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
+                    InitialsText(name = name, color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Icon(
                         imageVector = Icons.Filled.Person,

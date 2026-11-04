@@ -47,7 +47,8 @@
     <string name="home_immediate_care_body">Recibe ofertas de los profesionales que están cerca.</string>
     <string name="home_schedule_title">Agendar cita</string>
     <string name="home_schedule_body">Elige al profesional, el día y la hora.</string>
-    <string name="home_in_progress_title">En curso</string>
+    <string name="home_active_request_title">Tu solicitud</string>
+    <string name="home_active_attention_title">Tu atención</string>
     <string name="home_available_now">Disponible ahora</string>
     <string name="home_available_now_on">Sí</string>
     <string name="home_available_now_off">No</string>
@@ -470,17 +471,15 @@
     <string name="search_schedule_action">Agendar</string>
 
     <string name="request_list_title">Mis solicitudes</string>
-    <string name="request_list_empty_title">Todavía no publicaste ninguna solicitud</string>
-    <string name="request_list_empty_description">Cuando necesites atención, publica una solicitud y los profesionales cercanos podrán ofertar.</string>
+    <string name="request_list_empty_title">No tienes solicitudes por ahora</string>
+    <string name="request_list_empty_description">Cuando necesites atención, publica una solicitud y los profesionales cercanos podrán ofertar. Las que ya acordaste están en Mis atenciones.</string>
     <string name="request_list_create_action">Pedir atención ahora</string>
-    <string name="request_list_budget">Presupuesto sugerido: %1$s</string>
     <string name="request_list_cancel_action">Cancelar solicitud</string>
     <string name="request_list_load_more">Ver más solicitudes</string>
 
     <string name="request_inbox_title">Solicitudes de mi zona</string>
     <string name="request_inbox_empty_title">No hay solicitudes en tu zona ahora</string>
     <string name="request_inbox_empty_description">Cuando un paciente publique una solicitud dentro de tu radio, aparecerá aquí sin que recargues.</string>
-    <string name="request_inbox_budget">Presupuesto sugerido: %1$s</string>
     <string name="request_inbox_load_more">Ver más solicitudes</string>
     <string name="common_distance_near">A menos de 100 m</string>
     <string name="common_distance_m">A unos %1$d m</string>
@@ -521,9 +520,6 @@
     <string name="schedule_submit_at">Agendar · %1$s</string>
     <string name="schedule_not_bookable_title">Este profesional no recibe citas ahora</string>
     <string name="schedule_not_bookable_description">No tiene servicios publicados para agendar. Puedes buscar a otro profesional cerca de ti.</string>
-
-    <string name="request_modality_immediate">Inmediata</string>
-    <string name="request_modality_scheduled">Agendada</string>
     <string name="request_scheduled_for">Cita: %1$s</string>
     <string name="request_list_with_professional">Con %1$s</string>
 
@@ -617,12 +613,21 @@
     <string name="attention_mark_changed">Esta atención cambió. Revisa su estado.</string>
 
     <string name="home_requests_view_available">Disponibles</string>
+    <string name="home_requests_view_my_requests">Mis solicitudes</string>
     <string name="home_requests_view_my_attentions">Mis atenciones</string>
 
     <string name="my_attentions_empty_title">Todavía no tienes atenciones</string>
-    <string name="my_attentions_empty_description">Cuando se acuerde una oferta tuya, la atención aparecerá aquí, con su conversación.</string>
-    <string name="my_attentions_agreed_on">Acordada el %1$s</string>
+    <string name="my_attentions_empty_description">Cuando se cierre un acuerdo, la atención aparecerá aquí, con su conversación.</string>
     <string name="my_attentions_load_more">Ver más atenciones</string>
+    <string name="service_card_appointment">Cita · %1$s</string>
+    <string name="service_card_immediate">Inmediata · %1$s</string>
+    <string name="service_card_started">Inició · %1$s</string>
+    <string name="service_card_agreed">Acordada · %1$s</string>
+    <string name="service_card_amount_agreed">Acordado</string>
+    <string name="service_card_amount_budget">Presupuesto sugerido</string>
+    <string name="common_refresh_failed">No pudimos actualizar. Revisa tu conexión y vuelve a deslizar.</string>
+    <string name="cd_refresh_list">Actualizar lista</string>
+    <string name="request_inbox_near">%1$s · %2$s</string>
 
     <string name="conversation_title">Conversación</string>
     <string name="conversation_header_subtitle">%1$s · %2$s</string>

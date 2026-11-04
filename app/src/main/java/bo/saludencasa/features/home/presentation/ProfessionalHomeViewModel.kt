@@ -12,6 +12,9 @@ import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.usecase.GetInboxUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveInboxSignalsUseCase
+import bo.saludencasa.features.services.domain.model.AttentionSide
+import bo.saludencasa.features.services.domain.model.AttentionSummary
+import bo.saludencasa.features.services.domain.usecase.GetActiveAttentionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +42,7 @@ sealed interface ProfessionalHomeUiState {
         val availableNow: Boolean,
         val availabilityError: ProfileError?,
         val verified: Boolean,
+        val activeAttention: AttentionSummary?,
         val nearby: NearbyRequests,
     ) : ProfessionalHomeUiState
 
@@ -52,6 +56,7 @@ class ProfessionalHomeViewModel(
     private val setAvailability: SetAvailabilityUseCase,
     private val getInbox: GetInboxUseCase,
     observeInboxSignals: ObserveInboxSignalsUseCase,
+    private val getActiveAttention: GetActiveAttentionUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<ProfessionalHomeUiState>(ProfessionalHomeUiState.Loading)
     val uiState: StateFlow<ProfessionalHomeUiState> = state.asStateFlow()
@@ -70,6 +75,7 @@ class ProfessionalHomeViewModel(
         viewModelScope.launch {
             val profile = getProfile()
             val nearby = getInbox(offset = 0).toNearby()
+            val attention = getActiveAttention(AttentionSide.PROFESSIONAL)
             state.value =
                 when (profile) {
                     is ProfileResult.Success -> {
@@ -78,6 +84,8 @@ class ProfessionalHomeViewModel(
                             availableNow = professional?.availableNow == true,
                             availabilityError = null,
                             verified = professional?.isVerified == true,
+                            activeAttention =
+                                attention.orShown((state.value as? ProfessionalHomeUiState.Content)?.activeAttention),
                             nearby = nearby,
                         )
                     }

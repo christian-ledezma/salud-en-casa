@@ -16,13 +16,18 @@ private val BOLIVIANO: Currency = Currency.getInstance("BOB")
 // (docs/decisions.md, 2026-10-15, the search and profile screens).
 private val BOLIVIA: Locale = Locale.forLanguageTag("es-BO")
 
+private const val NO_BREAK_SPACE = '\u00A0'
+
 fun formatBob(
     amount: BigDecimal,
     locale: Locale,
 ): String {
     val format = NumberFormat.getCurrencyInstance(locale).apply { currency = BOLIVIANO }
     (format as? DecimalFormat)?.let {
-        it.decimalFormatSymbols = it.decimalFormatSymbols.apply { currencySymbol = BOLIVIANO.getSymbol(BOLIVIA) }
+        val symbol = BOLIVIANO.getSymbol(BOLIVIA)
+        it.decimalFormatSymbols = it.decimalFormatSymbols.apply { currencySymbol = symbol }
+        // docs/decisions.md, 2026-11-04, HT-27, the space after the symbol.
+        if (it.positivePrefix.endsWith(symbol)) it.positivePrefix = it.positivePrefix + NO_BREAK_SPACE
     }
     if (amount.stripTrailingZeros().scale() <= 0) {
         format.minimumFractionDigits = 0

@@ -56,9 +56,10 @@ internal fun AttentionSummaryDto.toAttentionSummary(): AttentionSummary? {
         status = parsedStatus,
         finalAmountBob = finalAmountBob,
         serviceTypeName = serviceTypeName,
-        patientName = patientName,
+        counterpartName = counterpartName,
         createdAt = parseInstant(createdAt) ?: return null,
         scheduledAt = scheduledAt?.let { parseInstant(it) ?: return null },
+        startedAt = startedAt?.let { parseInstant(it) ?: return null },
     )
 }
 

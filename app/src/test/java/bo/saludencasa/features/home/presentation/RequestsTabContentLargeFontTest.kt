@@ -21,18 +21,19 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class ProfessionalRequestsContentLargeFontTest {
+class RequestsTabContentLargeFontTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private var view by mutableStateOf(ProfessionalRequestsView.AVAILABLE)
+    private var view by mutableStateOf(RequestsView.REQUESTS)
 
-    private fun show() {
+    private fun show(requestsLabel: Int = R.string.home_requests_view_available) {
         composeRule.setContentAtDoubleFontScale {
-            ProfessionalRequestsContent(
+            RequestsTabContent(
                 view = view,
                 onViewChange = { view = it },
-                available = { Text("bandeja") },
+                requestsLabel = string(requestsLabel),
+                requests = { Text("bandeja") },
                 myAttentions = { Text("atenciones") },
             )
         }
@@ -53,14 +54,26 @@ class ProfessionalRequestsContentLargeFontTest {
     // inside its own segment, which no bounds check can see (docs/decisions.md,
     // 2026-10-02): only the laid-out text says so.
     @Test
-    fun neitherLabelIsCutAtDoubleFontSize() {
+    fun neitherLabelOfTheProfessionalIsCutAtDoubleFontSize() {
         show()
 
-        listOf(R.string.home_requests_view_available, R.string.home_requests_view_my_attentions).forEach { label ->
-            val layout = layoutOf(string(label))
-            assertEquals("${string(label)} wrapped.", 1, layout.lineCount)
-            assertFalse("${string(label)} ends in an ellipsis.", layout.isLineEllipsized(0))
-        }
+        assertNotCut(R.string.home_requests_view_available)
+        assertNotCut(R.string.home_requests_view_my_attentions)
+    }
+
+    // «Mis solicitudes» beside «Mis atenciones» is the longest pair of the control.
+    @Test
+    fun neitherLabelOfThePatientIsCutAtDoubleFontSize() {
+        show(requestsLabel = R.string.home_requests_view_my_requests)
+
+        assertNotCut(R.string.home_requests_view_my_requests)
+        assertNotCut(R.string.home_requests_view_my_attentions)
+    }
+
+    private fun assertNotCut(label: Int) {
+        val layout = layoutOf(string(label))
+        assertEquals("${string(label)} wrapped.", 1, layout.lineCount)
+        assertFalse("${string(label)} ends in an ellipsis.", layout.isLineEllipsized(0))
     }
 
     // The view a professional opens from «Ver todas» of Inicio is the inbox.

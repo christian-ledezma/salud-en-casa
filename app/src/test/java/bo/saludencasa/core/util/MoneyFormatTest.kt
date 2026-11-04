@@ -19,6 +19,18 @@ class MoneyFormatTest {
         }
     }
 
+    // HU-19: «Bs150» in a locale that writes the symbol against the digits. The space
+    // cannot break, so the amount never splits across two lines.
+    @Test
+    fun theSymbolNeverTouchesTheAmount() {
+        listOf(Locale.US, BOLIVIA).forEach { locale ->
+            val text = formatBob(BigDecimal("150.00"), locale)
+
+            assertTrue("$locale gave $text", Regex("""Bs\s\d""").containsMatchIn(text.replace('\u00A0', ' ')))
+            assertFalse("$locale breaks at a plain space: $text", text.contains(' '))
+        }
+    }
+
     @Test
     fun aWholeAmountShowsNoDecimals() {
         val text = formatBob(BigDecimal("180.00"), Locale.US)

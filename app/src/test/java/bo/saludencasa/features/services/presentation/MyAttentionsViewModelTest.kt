@@ -1,8 +1,10 @@
 package bo.saludencasa.features.services.presentation
 
 import bo.saludencasa.MainDispatcherRule
+import bo.saludencasa.core.util.ListRefresh
 import bo.saludencasa.features.services.FakeServiceRepository
 import bo.saludencasa.features.services.attentionSummary
+import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.usecase.GetMyAttentionsUseCase
@@ -10,9 +12,11 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import java.time.Instant
 
 class MyAttentionsViewModelTest {
     @get:Rule
@@ -20,8 +24,8 @@ class MyAttentionsViewModelTest {
 
     private val repository = FakeServiceRepository()
 
-    private fun TestScope.viewModel(): MyAttentionsViewModel {
-        val viewModel = MyAttentionsViewModel(GetMyAttentionsUseCase(repository))
+    private fun TestScope.viewModel(side: AttentionSide = AttentionSide.PROFESSIONAL): MyAttentionsViewModel {
+        val viewModel = MyAttentionsViewModel(side, GetMyAttentionsUseCase(repository))
         advanceUntilIdle()
         return viewModel
     }
@@ -79,6 +83,80 @@ class MyAttentionsViewModelTest {
             advanceUntilIdle()
 
             assertEquals(2, viewModel.content().attentions.size)
+        }
+
+    // Someone with both roles reads one side at a time (INV-17), on every read.
+    @Test
+    fun everyReadAsksForTheSideOfTheList() =
+        runTest {
+            repository.attentions = stored(GetMyAttentionsUseCase.PAGE_SIZE + 1)
+            val viewModel = viewModel(AttentionSide.PATIENT)
+
+            viewModel.onLoadMore()
+            advanceUntilIdle()
+            viewModel.refresh()
+            advanceUntilIdle()
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            assertEquals(setOf(AttentionSide.PATIENT), repository.sidesRead.toSet())
+        }
+
+    // HT-27, what the author asked for: pulling rereads every datum of the card, not
+    // only its status.
+    @Test
+    fun pullingRereadsEveryDatumOfTheCard() =
+        runTest {
+            repository.attentions = listOf(attentionSummary(requestId = "a"))
+            val viewModel = viewModel()
+
+            val start = Instant.parse("2026-11-04T14:02:00Z")
+            val changed =
+                attentionSummary(requestId = "a", status = ServiceStatus.IN_PROGRESS, startedAt = start)
+                    .copy(serviceTypeName = "Otro servicio", counterpartName = "Otra persona")
+            repository.attentions = listOf(changed)
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            assertEquals(listOf(changed), viewModel.content().attentions)
+            assertEquals(ListRefresh(), viewModel.listRefresh.value)
+        }
+
+    @Test
+    fun aFailedPullKeepsTheListAndSaysSo() =
+        runTest {
+            repository.attentions = stored(2)
+            val viewModel = viewModel()
+
+            repository.attentionsError = ServiceError.NetworkUnavailable
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            assertEquals(2, viewModel.content().attentions.size)
+            assertEquals(ListRefresh(failed = true), viewModel.listRefresh.value)
+        }
+
+    // Nobody asked for the read on returning to the screen, so its failure says
+    // nothing, and its success retires a notice that is no longer true.
+    @Test
+    fun theReadOnReturningIsSilentAndClearsAnOldFailure() =
+        runTest {
+            repository.attentions = stored(2)
+            val viewModel = viewModel()
+
+            repository.attentionsError = ServiceError.NetworkUnavailable
+            viewModel.refresh()
+            advanceUntilIdle()
+            assertFalse(viewModel.listRefresh.value.failed)
+
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+            assertTrue(viewModel.listRefresh.value.failed)
+
+            repository.attentionsError = null
+            viewModel.refresh()
+            advanceUntilIdle()
+            assertFalse(viewModel.listRefresh.value.failed)
         }
 
     @Test

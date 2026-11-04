@@ -41,7 +41,8 @@ class SupabaseRequestDataSource(
             .decodeList<BookableStartDto>()
 
     // my_service_requests is a definer view whose WHERE pins every row to the
-    // caller, so no patient filter is added on this side.
+    // caller, so no patient filter is added on this side. The filter and the first
+    // order: docs/decisions.md, 2026-11-04, HT-27.
     suspend fun findMyRequests(
         offset: Int,
         limit: Int,
@@ -49,6 +50,8 @@ class SupabaseRequestDataSource(
         supabase
             .from(MY_SERVICE_REQUESTS)
             .select(COLUMNS) {
+                filter { eq("has_attention", false) }
+                order("is_open", Order.DESCENDING)
                 order("created_at", Order.DESCENDING)
                 // id breaks ties so two requests created in the same instant
                 // cannot swap places between pages.

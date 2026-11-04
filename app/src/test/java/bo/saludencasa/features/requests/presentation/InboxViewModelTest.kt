@@ -3,12 +3,14 @@
 package bo.saludencasa.features.requests.presentation
 
 import bo.saludencasa.MainDispatcherRule
+import bo.saludencasa.core.util.ListRefresh
 import bo.saludencasa.features.requests.FakeRequestRepository
 import bo.saludencasa.features.requests.domain.model.InboxResult
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.usecase.GetInboxUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveInboxSignalsUseCase
 import bo.saludencasa.features.requests.inboxRequest
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -38,6 +40,61 @@ class InboxViewModelTest {
             advanceUntilIdle()
 
             assertEquals(InboxUiState.Empty, viewModel.uiState.value)
+        }
+
+    @Test
+    fun pullingAnEmptyInboxBringsWhatAppearedMeanwhile() =
+        runTest {
+            repository.inboxResult = InboxResult.Loaded(emptyList())
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            repository.inboxResult = InboxResult.Loaded(listOf(inboxRequest(id = "r1")))
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            val content = viewModel.uiState.value as InboxUiState.Content
+            assertEquals(listOf("r1"), content.requests.map { it.id })
+            assertEquals(ListRefresh(), viewModel.listRefresh.value)
+        }
+
+    @Test
+    fun aFailedPullKeepsTheInboxAndSaysSo() =
+        runTest {
+            repository.inboxResult = InboxResult.Loaded(listOf(inboxRequest(id = "r1")))
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            repository.inboxResult = InboxResult.Failure(RequestError.NetworkUnavailable)
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+
+            assertEquals(1, (viewModel.uiState.value as InboxUiState.Content).requests.size)
+            assertEquals(ListRefresh(failed = true), viewModel.listRefresh.value)
+        }
+
+    // The next page was asked for at an offset of the list that the pull just
+    // replaced: appended, it would skip rows and could hide «Ver más».
+    @Test
+    fun aPageStillOnItsWayDoesNotLandOnTheListAPullReplaced() =
+        runTest {
+            repository.inboxResult = InboxResult.Loaded(List(GetInboxUseCase.PAGE_SIZE) { inboxRequest(id = "old$it") })
+            val gate = CompletableDeferred<Unit>()
+            repository.inboxPageGates[GetInboxUseCase.PAGE_SIZE] = gate
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            viewModel.onReachedEnd()
+            advanceUntilIdle()
+            repository.inboxResult = InboxResult.Loaded(listOf(inboxRequest(id = "fresh")))
+            viewModel.onPullToRefresh()
+            advanceUntilIdle()
+            gate.complete(Unit)
+            advanceUntilIdle()
+
+            val content = viewModel.uiState.value as InboxUiState.Content
+            assertEquals(listOf("fresh"), content.requests.map { it.id })
+            assertTrue(content.endReached)
         }
 
     @Test
