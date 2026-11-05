@@ -11,6 +11,8 @@ const SHARED_KEYS = [
   "amountBob",
   "professionalId",
   "senderName",
+  "status",
+  "documentCount",
 ];
 const TARGET_KEYS = ["recipientId", "distanceM"];
 
