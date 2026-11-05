@@ -198,7 +198,10 @@ class AttentionScreenLargeFontTest {
         composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.attention_cancel_dialog_title)),
         )
-        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_cancel_reason_empty)))
+        // Reached without a gesture: a refused answer must say why where it can be seen.
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_cancel_reason_empty)),
+        )
         composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.attention_cancel_back)),
         )

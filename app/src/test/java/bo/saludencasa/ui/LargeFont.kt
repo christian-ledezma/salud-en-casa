@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import bo.saludencasa.ui.theme.SaludEnCasaTheme
 import org.junit.Assert.assertTrue
+import org.robolectric.RuntimeEnvironment
 
 // The interface tests run on the JVM through Robolectric, not on an emulator
 // (docs/decisions.md, 2026-10-08). Rounding in the layout leaves sub-pixel
@@ -26,11 +27,13 @@ private val OVERFLOW_TOLERANCE: Dp = 1.dp
 
 // Downloadable Inter is unreachable without Play Services, so the composition
 // falls back to the platform font and the measured widths are approximate
-// (docs/decisions.md, 2026-10-08).
+// (docs/decisions.md, 2026-10-08). A dialog is a second window, which takes its density
+// from the configuration and not from LocalDensity (docs/decisions.md, 2026-11-04, HT-29).
 fun ComposeContentTestRule.setContentAtDoubleFontScale(
     darkTheme: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    RuntimeEnvironment.setFontScale(2f)
     setContent {
         val density = LocalDensity.current
         CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {

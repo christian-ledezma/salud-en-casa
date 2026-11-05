@@ -89,6 +89,14 @@ Esa forma —la del rótulo del control segmentado del Sprint 2.5 y la del chip 
 HU-07— **sigue dependiendo de mirar las previsualizaciones**, que por eso no se
 reemplazan. Ver `docs/decisions.md`, 2026-10-08.
 
+**Un diálogo es otra ventana.** Toma su densidad de la configuración y no de
+`LocalDensity`, así que el ayudante fija las dos. Una prueba de diálogo escrita sin él
+pasa con la letra normal y no dice nada: hasta HT-29 ninguna medía el 200 %, y el
+diálogo del precio escondía su campo. `AlertDialog` además recorta su contenido en vez de
+desplazarlo, de modo que un cuerpo largo necesita su propio `verticalScroll`, en un
+contenedor por encima del texto: `performScrollTo` busca el desplazamiento en un padre.
+Ver `docs/decisions.md`, 2026-11-04, HT-29.
+
 **Hay un caso en que sí se puede afirmar algo del recorte interior, y se escribe
 comparando.** Si la pantalla muestra, al lado del elemento largo, otro del mismo
 tipo con una etiqueta corta, el largo tiene que medir **más alto** que el corto:

@@ -123,9 +123,8 @@ class MyServicesScreenLargeFontTest {
     }
 
     // The dialog is where the price is fixed, and an AlertDialog bounds its text
-    // slot and clips the overflow instead of scrolling it. Nothing inside it
-    // scrolls, so a slot that outgrows the dialog takes its refusal out of sight
-    // and assertIsDisplayed is what notices.
+    // slot and clips the overflow instead of scrolling it. So the slot scrolls, and
+    // a refusal has to arrive in sight without a gesture.
     @Test
     fun thePriceDialogKeepsItsFieldItsRefusalAndBothActionsOnScreen() {
         show(
@@ -138,11 +137,9 @@ class MyServicesScreenLargeFontTest {
         )
 
         composeRule.assertFitsTheScreenWithoutScrolling(
-            composeRule.onNodeWithText(string(R.string.catalog_price_label)),
-        )
-        composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.error_catalog_invalid_price)),
         )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.catalog_price_label)))
         composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.catalog_price_confirm)),
         )

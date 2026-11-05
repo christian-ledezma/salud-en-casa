@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -21,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -380,12 +383,21 @@ private fun PriceDialog(
     onDismiss: () -> Unit,
 ) {
     val loadingDescription = stringResource(R.string.cd_loading)
+    val scroll = rememberScrollState()
+    // The refusal sits under the field, below the fold at a large font.
+    LaunchedEffect(error) {
+        if (error != null) scroll.animateScrollTo(scroll.maxValue)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = stringResource(R.string.catalog_price_dialog_title, serviceTypeName)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale8)) {
+            // Scrolls: at 200 % font size the text and the field no longer fit a small phone.
+            Column(
+                modifier = Modifier.verticalScroll(scroll),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
+            ) {
                 Text(
                     text = stringResource(R.string.catalog_price_dialog_description),
                     style = MaterialTheme.typography.bodyMedium,
