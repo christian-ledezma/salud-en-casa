@@ -302,6 +302,93 @@ class OfferThreadViewModelTest {
             assertEquals("140", state.amount)
         }
 
+    // HT-29: the amount on the table asks to accept it. Nothing is written yet, and
+    // the form stays behind the confirmation.
+    @Test
+    fun theAmountOnTheTableAsksToAcceptAndWritesNothing() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            val viewModel = opened()
+
+            viewModel.onCounterClicked()
+            viewModel.onAmountChanged("160")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+
+            val state = content(viewModel)
+            assertTrue(state.confirmingAcceptance)
+            assertTrue(state.countering)
+            assertFalse(state.submitting)
+            assertTrue(offers.submitted.isEmpty())
+            assertTrue(offers.accepted.isEmpty())
+        }
+
+    // Criterion 2: confirming is the acceptance that already exists, of that offer.
+    @Test
+    fun confirmingTheAmountOnTheTableAcceptsTheOfferAndMovesToTheAttention() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            val viewModel = opened()
+
+            viewModel.onCounterClicked()
+            viewModel.onAmountChanged("160,00")
+            viewModel.onMessageChanged("Puedo pagar en efectivo.")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+            viewModel.onAcceptConfirmed()
+            advanceUntilIdle()
+
+            assertEquals(listOf("o1"), offers.accepted)
+            assertTrue(offers.submitted.isEmpty())
+            assertEquals(OfferThreadUiState.Accepted, viewModel.uiState.value)
+        }
+
+    // Criterion 3: going back leaves the negotiation open and what was typed intact.
+    @Test
+    fun goingBackFromTheAmountOnTheTableKeepsWhatWasTyped() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            val viewModel = opened()
+
+            viewModel.onCounterClicked()
+            viewModel.onAmountChanged("160")
+            viewModel.onMessageChanged("Puedo pagar en efectivo.")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+            viewModel.onAcceptDismissed()
+            advanceUntilIdle()
+
+            val state = content(viewModel)
+            assertFalse(state.confirmingAcceptance)
+            assertTrue(state.countering)
+            assertEquals("160", state.amount)
+            assertEquals("Puedo pagar en efectivo.", state.message)
+            assertTrue(offers.accepted.isEmpty())
+        }
+
+    // A failed acceptance leaves the form where it was, with the error, to try again.
+    @Test
+    fun aFailedAcceptanceFromTheFormKeepsItAndReportsIt() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            offers.acceptResult = OfferActionResult.Failure(OfferError.NetworkUnavailable)
+            val viewModel = opened()
+
+            viewModel.onCounterClicked()
+            viewModel.onAmountChanged("160")
+            viewModel.onSubmit()
+            advanceUntilIdle()
+            viewModel.onAcceptConfirmed()
+            advanceUntilIdle()
+
+            val state = content(viewModel)
+            assertEquals(OfferError.NetworkUnavailable, state.error)
+            assertTrue(state.countering)
+            assertEquals("160", state.amount)
+            assertFalse(state.confirmingAcceptance)
+            assertFalse(state.submitting)
+        }
+
     // Criterion 4: rejecting is confirmed before anything is written.
     @Test
     fun rejectingIsConfirmedBeforeItIsWritten() =

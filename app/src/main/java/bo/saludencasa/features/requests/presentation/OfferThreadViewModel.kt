@@ -2,6 +2,7 @@ package bo.saludencasa.features.requests.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import bo.saludencasa.features.requests.domain.model.CounterOfferResult
 import bo.saludencasa.features.requests.domain.model.OfferActionResult
 import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferSubmitResult
@@ -233,14 +234,19 @@ class OfferThreadViewModel(
                     message = content.message,
                 )
             when (result) {
-                OfferSubmitResult.Success -> {
+                CounterOfferResult.Sent -> {
                     state.updateContent {
                         it.copy(submitting = false, countering = false, amount = "", message = "")
                     }
                     relaunchLoad(showLoading = false)
                 }
 
-                is OfferSubmitResult.Failure -> {
+                // The form stays behind the confirmation, so going back keeps it.
+                CounterOfferResult.AcceptsTheOffer -> {
+                    state.updateContent { it.copy(submitting = false, confirmingAcceptance = true) }
+                }
+
+                is CounterOfferResult.Failure -> {
                     state.updateContent { it.copy(submitting = false, error = result.error) }
                     reloadIfStale(result.error)
                 }

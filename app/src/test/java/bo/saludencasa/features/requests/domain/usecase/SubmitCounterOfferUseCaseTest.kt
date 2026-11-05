@@ -3,9 +3,9 @@
 package bo.saludencasa.features.requests.domain.usecase
 
 import bo.saludencasa.features.requests.FakeOfferRepository
+import bo.saludencasa.features.requests.domain.model.CounterOfferResult
 import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferIssuer
-import bo.saludencasa.features.requests.domain.model.OfferSubmitResult
 import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.offerThread
 import bo.saludencasa.features.requests.requestOffer
@@ -56,7 +56,7 @@ class SubmitCounterOfferUseCaseTest {
     fun thePatientCannotCounterBelowTheirLastOffer() =
         runTest {
             assertEquals(
-                OfferSubmitResult.Failure(OfferError.BelowMinimum(BigDecimal("135.00"))),
+                CounterOfferResult.Failure(OfferError.BelowMinimum(BigDecimal("135.00"))),
                 counter(amountRaw = "134,99"),
             )
             assertTrue(repository.submitted.isEmpty())
@@ -71,7 +71,7 @@ class SubmitCounterOfferUseCaseTest {
                     .copy(suggestedBudgetBob = BigDecimal("130.00"))
 
             assertEquals(
-                OfferSubmitResult.Failure(OfferError.BelowMinimum(BigDecimal("130.00"))),
+                CounterOfferResult.Failure(OfferError.BelowMinimum(BigDecimal("130.00"))),
                 counter(thread = firstAnswer, amountRaw = "120"),
             )
         }
@@ -80,7 +80,7 @@ class SubmitCounterOfferUseCaseTest {
     @Test
     fun exactlyTheFloorIsAccepted() =
         runTest {
-            assertEquals(OfferSubmitResult.Success, counter(amountRaw = "135"))
+            assertEquals(CounterOfferResult.Sent, counter(amountRaw = "135"))
         }
 
     // Without a budget and before any counter-offer there is no floor.
@@ -90,7 +90,7 @@ class SubmitCounterOfferUseCaseTest {
             val noBudget =
                 offerThread(offers = listOf(requestOffer(id = "o1", amountBob = BigDecimal("160.00"))))
 
-            assertEquals(OfferSubmitResult.Success, counter(thread = noBudget, amountRaw = "50"))
+            assertEquals(CounterOfferResult.Sent, counter(thread = noBudget, amountRaw = "50"))
         }
 
     // The rule is the patient's only: the professional may answer with anything.
@@ -104,7 +104,7 @@ class SubmitCounterOfferUseCaseTest {
                         patientThread().offers.dropLast(1),
                 )
 
-            assertEquals(OfferSubmitResult.Success, counter(thread = professionalSide, amountRaw = "10"))
+            assertEquals(CounterOfferResult.Sent, counter(thread = professionalSide, amountRaw = "10"))
         }
 
     // RF-08.2: the answer references the offer on the table, on the thread of
@@ -112,7 +112,7 @@ class SubmitCounterOfferUseCaseTest {
     @Test
     fun carriesTheOfferOnTheTableAndNoMessage() =
         runTest {
-            assertEquals(OfferSubmitResult.Success, counter(amountRaw = "139,90", message = "   "))
+            assertEquals(CounterOfferResult.Sent, counter(amountRaw = "139,90", message = "   "))
 
             val submission = repository.submitted.single()
             assertEquals("r1", submission.requestId)
@@ -122,10 +122,78 @@ class SubmitCounterOfferUseCaseTest {
             assertNull(submission.message)
         }
 
+    // HT-29: the amount on the table is accepted, not offered again, and nothing
+    // leaves until the person confirms. However it was typed, it is the same amount.
+    @Test
+    fun theAmountOnTheTableWritesNothingAndAcceptsTheOffer() =
+        runTest {
+            listOf("150", "150.0", "150,00", " 150.00 ").forEach { typed ->
+                assertEquals(typed, CounterOfferResult.AcceptsTheOffer, counter(amountRaw = typed))
+            }
+            assertTrue(repository.submitted.isEmpty())
+        }
+
+    @Test
+    fun aCentAwayFromTheOfferOnTheTableIsACounterOffer() =
+        runTest {
+            assertEquals(CounterOfferResult.Sent, counter(amountRaw = "150,01"))
+            assertEquals(CounterOfferResult.Sent, counter(amountRaw = "149,99"))
+        }
+
+    // It holds for both sides: here the patient's 135 is on the table.
+    @Test
+    fun theProfessionalAcceptsWithTheAmountOnTheTableToo() =
+        runTest {
+            val professionalSide =
+                patientThread().copy(
+                    iAmTheProfessional = true,
+                    offers = patientThread().offers.dropLast(1),
+                )
+
+            assertEquals(CounterOfferResult.AcceptsTheOffer, counter(thread = professionalSide, amountRaw = "135"))
+            assertTrue(repository.submitted.isEmpty())
+        }
+
+    // The floor goes first: an offer below it is accepted with the button, and
+    // typing its amount keeps saying what the patient may offer.
+    @Test
+    fun theAmountOnTheTableBelowTheFloorStaysRefused() =
+        runTest {
+            val belowTheFloor =
+                patientThread().let { thread ->
+                    thread.copy(
+                        offers =
+                            thread.offers.dropLast(1) +
+                                thread.offers.last().copy(amountBob = BigDecimal("120.00")),
+                    )
+                }
+
+            assertEquals(
+                CounterOfferResult.Failure(OfferError.BelowMinimum(BigDecimal("135.00"))),
+                counter(thread = belowTheFloor, amountRaw = "120"),
+            )
+        }
+
+    // With the offer on the table exactly at the floor, nothing stops accepting it.
+    @Test
+    fun theAmountOnTheTableAtTheFloorAcceptsTheOffer() =
+        runTest {
+            val atTheFloor =
+                patientThread().let { thread ->
+                    thread.copy(
+                        offers =
+                            thread.offers.dropLast(1) +
+                                thread.offers.last().copy(amountBob = BigDecimal("135.00")),
+                    )
+                }
+
+            assertEquals(CounterOfferResult.AcceptsTheOffer, counter(thread = atTheFloor, amountRaw = "135"))
+        }
+
     @Test
     fun rejectsAnAmountThatIsNotPositive() =
         runTest {
-            assertEquals(OfferSubmitResult.Failure(OfferError.InvalidAmount), counter(amountRaw = "0"))
+            assertEquals(CounterOfferResult.Failure(OfferError.InvalidAmount), counter(amountRaw = "0"))
             assertTrue(repository.submitted.isEmpty())
         }
 }

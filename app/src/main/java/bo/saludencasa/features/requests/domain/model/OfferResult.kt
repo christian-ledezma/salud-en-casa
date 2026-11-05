@@ -32,6 +32,18 @@ sealed interface OfferSubmitResult {
     ) : OfferSubmitResult
 }
 
+// What answering with an amount came to: a new offer, or nothing written because
+// that amount is the offer on the table, which accepting settles (HT-29).
+sealed interface CounterOfferResult {
+    data object Sent : CounterOfferResult
+
+    data object AcceptsTheOffer : CounterOfferResult
+
+    data class Failure(
+        val error: OfferError,
+    ) : CounterOfferResult
+}
+
 // The threads on the patient's own request, one per professional who offered.
 sealed interface OfferThreadsResult {
     data class Loaded(

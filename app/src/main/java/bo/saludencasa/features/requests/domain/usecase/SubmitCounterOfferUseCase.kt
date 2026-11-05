@@ -1,6 +1,7 @@
 package bo.saludencasa.features.requests.domain.usecase
 
 import bo.saludencasa.core.vo.AmountBob
+import bo.saludencasa.features.requests.domain.model.CounterOfferResult
 import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferSubmitResult
 import bo.saludencasa.features.requests.domain.model.OfferThread
@@ -11,7 +12,9 @@ import bo.saludencasa.features.requests.domain.repository.IOfferRepository
 // its pieces, so the parent, the professional and the patient's floor all come
 // from the same reading. The floor is checked here so the person hears about it
 // before anything leaves; the engine checks it again (docs/decisions.md,
-// 2026-10-27, HT-24). The message is optional.
+// 2026-10-27, HT-24). The message is optional. An amount equal to the offer on the
+// table is not a counter-offer: nothing is written, and the person confirms
+// accepting it. The floor goes first (docs/decisions.md, 2026-11-04, HT-29).
 class SubmitCounterOfferUseCase(
     private val repository: IOfferRepository,
 ) {
@@ -20,25 +23,33 @@ class SubmitCounterOfferUseCase(
         thread: OfferThread,
         amountRaw: String,
         message: String,
-    ): OfferSubmitResult {
-        val parent = thread.lastOffer ?: return OfferSubmitResult.Failure(OfferError.NotAllowed)
+    ): CounterOfferResult {
+        val parent = thread.lastOffer ?: return CounterOfferResult.Failure(OfferError.NotAllowed)
 
         val amount =
             AmountBob.parse(amountRaw).getOrElse {
-                return OfferSubmitResult.Failure(OfferError.InvalidAmount)
+                return CounterOfferResult.Failure(OfferError.InvalidAmount)
             }
 
         val floor = thread.counterFloorBob
         if (floor != null && amount.value < floor) {
-            return OfferSubmitResult.Failure(OfferError.BelowMinimum(floor))
+            return CounterOfferResult.Failure(OfferError.BelowMinimum(floor))
         }
 
-        return repository.submitCounterOffer(
-            requestId = requestId,
-            professionalId = thread.professionalId,
-            parentOfferId = parent.id,
-            amount = amount,
-            message = message.trim().ifEmpty { null },
-        )
+        // compareTo and not equals: 150 and 150.00 differ in scale, not in amount.
+        if (amount.value.compareTo(parent.amountBob) == 0) return CounterOfferResult.AcceptsTheOffer
+
+        val result =
+            repository.submitCounterOffer(
+                requestId = requestId,
+                professionalId = thread.professionalId,
+                parentOfferId = parent.id,
+                amount = amount,
+                message = message.trim().ifEmpty { null },
+            )
+        return when (result) {
+            OfferSubmitResult.Success -> CounterOfferResult.Sent
+            is OfferSubmitResult.Failure -> CounterOfferResult.Failure(result.error)
+        }
     }
 }

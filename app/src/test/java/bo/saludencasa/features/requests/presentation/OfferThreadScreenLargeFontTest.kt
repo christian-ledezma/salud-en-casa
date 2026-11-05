@@ -154,6 +154,65 @@ class OfferThreadScreenLargeFontTest {
         )
     }
 
+    private fun sameAmount(message: String) =
+        OfferThreadUiState.Content(
+            thread = offerThread(offers = chain("160.00" to OfferIssuer.PROFESSIONAL)),
+            countering = true,
+            amount = "160",
+            message = message,
+            confirmingAcceptance = true,
+        )
+
+    private fun bob(amount: String) = formatBob(BigDecimal(amount), Locale.getDefault())
+
+    // HT-29: writing the amount on the table says that it accepts the offer, and
+    // both ways out stay on screen.
+    @Test
+    fun theSameAmountSaysItAcceptsTheOffer() {
+        show(sameAmount(message = ""))
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.offer_counter_accepts_body, bob("160.00"))),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_accept_confirm_back)),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_accept_confirm_action)),
+        )
+    }
+
+    // What was written does not travel with an acceptance, and the person hears it
+    // before confirming, not after.
+    @Test
+    fun theSameAmountWithAMessageWarnsItWillNotBeSent() {
+        show(sameAmount(message = "Puedo pagar en efectivo."))
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.offer_counter_accepts_body_with_message, bob("160.00"))),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_accept_confirm_action)),
+        )
+        composeRule.onNodeWithText(string(R.string.offer_counter_accepts_body, bob("160.00"))).assertDoesNotExist()
+    }
+
+    // The button keeps its own confirmation: nothing was typed there.
+    @Test
+    fun theAcceptButtonKeepsItsOwnConfirmation() {
+        show(
+            OfferThreadUiState.Content(
+                thread = offerThread(offers = chain("160.00" to OfferIssuer.PROFESSIONAL)),
+                confirmingAcceptance = true,
+            ),
+        )
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.offer_accept_confirm_body, bob("160.00"))),
+        )
+        composeRule.onNodeWithText(string(R.string.offer_counter_accepts_body, bob("160.00"))).assertDoesNotExist()
+    }
+
     @Test
     fun theCounterOfferFormStaysOnScreen() {
         show(

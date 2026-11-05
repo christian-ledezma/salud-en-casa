@@ -567,6 +567,8 @@
     <string name="offer_accept_confirm_body_named">Vas a aceptar %1$s de %2$s. Se creará la atención y las demás ofertas se cerrarán.</string>
     <string name="offer_accept_confirm_action">Aceptar</string>
     <string name="offer_accept_confirm_back">Volver</string>
+    <string name="offer_counter_accepts_body">%1$s es el monto de la oferta vigente, así que enviarlo la acepta. Se creará la atención y las demás ofertas se cerrarán.</string>
+    <string name="offer_counter_accepts_body_with_message">%1$s es el monto de la oferta vigente, así que enviarlo la acepta. Se creará la atención y las demás ofertas se cerrarán.\n\nTu mensaje no se enviará. Podrás escribirlo en la conversación de la atención.</string>
     <string name="offer_card_accept">Aceptar %1$s</string>
     <string name="offer_card_negotiate">Negociar</string>
     <string name="offer_card_view">Ver negociación</string>

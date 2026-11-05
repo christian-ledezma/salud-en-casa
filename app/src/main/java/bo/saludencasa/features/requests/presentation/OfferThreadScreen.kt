@@ -333,12 +333,15 @@ private fun ThreadBody(
     if (content.confirmingAcceptance) {
         val locale = LocalConfiguration.current.locales[0]
         val amount = content.thread.lastOffer?.amountBob
+        // With the form open, the confirmation came from writing that same amount.
+        val body =
+            when {
+                !content.countering -> R.string.offer_accept_confirm_body
+                content.message.isBlank() -> R.string.offer_counter_accepts_body
+                else -> R.string.offer_counter_accepts_body_with_message
+            }
         AcceptOfferDialog(
-            body =
-                stringResource(
-                    R.string.offer_accept_confirm_body,
-                    amount?.let { formatBob(it, locale) }.orEmpty(),
-                ),
+            body = stringResource(body, amount?.let { formatBob(it, locale) }.orEmpty()),
             onConfirm = actions.onAcceptConfirmed,
             onDismiss = actions.onAcceptDismissed,
         )
@@ -625,6 +628,19 @@ private fun previewContent(
     amount = if (countering) "145" else "",
 )
 
+private fun previewSameAmount(): OfferThreadUiState.Content {
+    val content = previewContent(countering = true)
+    return content.copy(
+        amount =
+            content.thread.lastOffer
+                ?.amountBob
+                ?.toPlainString()
+                .orEmpty(),
+        message = "Puedo pagar en efectivo.",
+        confirmingAcceptance = true,
+    )
+}
+
 @Composable
 private fun PreviewScreen(
     uiState: OfferThreadUiState,
@@ -677,6 +693,25 @@ private fun OfferThreadProfessionalPreview() {
 @Composable
 private fun OfferThreadClosedPreview() {
     PreviewScreen(previewContent(closed = true))
+}
+
+// HT-29: dialogs open in their own window, so ScreenCatalog does not draw this one.
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Hilo, mismo monto")
+@Composable
+private fun OfferThreadSameAmountPreview() {
+    PreviewScreen(previewSameAmount())
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Hilo, mismo monto, oscuro")
+@Composable
+private fun OfferThreadSameAmountDarkPreview() {
+    PreviewScreen(previewSameAmount(), darkTheme = true)
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1800, fontScale = 2f, name = "Hilo, mismo monto, 200 %")
+@Composable
+private fun OfferThreadSameAmountLargeFontPreview() {
+    PreviewScreen(previewSameAmount())
 }
 
 // The professional before the first offer, from the inbox or the notification.
