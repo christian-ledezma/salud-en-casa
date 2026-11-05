@@ -6403,6 +6403,50 @@ entrada de HT-27 anunciaba que `NegotiationEntry.Attention` desaparecería aquí
 solicitud `05adae36` no se puede cancelar: quedó `COMPLETED` con el servicio `IN_PROGRESS` antes de HU-23, y el motor rechaza ese
 salto.
 
+## 2026-11-04 · HT-29: contraofertar el monto de la oferta vigente la acepta
+
+**Contexto.** Al probar la negociación durante HU-24, el autor vio que una contraoferta con el mismo monto de la oferta que responde
+deja la negociación abierta, aunque las dos partes ya estén de acuerdo. El remoto tenía 2 así, de ese mismo día, las dos ya en solicitudes aceptadas.
+
+**Decisión.** El autor eligió el 2026-11-04, con el prototipo aprobado:
+
+- **Ese monto no se envía: abre la confirmación de «Aceptar».** Al confirmar se ejecuta `accept_offer`, sin crear otra oferta. Al
+  volver, el formulario sigue con lo escrito. Vale para los dos lados.
+- **El mínimo del paciente va primero.** Si la oferta vigente está por debajo de su mínimo, escribir ese monto sigue mostrando el
+  error del mínimo, y aceptarla sigue siendo con el botón. Se le propuso comparar primero con la oferta vigente; prefirió mantener
+  una sola respuesta para todo monto bajo el mínimo.
+- **El mensaje escrito no se envía, y la confirmación lo avisa** solo si hay uno, con la conversación de la atención como lugar donde
+  escribirlo. Publicarlo solo habría metido una escritura en `messages` y un segundo aviso dentro de `accept_offer`.
+
+**Razonamiento.** Decidieron además, por ser técnicas:
+
+- **Es el caso de uso el que compara, y devuelve `CounterOfferResult.AcceptsTheOffer`.** No es un tipo de error: nada salió mal. Es un
+  resultado aparte de `OfferSubmitResult` porque la primera oferta, que también usa ese, no tiene oferta vigente con la cual comparar.
+- **Se compara con `compareTo`.** `150` y `150.00` son el mismo monto y `BigDecimal.equals` los da por distintos, porque mira la escala.
+- **La regla también está en el motor, y responde solo a las partes.** `guard_counter_differs_from_the_offer` corre antes que la
+  política de inserción. Sin el filtro por parte, cualquiera que tuviera el identificador de una oferta podía probar montos hasta dar
+  con el suyo: el experimento lo reprodujo al quitarlo, con la etiqueta del guardia para el monto correcto y la denegación de la
+  política para los demás. Es la misma precaución que `guard_patient_counter_floor`.
+- **La etiqueta del motor no se traduce a un error de la aplicación.** Esta versión compara contra la misma lectura de la que saca la
+  oferta que responde, y una oferta no cambia, así que nunca llega al motor con ese monto. Solo llegaría una versión anterior ya instalada,
+  y escribir un caso para eso sería defender algo que esta versión no hace.
+- **El cuerpo de la confirmación ahora se desplaza.** El texto más largo, al 200 % en una pantalla chica, no cabe, y `AlertDialog` no
+  desplaza su contenido por su cuenta. Lo aprovecha también la confirmación de las tarjetas de oferta, porque es el mismo diálogo.
+
+**Consecuencia.** Las 2 contraofertas que ya repiten su monto se quedan como están (INV-06); ninguna espera respuesta. Siguen siendo contraofertas los montos que se cruzan, como un paciente que ofrece
+más de lo que pide el profesional, y una primera oferta igual al presupuesto no acepta nada, porque el presupuesto no es una oferta: si
+alguno de los dos molesta, es otra historia.
+
+**Hallazgo: ninguna prueba de diálogo medía el 200 %.** Al mirar la captura del diálogo de esta historia, salió con la letra normal.
+`setContentAtDoubleFontScale` subía la escala con `LocalDensity`, y un diálogo es otra ventana, que toma su densidad de la configuración.
+El ayudante ahora fija también `RuntimeEnvironment.setFontScale(2f)`, y `LargeFontTest` lo vigila. Con la escala real pasó esto:
+
+- **El diálogo del precio de «Mis servicios» tenía un defecto real:** el campo quedaba fuera de la vista y sin forma de llegar a él, de
+  modo que a 320 dp y 200 % no se podía declarar un servicio. Ahora su contenido se desplaza y baja hasta el rechazo. Se corrigió aquí
+  porque corregir el ayudante dejaba esa prueba en rojo, y ninguna historia se cierra así.
+- **HU-24 anotó que su prueba de «el diálogo baja hasta el error» no podía fallar.** Esta era la causa, y ahora sí falla al quitar ese
+  desplazamiento, así que volvió a afirmarlo.
+
 ## Plantilla para entradas nuevas
 
 ```

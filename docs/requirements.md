@@ -212,7 +212,7 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | RN-02 | La búsqueda por cercanía considera únicamente la base profesional declarada por el profesional y su radio de cobertura. La base profesional es una dirección propia marcada como tal, distinta de la dirección principal, que es el domicilio donde la persona recibe atención. |
 | RN-03 | Un estudiante del área de salud puede prestar servicios y registrar lo realizado, pero no puede emitir un diagnóstico. |
 | RN-04 | Una solicitud aceptada no admite ofertas nuevas. |
-| RN-05 | Una oferta emitida no se edita. Modificar el monto significa emitir una contraoferta que referencia la anterior. |
+| RN-05 | Una oferta emitida no se edita. Modificar el monto significa emitir una contraoferta que referencia la anterior, con otro monto: responder con el mismo es aceptarla. |
 | RN-06 | Los datos de contacto se revelan solo tras la aceptación de una oferta. |
 | RN-07 | El monto acordado se congela en el servicio. Un cambio posterior en la tarifa del profesional no afecta servicios ya acordados. |
 | RN-08 | La comisión de la plataforma es un porcentaje configurable del monto acordado. Su valor inicial es 10 %. |

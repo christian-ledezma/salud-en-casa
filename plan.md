@@ -7589,7 +7589,7 @@ pasaron. No se confirmó, porque la aplicación no registra ese error y la panta
 - `05adae36` seguirá ocupando «Tu atención» de esa pareja hasta que alguien decida corregirla. Son datos de prueba y no se tocaron.
 - Que la conversación se cierre a los 7 días se comprobó en el experimento, no en pantalla: ninguna atención lleva ese tiempo completada.
 
-### HT-29 · Contraofertar el mismo monto acepta la oferta `[ ]` — 3 puntos
+### HT-29 · Contraofertar el mismo monto acepta la oferta `[x]` — 3 puntos
 
 > Como **paciente o profesional que negocia**, quiero **que contraofertar el monto de la oferta vigente la acepte**, para **no
 > seguir negociando cuando ya estamos de acuerdo**.
@@ -7598,33 +7598,67 @@ pasaron. No se confirmó, porque la aplicación no registra ese error y la panta
 oferta deja la negociación abierta. El remoto tenía 2 contraofertas así, de ese mismo día. Pidió que la pantalla avise que ese monto
 acepta la oferta, y que la negociación termine como si se hubiera tocado «Aceptar». Eligió una historia aparte, después de HU-24.
 
-**Alcance acordado, a precisar al planificarla, con prototipo antes de programar**
+**Planificación (2026-11-04).** Registrada en `docs/decisions.md`, 2026-11-04, HT-29. Prototipo aprobado el mismo día, en el lienzo
+«Contraoferta igual HT-29». Se mantuvo en 3 puntos.
 
-- Si el monto escrito es igual al de la oferta vigente, «Enviar» abre la confirmación de «Aceptar», con un aviso de que ese monto
-  acepta la oferta. Vale para los dos lados.
+**Alcance acordado**
+
+- Si el monto escrito es igual al de la oferta vigente, «Enviar contraoferta» abre la confirmación de «Aceptar», con un aviso de que
+  ese monto acepta la oferta. Vale para los dos lados.
 - Al confirmar se ejecuta la aceptación que ya existe, `accept_offer`: no se crea una oferta nueva.
 - El motor rechaza una contraoferta igual a la oferta que responde. Las que ya existen no se tocan.
 
-**A decidir al planificarla (propuestas de partida)**
+**Decidido al planificarla**
 
-- **El mínimo del paciente.** Si la oferta vigente está por debajo de su mínimo, hoy «Aceptar» funciona y contraofertar ese monto se
-  rechaza. La propuesta es comparar primero con la oferta vigente, de modo que acepte en lugar de mostrar el error.
-- **El mensaje escrito en la contraoferta.** Aceptar no envía mensaje, así que se perdería. La propuesta es que la confirmación lo
-  avise; se puede escribir después en la conversación de la atención.
+- **El mínimo del paciente va primero.** Se proponía comparar primero con la oferta vigente; el autor eligió lo contrario. Si la oferta
+  vigente está por debajo del mínimo, escribir ese monto sigue mostrando el error, y aceptarla sigue siendo con el botón.
+- **El mensaje escrito no se envía.** Si hay uno, la confirmación lo avisa y sugiere la conversación de la atención.
+
+**Verificación (2026-11-04).**
+
+- **Experimento SQL** contra el remoto, con la migración dentro de la transacción y `rollback`. Rechazan con
+  `counter_offer_repeats_the_offer_it_answers`: el paciente que repite 150 y 150.00, el profesional que repite 130 y el paciente que
+  repite 120 bajo su mínimo. Pasan: 150.01 y 149.99, el profesional con 140, el paciente con exactamente su mínimo y una primera oferta
+  igual al presupuesto. Un tercero, otro profesional o quien se hace pasar por paciente reciben la misma denegación de la política con el
+  monto correcto y con otro. `accept_offer` da servicio `ASSIGNED` con el monto, pago `PENDING`, oferta y solicitud `ACCEPTED`, ninguna
+  oferta nueva y 1 aviso encolado; también acepta 120 bajo el mínimo con el botón. Las 2 contraofertas viejas siguen ahí.
+- **Mutaciones de la migración:** sin el filtro por parte, los tres terceros reciben la etiqueta con el monto correcto y la denegación
+  con otro; sin el disparador, las contraofertas iguales pasan.
+- **Mutaciones de la aplicación:** 12 sobre el caso de uso, el modelo de vista y la pantalla, 3 sobre el desplazamiento de los diálogos del
+  precio y de cancelar, y 1 sobre el ayudante de pruebas. Cada una hizo fallar al menos una prueba.
+- **`./gradlew build`** en verde: 1118 pruebas, 0 fallas, 0 omitidas. Las dos primeras corridas se cayeron sin relación con el código: en una
+  se detuvo el daemon de Gradle, y en la otra la JVM falló al compilar internamente un método de lint.
+- **Previsualizaciones:** se abrió el formulario detrás del diálogo en oscuro y al 200 %. El diálogo es otra ventana y el catálogo no lo
+  dibuja, así que se capturó aparte: claro y oscuro con letra normal, y claro al 200 % real, donde el aviso del mensaje requiere desplazarse.
+  El diálogo oscuro al 200 % no se capturó.
+- **Fuera de lo previsto:** el ayudante de pruebas no medía el 200 % en ningún diálogo, y al corregirlo apareció el campo inalcanzable del
+  diálogo del precio. Ver `docs/decisions.md`, 2026-11-04, HT-29.
+
+**Recorrido y remoto (2026-11-05).**
+
+- **El disparador desplegado.** El autor aplicó la migración. La definición del remoto coincide con el archivo, ningún cliente puede
+  ejecutar la función, y el mismo experimento, sin crearla otra vez, dio los mismos resultados.
+- **Recorrido del autor, por los dos lados.** Lo que quedó en el remoto: «Curación de heridas» con presupuesto 90, y las ofertas 100 del
+  profesional, 95 del paciente, 98, 95 y 98. La última quedó `ACCEPTED`, sin ninguna oferta después. Servicio `ASSIGNED` por Bs 98, pago
+  `PENDING` de 98 con 9,80 de comisión y 88,20 para el profesional, solicitud `ACCEPTED`. Las contraofertas que repiten su oferta siguen
+  siendo las 2 viejas.
+- **Lo que el remoto no puede mostrar.** La confirmación y «Volver» no dejan filas, y la aceptación deja lo mismo con el botón que con la
+  contraoferta, así que el primer y el tercer criterio descansan en lo que el autor vio. Ninguna oferta enviada lleva mensaje. El aviso
+  del push se comprobó en el experimento, con 1 encolado, y no en la entrega.
 
 **Criterios de aceptación**
 
-- [ ] Dado que me toca responder, cuando escribo el monto de la oferta vigente y envío, entonces veo que ese monto acepta la oferta,
+- [x] Dado que me toca responder, cuando escribo el monto de la oferta vigente y envío, entonces veo que ese monto acepta la oferta,
       y puedo confirmar o volver.
-- [ ] Dado que confirmo, cuando se registra, entonces la negociación termina como al tocar «Aceptar»: el servicio, el pago pendiente,
+- [x] Dado que confirmo, cuando se registra, entonces la negociación termina como al tocar «Aceptar»: el servicio, el pago pendiente,
       el aviso a la contraparte y la atención.
-- [ ] Dado que vuelvo, cuando reviso la negociación, entonces sigue abierta y conservo lo que escribí.
-- [ ] Dado que escribo otro monto, cuando envío, entonces la contraoferta sigue siendo una contraoferta.
-- [ ] Dado que una contraoferta igual a la oferta que responde llega al motor, cuando se inserta, entonces se rechaza.
+- [x] Dado que vuelvo, cuando reviso la negociación, entonces sigue abierta y conservo lo que escribí.
+- [x] Dado que escribo otro monto, cuando envío, entonces la contraoferta sigue siendo una contraoferta.
+- [x] Dado que una contraoferta igual a la oferta que responde llega al motor, cuando se inserta, entonces se rechaza.
 
 **Requisitos:** RF-08.2, RF-08.5, INV-06.
 
-**Antes:** HU-24 cerrada: sus cambios todavía no están versionados, y las dos historias comparten `strings.xml` y los documentos.
+**Antes:** HU-24 cerrada y versionada.
 
 **A tener en cuenta.** No figura en la tabla de historias críticas, pero usa la aceptación de HU-19, que sí está: lleva recorrido en
 emulador.
