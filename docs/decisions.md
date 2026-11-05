@@ -6356,6 +6356,53 @@ confirmar. Pidió evaluar «Aceptar» en la lista y fusionar la pantalla interme
 ella no lee «Mis solicitudes» ni la solicitud activa. Las citas agendadas no cambian. Se retiró la línea de cuántas propuestas
 lleva una negociación, que el prototipo aprobado no incluye; sigue viéndose en el hilo.
 
+## 2026-11-04 · HU-24: cancelar una atención y cerrar su conversación a los 7 días
+
+**Contexto.** RF-10.3 deja cancelar a cualquiera de las partes antes de terminar, con un motivo. El criterio pide que el pago no
+quede pendiente, pero `payment_status` no tenía un estado para eso. HU-23 había dejado escribibles las columnas de cancelación
+sin cambiar el estado. Además, el autor decidió el mismo día que la conversación de una atención completada admita mensajes solo
+durante 7 días.
+
+**Decisión.** El autor eligió el 2026-11-04, con el prototipo aprobado:
+
+1. **El pago pasa a un estado nuevo, `CANCELLED`,** en la misma transacción. Se descartó dejarlo en `PENDING`, porque cada lectura
+   futura tendría que cruzarlo con el servicio, y reutilizar `DISPUTED`, porque RF-11.5 lo reserva para confirmaciones que no
+   coinciden y lo manda al administrador.
+2. **El motivo es texto libre, de hasta 300 caracteres.** Se descartaron las opciones predefinidas: exigen un catálogo traducido
+   y ningún requisito las pide.
+3. **«Cancelar atención» va al final del contenido, como botón con recuadro.** El prototipo lo dibujaba como texto y el autor lo
+   pidió más notorio al aprobarlo.
+4. **La atención cancelada no ofrece buscar otro profesional.** Queda como FA-17.
+
+**Razonamiento.**
+
+- **El motor sella quién y cuándo.** El cliente solo escribe el estado y el motivo, como ya ocurre con las fechas de inicio y
+  fin. Se retiraron `cancelled_by` y `cancelled_at` de los permisos, de modo que la comprobación del autor ya no hace falta.
+- **El motivo se escribe una sola vez.** Antes, cualquiera de las dos partes podía reescribirlo, también en una atención ya
+  cancelada, porque la política deja actualizar la fila a las dos. Repetir la misma cancelación no hace nada, así que un reintento
+  es seguro; si las dos partes cancelan a la vez, la segunda relee y ve la de la primera.
+- **Un servicio cancelable siempre tiene el pago en `PENDING`,** porque confirmar exige un servicio completado. Por eso el estado
+  nuevo admite la restricción de que no haya confirmaciones. Cancelar en curso anula el pago entero: RF-10.3 no prevé un cobro
+  parcial aunque el profesional ya haya viajado.
+- **Dos migraciones.** PostgreSQL no deja usar un valor de enumerado en la transacción que lo agrega, y el experimento corre dentro
+  de una, de modo que el valor tiene que estar aplicado antes.
+- **Los 7 días viven solo en el motor.** Lo deciden `conversation_is_open` y `conversation_writable_until`, que usan las políticas
+  y `my_attention`. El teléfono recibe la respuesta y no calcula con su reloj, que puede estar mal.
+- **Sin temporizador en la pantalla.** Si el plazo vence con la conversación abierta, el motor rechaza el envío y aparece el aviso
+  de solo lectura. El mensaje queda como no enviado, igual que al cancelarse con la pantalla abierta.
+- **El aviso lleva quién canceló y el servicio, nunca el motivo** (RF-09.10). El motivo está en la atención que abre.
+- **El administrador puede leer el motivo,** porque ya lee la fila de `services`. INV-12 protege los mensajes, no esta columna.
+- **La tarjeta de «Mis atenciones» no cambia.** Ya abre las canceladas y su píldora lo dice; agregar la fecha de cancelación exigía
+  reescribir `my_attentions` sin que nadie lo pidiera.
+- **El diálogo baja hasta el error.** Al 200 % en una pantalla chica el campo queda bajo el pliegue, y un rechazo que no se ve parece
+  un botón que no responde.
+
+**Consecuencia.** La migración va antes que la aplicación: una versión nueva sin ella no lee ninguna atención, porque `my_attention`
+ya no trae las columnas que espera. HU-25 y HU-26 no cambian, y HU-27 y HU-28 pueden excluir los pagos cancelados por su estado. La
+entrada de HT-27 anunciaba que `NegotiationEntry.Attention` desaparecería aquí: ya había desaparecido en esa misma historia. La
+solicitud `05adae36` no se puede cancelar: quedó `COMPLETED` con el servicio `IN_PROGRESS` antes de HU-23, y el motor rechaza ese
+salto.
+
 ## Plantilla para entradas nuevas
 
 ```

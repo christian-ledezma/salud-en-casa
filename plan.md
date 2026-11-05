@@ -197,7 +197,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 4 | Catálogo y búsqueda por cercanía | 3 · Coordinación | 23 | `[x]` |
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` |
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` |
-| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 53 | `[ ]` |
+| 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 56 | `[ ]` |
 | 8 | Confirmación mutua de pagos | 4 · Pagos | 21 | `[ ]` |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` |
@@ -6901,7 +6901,7 @@ realizado y la atención se completa.
 
 **Objetivo específico.** 3 · Comunicación, coordinación y agenda.
 
-**Puntos:** 53. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
+**Puntos:** 56. Eran 23; el 2026-10-15 se sumó HU-37, que estaba fuera de alcance
 como FA-11. Va al final del sprint: es la de menor prioridad y la primera que se
 traslada si el corte muerde. El 2026-10-30 se sumó HT-25, con 8 puntos, que va
 primero porque cambia la pantalla desde la que se llega a todo lo demás. El 2026-11-03
@@ -6910,7 +6910,8 @@ pasó de 3 a 5 al planificarse: la decisión del autor le agregó una migración
 entrada del paciente. El 2026-11-04 se sumó HT-27, con 8 puntos, que el recorrido de HU-22 reveló. Con 47
 puntos, HU-37 sigue siendo la primera que se traslada; HU-31 baja cuando se la replanifique. Ese mismo día HU-23
 pasó de 5 a 8, al sumarle el rediseño de la atención, sus datos nuevos, el cierre de permisos y la lectura en vivo.
-También ese día se sumó HT-28, con 3 puntos, a pedido del autor al revisar HT-27.
+También ese día se sumó HT-28, con 3 puntos, a pedido del autor al revisar HT-27, y HT-29, con 3 puntos, a pedido del autor
+al recorrer la negociación durante HU-24.
 
 ### HT-25 · La pantalla de inicio y la barra de navegación `[x]` — 8 puntos
 
@@ -7498,23 +7499,23 @@ servicio `ASSIGNED`, un pago y el monto final igual al de la oferta aceptada.
 volver no regrese a las ofertas: la navegación no tiene prueba automática. El remoto tampoco distingue si se aceptó desde la
 tarjeta o desde el hilo. Estos puntos no se anotaron uno por uno: quedan cubiertos por el ejercicio del autor en conjunto.
 
-### HU-24 · Cancelar una atención `[ ]` — 5 puntos
+### HU-24 · Cancelar una atención `[x]` — 5 puntos
 
 > Como **cualquiera de las partes**, quiero **cancelar una atención acordada
 > indicando el motivo**, para **resolver un imprevisto sin dejar el registro abierto**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que la atención no se completó, cuando la cancelo, entonces indico un
+- [x] Dado que la atención no se completó, cuando la cancelo, entonces indico un
       motivo obligatorio.
-- [ ] Dado que cancelo, cuando la contraparte consulta, entonces ve el estado y el motivo.
-- [ ] Dado que cancelo, cuando consulto el pago asociado, entonces no queda pendiente.
-- [ ] Dado que la atención ya se completó, cuando intento cancelar, entonces se rechaza.
-- [ ] Dado que la contraparte cancela, cuando ocurre, entonces me llega una
+- [x] Dado que cancelo, cuando la contraparte consulta, entonces ve el estado y el motivo.
+- [x] Dado que cancelo, cuando consulto el pago asociado, entonces no queda pendiente.
+- [x] Dado que la atención ya se completó, cuando intento cancelar, entonces se rechaza.
+- [x] Dado que la contraparte cancela, cuando ocurre, entonces me llega una
       notificación **sin el motivo**, que me lleva a la atención, donde sí lo veo.
-- [ ] Dado que la atención se completó, cuando abro la conversación, entonces veo en esa misma
+- [x] Dado que la atención se completó, cuando abro la conversación, entonces veo en esa misma
       pantalla hasta qué fecha puedo escribir.
-- [ ] Dado que pasaron 7 días desde que se completó, cuando intento escribir o registrar, entonces
+- [x] Dado que pasaron 7 días desde que se completó, cuando intento escribir o registrar, entonces
       se rechaza, y la conversación se sigue pudiendo leer.
 
 **Requisitos:** RF-10.3, RF-09.3, RF-09.6, RF-09.10, INV-05.
@@ -7525,6 +7526,108 @@ sin fecha de cierre, para coordinar el pago. Lo exige la política de inserción
 porque HU-22 y HU-31 acceden a la conversación desde el historial. El texto y la disposición los propone el agente en el
 prototipo de esta historia; la propuesta de partida es la fecha exacta, «Puedes escribir hasta el lun 16 nov, 15:40», porque
 una cuenta de días envejece con la pantalla abierta. Sin puntos adicionales.
+
+**Planificación (2026-11-04).** Registrada en `docs/decisions.md`, 2026-11-04, HU-24. Prototipo aprobado el mismo día, en el lienzo
+«Cancelar atención HU-24», con un cambio pedido por el autor: el botón lleva recuadro. Se mantuvo en 5 puntos.
+
+**Experimento contra el remoto (2026-11-04), con la segunda migración aplicada dentro de una transacción con `rollback`**
+
+| Caso | Resultado |
+|---|---|
+| Cancelar sin motivo, con espacios, con saltos de línea o con 301 caracteres | Rechazado, `23514` |
+| Cancelar con 300 caracteres, en curso, siendo el profesional | Pasa, y la solicitud queda `CANCELLED` |
+| Un ajeno o el administrador cancela | 0 filas |
+| Escribir el motivo sin cancelar | Rechazado |
+| Escribir `cancelled_by` o `cancelled_at` | Rechazado, `42501` |
+| El paciente mueve a mano su solicitud aceptada a `CANCELLED` | Rechazado |
+| El paciente cancela una asignada | Pasa: el autor y la fecha sellados, una señal y un aviso |
+| El aviso | Al profesional, con el nombre y el servicio, sin el motivo |
+| Repetir con el mismo motivo | Pasa, sin otro aviso y con la misma fecha |
+| Reescribir el motivo, el autor o la contraparte | Rechazado |
+| Marcar llegada en una cancelada | Rechazado, `service_status_is_terminal` |
+| Leer la atención cancelada | Las dos partes ven el motivo y quién fue; el profesional, sin la dirección; un ajeno y el administrador, 0 filas |
+| Escribir en la conversación de una cancelada | Rechazado |
+| «Tu atención», «Mis atenciones», «Mis solicitudes» | Sale de la primera, sigue en la segunda, y no vuelve a la tercera |
+| Cancelar una completada | Rechazado, `service_status_is_terminal` |
+| Un segundo antes de los 7 días | Las dos partes escriben, el profesional registra, el paciente no registra |
+| A los 7 días exactos | Rechazado a los tres; las dos partes siguen leyendo y marcando leído |
+| Una atención asignada | Sigue admitiendo mensajes |
+| Permisos | `authenticated` actualiza `status` y `cancellation_reason`; `anon`, nada |
+| Datos de prueba `05adae36` | Cancelar se rechaza y nada cambia: quedó `COMPLETED` con el servicio `IN_PROGRESS` antes de HU-23 |
+| Tras cada rechazo de cancelar | El servicio, la solicitud y el pago siguen como estaban |
+| El pago de las dos canceladas | `CANCELLED`, con el desglose intacto; el de otra atención sigue `PENDING` |
+| Una parte o el administrador anula un pago vivo | Rechazado, `payment_cancellation_follows_the_service` |
+| Una parte o el administrador saca un pago de `CANCELLED` | Rechazado |
+| Confirmar un pago cancelado | Rechazado |
+| Un ajeno toca el pago | 0 filas |
+| Confirmar el pago de una completada | Sigue pasando |
+
+No se pudo probar que cancelar una solicitud abierta siga pasando: el remoto no tenía ninguna. Esa rama del guardia no cambió.
+
+**Mutaciones comprobadas (2026-11-04).** Las 15 hacen fallar al menos una prueba: que una completada se pueda cancelar, que releer
+no cierre el diálogo, un segundo toque que envía de nuevo, cerrar mientras se envía, un fallo que deja el diálogo bloqueado, el
+encabezado que ignora al motor, registrar pasada la ventana, la portada que promete registrar pasada la ventana, el aviso cerrado
+sin fecha, el campo sin fecha, el motivo ya escrito leído como error inesperado, contar en UTF-16, el caso de uso sin validar, la
+línea de tiempo sin hora y quitar «Sin pago pendiente».
+
+**Previsualizaciones (2026-11-04).** Abiertas y miradas: atención cancelada en claro, oscuro y 200 %, y la conversación completada en claro, oscuro y 200 %, y cerrada.
+El botón y el diálogo no entran en `ScreenCatalog`: el botón queda bajo el pliegue, y el diálogo es otra ventana. Se capturaron una
+vez con una prueba temporal, ya retirada: el botón en claro y al 200 %, y el diálogo al 200 % a 320 dp. **Bajar hasta el error no
+tiene prueba automática:** a la altura de la prueba de interfaz todo el diálogo cabe, y mutarlo no la hace fallar. Se comprobó solo
+en esa captura.
+
+**Confirmado por el autor (2026-11-04).** Aplicó las dos migraciones y recorrió el ejercicio en los dos lados. El remoto lo respalda sin
+leer ningún motivo: `54b5c052` la canceló el paciente y `61eb5448` el profesional, a las 22:20 y 22:21 en La Paz. Las dos quedaron con
+el servicio, la solicitud y el pago en `CANCELLED`, el autor y la fecha sellados y ningún mensaje posterior. `send-push` respondió 2 veces
+con 200, cada una con 1 enviado y 0 fallidos. **Cerrada el 2026-11-04.** No es una historia crítica.
+
+**El error del primer intento.** Antes de esas dos, el autor vio «error inesperado» en un emulador. La causa más probable es `05adae36`,
+que es lo que abre «Tu atención» en esas dos cuentas: no dejó ninguna fila a medias, y las dos cancelaciones por «Mis atenciones»
+pasaron. No se confirmó, porque la aplicación no registra ese error y la pantalla del emulador no se pudo leer.
+
+**A tener en cuenta.**
+- `05adae36` seguirá ocupando «Tu atención» de esa pareja hasta que alguien decida corregirla. Son datos de prueba y no se tocaron.
+- Que la conversación se cierre a los 7 días se comprobó en el experimento, no en pantalla: ninguna atención lleva ese tiempo completada.
+
+### HT-29 · Contraofertar el mismo monto acepta la oferta `[ ]` — 3 puntos
+
+> Como **paciente o profesional que negocia**, quiero **que contraofertar el monto de la oferta vigente la acepte**, para **no
+> seguir negociando cuando ya estamos de acuerdo**.
+
+**Origen.** El 2026-11-04, al probar la negociación durante HU-24, el autor vio que una contraoferta con el mismo monto de la última
+oferta deja la negociación abierta. El remoto tenía 2 contraofertas así, de ese mismo día. Pidió que la pantalla avise que ese monto
+acepta la oferta, y que la negociación termine como si se hubiera tocado «Aceptar». Eligió una historia aparte, después de HU-24.
+
+**Alcance acordado, a precisar al planificarla, con prototipo antes de programar**
+
+- Si el monto escrito es igual al de la oferta vigente, «Enviar» abre la confirmación de «Aceptar», con un aviso de que ese monto
+  acepta la oferta. Vale para los dos lados.
+- Al confirmar se ejecuta la aceptación que ya existe, `accept_offer`: no se crea una oferta nueva.
+- El motor rechaza una contraoferta igual a la oferta que responde. Las que ya existen no se tocan.
+
+**A decidir al planificarla (propuestas de partida)**
+
+- **El mínimo del paciente.** Si la oferta vigente está por debajo de su mínimo, hoy «Aceptar» funciona y contraofertar ese monto se
+  rechaza. La propuesta es comparar primero con la oferta vigente, de modo que acepte en lugar de mostrar el error.
+- **El mensaje escrito en la contraoferta.** Aceptar no envía mensaje, así que se perdería. La propuesta es que la confirmación lo
+  avise; se puede escribir después en la conversación de la atención.
+
+**Criterios de aceptación**
+
+- [ ] Dado que me toca responder, cuando escribo el monto de la oferta vigente y envío, entonces veo que ese monto acepta la oferta,
+      y puedo confirmar o volver.
+- [ ] Dado que confirmo, cuando se registra, entonces la negociación termina como al tocar «Aceptar»: el servicio, el pago pendiente,
+      el aviso a la contraparte y la atención.
+- [ ] Dado que vuelvo, cuando reviso la negociación, entonces sigue abierta y conservo lo que escribí.
+- [ ] Dado que escribo otro monto, cuando envío, entonces la contraoferta sigue siendo una contraoferta.
+- [ ] Dado que una contraoferta igual a la oferta que responde llega al motor, cuando se inserta, entonces se rechaza.
+
+**Requisitos:** RF-08.2, RF-08.5, INV-06.
+
+**Antes:** HU-24 cerrada: sus cambios todavía no están versionados, y las dos historias comparten `strings.xml` y los documentos.
+
+**A tener en cuenta.** No figura en la tabla de historias críticas, pero usa la aceptación de HU-19, que sí está: lleva recorrido en
+emulador.
 
 ### HU-37 · Enterarme del veredicto de mi verificación `[ ]` — 3 puntos
 

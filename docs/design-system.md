@@ -408,6 +408,13 @@ dónde y cuánto, con el monto en `titleLarge` y `primary`; sigue la línea de t
 La acción del profesional va en el botón fijo al pie. Con la fuente agrandada la píldora baja bajo el título, y al 150 %
 o más el avatar se retira (`docs/decisions.md`, 2026-11-04, HU-23).
 
+«Cancelar atención» va al final del contenido, ancho completo, como `OutlinedButton` con el borde y el texto en `error`: lejos
+del pulgar y sin competir con la acción del pie, pero se lee como un botón. Al cancelarse, una tarjeta sobre `errorContainer`
+dice el motivo antes que todo lo demás, y «Sin pago pendiente» queda bajo el monto (`docs/decisions.md`, 2026-11-04, HU-24).
+
+En la conversación de una atención completada, sobre el campo y en `labelMedium`, va la fecha exacta hasta la que se puede
+escribir. Una cuenta de días envejecería con la pantalla abierta. Pasada esa fecha, el aviso de solo lectura repite la fecha.
+
 ### Tarjeta de solicitud y de atención
 
 `ServiceCard`, la misma en «Mis solicitudes», «Mis atenciones» y «Disponibles» (HT-27). Arriba el servicio y, a su
