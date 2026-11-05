@@ -58,12 +58,29 @@ class SupabaseServiceDataSource(
             }.decodeList<ServiceStatusRow>()
             .size
 
+    // Neither the author nor the date: stamp_service_progress owns them.
+    suspend fun cancel(
+        requestId: String,
+        reason: String,
+    ): Int =
+        supabase
+            .from(SERVICES)
+            .update({
+                set("status", CANCELLED)
+                set("cancellation_reason", reason)
+            }) {
+                filter { eq("request_id", requestId) }
+                select(Columns.list("status"))
+            }.decodeList<ServiceStatusRow>()
+            .size
+
     // notify_attention_changed sends to this topic, and attention_listen lets only
     // the two parties of the service hear it.
     fun signals(requestId: String): Flow<Unit> = supabase.broadcastSignals(TOPIC_PREFIX + requestId, EVENT)
 
     private companion object {
         const val SERVICES = "services"
+        const val CANCELLED = "CANCELLED"
         const val TOPIC_PREFIX = "attention:"
         const val EVENT = "attention_changed"
         const val MY_ATTENTION = "my_attention"

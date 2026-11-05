@@ -1,13 +1,15 @@
 package bo.saludencasa.features.conversation.domain.model
 
 import bo.saludencasa.features.services.domain.model.ServiceStatus
+import java.time.Instant
 
 sealed interface MessageError {
     data object Empty : MessageError
 
     data object TooLong : MessageError
 
-    // The attention was cancelled: the engine refuses new messages.
+    // The attention was cancelled, or its 7 days ran out: the engine refuses new
+    // messages.
     data object ConversationClosed : MessageError
 
     // The engine refuses this record; ordinary messages may still be allowed.
@@ -28,6 +30,7 @@ data class ConversationHeader(
     val canWrite: Boolean,
     val canRecord: Boolean = false,
     val showsStudentNotice: Boolean = false,
+    val writableUntil: Instant? = null,
 )
 
 sealed interface ConversationHeaderResult {

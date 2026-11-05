@@ -6,6 +6,7 @@ import bo.saludencasa.features.notifications.PROFESSIONAL_ID
 import bo.saludencasa.features.notifications.REQUEST_ID
 import bo.saludencasa.features.notifications.appointmentCancelled
 import bo.saludencasa.features.notifications.appointmentScheduled
+import bo.saludencasa.features.notifications.attentionCancelled
 import bo.saludencasa.features.notifications.counterOfferReceived
 import bo.saludencasa.features.notifications.domain.model.NotificationDestination
 import bo.saludencasa.features.notifications.domain.model.NotificationOpenResult
@@ -193,5 +194,23 @@ class OpenNotificationUseCaseTest {
 
             assertEquals(attention, useCase(profiles)(professionalArrived()))
             assertEquals(attention, useCase(profiles)(serviceCompleted()))
+        }
+
+    // RF-09.6: the reason is not in the notice, it is where the notice leads. Either
+    // role may receive it, and that role is activated first.
+    @Test
+    fun aCancellationOpensTheAttentionAsTheRoleItWasSentTo() =
+        runTest {
+            listOf(UserRole.PATIENT, UserRole.PROFESSIONAL).forEach { role ->
+                val profiles =
+                    FakeProfileRepository(
+                        roleResult = loadedRoles(held = bothRoles, active = role.other()),
+                    )
+
+                val result = useCase(profiles)(attentionCancelled(recipientRole = role))
+
+                assertEquals(role, profiles.lastActiveRole)
+                assertEquals(NotificationOpenResult.Open(NotificationDestination.Attention(REQUEST_ID)), result)
+            }
         }
 }

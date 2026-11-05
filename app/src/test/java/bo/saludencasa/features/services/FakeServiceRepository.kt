@@ -3,16 +3,20 @@ package bo.saludencasa.features.services
 import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
 import bo.saludencasa.features.services.domain.model.Attention
+import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.AttentionSummary
+import bo.saludencasa.features.services.domain.model.CancelAttentionError
+import bo.saludencasa.features.services.domain.model.CancelAttentionResult
 import bo.saludencasa.features.services.domain.model.Counterpart
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
+import bo.saludencasa.features.services.domain.vo.CancellationReason
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -28,6 +32,9 @@ class FakeServiceRepository : IServiceRepository {
     var advanceError: ServiceError? = null
     var holdAdvance: CompletableDeferred<Unit>? = null
     val advances = mutableListOf<AttentionStep>()
+    var cancelError: ServiceError? = null
+    var holdCancel: CompletableDeferred<Unit>? = null
+    val cancels = mutableListOf<String>()
     val signals = MutableSharedFlow<Unit>()
 
     override suspend fun getAttention(requestId: String): AttentionResult = result
@@ -69,6 +76,32 @@ class FakeServiceRepository : IServiceRepository {
         return AdvanceAttentionResult.Advanced
     }
 
+    override suspend fun cancel(
+        requestId: String,
+        reason: CancellationReason,
+    ): CancelAttentionResult {
+        cancels += reason.value
+        holdCancel?.await()
+        cancelError?.let { return CancelAttentionResult.Failure(CancelAttentionError.Service(it)) }
+        val current = (result as? AttentionResult.Loaded)?.attention
+        if (current != null) {
+            result =
+                AttentionResult.Loaded(
+                    current.copy(
+                        status = ServiceStatus.CANCELLED,
+                        conversationOpen = false,
+                        cancellation =
+                            AttentionCancellation(
+                                reason.value,
+                                byMe = true,
+                                at = Instant.parse("2026-11-04T14:00:00Z"),
+                            ),
+                    ),
+                )
+        }
+        return CancelAttentionResult.Cancelled
+    }
+
     override fun attentionSignals(requestId: String): Flow<Unit> = signals
 }
 
@@ -95,6 +128,9 @@ fun attention(
     iAmThePatient: Boolean = true,
     counterpartId: String = "p1",
     place: AttentionPlace = attentionPlace(),
+    conversationOpen: Boolean = status != ServiceStatus.CANCELLED,
+    conversationWritableUntil: Instant? = null,
+    cancellation: AttentionCancellation? = null,
 ): Attention =
     Attention(
         serviceId = "s1",
@@ -115,6 +151,9 @@ fun attention(
         finishedAt = null,
         description = "Curación de una herida en la pierna derecha.",
         place = place,
+        conversationOpen = conversationOpen,
+        conversationWritableUntil = conversationWritableUntil,
+        cancellation = cancellation,
     )
 
 fun attentionPlace(

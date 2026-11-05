@@ -16,6 +16,7 @@ enum class NotificationEvent {
     MESSAGE_RECEIVED,
     PROFESSIONAL_ARRIVED,
     SERVICE_COMPLETED,
+    ATTENTION_CANCELLED,
 }
 
 data class PushSubject(
@@ -115,6 +116,15 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.SERVICE_COMPLETED
     }
 
+    // To the counterpart of whoever cancelled, either role. The name is theirs, a
+    // profile attribute; the reason is written by a user and never travels (RF-09.10).
+    data class AttentionCancelled(
+        override val subject: PushSubject,
+        val senderName: String,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.ATTENTION_CANCELLED
+    }
+
     fun toMap(): Map<String, String> =
         buildMap {
             put(KEY_EVENT, event.name)
@@ -162,6 +172,10 @@ sealed interface PushPayload {
                 }
 
                 is ServiceCompleted -> {
+                    put(KEY_SENDER_NAME, senderName)
+                }
+
+                is AttentionCancelled -> {
                     put(KEY_SENDER_NAME, senderName)
                 }
             }
@@ -255,6 +269,11 @@ sealed interface PushPayload {
                 NotificationEvent.SERVICE_COMPLETED -> {
                     val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
                     Result.success(ServiceCompleted(subject, senderName))
+                }
+
+                NotificationEvent.ATTENTION_CANCELLED -> {
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
+                    Result.success(AttentionCancelled(subject, senderName))
                 }
             }
         }

@@ -41,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,13 +59,17 @@ import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.services.domain.model.Attention
+import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionStep
+import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.Counterpart
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
+import bo.saludencasa.features.services.domain.vo.CancellationReason
 import bo.saludencasa.ui.components.BottomActionBar
 import bo.saludencasa.ui.components.CardAvatar
+import bo.saludencasa.ui.components.FormField
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.ScreenHeader
 import bo.saludencasa.ui.components.StatusBadge
@@ -88,6 +93,10 @@ internal data class AttentionActions(
     val onMarkRequested: () -> Unit = {},
     val onMarkDismissed: () -> Unit = {},
     val onMarkConfirmed: () -> Unit = {},
+    val onCancelRequested: () -> Unit = {},
+    val onCancelReasonChanged: (String) -> Unit = {},
+    val onCancelDismissed: () -> Unit = {},
+    val onCancelConfirmed: () -> Unit = {},
 )
 
 // docs/decisions.md, 2026-10-30, and 2026-11-04, HU-23.
@@ -122,6 +131,10 @@ fun AttentionScreen(
                 onMarkRequested = viewModel::onMarkRequested,
                 onMarkDismissed = viewModel::onMarkDismissed,
                 onMarkConfirmed = viewModel::onMarkConfirmed,
+                onCancelRequested = viewModel::onCancelRequested,
+                onCancelReasonChanged = viewModel::onCancelReasonChanged,
+                onCancelDismissed = viewModel::onCancelDismissed,
+                onCancelConfirmed = viewModel::onCancelConfirmed,
             ),
         modifier = modifier,
     )
@@ -212,6 +225,10 @@ private fun AttentionBody(
                 Hero(attention = attention)
             }
 
+            attention.cancellation?.let { cancellation ->
+                CancellationReasonCard(cancellation = cancellation, modifier = margin)
+            }
+
             SummaryCard(attention = attention, large = large, actions = actions, modifier = margin)
 
             Progress(attention = attention, modifier = margin)
@@ -226,6 +243,14 @@ private fun AttentionBody(
                     )
                 }
             }
+
+            if (attention.canCancel) {
+                CancelAttentionButton(
+                    enabled = !content.advancing,
+                    onClick = actions.onCancelRequested,
+                    modifier = margin,
+                )
+            }
         }
 
         attention.nextStepForMe?.let { step ->
@@ -235,6 +260,10 @@ private fun AttentionBody(
 
     content.confirming?.let { step ->
         ConfirmStepDialog(step = step, patientName = attention.counterpart.name, actions = actions)
+    }
+
+    content.cancelDraft?.let { draft ->
+        CancelAttentionDialog(draft = draft, counterpartName = attention.counterpart.name, actions = actions)
     }
 }
 
@@ -296,16 +325,20 @@ private fun Hero(attention: Attention) {
 
             ServiceStatus.COMPLETED -> {
                 stringResource(
-                    if (attention.iAmThePatient) {
-                        R.string.attention_hero_completed_patient_body
-                    } else {
+                    if (!attention.iAmThePatient && attention.conversationOpen) {
                         R.string.attention_hero_completed_professional_body
+                    } else {
+                        R.string.attention_hero_completed_patient_body
                     },
                 )
             }
 
             ServiceStatus.CANCELLED -> {
-                stringResource(R.string.attention_hero_cancelled_body)
+                when (attention.cancellation?.byMe) {
+                    true -> stringResource(R.string.attention_hero_cancelled_by_me_body)
+                    false -> stringResource(R.string.attention_hero_cancelled_by_other_body, name)
+                    null -> stringResource(R.string.attention_hero_cancelled_body)
+                }
             }
         }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale4)) {
@@ -393,6 +426,13 @@ private fun SummaryCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
+                if (attention.status == ServiceStatus.CANCELLED) {
+                    Text(
+                        text = stringResource(R.string.attention_no_payment_pending),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -726,6 +766,107 @@ private fun ConfirmStepDialog(
 }
 
 @Composable
+private fun CancellationReasonCard(
+    cancellation: AttentionCancellation,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    ) {
+        Column(
+            modifier = Modifier.padding(Spacing.cardPadding),
+            verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+        ) {
+            Text(
+                text = stringResource(R.string.attention_cancellation_reason_title),
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(text = cancellation.reason, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
+}
+
+// docs/decisions.md, 2026-11-04, HU-24: far from the thumb, but it reads as a button.
+@Composable
+private fun CancelAttentionButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val error = MaterialTheme.colorScheme.error
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.fillMaxWidth().heightIn(min = Spacing.minTouchTarget),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(Spacing.borderWidth, error),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = error),
+    ) {
+        Text(text = stringResource(R.string.attention_cancel_action), style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun CancelAttentionDialog(
+    draft: CancelDraft,
+    counterpartName: String,
+    actions: AttentionActions,
+) {
+    val scroll = rememberScrollState()
+    // The error sits under the field, below the fold at a large font.
+    LaunchedEffect(draft.error) {
+        if (draft.error != null) scroll.animateScrollTo(scroll.maxValue)
+    }
+
+    AlertDialog(
+        onDismissRequest = actions.onCancelDismissed,
+        title = { Text(text = stringResource(R.string.attention_cancel_dialog_title)) },
+        text = {
+            // Scrolls: at 200 % font size the text, the field and the error no longer fit.
+            Column(
+                modifier = Modifier.verticalScroll(scroll),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
+            ) {
+                Text(
+                    text = stringResource(R.string.attention_cancel_dialog_body, counterpartName),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                FormField(
+                    label = stringResource(R.string.attention_cancellation_reason_title),
+                    value = draft.reason,
+                    onValueChange = actions.onCancelReasonChanged,
+                    singleLine = false,
+                    errorText = draft.error?.let { stringResource(it.messageRes(), CancellationReason.MAX_LENGTH) },
+                    counterText =
+                        stringResource(
+                            R.string.attention_cancel_reason_count,
+                            CancellationReason.lengthOf(draft.reason),
+                            CancellationReason.MAX_LENGTH,
+                        ),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = actions.onCancelConfirmed,
+                enabled = !draft.sending,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                Text(text = stringResource(R.string.attention_cancel_action))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = actions.onCancelDismissed, enabled = !draft.sending) {
+                Text(text = stringResource(R.string.attention_cancel_back))
+            }
+        },
+    )
+}
+
+@Composable
 private fun SectionTitle(text: String) {
     Text(
         text = text,
@@ -791,6 +932,26 @@ private fun ServiceError.markMessageRes(): Int =
         ServiceError.NotSignedIn, ServiceError.Unexpected -> R.string.error_unexpected
     }
 
+@StringRes
+private fun CancelAttentionError.messageRes(): Int =
+    when (this) {
+        CancelAttentionError.ReasonEmpty -> {
+            R.string.attention_cancel_reason_empty
+        }
+
+        CancelAttentionError.ReasonTooLong -> {
+            R.string.attention_cancel_reason_too_long
+        }
+
+        is CancelAttentionError.Service -> {
+            when (error) {
+                ServiceError.NetworkUnavailable -> R.string.attention_cancel_failed_network
+                ServiceError.AttentionChanged -> R.string.attention_mark_changed
+                ServiceError.NotSignedIn, ServiceError.Unexpected -> R.string.error_unexpected
+            }
+        }
+    }
+
 private const val LARGE_FONT_SCALE = 1.5f
 
 private val previewAttention =
@@ -815,6 +976,7 @@ private val previewAttention =
                 latitude = -16.5103,
                 longitude = -68.1218,
             ),
+        conversationOpen = true,
     )
 
 private val previewInProgress =
@@ -916,10 +1078,79 @@ private fun AttentionPatientCompletedPreview() {
     )
 }
 
+private val previewCancelled =
+    previewAttention.copy(
+        status = ServiceStatus.CANCELLED,
+        iAmThePatient = true,
+        counterpart = previewForThePatient,
+        conversationOpen = false,
+        cancellation =
+            AttentionCancellation(
+                reason = PREVIEW_REASON,
+                byMe = false,
+                at = Instant.parse("2026-11-04T20:20:00Z"),
+            ),
+    )
+
+private const val PREVIEW_REASON = "Me surgió una emergencia familiar y hoy no voy a poder llegar."
+
 @Preview(name = "Attention cancelled", showBackground = true)
 @Composable
 private fun AttentionCancelledPreview() {
-    AttentionPreviewFrame(AttentionUiState.Content(previewAttention.copy(status = ServiceStatus.CANCELLED)))
+    AttentionPreviewFrame(AttentionUiState.Content(previewCancelled))
+}
+
+@Preview(name = "Attention cancelled dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionCancelledDarkPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewCancelled))
+}
+
+@Preview(name = "Attention cancelled large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionCancelledLargeFontPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewCancelled))
+}
+
+@Preview(name = "Attention cancelled by me", showBackground = true)
+@Composable
+private fun AttentionCancelledByMePreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(
+            previewCancelled.copy(
+                iAmThePatient = false,
+                counterpart = previewAttention.counterpart,
+                cancellation = previewCancelled.cancellation?.copy(byMe = true),
+            ),
+        ),
+    )
+}
+
+@Preview(name = "Attention cancelling", showBackground = true)
+@Composable
+private fun AttentionCancellingPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(previewAttention, cancelDraft = CancelDraft(reason = PREVIEW_REASON)),
+    )
+}
+
+@Preview(name = "Attention cancelling dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionCancellingDarkPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(previewAttention, cancelDraft = CancelDraft(reason = PREVIEW_REASON)),
+    )
+}
+
+@Preview(name = "Attention cancelling large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionCancellingLargeFontPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(
+            previewAttention,
+            cancelDraft = CancelDraft(error = CancelAttentionError.ReasonEmpty),
+        ),
+    )
 }
 
 @Preview(name = "Attention failed", showBackground = true)

@@ -38,9 +38,21 @@ data class Attention(
     val finishedAt: Instant?,
     val description: String?,
     val place: AttentionPlace,
+    val conversationOpen: Boolean,
+    val conversationWritableUntil: Instant? = null,
+    val cancellation: AttentionCancellation? = null,
 ) {
     val nextStepForMe: AttentionStep? get() = if (iAmThePatient) null else status.nextStep()
+
+    // RF-10.3: either party, until it is completed.
+    val canCancel: Boolean get() = status == ServiceStatus.ASSIGNED || status == ServiceStatus.IN_PROGRESS
 }
+
+data class AttentionCancellation(
+    val reason: String,
+    val byMe: Boolean,
+    val at: Instant,
+)
 
 // docs/decisions.md, 2026-11-04, HU-23: the engine leaves out what this reader may
 // no longer see, so everything but the city can be absent.

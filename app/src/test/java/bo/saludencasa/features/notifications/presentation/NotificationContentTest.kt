@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.ProjectSources
+import bo.saludencasa.features.notifications.attentionCancelled
 import bo.saludencasa.features.notifications.domain.model.NotificationEvent
 import bo.saludencasa.features.notifications.everyPayload
 import bo.saludencasa.features.notifications.professionalArrived
@@ -77,5 +78,6 @@ class NotificationContentTest {
     fun theProgressOfAnAttentionHasItsOwnChannel() {
         assertEquals(NotificationChannelSpec.ATTENTIONS, professionalArrived().channel())
         assertEquals(NotificationChannelSpec.ATTENTIONS, serviceCompleted().channel())
+        assertEquals(NotificationChannelSpec.ATTENTIONS, attentionCancelled().channel())
     }
 }

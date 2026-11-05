@@ -2,7 +2,9 @@ package bo.saludencasa.features.services.domain.model
 
 import bo.saludencasa.features.services.attention
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AttentionTest {
@@ -14,6 +16,17 @@ class AttentionTest {
         assertEquals(AttentionStep.MarkCompleted, ServiceStatus.IN_PROGRESS.nextStep())
         assertEquals(ServiceStatus.IN_PROGRESS, AttentionStep.MarkArrival.targetStatus)
         assertEquals(ServiceStatus.COMPLETED, AttentionStep.MarkCompleted.targetStatus)
+    }
+
+    // RF-10.3, and cannotCancelCompletedService on the phone's side.
+    @Test
+    fun onlyAnAttentionNotYetFinishedCanBeCancelled() {
+        listOf(true, false).forEach { iAmThePatient ->
+            assertTrue(attention(status = ServiceStatus.ASSIGNED, iAmThePatient = iAmThePatient).canCancel)
+            assertTrue(attention(status = ServiceStatus.IN_PROGRESS, iAmThePatient = iAmThePatient).canCancel)
+            assertFalse(attention(status = ServiceStatus.COMPLETED, iAmThePatient = iAmThePatient).canCancel)
+            assertFalse(attention(status = ServiceStatus.CANCELLED, iAmThePatient = iAmThePatient).canCancel)
+        }
     }
 
     // cannotMarkArrivalOnCancelledService.

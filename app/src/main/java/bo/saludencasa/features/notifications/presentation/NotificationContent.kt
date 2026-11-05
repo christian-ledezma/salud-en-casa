@@ -27,6 +27,7 @@ private fun PushPayload.titleRes(): Int =
         is PushPayload.MessageReceived -> R.string.notification_message_received_title
         is PushPayload.ProfessionalArrived -> R.string.notification_professional_arrived_title
         is PushPayload.ServiceCompleted -> R.string.notification_service_completed_title
+        is PushPayload.AttentionCancelled -> R.string.notification_attention_cancelled_title
     }
 
 // RF-09.10.
@@ -100,6 +101,10 @@ internal fun PushPayload.text(
             is PushPayload.ServiceCompleted -> {
                 resources.getString(R.string.notification_service_completed_body, senderName, type)
             }
+
+            is PushPayload.AttentionCancelled -> {
+                resources.getString(R.string.notification_attention_cancelled_body, senderName, type)
+            }
         }
     return NotificationText(title = resources.getString(titleRes()), body = body)
 }
@@ -126,5 +131,6 @@ internal fun PushPayload.channel(): NotificationChannelSpec =
 
         is PushPayload.ProfessionalArrived,
         is PushPayload.ServiceCompleted,
+        is PushPayload.AttentionCancelled,
         -> NotificationChannelSpec.ATTENTIONS
     }

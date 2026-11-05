@@ -1,6 +1,8 @@
 package bo.saludencasa.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +26,7 @@ fun FormField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     errorText: String? = null,
+    counterText: String? = null,
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
 ) {
@@ -44,13 +47,23 @@ fun FormField(
             shape = MaterialTheme.shapes.small,
             colors = OutlinedTextFieldDefaults.colors(),
         )
-        if (errorText != null) {
+        if (errorText != null || counterText != null) {
             Spacer(modifier = Modifier.height(Spacing.scale4))
-            Text(
-                text = errorText,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.error,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.scale12)) {
+                Text(
+                    text = errorText.orEmpty(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f),
+                )
+                counterText?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

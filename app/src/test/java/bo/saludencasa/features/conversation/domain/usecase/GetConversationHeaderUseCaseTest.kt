@@ -21,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 class GetConversationHeaderUseCaseTest {
     private val profiles = FakeProfileRepository(profileResult = professional(ProfessionalType.NURSE))
@@ -31,10 +32,20 @@ class GetConversationHeaderUseCaseTest {
     private suspend fun header(
         status: ServiceStatus,
         iAmThePatient: Boolean = false,
+        conversationOpen: Boolean = status != ServiceStatus.CANCELLED,
+        writableUntil: Instant? = null,
     ): ConversationHeader {
         val services =
             FakeServiceRepository().apply {
-                result = AttentionResult.Loaded(attention(status = status, iAmThePatient = iAmThePatient))
+                result =
+                    AttentionResult.Loaded(
+                        attention(
+                            status = status,
+                            iAmThePatient = iAmThePatient,
+                            conversationOpen = conversationOpen,
+                            conversationWritableUntil = writableUntil,
+                        ),
+                    )
             }
         val loaded =
             GetConversationHeaderUseCase(GetAttentionUseCase(services), GetProfileUseCase(profiles))(REQUEST_ID)
@@ -48,11 +59,28 @@ class GetConversationHeaderUseCaseTest {
             assertEquals(false, header(ServiceStatus.CANCELLED).canWrite)
         }
 
-    // The payment is confirmed after completion, and it may need coordinating.
+    // docs/decisions.md, 2026-11-04, HU-24: the window is the engine's.
     @Test
-    fun aCompletedAttentionStaysOpen() =
+    fun aCompletedAttentionTakesMessagesWhileTheEngineSaysSoAndKnowsUntilWhen() =
         runTest {
-            assertEquals(true, header(ServiceStatus.COMPLETED).canWrite)
+            val until = Instant.parse("2026-11-16T19:40:00Z")
+
+            val open = header(ServiceStatus.COMPLETED, conversationOpen = true, writableUntil = until)
+            assertTrue(open.canWrite)
+            assertEquals(until, open.writableUntil)
+
+            val closed = header(ServiceStatus.COMPLETED, conversationOpen = false, writableUntil = until)
+            assertFalse(closed.canWrite)
+            assertEquals(until, closed.writableUntil)
+        }
+
+    @Test
+    fun pastItsWindowTheProfessionalNoLongerRecords() =
+        runTest {
+            val closed = header(ServiceStatus.COMPLETED, conversationOpen = false)
+
+            assertFalse(closed.canRecord)
+            assertFalse(closed.showsStudentNotice)
         }
 
     // docs/decisions.md, 2026-11-03, HU-22: what the insert policy allows, so the

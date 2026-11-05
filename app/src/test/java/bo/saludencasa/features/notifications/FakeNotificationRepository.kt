@@ -149,6 +149,11 @@ fun professionalArrived(senderName: String = "María Flores"): PushPayload =
 fun serviceCompleted(senderName: String = "María Flores"): PushPayload =
     PushPayload.ServiceCompleted(pushSubject(recipientRole = UserRole.PATIENT), senderName)
 
+fun attentionCancelled(
+    recipientRole: UserRole = UserRole.PROFESSIONAL,
+    senderName: String = "Ana Quispe",
+): PushPayload = PushPayload.AttentionCancelled(pushSubject(recipientRole = recipientRole), senderName)
+
 // One of each, so a test that walks every event cannot miss one: the sealed
 // hierarchy is compared against this list.
 fun everyPayload(): List<PushPayload> =
@@ -163,4 +168,5 @@ fun everyPayload(): List<PushPayload> =
         messageReceived(),
         professionalArrived(),
         serviceCompleted(),
+        attentionCancelled(),
     )

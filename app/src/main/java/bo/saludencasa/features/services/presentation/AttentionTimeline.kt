@@ -25,7 +25,7 @@ internal fun Attention.timeline(): List<TimelineStep> {
         return listOfNotNull(
             agreed,
             startedAt?.let { TimelineStep(R.string.attention_step_arrival, TimelineStepState.DONE, it) },
-            TimelineStep(R.string.attention_step_cancelled, TimelineStepState.CANCELLED),
+            TimelineStep(R.string.attention_step_cancelled, TimelineStepState.CANCELLED, cancellation?.at),
         )
     }
     return listOf(

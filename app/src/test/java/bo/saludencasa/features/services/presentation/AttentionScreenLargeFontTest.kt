@@ -1,5 +1,8 @@
 package bo.saludencasa.features.services.presentation
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -11,7 +14,9 @@ import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.services.attention
 import bo.saludencasa.features.services.attentionPlace
 import bo.saludencasa.features.services.domain.model.Attention
+import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionStep
+import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.ui.assertFitsTheScreen
@@ -22,6 +27,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.Locale
 
 @RunWith(AndroidJUnit4::class)
@@ -141,6 +147,112 @@ class AttentionScreenLargeFontTest {
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText("La Paz"))
         composeRule.onNodeWithText(string(R.string.attention_directions)).assertDoesNotExist()
+    }
+
+    private fun cancelButton() = composeRule.onNodeWithText(string(R.string.attention_cancel_action))
+
+    // RF-10.3.
+    @Test
+    fun bothPartiesReachTheCancelButtonUntilItIsCompleted() {
+        val attentions =
+            listOf(
+                attention(status = ServiceStatus.ASSIGNED, iAmThePatient = true),
+                attention(status = ServiceStatus.IN_PROGRESS, iAmThePatient = false),
+            )
+        var current by mutableStateOf(attentions.first())
+        composeRule.setContentAtDoubleFontScale {
+            AttentionContent(uiState = AttentionUiState.Content(current), actions = AttentionActions())
+        }
+
+        attentions.forEach { each ->
+            current = each
+            composeRule.waitForIdle()
+            composeRule.assertFitsTheScreen(cancelButton().assertIsEnabled())
+        }
+    }
+
+    @Test
+    fun aMarkOnItsWayBlocksCancelling() {
+        show(AttentionUiState.Content(professional(), advancing = true))
+
+        composeRule.assertFitsTheScreen(cancelButton().assertIsNotEnabled())
+    }
+
+    // cannotCancelCompletedService.
+    @Test
+    fun aFinishedAttentionOffersNoCancel() {
+        show(AttentionUiState.Content(attention(status = ServiceStatus.COMPLETED)))
+
+        cancelButton().assertDoesNotExist()
+    }
+
+    @Test
+    fun theCancelDialogKeepsItsTextFieldAndAnswersOnScreen() {
+        show(
+            AttentionUiState.Content(
+                attention(),
+                cancelDraft = CancelDraft(error = CancelAttentionError.ReasonEmpty),
+            ),
+        )
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_cancel_dialog_title)),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_cancel_reason_empty)))
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_cancel_back)),
+        )
+        // The button behind the dialog says the same, so the answer is the last of the two.
+        val answers = composeRule.onAllNodesWithText(string(R.string.attention_cancel_action))
+        composeRule.assertFitsTheScreenWithoutScrolling(answers[answers.fetchSemanticsNodes().lastIndex])
+    }
+
+    @Test
+    fun aCancellationOnItsWayCannotBeAnsweredAgain() {
+        show(AttentionUiState.Content(attention(), cancelDraft = CancelDraft(reason = "x", sending = true)))
+
+        composeRule.onNodeWithText(string(R.string.attention_cancel_back)).assertIsNotEnabled()
+        val answers = composeRule.onAllNodesWithText(string(R.string.attention_cancel_action))
+        answers[answers.fetchSemanticsNodes().lastIndex].assertIsNotEnabled()
+    }
+
+    private fun cancelled(byMe: Boolean) =
+        attention(
+            status = ServiceStatus.CANCELLED,
+            cancellation = AttentionCancellation("No voy a poder llegar.", byMe, Instant.parse("2026-11-04T20:20:00Z")),
+        )
+
+    @Test
+    fun theCounterpartSeesWhoCancelledWhyAndThatNothingIsOwed() {
+        show(AttentionUiState.Content(cancelled(byMe = false)))
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_hero_cancelled_by_other_body, "María Quispe")),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("No voy a poder llegar."))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_no_payment_pending)))
+        cancelButton().assertDoesNotExist()
+    }
+
+    @Test
+    fun whoCancelledIsToldItWasThem() {
+        show(AttentionUiState.Content(cancelled(byMe = true)))
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_hero_cancelled_by_me_body)),
+        )
+    }
+
+    // Past its 7 days, the screen must not offer what the engine refuses.
+    @Test
+    fun afterItsWindowTheProfessionalIsNoLongerToldTheyCanRecord() {
+        show(
+            AttentionUiState.Content(
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, conversationOpen = false),
+            ),
+        )
+
+        composeRule.onNodeWithText(string(R.string.attention_hero_completed_professional_body)).assertDoesNotExist()
     }
 
     @Test

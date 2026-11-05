@@ -3,6 +3,7 @@ package bo.saludencasa.features.services.data.mapper
 import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionSummaryDto
 import bo.saludencasa.features.services.domain.model.Attention
+import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.Counterpart
@@ -46,6 +47,16 @@ internal fun AttentionDto.toAttention(): Attention? {
                 latitude = latitude,
                 longitude = longitude,
             ),
+        conversationOpen = conversationOpen,
+        conversationWritableUntil = conversationWritableUntil?.let { parseInstant(it) ?: return null },
+        cancellation =
+            cancelledAt?.let { at ->
+                AttentionCancellation(
+                    reason = cancellationReason ?: return null,
+                    byMe = cancelledByMe ?: return null,
+                    at = parseInstant(at) ?: return null,
+                )
+            },
     )
 }
 
@@ -81,5 +92,7 @@ internal fun Throwable.toServiceError(): ServiceError =
         }
     }
 
-// Raised by guard_service_transition.
-private val TRANSITION_REFUSALS = listOf("invalid_service_transition", "service_status_is_terminal")
+// Raised by guard_service_transition and, when both parties cancel at once, by
+// guard_service_direct_update.
+private val TRANSITION_REFUSALS =
+    listOf("invalid_service_transition", "service_status_is_terminal", "cancellation_reason_is_written_once")

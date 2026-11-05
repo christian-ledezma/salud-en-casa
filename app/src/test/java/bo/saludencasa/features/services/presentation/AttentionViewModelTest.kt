@@ -8,9 +8,11 @@ import bo.saludencasa.features.services.attention
 import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionStep
+import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
+import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ObserveAttentionUseCase
 import kotlinx.coroutines.CompletableDeferred
@@ -38,6 +40,7 @@ class AttentionViewModelTest {
             GetAttentionUseCase(repository),
             AdvanceAttentionUseCase(repository),
             ObserveAttentionUseCase(repository),
+            CancelAttentionUseCase(repository),
         )
 
     private fun TestScope.opened(attention: Attention): AttentionViewModel {
@@ -51,6 +54,16 @@ class AttentionViewModelTest {
 
     private fun professional(status: ServiceStatus = ServiceStatus.ASSIGNED) =
         attention(status = status, iAmThePatient = false)
+
+    private fun TestScope.cancel(
+        viewModel: AttentionViewModel,
+        reason: String = REASON,
+    ) {
+        viewModel.onCancelRequested()
+        viewModel.onCancelReasonChanged(reason)
+        viewModel.onCancelConfirmed()
+        advanceUntilIdle()
+    }
 
     private fun TestScope.confirm(viewModel: AttentionViewModel) {
         viewModel.onMarkRequested()
@@ -276,4 +289,168 @@ class AttentionViewModelTest {
 
             assertTrue(repository.advances.isEmpty())
         }
+
+    // RF-10.3.
+    @Test
+    fun eitherPartyCancelsAndTheScreenRereadsIt() =
+        runTest {
+            listOf(true, false).forEach { iAmThePatient ->
+                val viewModel = opened(attention(iAmThePatient = iAmThePatient))
+
+                cancel(viewModel)
+
+                val state = viewModel.content()
+                assertEquals(ServiceStatus.CANCELLED, state.attention.status)
+                assertEquals(REASON, state.attention.cancellation?.reason)
+                assertNull(state.cancelDraft)
+            }
+        }
+
+    @Test
+    fun aCompletedAttentionDoesNotOpenTheDialog() =
+        runTest {
+            val viewModel = opened(attention(status = ServiceStatus.COMPLETED))
+
+            viewModel.onCancelRequested()
+
+            assertNull(viewModel.content().cancelDraft)
+        }
+
+    // cancellationRequiresReason.
+    @Test
+    fun withoutAReasonNothingTravelsAndTheDialogSaysWhy() =
+        runTest {
+            val viewModel = opened(attention())
+
+            cancel(viewModel, reason = "   ")
+
+            assertTrue(repository.cancels.isEmpty())
+            assertEquals(CancelAttentionError.ReasonEmpty, viewModel.content().cancelDraft?.error)
+            assertEquals(ServiceStatus.ASSIGNED, viewModel.content().attention.status)
+        }
+
+    @Test
+    fun writingAgainClearsTheError() =
+        runTest {
+            val viewModel = opened(attention())
+            cancel(viewModel, reason = "")
+
+            viewModel.onCancelReasonChanged("N")
+
+            assertNull(viewModel.content().cancelDraft?.error)
+        }
+
+    // Writing the reason again would punish a dropped connection.
+    @Test
+    fun aFailureKeepsWhatWasWrittenAndAllowsRetrying() =
+        runTest {
+            repository.cancelError = ServiceError.NetworkUnavailable
+            val viewModel = opened(attention())
+
+            cancel(viewModel)
+
+            val draft = viewModel.content().cancelDraft
+            assertEquals(REASON, draft?.reason)
+            assertEquals(CancelAttentionError.Service(ServiceError.NetworkUnavailable), draft?.error)
+            assertEquals(false, draft?.sending)
+
+            repository.cancelError = null
+            viewModel.onCancelConfirmed()
+            advanceUntilIdle()
+
+            assertEquals(ServiceStatus.CANCELLED, viewModel.content().attention.status)
+        }
+
+    // A second tap must not send a second reason, which the engine would refuse.
+    @Test
+    fun aCancellationOnItsWayIsNotSentTwiceNorDismissed() =
+        runTest {
+            repository.holdCancel = CompletableDeferred()
+            val viewModel = opened(attention())
+
+            viewModel.onCancelRequested()
+            viewModel.onCancelReasonChanged(REASON)
+            viewModel.onCancelConfirmed()
+            advanceUntilIdle()
+            viewModel.onCancelConfirmed()
+            viewModel.onCancelDismissed()
+            advanceUntilIdle()
+
+            assertEquals(1, repository.cancels.size)
+            assertEquals(true, viewModel.content().cancelDraft?.sending)
+
+            repository.holdCancel?.complete(Unit)
+            advanceUntilIdle()
+            assertNull(viewModel.content().cancelDraft)
+        }
+
+    // The professional marked it completed while the dialog was open: the button would
+    // answer a question the screen stopped asking.
+    @Test
+    fun aSignalThatEndsTheAttentionClosesTheDialog() =
+        runTest {
+            val viewModel = opened(attention(status = ServiceStatus.IN_PROGRESS))
+            viewModel.onCancelRequested()
+            viewModel.onCancelReasonChanged(REASON)
+
+            repository.result = AttentionResult.Loaded(attention(status = ServiceStatus.COMPLETED))
+            repository.signals.emit(Unit)
+            advanceUntilIdle()
+
+            assertEquals(ServiceStatus.COMPLETED, viewModel.content().attention.status)
+            assertNull(viewModel.content().cancelDraft)
+        }
+
+    @Test
+    fun aSignalThatKeepsItCancellableKeepsTheDialogAndWhatWasWritten() =
+        runTest {
+            val viewModel = opened(attention(status = ServiceStatus.ASSIGNED))
+            viewModel.onCancelRequested()
+            viewModel.onCancelReasonChanged(REASON)
+
+            repository.result = AttentionResult.Loaded(attention(status = ServiceStatus.IN_PROGRESS))
+            repository.signals.emit(Unit)
+            advanceUntilIdle()
+
+            assertEquals(REASON, viewModel.content().cancelDraft?.reason)
+        }
+
+    // cannotCancelCompletedService: the engine refused because it got there first.
+    @Test
+    fun anAttentionThatChangedIsRereadWithoutAskingAnything() =
+        runTest {
+            val viewModel = opened(attention(status = ServiceStatus.IN_PROGRESS))
+            repository.cancelError = ServiceError.AttentionChanged
+            viewModel.onCancelRequested()
+            viewModel.onCancelReasonChanged(REASON)
+            repository.result = AttentionResult.Loaded(attention(status = ServiceStatus.COMPLETED))
+
+            viewModel.onCancelConfirmed()
+            advanceUntilIdle()
+
+            assertEquals(ServiceStatus.COMPLETED, viewModel.content().attention.status)
+            assertNull(viewModel.content().cancelDraft)
+        }
+
+    @Test
+    fun anAttentionThatChangedAndCannotBeRereadSaysSo() =
+        runTest {
+            val viewModel = opened(attention(status = ServiceStatus.IN_PROGRESS))
+            repository.cancelError = ServiceError.AttentionChanged
+            viewModel.onCancelRequested()
+            viewModel.onCancelReasonChanged(REASON)
+            repository.result = AttentionResult.Failure(ServiceError.NetworkUnavailable)
+
+            viewModel.onCancelConfirmed()
+            advanceUntilIdle()
+
+            assertEquals(
+                CancelAttentionError.Service(ServiceError.AttentionChanged),
+                viewModel.content().cancelDraft?.error,
+            )
+        }
+
+    private companion object {
+        const val REASON = "Me surgió una emergencia."
+    }
 }

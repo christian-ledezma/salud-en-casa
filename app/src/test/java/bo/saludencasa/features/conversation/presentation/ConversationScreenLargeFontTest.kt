@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
 import bo.saludencasa.core.util.AppointmentZone
+import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatTime
 import bo.saludencasa.features.conversation.domain.model.ConversationHeader
 import bo.saludencasa.features.conversation.domain.model.Message
@@ -129,6 +130,53 @@ class ConversationScreenLargeFontTest {
             composeRule.onNodeWithText(string(R.string.conversation_empty_title)),
         )
         composeRule.assertFitsTheScreenWithoutScrolling(sendButton())
+    }
+
+    // docs/decisions.md, 2026-11-04, HU-24: the date stays next to the field it is about.
+    @Test
+    fun aCompletedAttentionSaysUntilWhenItCanBeWrittenAboveTheComposer() {
+        val until = Instant.parse("2026-11-16T19:40:00Z")
+        show(
+            content(
+                header = header.copy(status = ServiceStatus.COMPLETED, canRecord = true, writableUntil = until),
+            ),
+        )
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(
+                string(R.string.conversation_writable_until, formatAppointment(until, Locale.getDefault())),
+            ),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(sendButton())
+    }
+
+    @Test
+    fun anAttentionUnderWayDoesNotSpeakOfADate() {
+        show(content(header = header.copy(status = ServiceStatus.IN_PROGRESS)))
+
+        composeRule
+            .onNodeWithText(string(R.string.conversation_writable_until, ""), substring = true)
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun pastItsWindowTheNoticeSaysUntilWhenAndTheComposerIsGone() {
+        val until = Instant.parse("2026-11-02T14:05:00Z")
+        show(
+            content(
+                messages = listOf(message("m1", "Gracias por todo.", false, readAt)),
+                header = header.copy(status = ServiceStatus.COMPLETED, canWrite = false, writableUntil = until),
+            ),
+        )
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(
+                string(R.string.conversation_closed_expired_notice, formatAppointment(until, Locale.getDefault())),
+            ),
+        )
+        composeRule.onNodeWithText(string(R.string.conversation_closed_notice)).assertDoesNotExist()
+        composeRule.onNodeWithText("Gracias por todo.").assertExists()
+        sendButton().assertDoesNotExist()
     }
 
     // A cancelled attention is read only: the notice takes the composer's place.

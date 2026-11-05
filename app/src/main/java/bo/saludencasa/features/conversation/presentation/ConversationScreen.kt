@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
@@ -58,6 +59,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bo.saludencasa.R
 import bo.saludencasa.core.util.AppointmentZone
+import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatFullDate
 import bo.saludencasa.core.util.formatTime
 import bo.saludencasa.features.conversation.domain.model.ConversationHeader
@@ -251,7 +253,7 @@ private fun ConversationBody(
         if (content.header.canWrite) {
             Composer(content = content, actions = actions)
         } else {
-            ClosedNotice()
+            ClosedNotice(writableUntil = content.header.writableUntil)
         }
     }
 }
@@ -632,6 +634,7 @@ private fun Composer(
             modifier = Modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         ) {
+            content.header.writableUntil?.let { until -> WritableUntilNotice(until = until) }
             if (content.header.canRecord) {
                 WorkRecordToggle(selected = recording, onSelectedChange = actions.onRecordingChange)
             }
@@ -741,8 +744,34 @@ private fun WorkRecordNotices(showsStudentNotice: Boolean) {
     )
 }
 
+// docs/decisions.md, 2026-11-04, HU-24: the date, because a count of days ages with the
+// screen open.
 @Composable
-private fun ClosedNotice() {
+private fun WritableUntilNotice(until: Instant) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.DateRange,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(Spacing.scale20),
+        )
+        Text(
+            text =
+                stringResource(
+                    R.string.conversation_writable_until,
+                    formatAppointment(until, LocalConfiguration.current.locales[0]),
+                ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun ClosedNotice(writableUntil: Instant?) {
     BottomActionBar {
         Row(
             horizontalArrangement = Arrangement.spacedBy(Spacing.scale12),
@@ -755,7 +784,13 @@ private fun ClosedNotice() {
                 modifier = Modifier.size(Spacing.scale20),
             )
             Text(
-                text = stringResource(R.string.conversation_closed_notice),
+                text =
+                    writableUntil?.let {
+                        stringResource(
+                            R.string.conversation_closed_expired_notice,
+                            formatAppointment(it, LocalConfiguration.current.locales[0]),
+                        )
+                    } ?: stringResource(R.string.conversation_closed_notice),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -915,6 +950,46 @@ private fun ConversationClosedPreview() {
     ConversationPreviewFrame(
         previewContent.copy(header = previewHeader.copy(status = ServiceStatus.CANCELLED, canWrite = false)),
     )
+}
+
+private val previewCompletedHeader =
+    previewHeader.copy(
+        status = ServiceStatus.COMPLETED,
+        writableUntil = Instant.parse("2026-11-16T19:40:00Z"),
+    )
+
+@Preview(name = "Conversation completed", showBackground = true)
+@Composable
+private fun ConversationCompletedPreview() {
+    ConversationPreviewFrame(previewContent.copy(header = previewCompletedHeader))
+}
+
+@Preview(
+    name = "Conversation completed dark",
+    showBackground = true,
+    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun ConversationCompletedDarkPreview() {
+    ConversationPreviewFrame(previewContent.copy(header = previewCompletedHeader.copy(canRecord = true)))
+}
+
+@Preview(name = "Conversation completed large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun ConversationCompletedLargeFontPreview() {
+    ConversationPreviewFrame(previewContent.copy(header = previewCompletedHeader.copy(canRecord = true)))
+}
+
+@Preview(name = "Conversation window closed", showBackground = true)
+@Composable
+private fun ConversationWindowClosedPreview() {
+    ConversationPreviewFrame(previewContent.copy(header = previewCompletedHeader.copy(canWrite = false)))
+}
+
+@Preview(name = "Conversation window closed large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun ConversationWindowClosedLargeFontPreview() {
+    ConversationPreviewFrame(previewContent.copy(header = previewCompletedHeader.copy(canWrite = false)))
 }
 
 @Preview(name = "Conversation not sent", showBackground = true)

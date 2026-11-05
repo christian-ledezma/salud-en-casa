@@ -15,6 +15,11 @@ class AttentionMapperTest {
         status: String = "ASSIGNED",
         createdAt: String = "2026-10-29T12:00:00Z",
         iAmPatient: Boolean = true,
+        conversationOpen: Boolean = true,
+        conversationWritableUntil: String? = null,
+        cancellationReason: String? = null,
+        cancelledByMe: Boolean? = null,
+        cancelledAt: String? = null,
     ) = AttentionDto(
         serviceId = "s1",
         requestId = "r1",
@@ -27,6 +32,11 @@ class AttentionMapperTest {
         counterpartPhotoUrl = null,
         iAmPatient = iAmPatient,
         city = "La Paz",
+        conversationOpen = conversationOpen,
+        conversationWritableUntil = conversationWritableUntil,
+        cancellationReason = cancellationReason,
+        cancelledByMe = cancelledByMe,
+        cancelledAt = cancelledAt,
     )
 
     @Test
@@ -59,6 +69,75 @@ class AttentionMapperTest {
         val attention = dto(createdAt = "2026-10-29T12:00:00.123456+00:00").toAttention()
 
         assertEquals(Instant.parse("2026-10-29T12:00:00.123456Z"), attention?.createdAt)
+    }
+
+    @Test
+    fun aCancelledRowCarriesWhyWhoAndWhen() {
+        val cancellation =
+            dto(
+                status = "CANCELLED",
+                cancellationReason = "No puedo llegar",
+                cancelledByMe = false,
+                cancelledAt = "2026-11-04T20:20:00.5+00:00",
+            ).toAttention()?.cancellation
+
+        assertEquals("No puedo llegar", cancellation?.reason)
+        assertEquals(false, cancellation?.byMe)
+        assertEquals(Instant.parse("2026-11-04T20:20:00.5Z"), cancellation?.at)
+    }
+
+    @Test
+    fun aRowNotCancelledHasNoCancellation() {
+        assertNull(dto().toAttention()?.cancellation)
+    }
+
+    @Test
+    fun anIncompleteOrUnreadableCancellationIsAContractMismatch() {
+        assertNull(
+            dto(status = "CANCELLED", cancelledByMe = true, cancelledAt = "2026-11-04T20:20:00+00:00").toAttention(),
+        )
+        assertNull(
+            dto(
+                status = "CANCELLED",
+                cancellationReason = "x",
+                cancelledAt = "2026-11-04T20:20:00+00:00",
+            ).toAttention(),
+        )
+        assertNull(
+            dto(
+                status = "CANCELLED",
+                cancellationReason = "x",
+                cancelledByMe = true,
+                cancelledAt = "ayer",
+            ).toAttention(),
+        )
+    }
+
+    // docs/decisions.md, 2026-11-04, HU-24: the window is the engine's, not the phone's.
+    @Test
+    fun theWindowOfTheConversationIsTheOneTheEngineSends() {
+        val attention =
+            dto(
+                status = "COMPLETED",
+                conversationOpen = false,
+                conversationWritableUntil = "2026-11-16T19:40:00+00:00",
+            ).toAttention()
+
+        assertEquals(false, attention?.conversationOpen)
+        assertEquals(Instant.parse("2026-11-16T19:40:00Z"), attention?.conversationWritableUntil)
+    }
+
+    @Test
+    fun anUnreadableWindowIsAContractMismatch() {
+        assertNull(dto(conversationWritableUntil = "pronto").toAttention())
+    }
+
+    // Both parties cancelled at once: the second one finds it done, and rereads.
+    @Test
+    fun aReasonAlreadyWrittenMeansTheAttentionChanged() {
+        val refused = IllegalStateException("cancellation_reason_is_written_once")
+
+        assertEquals(ServiceError.AttentionChanged, refused.toServiceError())
     }
 
     private fun summaryDto(

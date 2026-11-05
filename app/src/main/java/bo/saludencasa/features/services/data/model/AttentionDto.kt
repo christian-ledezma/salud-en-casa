@@ -62,6 +62,11 @@ data class AttentionDto(
     val reference: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    @SerialName("conversation_open") val conversationOpen: Boolean,
+    @SerialName("conversation_writable_until") val conversationWritableUntil: String? = null,
+    @SerialName("cancellation_reason") val cancellationReason: String? = null,
+    @SerialName("cancelled_by_me") val cancelledByMe: Boolean? = null,
+    @SerialName("cancelled_at") val cancelledAt: String? = null,
 )
 
 @Serializable

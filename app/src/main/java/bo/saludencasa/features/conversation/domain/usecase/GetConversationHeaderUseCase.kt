@@ -27,11 +27,11 @@ class GetConversationHeaderUseCase(
                         counterpartPhotoUrl = attention.counterpart.photoUrl,
                         serviceTypeName = attention.serviceTypeName,
                         status = attention.status,
-                        // The insert policy says the same (docs/decisions.md,
-                        // 2026-11-03, HU-21); this only spares a refused send.
-                        canWrite = attention.status != ServiceStatus.CANCELLED,
+                        // docs/decisions.md, 2026-11-04, HU-24: the engine answers.
+                        canWrite = attention.conversationOpen,
                         canRecord = canRecord,
                         showsStudentNotice = canRecord && mayBeAStudent(),
+                        writableUntil = attention.conversationWritableUntil,
                     ),
                 )
             }
@@ -53,7 +53,9 @@ class GetConversationHeaderUseCase(
 
     // The insert policy says the same (docs/decisions.md, 2026-11-03, HU-22).
     private fun Attention.canRecord(): Boolean =
-        !iAmThePatient && (status == ServiceStatus.IN_PROGRESS || status == ServiceStatus.COMPLETED)
+        !iAmThePatient &&
+            conversationOpen &&
+            (status == ServiceStatus.IN_PROGRESS || status == ServiceStatus.COMPLETED)
 
     // docs/decisions.md, 2026-11-03, HU-22: with the type unknown, the notice shows.
     private suspend fun mayBeAStudent(): Boolean =

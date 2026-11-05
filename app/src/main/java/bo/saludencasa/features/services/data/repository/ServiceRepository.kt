@@ -9,9 +9,12 @@ import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
+import bo.saludencasa.features.services.domain.model.CancelAttentionError
+import bo.saludencasa.features.services.domain.model.CancelAttentionResult
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
+import bo.saludencasa.features.services.domain.vo.CancellationReason
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -93,6 +96,29 @@ class ServiceRepository(
             AdvanceAttentionResult.Failure(failure.toServiceError())
         }
     }
+
+    override suspend fun cancel(
+        requestId: String,
+        reason: CancellationReason,
+    ): CancelAttentionResult {
+        if (dataSource.currentUserId() == null) {
+            return cancelFailure(ServiceError.NotSignedIn)
+        }
+
+        return try {
+            if (dataSource.cancel(requestId, reason.value) == 0) {
+                cancelFailure(ServiceError.Unexpected)
+            } else {
+                CancelAttentionResult.Cancelled
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            cancelFailure(failure.toServiceError())
+        }
+    }
+
+    private fun cancelFailure(error: ServiceError) = CancelAttentionResult.Failure(CancelAttentionError.Service(error))
 
     override fun attentionSignals(requestId: String): Flow<Unit> {
         if (dataSource.currentUserId() == null) return emptyFlow()

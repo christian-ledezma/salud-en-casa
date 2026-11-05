@@ -91,5 +91,9 @@ class OpenNotificationUseCase(
             is PushPayload.ServiceCompleted -> {
                 NotificationDestination.Attention(subject.requestId)
             }
+
+            is PushPayload.AttentionCancelled -> {
+                NotificationDestination.Attention(subject.requestId)
+            }
         }
 }

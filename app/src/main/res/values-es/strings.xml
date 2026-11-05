@@ -608,13 +608,25 @@
     <string name="attention_hero_completed_title">Atención completada</string>
     <string name="attention_hero_cancelled_title">Atención cancelada</string>
     <string name="attention_hero_cancelled_body">La conversación queda disponible para leerla.</string>
+    <string name="attention_hero_cancelled_by_me_body">La cancelaste. La conversación queda disponible para leerla.</string>
+    <string name="attention_hero_cancelled_by_other_body">%1$s la canceló. La conversación queda disponible para leerla.</string>
+    <string name="attention_cancellation_reason_title">Motivo</string>
+    <string name="attention_no_payment_pending">Sin pago pendiente</string>
+    <string name="attention_cancel_action">Cancelar atención</string>
+    <string name="attention_cancel_back">Volver</string>
+    <string name="attention_cancel_dialog_title">¿Cancelar esta atención?</string>
+    <string name="attention_cancel_dialog_body">%1$s recibirá un aviso y verá el motivo. El pago pendiente se anula y la conversación queda solo para leer. Esto no se puede deshacer.</string>
+    <string name="attention_cancel_reason_count">%1$d / %2$d</string>
+    <string name="attention_cancel_reason_empty">Escribe el motivo para cancelar.</string>
+    <string name="attention_cancel_reason_too_long">El motivo admite hasta %1$d caracteres.</string>
+    <string name="attention_cancel_failed_network">No pudimos cancelar. Revisa tu conexión e inténtalo de nuevo.</string>
     <string name="attention_mark_arrival">Marcar llegada</string>
     <string name="attention_mark_completed">Marcar como completada</string>
     <string name="attention_mark_not_yet">Todavía no</string>
     <string name="attention_confirm_arrival_title">¿Ya llegaste al domicilio?</string>
     <string name="attention_confirm_arrival_body">Le avisaremos a %1$s que llegaste. Esto no se puede deshacer.</string>
     <string name="attention_confirm_completed_title">¿Terminaste la atención?</string>
-    <string name="attention_confirm_completed_body">Se habilitará la confirmación del pago y esto no se puede deshacer. Podrás seguir registrando lo realizado en la conversación.</string>
+    <string name="attention_confirm_completed_body">Se habilitará la confirmación del pago y esto no se puede deshacer. Podrás seguir registrando lo realizado en la conversación durante 7 días.</string>
     <string name="attention_mark_failed_network">No pudimos guardar la marca. Revisa tu conexión e inténtalo de nuevo.</string>
     <string name="attention_mark_changed">Esta atención cambió. Revisa su estado.</string>
 
@@ -652,6 +664,8 @@
     <string name="conversation_status_read">%1$s · Leído</string>
     <string name="conversation_not_sent">No se envió.</string>
     <string name="conversation_closed_notice">Esta atención se canceló. Puedes leer la conversación, pero ya no enviar mensajes.</string>
+    <string name="conversation_writable_until">Puedes escribir hasta el %1$s</string>
+    <string name="conversation_closed_expired_notice">Se podía escribir hasta el %1$s. Puedes leer la conversación, pero ya no enviar mensajes.</string>
     <string name="conversation_older_loading">Cargando mensajes anteriores</string>
     <string name="conversation_older_failed">No pudimos cargar los mensajes anteriores.</string>
     <string name="conversation_load_failed">No pudimos cargar la conversación</string>
@@ -686,7 +700,7 @@
     <string name="notification_channel_messages_name">Mensajes</string>
     <string name="notification_channel_messages_description">Mensajes nuevos en la conversación de cada atención. Nunca muestran el texto del mensaje.</string>
     <string name="notification_channel_attentions_name">Atenciones</string>
-    <string name="notification_channel_attentions_description">Cuando tu profesional llega al domicilio y cuando la atención se completa.</string>
+    <string name="notification_channel_attentions_description">Cuando tu profesional llega al domicilio, cuando la atención se completa y cuando alguien la cancela.</string>
     <string name="notification_request_nearby_title">Nueva solicitud cerca</string>
     <string name="notification_request_nearby_body">%1$s · %2$s</string>
     <string name="notification_appointment_scheduled_title">Te agendaron una cita</string>
@@ -707,6 +721,8 @@
     <string name="notification_professional_arrived_body">%1$s · %2$s</string>
     <string name="notification_service_completed_title">Atención completada</string>
     <string name="notification_service_completed_body">%1$s · %2$s</string>
+    <string name="notification_attention_cancelled_title">Atención cancelada</string>
+    <string name="notification_attention_cancelled_body">%1$s · %2$s</string>
     <string name="notification_public_body">Desbloquea el teléfono para ver el detalle.</string>
     <string name="notification_permission_title">Activa los avisos</string>
     <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti, cuando un paciente te agende una cita y cuando responda tu oferta, aunque no tengas la aplicación abierta.</string>

@@ -5,6 +5,7 @@ import bo.saludencasa.features.services.data.repository.ServiceRepository
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
+import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetActiveAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetMyAttentionsUseCase
@@ -24,6 +25,7 @@ val servicesModule =
         factory { GetActiveAttentionUseCase(get()) }
         factory { AdvanceAttentionUseCase(get()) }
         factory { ObserveAttentionUseCase(get()) }
+        factory { CancelAttentionUseCase(get()) }
 
         viewModel { (requestId: String) ->
             AttentionViewModel(
@@ -31,6 +33,7 @@ val servicesModule =
                 getAttention = get(),
                 advanceAttention = get(),
                 observeAttention = get(),
+                cancelAttention = get(),
             )
         }
         viewModel { (side: AttentionSide) -> MyAttentionsViewModel(side, get()) }

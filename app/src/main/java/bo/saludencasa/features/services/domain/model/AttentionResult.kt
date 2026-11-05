@@ -21,6 +21,24 @@ sealed interface AdvanceAttentionResult {
     ) : AdvanceAttentionResult
 }
 
+sealed interface CancelAttentionError {
+    data object ReasonEmpty : CancelAttentionError
+
+    data object ReasonTooLong : CancelAttentionError
+
+    data class Service(
+        val error: ServiceError,
+    ) : CancelAttentionError
+}
+
+sealed interface CancelAttentionResult {
+    data object Cancelled : CancelAttentionResult
+
+    data class Failure(
+        val error: CancelAttentionError,
+    ) : CancelAttentionResult
+}
+
 sealed interface AttentionResult {
     data class Loaded(
         val attention: Attention,

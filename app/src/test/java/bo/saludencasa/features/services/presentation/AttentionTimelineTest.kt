@@ -2,6 +2,7 @@ package bo.saludencasa.features.services.presentation
 
 import bo.saludencasa.R
 import bo.saludencasa.features.services.attention
+import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -60,6 +61,18 @@ class AttentionTimelineTest {
             listOf(R.string.attention_step_agreed, R.string.attention_step_arrival, R.string.attention_step_cancelled),
             afterArriving.map { it.titleRes },
         )
+    }
+
+    @Test
+    fun theCancellationCarriesItsTime() {
+        val at = Instant.parse("2026-11-04T20:20:00Z")
+        val cancelled =
+            attention(
+                status = ServiceStatus.CANCELLED,
+                cancellation = AttentionCancellation("x", byMe = false, at = at),
+            )
+
+        assertEquals(at, cancelled.timeline().last().at)
     }
 
     // The geo scheme takes latitude first; swapped, it opens the wrong place in

@@ -251,6 +251,26 @@ class PushPayloadTest {
         )
     }
 
+    // RF-09.10: the name of whoever cancelled and never the reason, which has no key.
+    @Test
+    fun parsesACancellationWithTheNameOfWhoeverCancelled() {
+        val wire = messageWire("event" to "ATTENTION_CANCELLED")
+
+        assertEquals(
+            "Ana Quispe",
+            (PushPayload.parse(wire).getOrThrow() as PushPayload.AttentionCancelled).senderName,
+        )
+        assertEquals(
+            "push_payload_missing_sender_name",
+            failureKey(
+                messageWire(
+                    "event" to "ATTENTION_CANCELLED",
+                    "senderName" to null,
+                ),
+            ),
+        )
+    }
+
     @Test
     fun rejectsTheProgressOfAnAttentionWithoutAName() {
         val arrived = messageWire("event" to "PROFESSIONAL_ARRIVED", "senderName" to null)
