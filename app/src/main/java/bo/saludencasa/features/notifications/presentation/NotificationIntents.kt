@@ -11,7 +11,9 @@ private const val ACTION_OPEN_NOTIFICATION = "bo.saludencasa.action.OPEN_NOTIFIC
 private const val EXTRA_PREFIX = "push."
 
 // The data URI is what keeps the pending intents of two requests apart:
-// extras do not take part in Intent.filterEquals.
+// extras do not take part in Intent.filterEquals. HU-37's two events have no
+// request, so the recipient takes its place: one person, one verification
+// notification at a time.
 internal fun notificationIntent(
     context: Context,
     payload: PushPayload,
@@ -23,7 +25,7 @@ internal fun notificationIntent(
                 .Builder()
                 .scheme("saludencasa")
                 .authority("notification")
-                .appendPath(payload.subject.requestId)
+                .appendPath(payload.subject.requestId ?: payload.subject.recipientId)
                 .build()
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         payload.toMap().forEach { (key, value) -> putExtra(EXTRA_PREFIX + key, value) }

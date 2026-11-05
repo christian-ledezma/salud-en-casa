@@ -6,7 +6,9 @@ import bo.saludencasa.features.notifications.REQUEST_ID
 import bo.saludencasa.features.notifications.SIGNED_IN_USER
 import bo.saludencasa.features.notifications.everyPayload
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.math.BigDecimal
@@ -358,6 +360,87 @@ class PushPayloadTest {
     @Test
     fun ignoresKeysItDoesNotKnow() {
         assertTrue(PushPayload.parse(wire("ttlSeconds" to "1800", "amountBob" to "90")).isSuccess)
+    }
+
+    private fun documentVerdictWire(vararg overrides: Pair<String, String?>): Map<String, String> {
+        val base =
+            mutableMapOf(
+                "event" to "DOCUMENT_VERDICT",
+                "recipientId" to SIGNED_IN_USER,
+                "status" to "APPROVED",
+                "documentCount" to "2",
+            )
+        overrides.forEach { (key, value) -> if (value == null) base.remove(key) else base[key] = value }
+        return base
+    }
+
+    // Neither HU-37 event is about a request: the subject carries only the
+    // recipient, unlike every other event's.
+    @Test
+    fun parsesADocumentVerdictWithItsStatusAndCount() {
+        val verdict = PushPayload.parse(documentVerdictWire()).getOrThrow() as PushPayload.DocumentVerdict
+
+        assertEquals(ReviewStatus.APPROVED, verdict.status)
+        assertEquals(2, verdict.documentCount)
+        assertNull(verdict.subject.requestId)
+        assertNull(verdict.subject.recipientRole)
+        assertNull(verdict.subject.serviceTypeName)
+    }
+
+    @Test
+    fun parsesARejectedDocumentVerdict() {
+        val verdict =
+            PushPayload
+                .parse(documentVerdictWire("status" to "REJECTED", "documentCount" to "1"))
+                .getOrThrow() as PushPayload.DocumentVerdict
+
+        assertEquals(ReviewStatus.REJECTED, verdict.status)
+        assertEquals(1, verdict.documentCount)
+    }
+
+    // PENDING is where a document starts, never a verdict an administrator left it at.
+    @Test
+    fun rejectsADocumentVerdictWithThePendingStatus() {
+        assertEquals(
+            "push_payload_invalid_status",
+            failureKey(documentVerdictWire("status" to "PENDING")),
+        )
+    }
+
+    @Test
+    fun rejectsADocumentVerdictWithoutACount() {
+        assertEquals(
+            "push_payload_invalid_document_count",
+            failureKey(documentVerdictWire("documentCount" to null)),
+        )
+    }
+
+    @Test
+    fun rejectsADocumentVerdictWithAZeroCount() {
+        assertEquals(
+            "push_payload_invalid_document_count",
+            failureKey(documentVerdictWire("documentCount" to "0")),
+        )
+    }
+
+    // RF-09.10: the reason is the administrator's, written on the engine side
+    // only to the document row, and has no key this payload ever reads.
+    @Test
+    fun aDocumentVerdictKeepsNoReasonEvenIfTheWireCarriedIt() {
+        val verdict = PushPayload.parse(documentVerdictWire("rejectionReason" to "Foto borrosa")).getOrThrow()
+
+        assertEquals(false, verdict.toMap().values.any { it.contains("borrosa") })
+    }
+
+    @Test
+    fun parsesAVerificationApprovedWithNoRequestOrRole() {
+        val approved =
+            PushPayload
+                .parse(mapOf("event" to "VERIFICATION_APPROVED", "recipientId" to SIGNED_IN_USER))
+                .getOrThrow() as PushPayload.VerificationApproved
+
+        assertNull(approved.subject.requestId)
+        assertNull(approved.subject.recipientRole)
     }
 
     // The tap intent carries the payload through toMap and back through parse;

@@ -25,6 +25,10 @@ sealed interface NotificationDestination {
     data class Conversation(
         val requestId: String,
     ) : NotificationDestination
+
+    // HU-37: the checklist of the person's own documents, the same for every
+    // role they hold. Opening it never switches the active role.
+    data object Verification : NotificationDestination
 }
 
 enum class DiscardReason {

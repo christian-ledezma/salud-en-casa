@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import bo.saludencasa.features.notifications.documentVerdict
 import bo.saludencasa.features.notifications.nearbyRequest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -31,6 +32,15 @@ class NotificationIntentsTest {
             }
 
         assertNull(intent.toPushPayload())
+    }
+
+    // HU-37: a tap for either event the data URI has no request for, with the
+    // recipient taking its place.
+    @Test
+    fun aVerificationNotificationGivesItsPayloadBack() {
+        val payload = documentVerdict()
+
+        assertEquals(payload, notificationIntent(context, payload).toPushPayload())
     }
 
     @Test

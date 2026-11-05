@@ -7,6 +7,7 @@ import bo.saludencasa.core.util.distanceText
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.notifications.domain.model.PushPayload
+import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import java.util.Locale
 
 internal data class NotificationText(
@@ -28,6 +29,8 @@ private fun PushPayload.titleRes(): Int =
         is PushPayload.ProfessionalArrived -> R.string.notification_professional_arrived_title
         is PushPayload.ServiceCompleted -> R.string.notification_service_completed_title
         is PushPayload.AttentionCancelled -> R.string.notification_attention_cancelled_title
+        is PushPayload.DocumentVerdict -> R.string.notification_document_verdict_title
+        is PushPayload.VerificationApproved -> R.string.notification_verification_approved_title
     }
 
 // RF-09.10.
@@ -105,6 +108,20 @@ internal fun PushPayload.text(
             is PushPayload.AttentionCancelled -> {
                 resources.getString(R.string.notification_attention_cancelled_body, senderName, type)
             }
+
+            is PushPayload.DocumentVerdict -> {
+                val plural =
+                    when (status) {
+                        ReviewStatus.APPROVED -> R.plurals.notification_document_verdict_approved_body
+                        ReviewStatus.REJECTED -> R.plurals.notification_document_verdict_rejected_body
+                        ReviewStatus.PENDING -> error("unreachable: a verdict is never PENDING")
+                    }
+                resources.getQuantityString(plural, documentCount, documentCount)
+            }
+
+            is PushPayload.VerificationApproved -> {
+                resources.getString(R.string.notification_verification_approved_body)
+            }
         }
     return NotificationText(title = resources.getString(titleRes()), body = body)
 }
@@ -133,4 +150,8 @@ internal fun PushPayload.channel(): NotificationChannelSpec =
         is PushPayload.ServiceCompleted,
         is PushPayload.AttentionCancelled,
         -> NotificationChannelSpec.ATTENTIONS
+
+        is PushPayload.DocumentVerdict,
+        is PushPayload.VerificationApproved,
+        -> NotificationChannelSpec.VERIFICATION
     }

@@ -61,6 +61,10 @@ private fun NavHostController.openFromNotification(destination: NotificationDest
             is NotificationDestination.Conversation -> {
                 ConversationRoute(destination.requestId)
             }
+
+            NotificationDestination.Verification -> {
+                VerificationRoute
+            }
         },
     )
 }

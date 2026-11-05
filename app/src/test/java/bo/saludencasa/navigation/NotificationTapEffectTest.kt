@@ -52,6 +52,7 @@ class NotificationTapEffectTest {
                 composable<OfferThreadRoute> { Text("thread") }
                 composable<AttentionRoute> { Text("attention") }
                 composable<ConversationRoute> { Text("conversation") }
+                composable<VerificationRoute> { Text("verification") }
             }
         }
     }
@@ -137,6 +138,18 @@ class NotificationTapEffectTest {
 
         assertEquals(REQUEST_ID, navController.currentBackStackEntry!!.toRoute<ConversationRoute>().requestId)
         assertEquals(REQUEST_ID, navController.previousBackStackEntry!!.toRoute<AttentionRoute>().requestId)
+    }
+
+    // HU-37: both verification events open the checklist, with the account
+    // rebuilt underneath it like every other tap.
+    @Test
+    fun aVerificationTapOpensTheChecklist() {
+        pending = nearbyRequest()
+        show(NotificationDestination.Verification)
+        finishStartup()
+
+        assertTrue(navController.currentDestination!!.hasRoute<VerificationRoute>())
+        assertTrue(navController.previousBackStackEntry!!.destination.hasRoute<HomeRoute>())
     }
 
     // Signed out, or meant for another account: the tap is spent and the

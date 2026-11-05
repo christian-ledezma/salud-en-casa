@@ -8,6 +8,7 @@ import bo.saludencasa.features.notifications.appointmentCancelled
 import bo.saludencasa.features.notifications.appointmentScheduled
 import bo.saludencasa.features.notifications.attentionCancelled
 import bo.saludencasa.features.notifications.counterOfferReceived
+import bo.saludencasa.features.notifications.documentVerdict
 import bo.saludencasa.features.notifications.domain.model.NotificationDestination
 import bo.saludencasa.features.notifications.domain.model.NotificationOpenResult
 import bo.saludencasa.features.notifications.messageReceived
@@ -17,6 +18,7 @@ import bo.saludencasa.features.notifications.offerReceived
 import bo.saludencasa.features.notifications.professionalArrived
 import bo.saludencasa.features.notifications.requestExpired
 import bo.saludencasa.features.notifications.serviceCompleted
+import bo.saludencasa.features.notifications.verificationApproved
 import bo.saludencasa.features.profile.FakeProfileRepository
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.domain.model.SwitchRoleResult
@@ -212,5 +214,18 @@ class OpenNotificationUseCaseTest {
                 assertEquals(role, profiles.lastActiveRole)
                 assertEquals(NotificationOpenResult.Open(NotificationDestination.Attention(REQUEST_ID)), result)
             }
+        }
+
+    // HU-37: the checklist answers to every role the person holds, so opening
+    // it switches nothing, whichever role was active.
+    @Test
+    fun verificationEventsOpenTheChecklistWithoutSwitchingRole() =
+        runTest {
+            val profiles = FakeProfileRepository(roleResult = loadedRoles(held = bothRoles, active = UserRole.PATIENT))
+            val checklist = NotificationOpenResult.Open(NotificationDestination.Verification)
+
+            assertEquals(checklist, useCase(profiles)(documentVerdict()))
+            assertEquals(checklist, useCase(profiles)(verificationApproved()))
+            assertEquals(0, profiles.switchAttempts)
         }
 }

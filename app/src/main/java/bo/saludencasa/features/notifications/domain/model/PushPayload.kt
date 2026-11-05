@@ -1,6 +1,7 @@
 package bo.saludencasa.features.notifications.domain.model
 
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.format.DateTimeParseException
@@ -17,13 +18,18 @@ enum class NotificationEvent {
     PROFESSIONAL_ARRIVED,
     SERVICE_COMPLETED,
     ATTENTION_CANCELLED,
+    DOCUMENT_VERDICT,
+    VERIFICATION_APPROVED,
 }
 
+// requestId, recipientRole and serviceTypeName are null for HU-37's two events:
+// neither is about a service_requests row, and the checklist they open answers
+// to every role the person holds, not to one of them.
 data class PushSubject(
-    val requestId: String,
+    val requestId: String?,
     val recipientId: String,
-    val recipientRole: UserRole,
-    val serviceTypeName: String,
+    val recipientRole: UserRole?,
+    val serviceTypeName: String?,
 )
 
 // RF-09.10.
@@ -125,13 +131,32 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.ATTENTION_CANCELLED
     }
 
+    // Reaches whoever uploaded the document, for one verdict or several
+    // registered together (RF-09.9). The reason, written by the administrator,
+    // never travels (RF-09.10): it is read by opening the checklist, as before
+    // this event existed.
+    data class DocumentVerdict(
+        override val subject: PushSubject,
+        val status: ReviewStatus,
+        val documentCount: Int,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.DOCUMENT_VERDICT
+    }
+
+    // Reaches the professional once they are searchable (RF-09.9, RF-04.5).
+    data class VerificationApproved(
+        override val subject: PushSubject,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.VERIFICATION_APPROVED
+    }
+
     fun toMap(): Map<String, String> =
         buildMap {
             put(KEY_EVENT, event.name)
-            put(KEY_REQUEST_ID, subject.requestId)
+            subject.requestId?.let { put(KEY_REQUEST_ID, it) }
             put(KEY_RECIPIENT_ID, subject.recipientId)
-            put(KEY_RECIPIENT_ROLE, subject.recipientRole.name)
-            put(KEY_SERVICE_TYPE_NAME, subject.serviceTypeName)
+            subject.recipientRole?.let { put(KEY_RECIPIENT_ROLE, it.name) }
+            subject.serviceTypeName?.let { put(KEY_SERVICE_TYPE_NAME, it) }
             when (this@PushPayload) {
                 is NearbyRequest -> {
                     put(KEY_DISTANCE_M, distanceM.toString())
@@ -178,6 +203,15 @@ sealed interface PushPayload {
                 is AttentionCancelled -> {
                     put(KEY_SENDER_NAME, senderName)
                 }
+
+                is DocumentVerdict -> {
+                    put(KEY_STATUS, status.name)
+                    put(KEY_DOCUMENT_COUNT, documentCount.toString())
+                }
+
+                is VerificationApproved -> {
+                    // Nothing of its own: the subject carries all of it.
+                }
             }
         }
 
@@ -192,19 +226,41 @@ sealed interface PushPayload {
         const val KEY_AMOUNT_BOB = "amountBob"
         const val KEY_PROFESSIONAL_ID = "professionalId"
         const val KEY_SENDER_NAME = "senderName"
+        const val KEY_STATUS = "status"
+        const val KEY_DOCUMENT_COUNT = "documentCount"
 
         private val UUID_PATTERN = Regex("^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
         private val RECIPIENT_ROLES = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
+
+        // PENDING is never a verdict: it is where a document starts, not where
+        // an administrator leaves it.
+        private val VERDICT_STATUSES = setOf(ReviewStatus.APPROVED, ReviewStatus.REJECTED)
 
         fun parse(data: Map<String, String>): Result<PushPayload> {
             val event =
                 NotificationEvent.entries.firstOrNull { it.name == data[KEY_EVENT] }
                     ?: return failure("push_payload_unknown_event")
-            val requestId =
-                data[KEY_REQUEST_ID]?.takeIf(UUID_PATTERN::matches) ?: return failure("push_payload_invalid_request")
             val recipientId =
                 data[KEY_RECIPIENT_ID]?.takeIf(UUID_PATTERN::matches)
                     ?: return failure("push_payload_invalid_recipient")
+
+            // Neither event below is about a request, so neither requires one,
+            // a role or a service type: the subject carries only the recipient.
+            if (event == NotificationEvent.DOCUMENT_VERDICT) {
+                val subject = PushSubject(requestId = null, recipientId, recipientRole = null, serviceTypeName = null)
+                val status = data.verdictStatusOrNull() ?: return failure("push_payload_invalid_status")
+                val documentCount =
+                    data[KEY_DOCUMENT_COUNT]?.toIntOrNull()?.takeIf { it > 0 }
+                        ?: return failure("push_payload_invalid_document_count")
+                return Result.success(DocumentVerdict(subject, status, documentCount))
+            }
+            if (event == NotificationEvent.VERIFICATION_APPROVED) {
+                val subject = PushSubject(requestId = null, recipientId, recipientRole = null, serviceTypeName = null)
+                return Result.success(VerificationApproved(subject))
+            }
+
+            val requestId =
+                data[KEY_REQUEST_ID]?.takeIf(UUID_PATTERN::matches) ?: return failure("push_payload_invalid_request")
             val role =
                 RECIPIENT_ROLES.firstOrNull { it.name == data[KEY_RECIPIENT_ROLE] }
                     ?: return failure("push_payload_invalid_role")
@@ -275,10 +331,17 @@ sealed interface PushPayload {
                     val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
                     Result.success(AttentionCancelled(subject, senderName))
                 }
+
+                NotificationEvent.DOCUMENT_VERDICT, NotificationEvent.VERIFICATION_APPROVED -> {
+                    error("unreachable: $event already returned above")
+                }
             }
         }
 
         private fun Map<String, String>.senderNameOrNull(): String? = this[KEY_SENDER_NAME]?.takeIf(String::isNotBlank)
+
+        private fun Map<String, String>.verdictStatusOrNull(): ReviewStatus? =
+            this[KEY_STATUS]?.let { raw -> VERDICT_STATUSES.firstOrNull { it.name == raw } }
 
         private fun Map<String, String>.professionalIdOrNull(): String? =
             this[KEY_PROFESSIONAL_ID]?.takeIf(UUID_PATTERN::matches)

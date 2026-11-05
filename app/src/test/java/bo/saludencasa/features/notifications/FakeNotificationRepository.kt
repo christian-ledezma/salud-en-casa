@@ -5,6 +5,7 @@ import bo.saludencasa.features.notifications.domain.model.PushPayload
 import bo.saludencasa.features.notifications.domain.model.PushSubject
 import bo.saludencasa.features.notifications.domain.repository.INotificationRepository
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.math.BigDecimal
@@ -154,6 +155,20 @@ fun attentionCancelled(
     senderName: String = "Ana Quispe",
 ): PushPayload = PushPayload.AttentionCancelled(pushSubject(recipientRole = recipientRole), senderName)
 
+// Neither HU-37 event is about a request: no requestId, role or service type
+// to fix.
+fun verificationSubject(recipientId: String = SIGNED_IN_USER): PushSubject =
+    PushSubject(requestId = null, recipientId = recipientId, recipientRole = null, serviceTypeName = null)
+
+fun documentVerdict(
+    recipientId: String = SIGNED_IN_USER,
+    status: ReviewStatus = ReviewStatus.APPROVED,
+    documentCount: Int = 1,
+): PushPayload = PushPayload.DocumentVerdict(verificationSubject(recipientId), status, documentCount)
+
+fun verificationApproved(recipientId: String = SIGNED_IN_USER): PushPayload =
+    PushPayload.VerificationApproved(verificationSubject(recipientId))
+
 // One of each, so a test that walks every event cannot miss one: the sealed
 // hierarchy is compared against this list.
 fun everyPayload(): List<PushPayload> =
@@ -169,4 +184,6 @@ fun everyPayload(): List<PushPayload> =
         professionalArrived(),
         serviceCompleted(),
         attentionCancelled(),
+        documentVerdict(),
+        verificationApproved(),
     )

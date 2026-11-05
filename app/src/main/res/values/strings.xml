@@ -703,6 +703,8 @@
     <string name="notification_channel_messages_description">Mensajes nuevos en la conversación de cada atención. Nunca muestran el texto del mensaje.</string>
     <string name="notification_channel_attentions_name">Atenciones</string>
     <string name="notification_channel_attentions_description">Cuando tu profesional llega al domicilio, cuando la atención se completa y cuando alguien la cancela.</string>
+    <string name="notification_channel_verification_name">Verificación</string>
+    <string name="notification_channel_verification_description">Cuando el administrador revisa tus documentos y cuando quedas verificado.</string>
     <string name="notification_request_nearby_title">Nueva solicitud cerca</string>
     <string name="notification_request_nearby_body">%1$s · %2$s</string>
     <string name="notification_appointment_scheduled_title">Te agendaron una cita</string>
@@ -725,6 +727,17 @@
     <string name="notification_service_completed_body">%1$s · %2$s</string>
     <string name="notification_attention_cancelled_title">Atención cancelada</string>
     <string name="notification_attention_cancelled_body">%1$s · %2$s</string>
+    <string name="notification_document_verdict_title">Verificación</string>
+    <plurals name="notification_document_verdict_approved_body">
+        <item quantity="one">Tu documento fue aprobado.</item>
+        <item quantity="other">Tus %d documentos fueron aprobados.</item>
+    </plurals>
+    <plurals name="notification_document_verdict_rejected_body">
+        <item quantity="one">Tu documento fue rechazado.</item>
+        <item quantity="other">Tus %d documentos fueron rechazados.</item>
+    </plurals>
+    <string name="notification_verification_approved_title">Verificación aprobada</string>
+    <string name="notification_verification_approved_body">Ya apareces en las búsquedas de pacientes cercanos.</string>
     <string name="notification_public_body">Desbloquea el teléfono para ver el detalle.</string>
     <string name="notification_permission_title">Activa los avisos</string>
     <string name="notification_permission_body_professional">Te avisamos cuando se publique una solicitud cerca de ti, cuando un paciente te agende una cita y cuando responda tu oferta, aunque no tengas la aplicación abierta.</string>

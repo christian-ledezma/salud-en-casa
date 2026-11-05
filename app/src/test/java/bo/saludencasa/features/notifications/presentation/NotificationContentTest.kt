@@ -6,12 +6,16 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.ProjectSources
 import bo.saludencasa.features.notifications.attentionCancelled
+import bo.saludencasa.features.notifications.documentVerdict
 import bo.saludencasa.features.notifications.domain.model.NotificationEvent
 import bo.saludencasa.features.notifications.everyPayload
 import bo.saludencasa.features.notifications.professionalArrived
 import bo.saludencasa.features.notifications.serviceCompleted
+import bo.saludencasa.features.notifications.verificationApproved
+import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,10 +69,13 @@ class NotificationContentTest {
         val locale = Locale.forLanguageTag("es")
         val resources = contextIn(locale).resources
         everyPayload().forEach { payload ->
+            // HU-37's two events carry no service type: there is nothing of the
+            // kind to check for either version of their text.
+            val type = payload.subject.serviceTypeName ?: return@forEach
             val public = payload.publicText(resources)
-            assertFalse(public.title.contains(payload.subject.serviceTypeName))
-            assertFalse(public.body.contains(payload.subject.serviceTypeName))
-            assertTrue(payload.text(resources, locale).body.contains(payload.subject.serviceTypeName))
+            assertFalse(public.title.contains(type))
+            assertFalse(public.body.contains(type))
+            assertTrue(payload.text(resources, locale).body.contains(type))
         }
     }
 
@@ -79,5 +86,32 @@ class NotificationContentTest {
         assertEquals(NotificationChannelSpec.ATTENTIONS, professionalArrived().channel())
         assertEquals(NotificationChannelSpec.ATTENTIONS, serviceCompleted().channel())
         assertEquals(NotificationChannelSpec.ATTENTIONS, attentionCancelled().channel())
+    }
+
+    // Account-level, unlike every channel above, which all follow a request or
+    // a service (docs/decisions.md, 2026-11-05, HU-37).
+    @Test
+    fun verificationEventsHaveTheirOwnChannel() {
+        assertEquals(NotificationChannelSpec.VERIFICATION, documentVerdict().channel())
+        assertEquals(NotificationChannelSpec.VERIFICATION, verificationApproved().channel())
+    }
+
+    // The body says how many, in Spanish grammar, and never the administrator's
+    // reason (RF-09.10): rejectsADocumentVerdictWithThePendingStatus and
+    // aDocumentVerdictKeepsNoReasonEvenIfTheWireCarriedIt cover the reason on
+    // the parsing side.
+    @Test
+    fun theDocumentVerdictBodyNamesTheCountAndTheVerdict() {
+        val locale = Locale.forLanguageTag("es")
+        val resources = contextIn(locale).resources
+
+        val oneApproved = documentVerdict(status = ReviewStatus.APPROVED, documentCount = 1)
+        val threeApproved = documentVerdict(status = ReviewStatus.APPROVED, documentCount = 3)
+        val oneRejected = documentVerdict(status = ReviewStatus.REJECTED, documentCount = 1)
+
+        assertTrue(oneApproved.text(resources, locale).body.contains("documento"))
+        assertFalse(oneApproved.text(resources, locale).body.contains("documentos"))
+        assertTrue(threeApproved.text(resources, locale).body.contains("3"))
+        assertNotEquals(oneApproved.text(resources, locale).body, oneRejected.text(resources, locale).body)
     }
 }

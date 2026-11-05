@@ -8,12 +8,15 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.features.notifications.REQUEST_ID
+import bo.saludencasa.features.notifications.SIGNED_IN_USER
 import bo.saludencasa.features.notifications.appointmentCancelled
 import bo.saludencasa.features.notifications.appointmentScheduled
+import bo.saludencasa.features.notifications.documentVerdict
 import bo.saludencasa.features.notifications.messageReceived
 import bo.saludencasa.features.notifications.nearbyRequest
 import bo.saludencasa.features.notifications.offerAccepted
 import bo.saludencasa.features.notifications.pushSubject
+import bo.saludencasa.features.notifications.verificationApproved
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -111,7 +114,7 @@ class NotificationPublisherTest {
             notification.publicVersion.extras
                 .getCharSequence(Notification.EXTRA_TEXT)
                 .toString()
-        assertFalse(publicText.contains(pushSubject().serviceTypeName))
+        assertFalse(publicText.contains(checkNotNull(pushSubject().serviceTypeName)))
     }
 
     // Tapping opens the request the notification is about, and the intent
@@ -126,5 +129,20 @@ class NotificationPublisherTest {
         val intent = shadowOf(posted().single().contentIntent).savedIntent
         assertEquals(payload, intent.toPushPayload())
         assertEquals(REQUEST_ID, intent.data?.lastPathSegment)
+    }
+
+    // Neither HU-37 event has a request, so the recipient keeps a second
+    // verdict for the same person from piling up beside the first.
+    @Test
+    fun twoVerificationEventsOfTheSamePersonLeaveOneNotification() {
+        grant()
+        val publisher = NotificationPublisher(context)
+
+        publisher.show(documentVerdict())
+        publisher.show(verificationApproved())
+
+        assertEquals(1, posted().size)
+        val intent = shadowOf(posted().single().contentIntent).savedIntent
+        assertEquals(SIGNED_IN_USER, intent.data?.lastPathSegment)
     }
 }

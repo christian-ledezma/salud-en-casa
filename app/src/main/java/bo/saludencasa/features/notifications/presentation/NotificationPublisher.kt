@@ -61,6 +61,6 @@ class NotificationPublisher(
                 .setPublicVersion(publicVersion)
                 .build()
 
-        manager.notify(payload.subject.requestId, slot, notification)
+        manager.notify(payload.subject.requestId ?: payload.subject.recipientId, slot, notification)
     }
 }

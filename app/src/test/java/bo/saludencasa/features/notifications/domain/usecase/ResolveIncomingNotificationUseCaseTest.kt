@@ -3,6 +3,7 @@ package bo.saludencasa.features.notifications.domain.usecase
 import bo.saludencasa.features.notifications.FakeNotificationRepository
 import bo.saludencasa.features.notifications.OTHER_USER
 import bo.saludencasa.features.notifications.REQUEST_ID
+import bo.saludencasa.features.notifications.documentVerdict
 import bo.saludencasa.features.notifications.domain.model.DiscardReason
 import bo.saludencasa.features.notifications.domain.model.IncomingNotification
 import bo.saludencasa.features.notifications.messageReceived
@@ -94,6 +95,18 @@ class ResolveIncomingNotificationUseCaseTest {
             val payload = messageReceived()
 
             val incoming = ResolveIncomingNotificationUseCase(repository)(payload.toMap())
+
+            assertEquals(IncomingNotification.Show(payload), incoming)
+        }
+
+    // HU-37: no request to compare against a conversation left open, but the
+    // recipient check still applies.
+    @Test
+    fun showsAVerificationEventWithNoRequestOfItsOwn() =
+        runTest {
+            val payload = documentVerdict()
+
+            val incoming = ResolveIncomingNotificationUseCase(FakeNotificationRepository())(payload.toMap())
 
             assertEquals(IncomingNotification.Show(payload), incoming)
         }
