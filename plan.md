@@ -7663,23 +7663,60 @@ acepta la oferta, y que la negociación termine como si se hubiera tocado «Acep
 **A tener en cuenta.** No figura en la tabla de historias críticas, pero usa la aceptación de HU-19, que sí está: lleva recorrido en
 emulador.
 
-### HU-37 · Enterarme del veredicto de mi verificación `[ ]` — 3 puntos
+### HU-37 · Enterarme del veredicto de mi verificación `[x]` — 3 puntos
 
 > Como **paciente o profesional que subió sus documentos**, quiero **saber cuándo
 > el administrador los revisó**, para **corregir un rechazo a tiempo o empezar a
 > recibir solicitudes en cuanto me verifiquen**.
 
+**Planificación (2026-11-05).** Registrada en `docs/decisions.md`, 2026-11-05, HU-37. A diferencia de toda historia anterior, ninguno
+de los dos eventos pertenece a una solicitud, y `request_push_body`/`PushSubject` estaban armados enteros alrededor de una. Se
+presentaron dos decisiones con recomendación:
+
+- **Generalizar el único canal en vez de abrir uno aparte** (elegido): `requestId`, `recipientRole` y `serviceTypeName` pasan a ser
+  opcionales en `PushSubject`; `request_push_body` gana `p_profile_id`, `p_document_count` y `p_status`. Sigue siendo una sola función
+  vigilada por `NotificationEventParityTest`, como las demás. La alternativa —una función y un test de paridad aparte para
+  verificación— quedó descartada por duplicar el mecanismo.
+- **El aviso dice solo la cantidad, nunca cuáles documentos** (elegido): «Tus 3 documentos fueron aprobados», con un recurso de
+  plurales. Nombrarlos habría exigido una lista que se lea bien combinada en los dos idiomas, y la pantalla ya dice el detalle al
+  abrirse.
+
+Sin pantalla nueva que previsualizar: la verificación reutiliza `VerificationScreen` sin tocarla, así que no hubo prototipo que
+aprobar. Esta historia figura en «Cuándo hace falta un dispositivo» entre las que no exigen recorrido manual: HU-20 ya probó la
+entrega efectiva del canal, y esta solo le agrega dos eventos.
+
+**Alcance acordado**
+
+- Un veredicto, propio o conjunto, avisa una sola vez a quien subió el documento, sin el motivo del rechazo. La pantalla sigue siendo
+  donde se lee.
+- Un profesional que llega a `APPROVED` recibe un aviso de que ya aparece en las búsquedas.
+- Ninguno de los dos cambia el rol activo al abrirse: la verificación responde a todos los roles que la persona tenga.
+
+**Verificación (2026-11-05).**
+
+- **Experimento SQL** contra el remoto, con la migración dentro de la transacción y `rollback`. Un veredicto conjunto sobre 2
+  documentos en una sola sentencia encola 1 aviso, no 2; repetir el mismo veredicto sobre filas ya resueltas no encola nada; un
+  veredicto de un solo documento encola 1; el cuerpo de un rechazo lleva el estado y la cantidad y nunca el motivo. Un profesional
+  que llega a `APPROVED` encola 1 aviso; reafirmar el mismo estado no encola nada; volver a `PENDING` y aprobar otra vez encola otro.
+  Un evento desconocido sigue rechazándose. Ninguna de las dos funciones nuevas es ejecutable por `authenticated`.
+- **`NotificationEventParityTest`** sigue pasando: los nombres de los dos eventos están escritos como `p_event = '…'` en la migración,
+  no con `in (...)`, para que el escaneo los encuentre.
+- **Mutaciones del motor:** cambiar el disparador del veredicto de por sentencia a por fila hizo que la aprobación conjunta de 2
+  documentos encolara 2 avisos en vez de 1; quitar la condición de la transición en el disparador de `professionals` hizo que
+  reafirmar `APPROVED` encolara un aviso de más. Las dos cayeron en el experimento.
+- **`./gradlew build`** en verde: 1132 pruebas, 0 fallas, 0 omitidas (1118 antes de esta historia, 14 nuevas).
+
 **Criterios de aceptación**
 
-- [ ] Dado que el administrador aprueba o rechaza uno de mis documentos, cuando
+- [x] Dado que el administrador aprueba o rechaza uno de mis documentos, cuando
       registra el veredicto, entonces me llega una notificación que me lleva a mi
       pantalla de verificación.
-- [ ] Dado que el documento fue rechazado, cuando llega la notificación, entonces
+- [x] Dado que el documento fue rechazado, cuando llega la notificación, entonces
       **no muestra el motivo**: lo veo al abrir la pantalla, como hasta ahora.
-- [ ] Dado que el administrador da un veredicto conjunto sobre varios documentos,
+- [x] Dado que el administrador da un veredicto conjunto sobre varios documentos,
       cuando lo registra, entonces me llega una sola notificación, no una por
       documento.
-- [ ] Dado que soy profesional, cuando el administrador me verifica, entonces me
+- [x] Dado que soy profesional, cuando el administrador me verifica, entonces me
       llega una notificación de que ya aparezco en las búsquedas.
 
 **Requisitos:** RF-09.9, RF-09.10, RF-04.5.
@@ -7698,7 +7735,51 @@ lo subió.
 
 ## Retrospectiva
 
-_Completar al cerrar el sprint._
+> El Sprint 7 se ejecutó del **30/10/2026** al **05/11/2026**.
+
+Entregó el resto del ciclo de una atención: la conversación, lo que el profesional registra
+mientras trabaja, la llegada y el fin marcados y arrastrados por el motor, el pago pendiente
+que queda listo, cancelar con motivo y cerrar la conversación a los 7 días, y el aviso de cada
+veredicto de verificación. De paso rehízo la pantalla de inicio (HT-25) y acortó la negociación
+a una sola pantalla con la contraoferta que acepta (HT-24 venía de antes; HT-29 la cerró).
+
+**Qué se aprendió.**
+
+1. **Recorrer una historia sigue revelando el alcance de la siguiente, no solo de la primera.**
+   HT-26 salió de recorrer HU-21, HT-27 de recorrer HU-22, y HT-29 de recorrer la negociación
+   durante HU-24: 14 de los 30 puntos que el sprint ganó después de empezarlo vinieron
+   directamente de esa vía, sin contar HT-28, que salió de que el autor revisara HT-27 por su
+   cuenta. La graduación del 2026-10-04 —previsualizar en vez de recorrer toda pantalla— deja el
+   recorrido disponible como herramienta de descubrimiento, y ese fue su uso más frecuente este
+   sprint.
+2. **Un ayudante de pruebas puede dar un falso verde durante semanas.** `setContentAtDoubleFontScale`
+   nunca escaló un diálogo —toma su densidad de la configuración, no de `LocalDensity`— y ninguna
+   prueba de diálogo lo notó hasta HT-29, cuando corregirlo hizo aparecer un defecto real en «Mis
+   servicios» que llevaba ahí desde antes. El ayudante compartido es tan parte del contrato de
+   prueba como la prueba misma, y hay que mirar lo que mide, no solo si pasa.
+3. **El primer evento que no es de una solicitud obliga a declarar explícito lo que antes era
+   implícito.** `PushSubject` y `request_push_body` se diseñaron alrededor de una solicitud
+   porque los primeros nueve eventos lo eran; HU-37 no lo es, y generalizar en vez de abrir un
+   segundo mecanismo mantuvo una sola función vigilada por un solo test de paridad, al costo de
+   volver opcionales tres campos que antes parecían siempre presentes.
+4. **Reutilizar la pantalla que ya existe sigue siendo más barato que construir otra.** HU-37 no
+   tocó `VerificationScreen`; el veredicto y la aprobación abren la misma pantalla de siempre, sin
+   previsualización nueva que verificar.
+
+**Verificación de cierre.** `./gradlew build` en verde: 1132 pruebas, 0 fallas, 0 omitidas.
+Experimentos SQL de política y disparadores anotados por historia, incluidos los de HU-37.
+`supabase db diff --linked --schema public` el 2026-11-05, tras aplicar las 54 migraciones sobre
+la base de sombra: la única diferencia contra el remoto era la migración de HU-37, sin deriva
+alguna por fuera de ella. El autor aplicó ese `db push` y confirmó el control de acceso de cierre
+con las dos cuentas propietarias de Google Cloud y los dos miembros de Supabase, el 2026-11-05;
+el remoto tiene ahora los dos disparadores de HU-37 y una sola versión de `request_push_body`,
+la de siete parámetros.
+
+**Velocidad.** Empezó en 26 puntos y cerró en 56, en seis días: creció más de lo que duró,
+porque la mitad de sus historias no estaban planificadas al empezar y llegaron por recorrido,
+por revisión del autor o por decisiones tomadas al planificar cada una, sin un bloqueo externo
+como el de HU-20 en el Sprint 6. El Sprint 8 tiene 21 puntos, de confirmación de pagos: HU-25
+depende de que exista una atención completada, que este sprint ya deja.
 
 ---
 

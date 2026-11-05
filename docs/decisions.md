@@ -6447,6 +6447,43 @@ El ayudante ahora fija también `RuntimeEnvironment.setFontScale(2f)`, y `LargeF
 - **HU-24 anotó que su prueba de «el diálogo baja hasta el error» no podía fallar.** Esta era la causa, y ahora sí falla al quitar ese
   desplazamiento, así que volvió a afirmarlo.
 
+## 2026-11-05 · HU-37: el veredicto de un documento y la verificación aprobada avisan sin pertenecer a una solicitud
+
+**Contexto.** Todo aviso hasta esta historia era de una solicitud: `request_push_body` y `PushSubject` (`requestId`, `recipientRole`,
+`serviceTypeName`) están armados alrededor de una. El veredicto de un documento y la aprobación de un profesional no lo son: son del
+perfil completo, con los mismos documentos para los roles que la persona tenga.
+
+**Decisión.** Generalizar el único canal en vez de abrir uno aparte:
+
+- **`requestId`, `recipientRole` y `serviceTypeName` pasan a ser opcionales en `PushSubject`.** `request_push_body` gana `p_profile_id`,
+  `p_document_count` y `p_status`, y la lectura de la solicitud que todo evento anterior exigía se mueve detrás de una rama. Sigue
+  siendo una sola función, vigilada por `NotificationEventParityTest` como las demás; dos funciones habrían repetido el mecanismo de
+  envío y el test que lo cuida.
+- **Abrir la verificación nunca cambia el rol activo.** La casilla responde a todos los roles que la persona tenga, no a uno: con
+  `recipientRole` nulo, `OpenNotificationUseCase` no intenta el cambio.
+- **El aviso dice solo la cantidad, nunca cuáles.** «Tus 3 documentos fueron aprobados» en vez de nombrar cada tipo, con un recurso de
+  plurales. Nombrarlos habría exigido una lista que se lea bien combinada en cualquier cantidad y en los dos idiomas, y la pantalla ya
+  dice el detalle al abrirse.
+
+**Razonamiento.** Decidieron además, por ser técnicas:
+
+- **Un disparador por sentencia, no por fila, en `verification_documents`.** Un veredicto conjunto es una sola actualización sobre
+  varias filas (`ApproveDocumentsUseCase` y `RejectDocumentsUseCase` escriben un único estado para toda la selección), así que el
+  disparador agrupa por `profile_id` con `referencing old table / new table`, igual que `notify_conversation_read`: de otro modo,
+  aprobar tres documentos a la vez avisaría tres veces.
+- **El motivo del rechazo no tiene llave.** `request_push_body` nunca lo lee para este evento; no es que se filtre y se descarte, es que
+  no hay canal por el que pudiera salir (RF-09.10).
+- **La aprobación del profesional es un disparador por fila sobre `professionals`,** no una llamada dentro de
+  `approve_professional_verification`: sigue el mismo patrón que `queue_acceptance_push` en `services`, y responde a la transición de
+  estado sin importar quién la escriba.
+- **El identificador que distingue dos avisos pendientes pasa a ser el destinatario cuando no hay solicitud.** La URI del toque y la
+  etiqueta de la notificación usaban `requestId`; sin uno, usan `recipientId`, de modo que un segundo veredicto del mismo perfil
+  reemplaza al primero en vez de apilarse.
+- **Canal propio, `VERIFICATION`.** A diferencia de los tres existentes, no sigue ni una solicitud ni un servicio.
+
+**Consecuencia.** Todo evento nuevo que no sea de una solicitud puede apoyarse en los mismos campos opcionales en vez de abrir otro
+mecanismo. `request_push_body` acumula ahora trece ramas; sigue reescribiéndose entera por el mismo motivo de siempre.
+
 ## Plantilla para entradas nuevas
 
 ```
