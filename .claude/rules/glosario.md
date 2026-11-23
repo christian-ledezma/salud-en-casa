@@ -153,9 +153,8 @@ pasa a «Nombres retirados», al final.
 
 | Español | Inglés | Uso |
 |---|---|---|
-| Pago | `Payment` | El pago de una atención, íntegro para el profesional (INV-10). Se confirma por las dos partes (INV-09) |
+| Pago | `Payment` | El pago de una atención por `totalAmountBob`, igual al monto congelado del servicio e íntegro del profesional (INV-10). Se confirma por las dos partes (INV-09) |
 | Anular el pago | `cancel_payment_with_service` | Disparador que lleva el pago a `CANCELLED` al cancelarse la atención. Ningún cliente lo hace: `guard_payment_confirmation` exige el servicio cancelado, y de ese estado no se sale |
-| Comisión de la plataforma | `platformFee` / `platform_fee_percent` | **Se retira en HT-30** (`docs/decisions.md`, 2026-11-22). Sigue en el esquema; ningún código nuevo la lee |
 
 ## Calificaciones
 
@@ -308,12 +307,9 @@ pasa a «Nombres retirados», al final.
 | Monto final | `finalAmountBob` / `final_amount_bob` |
 | Inicio / fin de la atención | `startedAt` / `finishedAt` |
 | Monto total | `totalAmountBob` / `total_amount_bob` |
-| Comisión | `platformFeeBob` / `platform_fee_bob` — se retira en HT-30 |
-| Monto del profesional | `professionalAmountBob` / `professional_amount_bob` — se retira en HT-30 |
 | Método de pago | `method` |
 | Proveedor | `provider` |
 | Referencia externa | `externalReference` / `external_reference` |
-| Conciliado en | `settledAt` / `settled_at` — se retira en HT-30 |
 | Confirmado por el paciente | `patientConfirmedAt` / `patient_confirmed_at` |
 | Confirmado por el profesional | `professionalConfirmedAt` / `professional_confirmed_at` |
 | Motivo de cancelación | `cancellationReason` / `cancellation_reason` |
@@ -354,7 +350,7 @@ tabla llega a existir.
 | `offer_status` | `PROPOSED`, `ACCEPTED`, `REJECTED`, `EXPIRED` |
 | `service_status` | `ASSIGNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` |
 | `payment_method` | `CASH`, `DIRECT_QR`, `GATEWAY` |
-| `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `SETTLED` (se retira en HT-30), `DISPUTED`, `CANCELLED` |
+| `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `DISPUTED`, `CANCELLED` |
 | `device_platform` | `ANDROID`. `IOS` se retiró el 2026-09-12 (FA-04) |
 
 ## Esquema
@@ -401,3 +397,6 @@ No se vuelven a usar. Cada uno dice qué lo reemplazó y cuándo.
 | `professionals_select_counterpart` | `professional_directory` | HU-11 |
 | Token de registro de FCM | FID (`installationId`) | HU-20 |
 | `Spacing.filterChipMaxWidth` | Ya no existe en `Spacing.kt` | — |
+| `platformFee`, `platformFeeBob`, `platform_fee_percent` | Nada: la plataforma no retiene comisión; se financia con la suscripción del profesional (INV-10, INV-18) | HT-30 |
+| `professionalAmountBob`, `professional_amount_bob` | `totalAmountBob`: el pago es íntegro del profesional | HT-30 |
+| `settledAt`, `settled_at`, `PaymentStatus.SETTLED` | Nada: no hay liquidación de comisiones | HT-30 |

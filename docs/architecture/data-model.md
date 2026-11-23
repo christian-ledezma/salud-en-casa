@@ -175,16 +175,13 @@ erDiagram
     payments {
         uuid id PK
         uuid service_id FK, UK
-        numeric total_amount_bob "igual a la suma de los dos siguientes"
-        numeric platform_fee_bob
-        numeric professional_amount_bob
+        numeric total_amount_bob "igual al monto congelado del servicio"
         payment_method method
         text provider
         text external_reference
         payment_status status
         timestamptz patient_confirmed_at
         timestamptz professional_confirmed_at
-        timestamptz settled_at
     }
 
     reviews {
@@ -243,7 +240,7 @@ un invariante dejó de cumplirse.
 | INV-07 · Solo profesionales aprobados y activos | Vista `professional_directory`, filtro de `search_nearby_professionals` y restricción `professionals_approved_profile_is_complete`, que impide aprobar un profesional sin tipo ni tarifa |
 | INV-08 · Cercanía con PostGIS | `search_nearby_professionals` con `st_dwithin` sobre el índice GIST `idx_addresses_location` |
 | INV-09 · Pago confirmado solo por ambas partes | Restricción `confirmations_match_status` y disparador `payments_guard_confirmation` |
-| INV-10 · Total igual a comisión más monto del profesional | Restricción `total_equals_fee_plus_professional_amount` |
+| INV-10 · El pago es el monto acordado, íntegro del profesional | Disparador `payments_guard_total_matches_service` al insertar, y `payments_guard_frozen` al actualizar. La plataforma no retiene comisión (`docs/decisions.md`, 2026-11-22) |
 | INV-11 · Calificación única, de 1 a 5, autor distinto del destinatario | Restricciones `unique (service_id, author_id)`, `rating between 1 and 5` y `author_is_not_recipient` |
 | INV-12 · El administrador no accede a `messages` | Ninguna política de `messages` invoca `is_admin()`, en esta ni en ninguna migración posterior |
 | INV-13 · Nadie lee filas ajenas | Políticas por `auth.uid()` en las dieciséis tablas |

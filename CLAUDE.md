@@ -145,10 +145,9 @@ están en `.claude/rules/i18n.md`.
    por separado. Ninguna confirmación unilateral cierra un pago.
 10. La plataforma no retiene parte del monto de una atención:
     `payments.total_amount_bob` iguala `services.final_amount_bob` y es íntegro
-    del profesional. La plataforma se financia con la suscripción del profesional
-    (`docs/decisions.md`, 2026-11-22). Hasta que HT-30 retire la comisión del
-    motor, las columnas `platform_fee_bob` y `professional_amount_bob` siguen en
-    el esquema y no se escribe código nuevo que las lea.
+    del profesional. Lo exige el motor: un disparador al insertar el pago y el
+    guardia de congelado al actualizarlo. La plataforma se financia con la
+    suscripción del profesional (`docs/decisions.md`, 2026-11-22).
 11. Una calificación es única por servicio y autor, con valor entre 1 y 5, y su
     autor nunca coincide con su destinatario.
 12. El rol `ADMIN` no accede a `messages`. La conversación de la solicitud
