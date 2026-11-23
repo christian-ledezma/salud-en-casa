@@ -507,11 +507,14 @@ conciliación. HT-30 retira la comisión del motor, HU-26 y HU-28 se reducen, HU
 retira y entra HU-38. La compra de la suscripción no entra aquí: exige la cuenta de
 Play Console, y va en el Sprint 11.
 
+**Pendiente de cierre del sprint.** `db reset` y `db diff --linked` de HT-30, que exigen
+Docker y quedaron para cuando el autor lo decida. Deben correrse antes de marcar el Sprint 8.
+
 **Orden.** HT-30 primero, porque HU-25 y HU-26 leen el pago que deja. HU-38 al final:
 no depende del pago de la atención, y así el ciclo de la atención queda cerrado antes
 de tocar la visibilidad del profesional.
 
-### HT-30 · Retirar la comisión del modelo `[ ]` — 3 puntos
+### HT-30 · Retirar la comisión del modelo `[x]` — 2026-11-23, con un criterio pendiente — 3 puntos
 
 > Como **autor del sistema**, quiero **que el motor deje de calcular una comisión que
 > la plataforma ya no cobra**, para **que el pago de la atención diga lo que de verdad
@@ -519,15 +522,17 @@ de tocar la visibilidad del profesional.
 
 **Criterios de aceptación**
 
-- [ ] Dado que se acepta una oferta, cuando `accept_offer` crea el pago, entonces su
+- [x] Dado que se acepta una oferta, cuando `accept_offer` crea el pago, entonces su
       total es el monto acordado entero y no hay comisión que calcular.
-- [ ] Dado que consulto el esquema, cuando reviso `payments` y `platform_settings`,
+- [x] Dado que consulto el esquema, cuando reviso `payments` y `platform_settings`,
       entonces ya no existen `platform_fee_bob`, `professional_amount_bob`,
       `settled_at`, `platform_fee_percent` ni el estado `SETTLED`.
-- [ ] Dado que un participante intenta cambiar el total de un pago, cuando escribe,
+- [x] Dado que un participante intenta cambiar el total de un pago, cuando escribe,
       entonces se rechaza (INV-05).
 - [ ] `supabase db reset` reconstruye la base y `db diff --linked` no muestra más
-      diferencia que esta migración.
+      diferencia que esta migración. **Pendiente por decisión del autor, 2026-11-23:**
+      exige Docker y lo enciende cuando él decida. Vence al cerrar el Sprint 8, como
+      pide `.claude/rules/supabase.md` para todo sprint que toca el esquema.
 
 **Requisitos:** RF-11.1, RN-08, INV-05, INV-10.
 
@@ -540,6 +545,68 @@ el glosario (`platform_fee_percent`, «Comisión», `SETTLED`). Experimento SQL
 `paymentTotalEqualsTheFrozenAgreedAmount`: aceptar crea un pago por el monto entero, y
 escribir su total se rechaza. Las filas de prueba del remoto pierden su desglose; sus
 experimentos ya están anotados en HU-19 y HT-29.
+
+**Cierre con un criterio abierto.** HT-30 cierra el 2026-11-23 con el cuarto criterio sin
+cumplir. No se retocó el criterio para que lo hecho encaje: sigue diciendo lo que dice, y lo
+que falta es correr `supabase start -x studio`, `supabase db reset` y
+`supabase db diff --linked --schema public`, y anotar aquí el resultado con su fecha. Mientras
+tanto, lo único que se probó sobre la cadena completa de migraciones es que esta aplica sobre
+los datos reales del remoto, no que reconstruya la base desde cero. Es el mismo trato que
+HU-06 recibió con su recorrido en emulador.
+
+**Decisiones del autor, 2026-11-22** (`docs/decisions.md`, «HT-30: el pago es el monto
+acordado»): INV-10 pasa a decir que el total iguala el monto congelado del servicio y lo
+hace cumplir un disparador al insertar; `payment_status` se recrea sin `SETTLED`; el
+`db push` lo ejecuta el autor tras ver los experimentos.
+
+**Experimentos SQL, 2026-11-22.** Contra el remoto, antes del `db push`: cada uno aplica
+la migración `20261123035149_ht30_retire_platform_commission.sql` completa dentro de
+`begin … rollback`, con la identidad indicada, y se confirmó después que el remoto
+quedó intacto (3 columnas de comisión presentes, el disparador nuevo ausente, sin filas
+de prueba, 7 pagos). Cada uno trae el caso que pasa y el que se rechaza.
+
+| # | Experimento | Caso que pasa | Caso que se rechaza |
+|---|---|---|---|
+| 0 | Estructura resultante, sobre los 7 pagos reales | La migración aplica sin errores. `payments` queda sin `platform_fee_bob`, `professional_amount_bob` ni `settled_at`; `platform_settings` sin `platform_fee_percent`; `payment_status` con `PENDING, PATIENT_CONFIRMED, BOTH_CONFIRMED, DISPUTED, CANCELLED`; el disparador `payments_guard_total_matches_service` existe | — |
+| 1 | Aceptar crea el pago entero | El paciente acepta una oferta de 120,00: pago `PENDING` con total 120,00 igual al monto del servicio, oferta y solicitud `ACCEPTED`, en una transacción | — |
+| 2 | Total congelado (INV-05) | El profesional de la atención actualiza `method` a `CASH` y se acepta | El mismo profesional cambia `total_amount_bob` y se rechaza: `payment_breakdown_is_frozen` |
+| 3 | `paymentTotalEqualsTheFrozenAgreedAmount` (INV-10) | Insertar un pago con el monto del servicio (100,00) | Insertar uno con 101,00: `payment_total_must_equal_the_agreed_amount` |
+| 4 | `SETTLED` retirado | `'DISPUTED'` y `'CANCELLED'` siguen siendo valores válidos | `'SETTLED'::payment_status` falla: `invalid input value for enum` |
+| 5 | La cancelación sigue anulando el pago | Una parte cancela una atención asignada y su pago pasa a `CANCELLED` con el total intacto (98,00) | — |
+| 6 | Confirmación por separado (INV-09) | El paciente confirma su parte sobre una atención completada: `PATIENT_CONFIRMED`, sin la del profesional | El profesional escribe la confirmación del paciente: `each_party_confirms_separately` |
+
+Identidades: paciente `299073bc…`, profesional `fcab94c0…`. El 1 creó su solicitud y su
+oferta dentro de la misma transacción.
+
+**Aplicada en el remoto, 2026-11-23.** El autor ejecutó `db push`. Consulta de solo lectura
+después: `db push --dry-run` dice «Remote database is up to date»; `payments` tiene 11
+columnas, ninguna de comisión; `platform_settings` solo `id` e
+`immediate_request_ttl_minutes`; `payment_status` es `PENDING, PATIENT_CONFIRMED,
+BOTH_CONFIRMED, DISPUTED, CANCELLED`; `payments` lleva los disparadores
+`payments_guard_confirmation`, `payments_guard_frozen`,
+`payments_guard_total_matches_service` y `payments_set_updated_at`; los 7 pagos siguen
+(5 `PENDING`, 2 `CANCELLED`) y ninguno difiere del monto de su servicio.
+
+**Verificación de código.** `./gradlew build` en verde: 1132 pruebas, 0 fallas, 0
+omitidas. La primera pasada dejó `testDebugUnitTest` en `UP-TO-DATE`, de modo que no
+había leído la migración; se forzó con `--rerun` y `SchemaRulesTest` (2), `ArchitectureRulesTest`
+(3) y `NotificationEventParityTest` (1) pasan con ella. Ningún archivo Kotlin cambió: la
+aplicación no lee el desglose del pago.
+
+**Recorrido en emuladores, 2026-11-23.** Lo pidió el autor al arrancar la historia. Con el
+paciente `ledezma.aramayo.73` y el profesional `chris.ledezma.s`, ya con la migración en el
+remoto, y verificado después contra la base:
+
+| Atención | Qué se hizo | Oferta | Pago | Servicio | Solicitud |
+|---|---|---|---|---|---|
+| Curación de heridas, Bs 110,00 | El paciente aceptó la oferta y luego canceló con motivo «No hoy» | `ACCEPTED`, 110,00 | `CANCELLED`, total 110,00 | `CANCELLED` | `CANCELLED` |
+| Aplicación de inyectables, Bs 35,00 | El paciente aceptó, el profesional marcó la llegada y la finalización | `ACCEPTED`, 35,00 | `PENDING`, total 35,00 | `COMPLETED`, con llegada y fin sellados a 1 minuto | `COMPLETED` |
+
+En las dos, el total del pago es el monto de la oferta aceptada, sin desglose, y ninguna
+confirmación del pago quedó escrita. En todo el remoto hay 9 pagos y ninguno difiere del
+monto congelado de su servicio. Lo que la base prueba es que los dos caminos llegaron a su
+estado final; lo que se vio en pantalla lo reportó el autor. La confirmación del pago por las dos partes no tiene pantalla hasta HU-25, de modo que esa parte
+queda cubierta por el experimento 6 y no por el recorrido.
 
 ### HU-25 · Confirmar que pagué `[ ]` — 5 puntos
 

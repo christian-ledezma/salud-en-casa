@@ -6598,6 +6598,40 @@ archivo que coincida: `CLAUDE.md` pide leer a mano `testing.md` y, si hace falta
 El glosario sigue pesando 41 KB por cada archivo Kotlin o SQL que se toca; recortar su columna
 de uso sería el próximo ahorro, y no se hizo para no perder contexto que solo él reúne.
 
+## 2026-11-22 · HT-30: el pago es el monto acordado, y el motor lo exige al insertarlo
+
+**Contexto.** Al retirar la comisión (entrada de esta misma fecha), `payments.total_amount_bob` dejó de tener una
+restricción que lo atara a algo: INV-10 decía «total = comisión + monto del profesional», y de esa suma ya no queda
+nada. Había que decidir qué dice INV-10 ahora y cómo se hace cumplir, y qué hacer con el estado `SETTLED`, que
+existía solo para liquidar comisiones.
+
+**Decisión.** Las tomó el autor el 2026-11-22:
+
+- **INV-10 pasa a decir que el total del pago iguala `services.final_amount_bob`,** y lo hace cumplir un disparador
+  `before insert` en el motor, `payments_guard_total_matches_service`. Al actualizar sigue el guardia de congelado,
+  que ya impedía cambiar `total_amount_bob`.
+- **`payment_status` se recrea sin `SETTLED`,** y con él salen `settled_at` y su restricción.
+
+**Razonamiento.**
+
+- **Disparador y no convención.** Hoy solo `accept_offer` inserta pagos, así que la regla se cumpliría sola. Pero la
+  regla que sostiene el dinero es del motor y no de quien llame (CLAUDE.md, INV-10), y HU-28 o una pasarela (FA-02)
+  podrían agregar otro escritor. Se probó que discrimina: un total igual al del servicio pasa y uno distinto se rechaza.
+- **Conservar `total_amount_bob` en vez de leerlo del servicio.** Un pago que no dice cuánto registra no sirve a una
+  pasarela, que reporta el monto que cobró; y el disparador convierte la duplicación en un dato que no puede
+  desviarse. El motor impide además que el servicio cambie su monto (INV-04), de modo que la igualdad no se rompe
+  después.
+- **Recrear el tipo en vez de prohibir el valor.** PostgreSQL no borra un valor de un enumerado. Dejarlo habría
+  obligado al guardia a prohibirlo para siempre y al cliente a modelar o ignorar un estado que nunca ocurre. Es el
+  mismo camino que `document_type` (2026-10-05) y `device_platform` (2026-09-12), y es barato ahora: ninguna de las 7
+  filas del remoto lo tenía.
+- **Retirar las columnas y no ponerlas en cero.** Ya razonado en la entrada de la comisión.
+
+**Consecuencia.** El enumerado de Kotlin de HU-25 nace sin `SETTLED`. HU-28 decide qué estado deja «no se pagó», que
+hoy `payment_status` no tiene. `guard_payment_confirmation` se reescribió entera sin su rama de liquidación, como en
+HU-24, para que la última migración que la define sea también la vigente. El administrador sigue pudiendo escribir
+cualquier estado que la restricción admita: HU-28 lo acota.
+
 ## Plantilla para entradas nuevas
 
 ```
