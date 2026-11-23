@@ -228,6 +228,10 @@ los campos `method`, `provider` y `external_reference`, además de una máquina 
 estados. Incorporar una pasarela consistirá en agregar una función de servidor que
 reciba su notificación. **No requiere cambio de esquema.**
 
+> **Reemplazada en parte el 2026-11-22.** La plataforma ya no acumula comisión: se financia con la
+> suscripción del profesional, cobrada por Google Play. El pago de la atención sigue fuera de la
+> aplicación y con confirmación mutua. Ver la entrada de esa fecha.
+
 ---
 
 ## 2026-09-09 · Identificadores en inglés, documentos en español
@@ -6483,6 +6487,116 @@ perfil completo, con los mismos documentos para los roles que la persona tenga.
 
 **Consecuencia.** Todo evento nuevo que no sea de una solicitud puede apoyarse en los mismos campos opcionales en vez de abrir otro
 mecanismo. `request_push_body` acumula ahora trece ramas; sigue reescribiéndose entera por el mismo motivo de siempre.
+
+## 2026-11-22 · La plataforma deja la comisión por atención y se financia con la suscripción del profesional
+
+**Contexto.** Hasta hoy la plataforma retenía un porcentaje configurable del monto acordado (RN-08, 10 %
+inicial), que `accept_offer` calculaba y congelaba en `payments.platform_fee_bob` desde HU-19, y el
+Sprint 8 planificaba el saldo de comisiones del profesional (HU-27) y su liquidación por el administrador
+(HU-28). El autor cambió el modelo de negocio: la plataforma se financia con una suscripción que paga
+solo el profesional, y el paciente no le paga nada. El cambio llega antes de empezar el Sprint 8, y la
+comisión vive solo en el motor: el cliente no tiene una línea de código que la lea.
+
+**Decisión.** Las tomó el autor el 2026-11-22:
+
+- **El monto de la atención es íntegro del profesional.** La plataforma no retiene parte de él.
+- **Se conserva la confirmación mutua del pago de la atención y su disputa** (HU-25, HU-26, RF-11.2 a
+  RF-11.5). El administrador resuelve las disputas; ya no liquida nada.
+- **Sin suscripción vigente, el profesional pierde la visibilidad y las ofertas nuevas.** No aparece en
+  búsquedas, no recibe solicitudes en su bandeja ni sus avisos, no se le agenda una cita y no hace una
+  primera oferta. Lo ya iniciado sigue: una negociación abierta y una atención acordada terminan.
+- **Un interruptor de la plataforma y 30 días de prueba.** `platform_settings.subscription_required`
+  activa la exigencia, apagado por omisión; cada profesional recibe 30 días de prueba al aprobarse su
+  verificación.
+- **La suscripción se cobra solo con la facturación de Google Play,** al publicar en la tienda. No se
+  construye un cobro por QR ni por transferencia.
+
+**Razonamiento.**
+
+- **Conservar el pago de la atención.** Sostiene el objetivo específico 4, «controles de confirmación y
+  validación mutua de pagos», sin reescribirlo ante el tribunal, y sigue siendo útil sin comisión: el pago
+  ocurre fuera de la aplicación, y la confirmación mutua es la constancia que las dos partes tienen de él.
+- **Por qué Play Billing y no otro medio.** Lo que el profesional compra son funciones de la aplicación
+  —aparecer en búsquedas, recibir solicitudes, ofertar—, que la política de pagos de Google Play trata
+  como servicio digital: una aplicación distribuida por Play tiene que cobrarlo con su sistema de
+  facturación. El pago de la atención es un servicio físico prestado en el domicilio, y para esos la
+  política prohíbe usar Play Billing; por eso sigue fuera de la aplicación, como hasta hoy. Un cobro por QR
+  habría que retirarlo al publicar, porque la política no deja guiar dentro de la aplicación hacia otro
+  medio de pago de un servicio digital. Bolivia figura entre los países admitidos para cuenta de
+  comerciante, y el pago llega en dólares por transferencia desde Estados Unidos. Google retiene su tarifa
+  de servicio sobre la suscripción; el porcentaje se confirma en Play Console al publicar.
+- **Un ajuste en `platform_settings` y no una biblioteca de indicadores.** La regla la hace cumplir el
+  motor, como la verificación (INV-07): un indicador en el cliente no controla nada, porque quien concede
+  es la política (INV-13). `platform_settings` ya es el lugar de lo configurable —la ventana de la
+  solicitud y, hasta hoy, la comisión—, y no hay dos modelos de negocio que tengan que convivir, de modo que
+  un sistema de indicadores sería abstracción especulativa. Se descartó Firebase Remote Config por eso.
+- **Por qué el interruptor y la prueba.** Sin la cuenta de Play nadie puede pagar, y el piloto del
+  Sprint 10 corre por App Distribution. Con el interruptor apagado el piloto funciona como hoy. Con el
+  interruptor encendido, la prueba de 30 días deja demostrar la regla de vigencia sin Play, y es además lo
+  que recibe cada profesional nuevo en producción.
+- **El precio no vive en la base.** Con Play Billing el precio del producto lo fija Play Console, por país;
+  copiarlo en `platform_settings` sería una segunda fuente que se desincroniza.
+- **Retirar las columnas de la comisión en vez de dejarlas en cero.** Una columna que vale cero en toda
+  fila es un dato que hay que explicar y defender, y la restricción `total = comisión + profesional` se
+  volvería trivial. Las filas del remoto son de prueba y sus experimentos están anotados en `plan.md`
+  (HU-19, HT-29). Quitar una columna del modelo no es corregir un pago (INV-05): ningún monto acordado
+  cambia.
+
+**Consecuencia.**
+
+- El Sprint 8 se replanifica: HT-30 retira la comisión del motor, HU-25 y HU-26 confirman el pago sin
+  desglose, HU-28 queda en resolver disputas, y HU-38 agrega la vigencia del profesional con el interruptor
+  y la prueba. HU-27 se retira.
+- Un Sprint 11, después de la validación, publica en Google Play (FA-03 entra al alcance, condicionado a
+  la cuenta de organización con D-U-N-S) y cobra la suscripción con Play Billing. La compra la verifica una
+  función de servidor contra la API de Google Play —el caso 3 que `supabase.md` reserva para la recepción
+  de notificaciones externas—, y las notificaciones en tiempo real de Play informan renovaciones y
+  cancelaciones. La biblioteca de facturación de Google Play entra como dependencia en ese sprint,
+  exigida por RF-14.4, y la credencial de la cuenta de servicio de Google vive solo en los secretos del
+  servidor.
+- **Play App Signing cambia la huella con la que se firma la versión de la tienda.** Su SHA-1 tiene que
+  registrarse en el identificador OAuth de Android y en Firebase, o el ingreso con Google deja de
+  funcionar en esa versión. El `applicationId` no cambia.
+- **Riesgo.** Si la cuenta de organización no llega antes de la defensa, la compra no se demuestra; la
+  regla de vigencia sí, con la prueba de 30 días y el interruptor encendido.
+- Reemplaza la entrada del 2026-09-08 en lo que dice de la comisión, y la viñeta del 2026-10-29 sobre la
+  comisión congelada al aceptar. La viñeta sigue valiendo para el resto del desglose: el pago nace al
+  aceptar y su monto queda congelado desde ese momento.
+
+## 2026-11-22 · `plan.md` guarda solo lo vigente, y las reglas cargan por ruta
+
+**Contexto.** `plan.md` llegó a 543 KB y 8000 líneas: superaba el límite de lectura, de modo
+que la instrucción de leerlo al inicio de cada sesión ya no se podía cumplir, y cada consulta
+costaba buscar a ciegas. Además, las seis reglas de `.claude/rules/` se cargaban en todas las
+sesiones, unos 100 KB, aunque `CLAUDE.md` decía que cargaban solo con los archivos que les
+corresponden: Claude Code carga de forma condicional solo las reglas con un encabezado
+`paths:`, y ninguna lo tenía.
+
+**Decisión.**
+
+- Cada sprint cerrado se movió completo, sin cambiar el texto, a `docs/sprints/sprint-NN.md`.
+  `plan.md` conserva el marco, la Definición de Terminado, el índice, un resumen de cada sprint
+  cerrado con sus historias y su enlace, lo pendiente sin sprint (HT-17), el sprint activo y
+  los que faltan. Al cerrar un sprint se repite el movimiento.
+- Las seis reglas llevan `paths:`, con los globs que su propia primera línea ya declaraba.
+- `docs/decisions.md` no se divide.
+
+**Razonamiento.**
+
+- **Mover y no resumir.** Los sprints cerrados son evidencia académica: los experimentos SQL
+  anotados con su fecha cumplen pruebas obligatorias (`testing.md`). Resumirlos los perdería;
+  moverlos los conserva y saca de la lectura diaria lo que solo se consulta cuando se cita. Se
+  comprobó que cada línea no vacía del original está en algún archivo nuevo.
+- **`decisions.md` no se divide porque el código lo cita por ruta y fecha.** Los comentarios
+  dicen «`docs/decisions.md`, AAAA-MM-DD»; repartirlo en varios archivos rompería esas citas.
+  Nunca se lee entero: el índice por fecha sale de una búsqueda de `^## 20`.
+- **Las citas «`plan.md`, HU-NN» siguen resolviendo.** La lista de sprints cerrados nombra cada
+  historia y su archivo.
+
+**Consecuencia.** Al planificar, ninguna regla se carga sola, porque todavía no se tocó un
+archivo que coincida: `CLAUDE.md` pide leer a mano `testing.md` y, si hace falta, el glosario.
+El glosario sigue pesando 41 KB por cada archivo Kotlin o SQL que se toca; recortar su columna
+de uso sería el próximo ahorro, y no se hizo para no perder contexto que solo él reúne.
 
 ## Plantilla para entradas nuevas
 

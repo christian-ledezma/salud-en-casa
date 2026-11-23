@@ -1,3 +1,10 @@
+---
+paths:
+  - "supabase/**"
+  - "app/src/main/java/**/data/**/*.kt"
+  - "app/src/main/java/**/core/network/**/*.kt"
+---
+
 # Supabase, migraciones y seguridad
 
 Se carga al trabajar con migraciones SQL o con fuentes de datos.

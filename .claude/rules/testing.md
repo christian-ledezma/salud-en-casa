@@ -1,3 +1,10 @@
+---
+paths:
+  - "app/src/test/**"
+  - "app/src/androidTest/**"
+  - "supabase/migrations/**"
+---
+
 # Casos de prueba obligatorios
 
 Se carga al trabajar con archivos de prueba.
@@ -281,10 +288,40 @@ las de política.
 ### Pagos
 
 - **Obligatoria:** `paymentReachesConfirmedOnlyWhenBothPartiesConfirm`
-- **Obligatoria:** `totalAlwaysEqualsPlatformFeePlusProfessionalAmount`
+- **Obligatoria:** `paymentTotalEqualsTheFrozenAgreedAmount` — el pago nace por
+  `final_amount_bob` entero y ningún cliente lo cambia después
 - `mismatchedConfirmationsLeavePaymentInDispute`
-- `commissionIsComputedFromTheConfiguredPercentage`
-- `settlementReducesTheProfessionalPendingBalance`
+- `onlyAnAdministratorResolvesADispute`
+
+> **Retiradas el 2026-11-22**: `totalAlwaysEqualsPlatformFeePlusProfessionalAmount`,
+> `commissionIsComputedFromTheConfiguredPercentage` y
+> `settlementReducesTheProfessionalPendingBalance`. Expresaban la comisión por
+> atención, y esa dejó de ser la regla cuando la plataforma pasó a financiarse con la
+> suscripción del profesional. `paymentTotalEqualsTheFrozenAgreedAmount` ocupa el lugar
+> de la primera. Igual que con `assignsRoleOnlyOnceAndRejectsSecondAssignment`, no se
+> apaga una prueba en rojo: se retira una que expresaba una regla derogada. Ver
+> `docs/decisions.md`, 2026-11-22.
+
+### Suscripción del profesional
+
+Desde el 2026-11-22. La vigencia la decide el motor, así que las de visibilidad son
+experimentos SQL, igual que las de política: cada uno incluye a un profesional vigente
+y a uno vencido, para comprobar que discrimina y no solo que deniega.
+
+- **Obligatoria:** `aProfessionalWithoutAValidSubscriptionIsHiddenFromSearchAndInbox`
+  — búsqueda, bandeja, destinatarios del aviso y la acción de agendar
+- **Obligatoria:** `aProfessionalWithoutAValidSubscriptionCannotMakeAFirstOffer`
+- **Obligatoria:** `anOpenNegotiationAndAnAgreedAttentionSurviveAnExpiredSubscription`
+  — la contraoferta en un hilo abierto y el avance de una atención acordada siguen
+- **Obligatoria:** `withTheSwitchOffEveryApprovedActiveProfessionalIsValid`
+- **Obligatoria:** `noClientCanCreateExtendOrShortenASubscriptionPeriod` — incluye el
+  intento de escritura directa, también por una vista de definidor
+- `approvingAVerificationGrantsExactlyOneThirtyDayTrial` — y aprobarla de nuevo no
+  agrega otra
+- `aPatientNeverNeedsASubscription` — tampoco quien tiene los dos roles, al pedir
+  atención como paciente
+- `aPurchaseIsActivatedOnlyAfterTheServerVerifiesIt` — Sprint 11: un token que
+  Google no reconoce no crea período
 
 ### Calificaciones e historial
 

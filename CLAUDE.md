@@ -9,7 +9,14 @@ pagos y calificación bidireccional.
 
 Requisitos completos: `docs/requirements.md`. Léelo antes de planificar cualquier sprint.
 Estado actual del trabajo: `plan.md`. Léelo al inicio de cada sesión.
+Sprints cerrados, completos: `docs/sprints/`. Se abren solo cuando una tarea los cita.
 Decisiones técnicas tomadas: `docs/decisions.md`.
+
+**Cómo leer los documentos largos.** `docs/decisions.md` pasa los 6000 líneas y no se
+lee entero: `grep -n '^## 20' docs/decisions.md` da el índice por fecha, y se lee solo
+la entrada citada, por desplazamiento. Una cita como «`plan.md`, HU-24» se resuelve en
+la lista «Sprints cerrados» de `plan.md`, que dice en qué archivo de `docs/sprints/`
+está esa historia.
 
 Proyecto académico de grado. El desarrollo es incremental e iterativo bajo SCRUM:
 cada sprint entrega un incremento demostrable, nunca una capa horizontal.
@@ -125,16 +132,23 @@ están en `.claude/rules/i18n.md`.
    un pago se disputa. Nunca se sobrescribe el histórico.
 6. `request_offers` es de solo agregar. Una contraoferta es una fila nueva que
    apunta a la anterior mediante `parent_offer_id`. Nunca se edita una oferta emitida.
-7. Solo un profesional con `verification_status = APPROVED` y `profiles.active`
-   aparece en resultados de búsqueda o puede emitir ofertas.
+7. Solo un profesional con `verification_status = APPROVED`, `profiles.active` y
+   suscripción vigente aparece en resultados de búsqueda, recibe solicitudes o
+   puede emitir una primera oferta. La vigencia la decide el motor; con
+   `platform_settings.subscription_required` apagado, todo profesional aprobado y
+   activo es vigente. Lo ya iniciado —una negociación abierta, una atención
+   acordada— sigue aunque la suscripción venza.
 8. La búsqueda por cercanía se resuelve siempre con PostGIS dentro de la base de
    datos. Nunca con un servicio externo de búsqueda por proximidad, y nunca
    filtrando distancias en el cliente.
 9. Un pago alcanza `BOTH_CONFIRMED` solo cuando paciente y profesional confirman
    por separado. Ninguna confirmación unilateral cierra un pago.
-10. `payments.total_amount_bob` siempre iguala la suma de `platform_fee_bob` más
-    `professional_amount_bob`. Es una restricción del motor, no una validación de
-    la aplicación.
+10. La plataforma no retiene parte del monto de una atención:
+    `payments.total_amount_bob` iguala `services.final_amount_bob` y es íntegro
+    del profesional. La plataforma se financia con la suscripción del profesional
+    (`docs/decisions.md`, 2026-11-22). Hasta que HT-30 retire la comisión del
+    motor, las columnas `platform_fee_bob` y `professional_amount_bob` siguen en
+    el esquema y no se escribe código nuevo que las lea.
 11. Una calificación es única por servicio y autor, con valor entre 1 y 5, y su
     autor nunca coincide con su destinatario.
 12. El rol `ADMIN` no accede a `messages`. La conversación de la solicitud
@@ -157,6 +171,11 @@ están en `.claude/rules/i18n.md`.
     `professionals.average_rating` se calculan por separado, y el lado de cada
     calificación se deriva del servicio que la originó, nunca de los roles que la
     persona tiene hoy. Solo la reputación recibida como profesional es pública.
+18. Un período de suscripción lo crea solo el motor: el de prueba, al aprobarse la
+    verificación; uno pagado, cuando una función de servidor verificó la compra
+    con Google Play. Ningún cliente crea, extiende ni acorta un período, y el
+    paciente nunca se suscribe. El pago de una atención, que es un servicio
+    físico, nunca pasa por la facturación de Google Play.
 
 ## Límites entre capas
 
@@ -183,19 +202,24 @@ directamente. Consume casos de uso.
 
 ## Reglas por tema — se cargan automáticamente
 
-Viven en `.claude/rules/` y se cargan solo al trabajar con archivos que coinciden,
-de modo que no consumen contexto en trabajo no relacionado. No hace falta
-invocarlas. Si estás *planificando* algo antes de tocar un archivo que coincida,
-conviene mencionar la relevante para tenerla en contexto desde el inicio.
+Viven en `.claude/rules/` y se cargan solo al leer o editar un archivo que coincida
+con el `paths:` de su encabezado, de modo que no consumen contexto en trabajo no
+relacionado. **Sin ese encabezado una regla se carga en cada sesión:** hasta el
+2026-11-22 ninguna lo tenía, y las seis entraban siempre, unos 100 KB. Una regla
+nueva lleva su `paths:` desde que se crea.
+
+**Al planificar una historia, ninguna se carga sola**, porque todavía no se tocó un
+archivo que coincida. Se leen a mano las que la historia va a necesitar: siempre
+`testing.md`, para sus pruebas obligatorias, y el glosario si introduce términos.
 
 | Tema | Archivo | Se carga al trabajar con |
 |---|---|---|
-| Términos español → inglés | `glosario.md` | cualquier archivo Kotlin o SQL |
-| Arquitectura y convenciones Kotlin | `arquitectura.md` | cualquier archivo Kotlin |
-| Convenciones de interfaz y diseño | `compose.md` | pantallas y componentes Compose |
-| Internacionalización | `i18n.md` | recursos de cadenas y cualquier texto visible |
-| Supabase, migraciones y RLS | `supabase.md` | migraciones SQL y fuentes de datos |
-| Casos de prueba obligatorios | `testing.md` | archivos de prueba |
+| Términos español → inglés | `glosario.md` | cualquier `.kt` o `.sql` |
+| Arquitectura y convenciones Kotlin | `arquitectura.md` | cualquier `.kt` |
+| Convenciones de interfaz y diseño | `compose.md` | `.kt` bajo `presentation/` o `ui/` |
+| Internacionalización | `i18n.md` | `strings.xml` y `.kt` bajo `presentation/`, `ui/` o `notifications/` |
+| Supabase, migraciones y RLS | `supabase.md` | `supabase/` y `.kt` bajo `data/` o `core/network/` |
+| Casos de prueba obligatorios | `testing.md` | `app/src/test`, `app/src/androidTest` y `supabase/migrations` |
 
 El sistema de diseño, con la paleta, la tipografía y las medidas derivadas de las
 referencias visuales, está en `docs/design-system.md`. Las imágenes de referencia
@@ -211,7 +235,9 @@ viven en `docs/design/references/`. Los diagramas de arquitectura viven en
 4. Al terminar una historia: marca sus criterios de aceptación en `plan.md`.
 5. Al terminar un sprint: marca el sprint, registra en `docs/decisions.md` toda
    decisión técnica no evidente con su fecha y su razonamiento, y anota en la
-   retrospectiva del sprint qué se aprendió.
+   retrospectiva del sprint qué se aprendió. Después mueve su sección completa a
+   `docs/sprints/sprint-NN.md` y deja en `plan.md` su resumen, como dice «Cómo usar
+   este archivo».
 6. Actualiza `README.md` solo cuando cambien la instalación, los comandos o las
    variables de entorno.
 7. Una historia está terminada cuando cumple la Definición de Terminado que fija

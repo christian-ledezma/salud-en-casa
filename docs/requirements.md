@@ -34,7 +34,7 @@ la atención y construye reputación verificable.
 |---|---|
 | **Paciente** | Persona que solicita atención domiciliaria para sí o para un familiar |
 | **Profesional** | Médico, enfermera, fisioterapeuta o estudiante del área de salud que presta atención domiciliaria de forma independiente |
-| **Administrador** | Responsable de verificar documentos y conciliar los pagos y comisiones de la plataforma |
+| **Administrador** | Responsable de verificar documentos y de resolver las disputas de pago entre paciente y profesional |
 | **Super administrador** | Concede el rol de administrador. No revisa documentos ni lee conversaciones. *(Pendiente: HT-17.)* |
 
 **Paciente y profesional son roles, no personas distintas.** Una misma persona
@@ -163,13 +163,13 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 
 | Código | Requisito |
 |---|---|
-| RF-11.1 | Al completarse un servicio, el sistema calcula el monto total, la comisión de la plataforma y el monto que corresponde al profesional. |
+| RF-11.1 | Al acordarse un servicio, el sistema registra su pago pendiente por el monto acordado, que corresponde íntegro al profesional. La plataforma no retiene parte de él (RN-08). |
 | RF-11.2 | El paciente confirma en la aplicación haber efectuado el pago, indicando el medio empleado. |
 | RF-11.3 | El profesional confirma haber recibido el pago. |
 | RF-11.4 | El pago alcanza el estado confirmado únicamente cuando ambas partes coinciden. |
 | RF-11.5 | Si las confirmaciones no coinciden, el pago queda en disputa y se deriva a revisión administrativa. |
-| RF-11.6 | El profesional consulta el saldo de comisiones acumuladas, liquidadas y pendientes. |
-| RF-11.7 | El administrador registra las liquidaciones recibidas y concilia los períodos. |
+| RF-11.6 | ~~El profesional consulta el saldo de comisiones acumuladas, liquidadas y pendientes.~~ **Retirado el 2026-11-22:** la plataforma no cobra comisión; se financia con la suscripción del profesional (RF-14). El código se conserva para que las referencias anteriores sigan siendo legibles. |
+| RF-11.7 | El administrador revisa los pagos en disputa y los resuelve en cualquiera de los dos sentidos, dejando registro de la resolución. |
 
 ### RF-12 · Calificación y reputación
 
@@ -185,9 +185,23 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | Código | Requisito |
 |---|---|
 | RF-13.1 | El paciente consulta el historial de sus atenciones con estado, monto, profesional, calificación otorgada y acceso a la conversación. |
-| RF-13.2 | El profesional consulta el historial de sus atenciones con el detalle de ingresos y comisiones. |
+| RF-13.2 | El profesional consulta el historial de sus atenciones con el detalle de sus ingresos. |
 | RF-13.3 | El administrador consulta el registro centralizado de solicitudes y atenciones, sin acceso al contenido de las conversaciones. |
 | RF-13.4 | Los historiales se presentan de forma paginada y ordenados de la atención más reciente a la más antigua. |
+
+### RF-14 · Suscripción del profesional
+
+Incorporado el 2026-11-22, al reemplazar la comisión por atención (`docs/decisions.md`, esa fecha).
+
+| Código | Requisito |
+|---|---|
+| RF-14.1 | Solo el rol profesional se suscribe. El paciente usa la aplicación sin costo, también quien tiene los dos roles cuando actúa como paciente. |
+| RF-14.2 | Al aprobarse su verificación, el profesional recibe un período de prueba de 30 días. |
+| RF-14.3 | El profesional consulta el estado de su suscripción —en prueba, vigente o vencida, con su fecha de fin— y qué deja de tener sin ella. |
+| RF-14.4 | El profesional se suscribe y renueva desde la aplicación con el sistema de facturación de Google Play. *(Pendiente: Sprint 11, condicionado a la publicación en la tienda.)* |
+| RF-14.5 | Sin suscripción vigente, el profesional no aparece en búsquedas, no recibe solicitudes en su bandeja ni sus avisos, no se le agenda una cita y no emite una primera oferta. Las negociaciones abiertas y las atenciones ya acordadas siguen hasta terminar. |
+| RF-14.6 | La exigencia de suscripción se activa con un ajuste de la plataforma. Desactivada, todo profesional aprobado y activo cuenta como vigente. |
+| RF-14.7 | Un período pagado existe solo cuando el servidor verificó la compra con Google Play. Ningún cliente crea, extiende ni acorta un período. |
 
 ## 4. Requisitos no funcionales
 
@@ -208,14 +222,14 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 
 | Código | Regla |
 |---|---|
-| RN-01 | Solo un profesional con verificación aprobada y perfil activo aparece en búsquedas y puede emitir ofertas. |
+| RN-01 | Solo un profesional con verificación aprobada, perfil activo y suscripción vigente (RF-14.5) aparece en búsquedas y puede emitir una primera oferta. |
 | RN-02 | La búsqueda por cercanía considera únicamente la base profesional declarada por el profesional y su radio de cobertura. La base profesional es una dirección propia marcada como tal, distinta de la dirección principal, que es el domicilio donde la persona recibe atención. |
 | RN-03 | Un estudiante del área de salud puede prestar servicios y registrar lo realizado, pero no puede emitir un diagnóstico. |
 | RN-04 | Una solicitud aceptada no admite ofertas nuevas. |
 | RN-05 | Una oferta emitida no se edita. Modificar el monto significa emitir una contraoferta que referencia la anterior, con otro monto: responder con el mismo es aceptarla. |
 | RN-06 | Los datos de contacto se revelan solo tras la aceptación de una oferta. |
 | RN-07 | El monto acordado se congela en el servicio. Un cambio posterior en la tarifa del profesional no afecta servicios ya acordados. |
-| RN-08 | La comisión de la plataforma es un porcentaje configurable del monto acordado. Su valor inicial es 10 %. |
+| RN-08 | La plataforma se financia con una suscripción periódica que paga el profesional, cobrada por Google Play. No retiene parte del monto de ninguna atención. El precio lo fija el producto en Play Console, no la base de datos. *(Hasta el 2026-11-22 era una comisión del 10 % del monto acordado.)* |
 | RN-09 | Un pago se confirma solo con la coincidencia de ambas partes. |
 | RN-10 | Una calificación se emite una sola vez por servicio y por autor, y únicamente sobre un servicio completado. |
 | RN-11 | El administrador no accede al contenido de las conversaciones. |
@@ -226,7 +240,11 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 ## 6. Invariantes del dominio
 
 Los invariantes están enunciados en `CLAUDE.md`, sección «Invariantes del dominio».
-Se numeran allí como INV-01 a INV-17 y son de cumplimiento obligatorio en todo el código.
+Se numeran allí como INV-01 a INV-18 y son de cumplimiento obligatorio en todo el código.
+
+El 2026-11-22, al reemplazarse la comisión por la suscripción, INV-07 sumó la suscripción
+vigente, INV-10 dejó de hablar de la comisión y pasó a fijar que el pago es íntegro del
+profesional, e INV-18 recoge que solo el motor crea un período de suscripción.
 
 INV-15, INV-16 e INV-17 se agregaron en el Sprint 2.5, al dejar de ser único el rol
 de una persona. Recogen, respectivamente, el modelo de rol múltiple con rol activo,
@@ -259,7 +277,7 @@ lados, y eso lo impide la base de datos, no la elección de rol.
 | Marcar llegada y finalización | — | * | — |
 | Confirmar pago | * | * | — |
 | Resolver disputa de pago | — | — | Sí |
-| Conciliar comisiones | — | * (solo lectura) | Sí |
+| Suscribirse | — | * | — |
 | Calificar | * | * | — |
 | Ver historial propio | * | * | — |
 | Ver registro centralizado | — | — | Sí, sin conversaciones |
@@ -275,7 +293,7 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 |---|---|---|
 | FA-01 | Registro clínico estructurado con diagnóstico | Tabla nueva vinculada al servicio, con autor, fecha y semántica de solo agregar. El detalle de la atención vive mientras tanto en la conversación (RF-09.3). |
 | FA-02 | Pasarela de pagos integrada | Función de servidor que reciba la notificación del proveedor. Los campos `method`, `provider` y `external_reference` ya existen en el modelo. |
-| FA-03 | Publicación en Google Play | Requiere cuenta de organización con número D-U-N-S. La distribución de prueba se realiza por App Distribution. |
+| FA-03 | ~~Publicación en Google Play~~ | **Incorporado al alcance el 2026-11-22** como Sprint 11, porque la suscripción del profesional se cobra con la facturación de Google Play (RF-14.4). Sigue condicionado a la cuenta de organización con número D-U-N-S, y la validación del Sprint 10 se sigue haciendo por App Distribution. |
 | FA-04 | Aplicación para iOS | Requiere reescribir el cliente. La separación de capas facilita reutilizar las reglas de negocio, pero no hay código portable. |
 | FA-05 | Seguimiento en vivo del profesional en camino | Requiere posición periódica del dispositivo y difusión en tiempo real. |
 | FA-06 | Pago dividido o múltiples medios por atención | El modelo de pagos admite la ampliación sin cambio de esquema. |
@@ -290,3 +308,6 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-15 | Bandeja de notificaciones dentro de la aplicación y preferencias propias | Los canales de notificación de Android ya permiten silenciar cada categoría desde el sistema. Una bandeja con historial exigiría una tabla de solo agregar de eventos por destinatario. |
 | FA-16 | Buscar y elegir el orden en las listas de atenciones | Ningún requisito lo pide, RF-13.4 ya fija el orden y una persona tendrá pocas atenciones. Como las listas son paginadas (RNF-08), buscar exige hacerlo en el motor: filtrar en el teléfono daría falsos «sin resultados». HT-27 lo descartó el 2026-11-04. |
 | FA-17 | Buscar otro profesional desde una atención cancelada | Si el profesional cancela, el paciente vuelve a Inicio y pide otra atención. Un botón en la atención cancelada ahorraría un paso, y prellenar el formulario, otro; ningún requisito lo pide. La solicitud cancelada no se reabre: admite un solo servicio. HU-24 lo dejó fuera el 2026-11-04. |
+| FA-18 | Cobrar la suscripción por fuera de Google Play | QR o transferencia con comprobante revisado por el administrador. Se descartó el 2026-11-22: con la aplicación en Play, la política de pagos no deja guiar dentro de ella hacia otro medio para un servicio digital, y habría que retirarlo al publicar. |
+| FA-19 | Varios planes de suscripción | Plan anual, precio por tipo de profesional o un nivel gratuito con ofertas limitadas. Ningún requisito lo pide; Play Billing admite varios planes por producto sin cambio de esquema. |
+| FA-20 | Avisar por notificación que la prueba está por vencer | La aplicación muestra la fecha de fin en el Inicio del profesional (RF-14.3). Avisarlo exigiría un trabajo de `pg_cron`, como FA-14. Las renovaciones de un período pagado las avisa Google Play. |

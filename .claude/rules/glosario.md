@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.kt"
+  - "**/*.sql"
+---
+
 # Glosario de dominio — español a inglés
 
 Se carga al trabajar con archivos Kotlin o SQL.
@@ -7,6 +13,11 @@ transliterar. No usar `Paciente`, `Solicitud`, `Calificacion`, `Monto`. Si un
 término del dominio no figura en esta tabla, agregarlo aquí en el mismo commit
 que lo introduce.
 
+**Cómo se escribe una fila.** Qué es y la regla que no se puede romper, en una línea.
+El porqué y la historia viven en la historia o la decisión citada entre paréntesis,
+no aquí: este archivo se carga con cada `.kt` y cada `.sql`. Un nombre que se retira
+pasa a «Nombres retirados», al final.
+
 ## Actores y roles
 
 | Español | Inglés | Uso |
@@ -14,184 +25,237 @@ que lo introduce.
 | Perfil | `Profile` | Identidad común a toda persona |
 | Paciente | `Patient` | Rol que solicita atención |
 | Profesional | `Professional` | Rol que presta atención |
-| Administrador | `Admin` | Rol de verificación y conciliación |
+| Administrador | `Admin` | Rol de verificación de documentos y resolución de disputas de pago |
 | Roles de una persona | `ProfileRoles` | Los roles que tiene y cuál está activo. Una persona puede tener paciente y profesional a la vez |
 | Médico | `DOCTOR` | Valor de `professional_type` |
 | Enfermera | `NURSE` | Valor de `professional_type` |
 | Fisioterapeuta | `PHYSIOTHERAPIST` | Valor de `professional_type` |
 | Estudiante | `STUDENT` | Valor de `professional_type` |
 
-## Conceptos del negocio
+## Direcciones, catálogo y búsqueda
 
 | Español | Inglés | Uso |
 |---|---|---|
-| Solicitud de atención | `ServiceRequest` | Petición publicada por el paciente |
-| Oferta | `RequestOffer` | Propuesta de monto sobre una solicitud. Desde HU-17 leída por el paciente con el nombre y la calificación públicos del profesional (vía `my_request_offers`) |
-| Contraoferta | Oferta con `parentOfferId` | No es un tipo aparte |
-| Hilo de la negociación | `OfferThread` / `OfferThreadRoute` | La cadena de ofertas de un profesional sobre una solicitud, en el orden en que se escribió, leída y contestada por los dos lados en la misma pantalla, que desde HT-24 es también donde el profesional hace la primera oferta. Qué lado es el lector lo decide su identificador contra `professionalId`, que INV-16 mantiene inequívoco (HU-18) |
-| Turno del hilo | `isMyTurn` / `offer_continues_thread` | Se contesta la oferta que está sobre la mesa: la que sigue en `PROPOSED` y todavía no tiene respuesta. El definidor recibe además el emisor que el padre debe tener, de modo que cada rama de la política valida el suyo |
-| Hilo cerrado | `isClosed` / `guard_offer_rejection` | Un rechazo cierra la cadena: nadie contesta una oferta rechazada, y nadie rechaza una ya contestada. El profesional rechazado tampoco abre otra cadena, porque solo tiene una primera oferta por solicitud |
-| Rechazar una oferta | `RejectOfferUseCase` / `request_offers_reject_counterparty` | Marca esa oferta `REJECTED` y nada más: la solicitud se queda en `NEGOTIATING` y los demás profesionales la siguen viendo. Rechaza la contraparte del emisor. Una política que no admite la fila actualiza cero filas sin lanzar, así que cero se lee como denegación |
-| Ya ofertó | `professional_already_offered_on` | Definidor que responde si el llamante ya tiene una fila en esa solicitud. Una primera oferta por profesional y solicitud; va en un definidor para no releer `request_offers` dentro de su propia política. Dos índices únicos parciales —uno por `parent_offer_id`, otro por `(request_id, professional_id)` sin padre— son los que sostienen la regla cuando hay dos escritores a la vez |
-| Reloj de la oferta | `stamp_offer_created_at` | Disparador que sella `created_at` con la hora del motor cuando hay un llamante autenticado. El hilo se lee en el orden que el motor registró, así que la fecha no la pone el cliente |
-| Estado de la oferta | `OfferStatus` | `PROPOSED`, `ACCEPTED`, `REJECTED`, `EXPIRED`. Lo único que el cliente escribe de una oferta emitida, y solo de `PROPOSED` a `REJECTED` |
-| Aviso de contraoferta | `COUNTER_OFFER_RECEIVED` / `notify_offer_parties` | El único evento que llega a cualquiera de los dos roles: siempre a la contraparte del emisor. `parent_offer_id` nulo es `OFFER_RECEIVED`; con padre, contraoferta. Lleva el monto y el `professionalId` del hilo, nunca el mensaje (RF-09.10) |
-| Tema del profesional | `professional_offers` | El Broadcast sin datos al tema privado `professional_offers:<id del profesional>`, espejo del del paciente, con su política `professional_offers_listen`. Un disparador avisa al tema de quien tiene que re-consultar, también al rechazar. En el cliente, cada tema es un solo flujo compartido entre las pantallas que lo escuchan (HT-24) |
-| Puede ofertar | `professional_may_offer_on` | Función de definidor que responde si el llamante puede ofertar sobre una solicitud, sin devolver ubicación ni identidad. Reemplazó la lectura que hacía `request_offers_insert_participants`, de modo que `service_requests_select_addressee` se retiró (HU-17). La rama agendada decide por `professional_id`, no por cobertura |
-| Ofertas de mi solicitud | `my_request_offers` | Función de definidor que da las ofertas de la propia solicitud del paciente, unidas al directorio público del profesional |
-| Solicitud para ofertar | `OfferableRequest` / `inbox_request` | La solicitud que el profesional abre para ofertar: la proyección de la bandeja para una fila, más si ya ofertó. Nunca la ubicación exacta ni la identidad del paciente |
-| Primera oferta | `OfferThreadUiState.Opening` | El estado de la pantalla única del profesional antes de ofertar: el detalle de la solicitud y el formulario. Al enviar, la misma pantalla pasa a ser la negociación. Reemplazó a `MakeOfferScreen` en HT-24 |
-| Tarjeta de oferta | `OfferCard` | Un profesional con su oferta como lo ve el paciente mientras espera, apiladas como en InDrive: nombre, calificación, distancia, el monto sobre la mesa y de quién es el turno. En su turno, «Aceptar» con el monto y «Negociar»; tocar el resto abre el hilo. Reemplazó a `NegotiationScreen` en HT-24 |
-| Aceptar desde las ofertas | `ImmediateCareUiState.Waiting.confirmingAcceptance` / `AcceptOfferDialog` | La oferta queda fijada al abrir la confirmación, de modo que una señal no cambia lo que se confirma. El diálogo lo comparte con el hilo (HT-28) |
-| Contraoferta que acepta | `CounterOfferResult.AcceptsTheOffer` / `guard_counter_differs_from_the_offer` | Escribir el monto de la oferta vigente no crea otra oferta: abre la confirmación de «Aceptar». El mínimo del paciente se evalúa antes. El motor rechaza una contraoferta igual a la que responde, y solo se lo dice a las dos partes (HT-29) |
-| Primera lectura de ofertas | `offersRead` | Falso hasta que responde la primera lectura: mientras tanto la pantalla no dice que sigue buscando |
-| Mínimo del paciente | `counterFloorBob` / `guard_patient_counter_floor` | El paciente nunca contraoferta por debajo del mayor entre su presupuesto sugerido y su propuesta más alta en ese hilo. Por hilo, solo para el paciente; lo dice la pantalla y lo exige el motor, que solo lo evalúa para el dueño de la solicitud |
-| Dónde se negocia | `NegotiationEntry` | A dónde lleva una tarjeta de «Mis solicitudes»: la espera, si es una inmediata abierta, o el hilo, si es una agendada en negociación. Nada, si no queda qué negociar |
-| Dirección elegida al volver | `selectionAfterRefresh` | Al volver de «Agregar otra dirección», queda elegida la que se acaba de agregar; si no hay una nueva, la que estaba; si se borró, la principal |
-| Aviso de oferta al paciente | `patient_offers` / `notify_patient_offers` | El Broadcast sin datos al tema privado `patient_offers:<id del paciente>` que dispara un trigger al insertarse una oferta, para que el paciente re-consulte. La política `patient_offers_listen` deja a cada paciente escuchar solo su propio tema |
-| Encolar el aviso de oferta | `queue_offer_push` / `OFFER_RECEIVED` | El trigger en `request_offers` (solo si el emisor es el profesional) que encola el push `OFFER_RECEIVED` con el tipo de servicio y el monto, nunca el mensaje |
-| Pasar a negociación | `move_request_to_negotiating` | El trigger que mueve la solicitud de `PUBLISHED` a `NEGOTIATING` al insertarse la primera oferta. El guardia de ciclo de vida admite esa transición |
-| Aceptar una oferta | `AcceptOfferUseCase` / `accept_offer` | La operación atómica de HU-19: la ejecuta la contraparte del emisor de la oferta sobre la mesa. Un definidor marca la oferta `ACCEPTED`, crea el servicio y el pago pendiente, y mueve la solicitud a `ACCEPTED` fijando su `professional_id`, todo en una transacción (RF-08.5) |
-| Reconocer la operación atómica | `guard_request_lifecycle` | El guardia admite `→ ACCEPTED` y el cambio de `professional_id` solo si ya existe un `services` para esa solicitud, que `accept_offer` inserta antes de actualizarla. Nadie más puede insertar un servicio, así que esa fila es prueba de que corre la operación, no una bandera que el cliente pueda fijar (`docs/decisions.md`, 2026-10-29) |
-| Comisión configurable | `platform_fee_percent` | El porcentaje de comisión en `platform_settings`, valor inicial 10 (RN-08). Se lee al aceptar: `platform_fee_bob = round(total*pct,2)` y `professional_amount_bob = total - fee`, congelados desde que el pago nace |
-| Aviso de oferta aceptada | `OFFER_ACCEPTED` / `queue_acceptance_push` | El push al emisor de la oferta aceptada (la contraparte de quien aceptó), que lleva al que recibe a la atención. Lo encola un trigger `after insert on services`, dentro de la transacción, de modo que un `rollback` descarta la fila de `pg_net` y no sale aviso (criterio 7). Lleva el monto, nunca un mensaje |
-| La atención | `Attention` / `AttentionScreen` / `my_attention` | La pantalla del acuerdo cerrado, en `features/services`: el monto congelado, el estado y la contraparte. Sin teléfono ni llamada (2026-10-30): el paciente abre la ficha pública del profesional que ya existe, y el profesional ve el nombre del paciente, antes oculto. La arma el definidor `my_attention`, con la contraparte relativa a `auth.uid()` y reservado a quien es parte del servicio. A ella llevan el hilo aceptado, la tarjeta aceptada de «Mis solicitudes» y el aviso `OFFER_ACCEPTED`. La coordinación del servicio es por la conversación (HU-21), no por teléfono |
-| Mis atenciones | `MyAttentionsScreen` / `AttentionSummary` / `my_attentions` | La lista de lo acordado, con su estado, como segunda vista de «Solicitudes» en los dos roles. Cada fila lleva solo lo que su tarjeta muestra, también las completadas y canceladas (HT-26, HT-27). HU-31 y HU-32 agregan sobre ella la calificación y el detalle económico |
-| Lado de la atención | `AttentionSide` | `PATIENT` o `PROFESSIONAL`: cuál de sus dos lados lee una persona. Solo elige entre filas propias y no concede nada (INV-17) |
-| Fecha de la tarjeta | `cardDate` / `AttentionCardDate` / `AttentionDateKind` | La cita si la hay; si no, el inicio; antes de iniciar, el acuerdo |
-| Atención activa | `my_active_attention` / `GetActiveAttentionUseCase` / `ActiveAttentionResult` | La que está en curso y, si no hay, la próxima asignada. Es lo que abre la fila «Tu atención» de Inicio, en los dos roles |
-| Vistas de Solicitudes | `RequestsTabContent` / `ProfessionalRequestsTab` / `PatientRequestsTab` / `RequestsView` | `REQUESTS`, que es «Disponibles» para el profesional y «Mis solicitudes» para el paciente, y `MY_ATTENTIONS`. Salir del destino vuelve a la primera; volver de una atención conserva la vista |
-| Ya tiene atención | `has_attention` | Columna de `my_service_requests`: la solicitud llegó a un servicio, así que su tarjeta está en «Mis atenciones», sea cual sea su estado |
-| Solicitud abierta | `is_open` | Columna de `my_service_requests`: publicada o en negociación. Va primero en «Mis solicitudes» |
-| Ofertas abiertas | `open_offer_count` / `openOfferCount` / `showsOfferCount` | Columna de `my_service_requests`: las negociaciones cuya última oferta sigue propuesta y sin respuesta. La tarjeta la muestra solo en una inmediata abierta |
-| Tarjeta común | `ServiceCard` / `ServiceCardAmount` | La tarjeta de las tres listas, para que los dos lados lean lo mismo en el mismo lugar |
-| Píldora de estado | `StatusBadge` / `StatusTone` | El estado de una solicitud o una atención, igual dondequiera que se lea |
-| Deslizar para actualizar | `RefreshableContent` / `ListRefresher` / `ListRefresh` | Lo que hace una lista al deslizarla: relee la primera página y, si falla, la deja como estaba y lo dice |
-| La conversación | `Conversation` / `ConversationScreen` / `ConversationRoute` | La pantalla de mensajes de una atención, en `features/conversation`. Se abre desde la atención con «Abrir conversación», y el aviso la abre con la atención debajo. Se escribe mientras la atención no esté cancelada ni hayan pasado 7 días desde que se completó; después, solo se lee (HU-21, `docs/decisions.md`, 2026-11-03; HU-24, 2026-11-04) |
-| Conversación abierta al escribir | `conversation_is_open` / `conversation_writable_until` / `writableUntil` | Si la conversación admite mensajes y hasta cuándo. Los 7 días están escritos solo en el motor: las políticas de inserción y `my_attention` usan estas dos funciones, y el teléfono recibe la respuesta (HU-24) |
-| Cancelar la atención | `CancelAttentionUseCase` / `canCancel` / `CancelDraft` | La cancela cualquiera de las partes, asignada o en curso, con un motivo. El cliente solo envía el estado y el motivo; el motor sella quién y cuándo. Lo que la persona escribe queda en `CancelDraft` mientras el diálogo está abierto (HU-24) |
-| Motivo de cancelación | `CancellationReason` / `AttentionCancellation` | Objeto de valor: recortado, no vacío y de hasta 300 caracteres contados como puntos de código, como `char_length` en el motor. Se escribe una sola vez, y lo leen las dos partes y el administrador; nunca viaja en un aviso (RF-09.10) |
-| Anular el pago | `cancel_payment_with_service` | El disparador que lleva el pago a `CANCELLED` al cancelarse la atención. Ningún cliente lo hace por su cuenta: `guard_payment_confirmation` pide que el servicio ya esté cancelado, y de ese estado no se sale |
-| Contenido del mensaje | `MessageContent` | Objeto de valor: recortado, no vacío y de hasta 4000 caracteres contados como puntos de código, como `char_length` en el motor |
-| Cursor del mensaje | `MessageCursor` / `conversation_page` | `(created_at, id)`: la conversación pagina por cursor y no por desplazamiento, con una función de invocador que compara por fila y recorre el índice. `startOf` es el cursor anterior a todo mensaje de un instante |
-| Ponerse al día | `CatchUpMessagesUseCase` | Lo que hace una señal: todo lo posterior a lo que hay en pantalla, página tras página hasta una corta, sin dejar huecos. Mientras mi último mensaje siga sin leer, el recorrido empieza en él, de modo que vuelve con su «Leído» |
-| Reloj y lectura del mensaje | `stamp_message_created_at` / `stamp_message_read_at` | El motor sella `created_at` al insertar y `read_at` la primera vez que se marca; nadie la cambia ni la borra después |
-| Marcar leído | `mark_conversation_read` / `MarkConversationReadUseCase` | Función de invocador que marca leídos los mensajes de la contraparte. Solo con la pantalla en primer plano |
-| Señal de la conversación | `conversation:<request_id>` / `notify_conversation_message`, `notify_conversation_read` / `conversation_listen` | El Broadcast sin datos al tema privado de la conversación, al insertar un mensaje y una vez por sentencia al leer. Solo lo escuchan las dos partes del servicio |
-| Señales de Broadcast | `broadcastSignals` | El ciclo de un canal privado sin datos, en `core/network`: lo usan la bandeja, las ofertas y la conversación |
-| Registro de la atención | `isWorkRecord` / `is_work_record` / `WorkRecordRow` | Un mensaje marcado: lo realizado, en la conversación. Solo el profesional de esa atención lo escribe, con la atención en curso o completada, y lo exige el motor. El texto sigue en `content`; no se edita, y corregir es agregar otro (HU-22, `docs/decisions.md`, 2026-11-03) |
-| Puede registrar | `canRecord` / `recordRequested` / `recording` | Lo que la cabecera permite, lo que la persona pidió y lo que vale: lo pedido deja de contar cuando la cabecera ya no lo permite |
-| Aviso al estudiante | `showsStudentNotice` | Que describa lo que hizo sin incluir un diagnóstico (RN-03). Informa, no impide. Con el tipo de profesional desconocido, se muestra |
-| Avance de la atención | `AttentionStep` / `nextStep` / `AdvanceAttentionUseCase` | `MarkArrival` y `MarkCompleted`: lo que el profesional marca a continuación. El paciente nunca tiene un paso. Marcar dos veces no hace nada (HU-23, `docs/decisions.md`, 2026-11-04) |
-| Sellar el avance | `stamp_service_progress` / `started_at`, `finished_at` | El motor sella el inicio y el fin cuando el estado cambia; ningún cliente los escribe |
-| La solicitud sigue a la atención | `move_request_with_service` | El disparador que lleva la solicitud a `IN_PROGRESS` y `COMPLETED` en la misma transacción. El guardia lo admite si el servicio ya está en ese estado |
-| Señal de la atención | `attention:<request_id>` / `notify_attention_changed` / `attention_listen` / `ObserveAttentionUseCase` | El Broadcast sin datos al tema privado de la atención, para releerla en vivo. Solo lo escuchan las dos partes. No comparte el tema con la conversación: el cliente entrega un canal por tema |
-| Dónde es la atención | `AttentionPlace` | La ciudad siempre; la dirección, la referencia y el punto, para el paciente siempre y para el profesional solo con la atención asignada o en curso |
-| Línea de tiempo | `TimelineStep` / `timeline` | El acuerdo, la llegada y el fin con sus horas, tal como la pantalla los muestra |
-| Por enviarse | `ConversationItem.Sending` / `NotSent` | Un mensaje que todavía no llegó al motor, con el identificador que generó el teléfono; el reintento lo reutiliza |
-| Conversación abierta | `enterConversation` / `leaveConversation` / `DiscardReason.CONVERSATION_OPEN` | La que está en primer plano. Su aviso de mensaje se descarta en el teléfono |
-| Espacio del aviso | `NotificationSlot` | `EVENT` o `MESSAGE`: un aviso se identifica por su solicitud y su espacio, de modo que un mensaje no reemplaza otro evento de la misma solicitud |
-| Atención / Servicio | `Service` | Atención acordada y prestada |
+| Dirección | `Address` | Domicilio georreferenciado |
 | Tipo de servicio | `ServiceType` | Catálogo de tipos de atención |
 | Servicio ofrecido | `ProfessionalService` | Unión profesional–tipo de servicio, con el precio que el profesional declaró |
 | Servicios declarados | `DeclaredServices` | Lo que el profesional presta hoy junto con el catálogo que le queda por declarar |
 | Tipos por declarar | `undeclaredTypes` | Los tipos del catálogo que el profesional todavía no ofrece. No se le ofrecen dos veces |
-| Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
-| Disponibilidad semanal | `WeeklyAvailability` | La vista agrupada por día que la pantalla de disponibilidad maneja: las siete claves siempre vienen pobladas aun sin franjas |
-| Borrador de franja | `SlotDraft` / `SlotEditor` | La franja que se está declarando y el editor que la muestra, dentro del día al que pertenece. Sin diálogo y sin selector de reloj: el día lo fija el botón desde el que se abrió (`docs/decisions.md`, 2026-10-15) |
-| Rejilla de medias horas | `SlotTimes` | Las horas que el editor ofrece: cada 30 minutos, y las de «Hasta» siempre posteriores al inicio elegido |
-| Error de disponibilidad | `AvailabilityError` | `EndNotAfterStart`, `OverlapsExistingSlot`, `NetworkUnavailable`, `Unexpected`. El solapamiento y el duplicado exacto llegan por el mismo errcode 23505 y presentan igual |
-| Guarda contra solapamientos | `reject_overlapping_slot` | Función del motor que, en un `BEFORE INSERT/UPDATE`, usa `OVERLAPS` sobre `time` para rechazar una franja que cruce otra del mismo profesional en el mismo día |
-| Dirección | `Address` | Domicilio georreferenciado |
-| Documento de verificación | `VerificationDocument` | Respaldo de identidad o título |
-| Documento adicional | `DocumentType.OTHER` | Adjunto opcional por persona, con leyenda obligatoria |
-| Checklist de verificación | `VerificationChecklist` | Documentos requeridos según rol más el adjunto opcional |
-| Leyenda del documento | `caption` / `DocumentCaption` | Línea de texto que acompaña al `OTHER` |
-| Pago | `Payment` | Registro económico de una atención |
-| Comisión de la plataforma | `platformFee` | Porción que retiene la plataforma |
-| Calificación | `Review` | Puntaje y comentario cruzados |
-| Comentario de la ficha | `ProfessionalReview` | Una calificación tal como la ficha pública la muestra: puntaje, comentario y fecha. **Sin su autor**, que no se publica |
-| Proyección pública de calificaciones | `professional_reviews` | La vista que decide cuáles son públicas. El cliente nunca consulta `reviews` |
 | Servicios de otro profesional | `ProfessionalServicesResult` | Lo que un visitante lee del catálogo ajeno: lo declarado, sin los tipos por declarar |
+| Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
+| Disponibilidad semanal | `WeeklyAvailability` | La vista agrupada por día: las siete claves siempre pobladas, aun sin franjas |
+| Borrador de franja | `SlotDraft` / `SlotEditor` | La franja que se declara y su editor, dentro de su día. Sin diálogo ni selector de reloj (`docs/decisions.md`, 2026-10-15) |
+| Rejilla de medias horas | `SlotTimes` | Las horas del editor: cada 30 minutos, y las de «Hasta» siempre posteriores al inicio elegido |
+| Error de disponibilidad | `AvailabilityError` | `EndNotAfterStart`, `OverlapsExistingSlot`, `NetworkUnavailable`, `Unexpected`. Solapamiento y duplicado llegan por el mismo errcode 23505 y presentan igual |
+| Guarda contra solapamientos | `reject_overlapping_slot` | `BEFORE INSERT/UPDATE` que usa `OVERLAPS` sobre `time` contra las franjas del mismo profesional y día |
+| Búsqueda por cercanía | `ProfessionalSearch` | La característica entera: `features/search/` y `search_nearby_professionals` |
+| Profesional cercano | `NearbyProfessional` | Una fila del resultado: lo público del profesional, su distancia y el punto aproximado de su base |
+| Criterios de búsqueda | `SearchCriteria` | Radio, tipo de servicio y disponibilidad con que el paciente recorta la búsqueda |
+| Origen de la búsqueda | `SearchOrigin` | La dirección **principal** del paciente. Nunca su base profesional |
+| Radio de búsqueda | `SearchRadius` | 2, 5 y 10 km; 5 por omisión |
+| Punto aproximado de la base | `basePoint` / `base_latitude`, `base_longitude` | Dónde se dibuja el marcador: la base redondeada a la manzana. Nunca la coordenada exacta |
+| Distancia en metros | `distanceM` | Redondeada a la centena de metros antes de salir del motor |
+| Cobertura de un profesional dado | `professional_covers_for` | La regla de cobertura escrita una vez. Ningún cliente la ejecuta: con profesional y punto libres sería un oráculo sobre su base |
+
+## Solicitudes y agenda
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Solicitud de atención | `ServiceRequest` | Petición publicada por el paciente |
+| Atención ahora | `ImmediateCare` / `ImmediateCareRoute` | La pantalla de la inmediata: mapa de disponibles, formulario y espera de ofertas en una sola (HT-23) |
+| Disponibles cerca | `NearbyState` / `FindProfessionalsAvailableNowUseCase` | Lo que muestra ese mapa: disponibles ahora, con el servicio elegido, en el radio mayor, alrededor de la dirección elegida. Indicativo, no la lista de destinatarios |
+| Solicitud inmediata activa | `ActiveRequestResult` / `GetActiveImmediateRequestUseCase` | La inmediata más reciente del paciente que sigue publicada o en negociación: `Found`, `None` o `Failure` |
+| Dirección elegida al volver | `selectionAfterRefresh` | Al volver de «Agregar otra dirección»: la nueva; si no hay, la que estaba; si se borró, la principal |
+| Cita agendada | `RequestModality.SCHEDULED` / `create_scheduled_request` | Solicitud dirigida a un profesional para una fecha y hora. Solo nace por esa función, que valida la hora contra `bookable_start_times` |
+| Horarios reservables | `bookable_start_times` / `BookableTimes` / `BookableStart` | Inicios en los próximos 14 días: cada 30 minutos desde el inicio de la franja, con 2 horas de anticipación y la atención completa dentro de una franja. Cada uno trae el instante y su fecha y hora en La Paz |
+| Zona de la cita | `AppointmentZone` | `America/La_Paz`. Solo para mostrar una `scheduled_at` guardada; el cálculo vive en el motor |
+| Parte del día | `PartOfDay` | `MORNING` antes de las 12:00, `AFTERNOON` hasta las 18:00, `EVENING` desde las 18:00. En `core/vo/`: lo usan agendar y disponibilidad |
+| Agendar una cita | `ScheduleAppointment` | La pantalla y su modelo de vista; se abre desde la ficha del profesional |
+| Puede agendar | `CanScheduleAppointmentUseCase` / `showsScheduleAction` | La ficha ofrece «Agendar cita» con rol activo paciente, ficha ajena y profesional con servicios declarados |
+| Bandeja de solicitudes | `request_inbox` / `InboxRequest` | Las inmediatas publicadas en el radio del profesional y las agendadas dirigidas a él, por RPC de definidor. Tipo, ciudad, presupuesto, modalidad, hora de la cita y distancia redondeada; nunca la ubicación exacta ni la identidad del paciente (HU-16) |
+| Aviso de la bandeja | `inboxSignals` / `notify_immediate_inbox` | Broadcast sin datos al tema `immediate_inbox`; el cliente re-consulta. No transporta la fila |
+| Solicitud para ofertar | `OfferableRequest` / `inbox_request` | Lo que el profesional abre para ofertar: la fila de la bandeja más si ya ofertó. Nunca la ubicación exacta ni la identidad del paciente |
+| Solicitud abierta | `is_open` | Columna de `my_service_requests`: publicada o en negociación. Va primero en «Mis solicitudes» |
+| Ya tiene atención | `has_attention` | Columna de `my_service_requests`: llegó a un servicio, así que su tarjeta está en «Mis atenciones», en cualquier estado |
+| Ofertas abiertas | `open_offer_count` / `openOfferCount` / `showsOfferCount` | Columna de `my_service_requests`: negociaciones cuya última oferta sigue propuesta y sin respuesta. Solo se muestra en una inmediata abierta |
+| Dónde se negocia | `NegotiationEntry` | A dónde lleva una tarjeta de «Mis solicitudes»: la espera, si es inmediata abierta; el hilo, si es agendada en negociación; nada, si no queda qué negociar |
+
+## Negociación
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Oferta | `RequestOffer` | Propuesta de monto sobre una solicitud. El paciente la lee con el nombre y la calificación públicos del profesional |
+| Contraoferta | Oferta con `parentOfferId` | No es un tipo aparte |
+| Estado de la oferta | `OfferStatus` | `PROPOSED`, `ACCEPTED`, `REJECTED`, `EXPIRED`. Lo único que el cliente escribe de una oferta emitida, y solo de `PROPOSED` a `REJECTED` |
+| Hilo de la negociación | `OfferThread` / `OfferThreadRoute` | La cadena de ofertas de un profesional sobre una solicitud, en orden, leída y contestada por los dos lados en una pantalla, donde el profesional hace también la primera oferta. Qué lado lee lo decide su identificador contra `professionalId` (INV-16; HU-18, HT-24) |
+| Primera oferta | `OfferThreadUiState.Opening` | Esa pantalla antes de ofertar: detalle de la solicitud y formulario. Al enviar pasa a ser la negociación (HT-24) |
+| Turno del hilo | `isMyTurn` / `offer_continues_thread` | Se contesta la oferta sobre la mesa: la que sigue `PROPOSED` y sin respuesta. El definidor recibe el emisor que el padre debe tener, y cada rama de la política valida el suyo |
+| Hilo cerrado | `isClosed` / `guard_offer_rejection` | Un rechazo cierra la cadena: nadie contesta una oferta rechazada ni rechaza una ya contestada, y el rechazado no abre otra, porque tiene una sola primera oferta por solicitud |
+| Rechazar una oferta | `RejectOfferUseCase` / `request_offers_reject_counterparty` | La rechaza la contraparte del emisor, y solo marca esa oferta `REJECTED`: la solicitud sigue en `NEGOTIATING` y visible para los demás. La política que no admite la fila actualiza cero filas sin lanzar: cero es denegación |
+| Ya ofertó | `professional_already_offered_on` | Definidor: si el llamante ya tiene una fila en la solicitud. Una primera oferta por profesional y solicitud; con dos escritores la sostienen dos índices únicos parciales |
+| Puede ofertar | `professional_may_offer_on` | Definidor: si el llamante puede ofertar, sin devolver ubicación ni identidad. La rama agendada decide por `professional_id`, no por cobertura (HU-17) |
+| Ofertas de mi solicitud | `my_request_offers` | Definidor: las ofertas de la propia solicitud del paciente, con el directorio público del profesional |
+| Reloj de la oferta | `stamp_offer_created_at` | El motor sella `created_at`; el cliente nunca pone la fecha |
+| Pasar a negociación | `move_request_to_negotiating` | Disparador: `PUBLISHED` → `NEGOTIATING` con la primera oferta |
+| Mínimo del paciente | `counterFloorBob` / `guard_patient_counter_floor` | El paciente nunca contraoferta por debajo del mayor entre su presupuesto sugerido y su propuesta más alta en ese hilo. Lo dice la pantalla y lo exige el motor, solo para el dueño de la solicitud |
+| Contraoferta que acepta | `CounterOfferResult.AcceptsTheOffer` / `guard_counter_differs_from_the_offer` | Repetir el monto vigente abre la confirmación de «Aceptar» en vez de crear otra oferta; el mínimo del paciente se evalúa antes. El motor rechaza una contraoferta igual a la que responde (HT-29) |
+| Tarjeta de oferta | `OfferCard` | Un profesional y su oferta como los ve el paciente mientras espera: nombre, calificación, distancia, monto sobre la mesa y turno. En su turno, «Aceptar» con el monto y «Negociar»; tocar el resto abre el hilo (HT-24) |
+| Aceptar desde las ofertas | `ImmediateCareUiState.Waiting.confirmingAcceptance` / `AcceptOfferDialog` | La oferta queda fijada al abrir la confirmación: una señal no cambia lo que se confirma. El diálogo es el mismo del hilo (HT-28) |
+| Primera lectura de ofertas | `offersRead` | Falso hasta la primera respuesta: mientras tanto la pantalla no dice que sigue buscando |
+| Aceptar una oferta | `AcceptOfferUseCase` / `accept_offer` | Operación atómica (RF-08.5) que ejecuta la contraparte del emisor: marca la oferta `ACCEPTED`, crea el servicio y el pago pendiente, y lleva la solicitud a `ACCEPTED` con su `professional_id`, en una transacción (HU-19) |
+| Reconocer la operación atómica | `guard_request_lifecycle` | Admite `→ ACCEPTED` y el cambio de `professional_id` solo si ya existe el `services` de esa solicitud, que solo `accept_offer` inserta. La fila es la prueba, no una bandera (`docs/decisions.md`, 2026-10-29) |
+| Aviso de oferta al paciente | `patient_offers` / `notify_patient_offers` | Broadcast sin datos a `patient_offers:<id del paciente>` al insertarse una oferta. `patient_offers_listen` deja escuchar solo el propio tema |
+| Tema del profesional | `professional_offers` | Broadcast sin datos a `professional_offers:<id del profesional>`, con `professional_offers_listen`, también al rechazar. En el cliente, un flujo compartido por tema (HT-24) |
+| Encolar el aviso de oferta | `queue_offer_push` / `OFFER_RECEIVED` | Encola `OFFER_RECEIVED` si el emisor es el profesional, con tipo de servicio y monto, nunca el mensaje |
+| Aviso de contraoferta | `COUNTER_OFFER_RECEIVED` / `notify_offer_parties` | Llega siempre a la contraparte del emisor, en cualquiera de los dos roles; sin padre es `OFFER_RECEIVED`. Lleva monto y `professionalId`, nunca el mensaje (RF-09.10) |
+| Aviso de oferta aceptada | `OFFER_ACCEPTED` / `queue_acceptance_push` | Al emisor de la oferta aceptada; lleva a la atención. Lo encola un disparador `after insert on services` dentro de la transacción: un `rollback` no envía aviso. Lleva el monto, nunca un mensaje |
+
+## Atención
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Atención / Servicio | `Service` | Atención acordada y prestada |
+| La atención | `Attention` / `AttentionScreen` / `my_attention` | Pantalla del acuerdo cerrado, en `features/services`: monto congelado, estado y contraparte, sin teléfono ni llamada; se coordina por la conversación. `my_attention` es un definidor solo para las partes, con la contraparte relativa a `auth.uid()` (`docs/decisions.md`, 2026-10-30) |
+| Lado de la atención | `AttentionSide` | `PATIENT` o `PROFESSIONAL`: cuál de sus dos lados lee una persona. Solo elige entre filas propias y no concede nada (INV-17) |
+| Mis atenciones | `MyAttentionsScreen` / `AttentionSummary` / `my_attentions` | Lo acordado con su estado, segunda vista de «Solicitudes» en los dos roles. Cada fila lleva solo lo que su tarjeta muestra, también completadas y canceladas (HT-26, HT-27) |
+| Fecha de la tarjeta | `cardDate` / `AttentionCardDate` / `AttentionDateKind` | La cita si la hay; si no, el inicio; antes de iniciar, el acuerdo |
+| Atención activa | `my_active_attention` / `GetActiveAttentionUseCase` / `ActiveAttentionResult` | La que está en curso y, si no hay, la próxima asignada. La abre la fila «Tu atención» de Inicio, en los dos roles |
+| Avance de la atención | `AttentionStep` / `nextStep` / `AdvanceAttentionUseCase` | `MarkArrival` y `MarkCompleted`, lo que el profesional marca a continuación. El paciente nunca tiene un paso, y marcar dos veces no hace nada (HU-23) |
+| Sellar el avance | `stamp_service_progress` / `started_at`, `finished_at` | El motor sella inicio y fin al cambiar el estado; ningún cliente los escribe |
+| La solicitud sigue a la atención | `move_request_with_service` | Disparador que lleva la solicitud a `IN_PROGRESS` y `COMPLETED` en la misma transacción. El guardia lo admite si el servicio ya está en ese estado |
+| Señal de la atención | `attention:<request_id>` / `notify_attention_changed` / `attention_listen` / `ObserveAttentionUseCase` | Broadcast sin datos para releerla en vivo; solo las dos partes. Tema propio, no el de la conversación |
+| Dónde es la atención | `AttentionPlace` | La ciudad siempre; dirección, referencia y punto, para el paciente siempre y para el profesional solo con la atención asignada o en curso |
+| Línea de tiempo | `TimelineStep` / `timeline` | El acuerdo, la llegada y el fin con sus horas |
+| Cancelar la atención | `CancelAttentionUseCase` / `canCancel` / `CancelDraft` | Cualquiera de las partes, asignada o en curso, con motivo. El cliente envía solo estado y motivo; el motor sella quién y cuándo. `CancelDraft` guarda lo escrito mientras el diálogo está abierto (HU-24) |
+| Motivo de cancelación | `CancellationReason` / `AttentionCancellation` | Objeto de valor: recortado, no vacío, hasta 300 puntos de código, como `char_length`. Se escribe una vez; lo leen las partes y el administrador; nunca viaja en un aviso (RF-09.10) |
+
+## Conversación
+
+| Español | Inglés | Uso |
+|---|---|---|
 | Mensaje | `Message` | Comunicación dentro de la solicitud |
-| Identificador de dispositivo | `DeviceToken` | Destino de notificaciones |
+| La conversación | `Conversation` / `ConversationScreen` / `ConversationRoute` | Mensajes de una atención, en `features/conversation`. Se abre desde la atención, y el aviso la abre con la atención debajo. Se escribe salvo con la atención cancelada o 7 días después de completada; después solo se lee (HU-21, HU-24) |
+| Conversación abierta al escribir | `conversation_is_open` / `conversation_writable_until` / `writableUntil` | Si admite mensajes y hasta cuándo. Los 7 días viven solo en el motor; las políticas y `my_attention` usan estas funciones |
+| Contenido del mensaje | `MessageContent` | Objeto de valor: recortado, no vacío, hasta 4000 puntos de código, como `char_length` |
+| Cursor del mensaje | `MessageCursor` / `conversation_page` | `(created_at, id)`: se pagina por cursor, no por desplazamiento, comparando por fila sobre el índice. `startOf` es el cursor anterior a todo mensaje de un instante |
+| Ponerse al día | `CatchUpMessagesUseCase` | Lo que hace una señal: todo lo posterior a lo que hay en pantalla, página tras página hasta una corta. Mientras mi último mensaje siga sin leer, empieza en él, para traer su «Leído» |
+| Reloj y lectura del mensaje | `stamp_message_created_at` / `stamp_message_read_at` | El motor sella `created_at` al insertar y `read_at` la primera vez; nadie los cambia ni los borra |
+| Marcar leído | `mark_conversation_read` / `MarkConversationReadUseCase` | Función de invocador que marca leídos los mensajes de la contraparte. Solo con la pantalla en primer plano |
+| Señal de la conversación | `conversation:<request_id>` / `notify_conversation_message`, `notify_conversation_read` / `conversation_listen` | Broadcast sin datos al insertar un mensaje y una vez por sentencia al leer. Solo las dos partes |
+| Señales de Broadcast | `broadcastSignals` | El ciclo de un canal privado sin datos, en `core/network`. Lo usan la bandeja, las ofertas y la conversación |
+| Registro de la atención | `isWorkRecord` / `is_work_record` / `WorkRecordRow` | Un mensaje marcado con lo realizado. Solo lo escribe el profesional de esa atención, en curso o completada, y lo exige el motor. No se edita: corregir es agregar otro (HU-22) |
+| Puede registrar | `canRecord` / `recordRequested` / `recording` | Lo que la cabecera permite, lo que la persona pidió y lo que vale: lo pedido deja de contar cuando la cabecera ya no lo permite |
+| Aviso al estudiante | `showsStudentNotice` | Que describa lo que hizo sin un diagnóstico (RN-03). Informa, no impide. Con el tipo de profesional desconocido, se muestra |
+| Por enviarse | `ConversationItem.Sending` / `NotSent` | Mensaje que no llegó al motor, con el identificador que generó el teléfono; el reintento lo reutiliza |
+| Conversación abierta | `enterConversation` / `leaveConversation` / `DiscardReason.CONVERSATION_OPEN` | La que está en primer plano. Su aviso de mensaje se descarta en el teléfono |
+
+## Pagos
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Pago | `Payment` | El pago de una atención, íntegro para el profesional (INV-10). Se confirma por las dos partes (INV-09) |
+| Anular el pago | `cancel_payment_with_service` | Disparador que lleva el pago a `CANCELLED` al cancelarse la atención. Ningún cliente lo hace: `guard_payment_confirmation` exige el servicio cancelado, y de ese estado no se sale |
+| Comisión de la plataforma | `platformFee` / `platform_fee_percent` | **Se retira en HT-30** (`docs/decisions.md`, 2026-11-22). Sigue en el esquema; ningún código nuevo la lee |
+
+## Calificaciones
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Calificación | `Review` | Puntaje y comentario cruzados |
+| Comentario de la ficha | `ProfessionalReview` | Una calificación como la muestra la ficha: puntaje, comentario y fecha. **Sin su autor**, que no se publica |
+| Proyección pública de calificaciones | `professional_reviews` | La vista que decide cuáles son públicas. El cliente nunca consulta `reviews` |
 | Reputación | `averageRating` | Promedio de calificaciones recibidas |
 | Total de calificaciones | `totalReviews` | Cuántas calificaciones sostienen el promedio |
-| Distancia en metros | `distanceM` | Resultado de la búsqueda por cercanía, redondeada a la centena de metros antes de salir del motor |
-| Búsqueda por cercanía | `ProfessionalSearch` | La característica entera: `features/search/` y la función `search_nearby_professionals` |
-| Profesional cercano | `NearbyProfessional` | Una fila del resultado de la búsqueda: lo público del profesional más su distancia y el punto aproximado de su base |
-| Criterios de búsqueda | `SearchCriteria` | Radio, tipo de servicio y disponibilidad con que el paciente recorta la búsqueda |
-| Origen de la búsqueda | `SearchOrigin` | La dirección **principal** del paciente, desde la que se mide la distancia. Nunca su base profesional |
-| Radio de búsqueda | `SearchRadius` | Las tres opciones que el paciente puede pedir: 2, 5 y 10 km |
-| Punto aproximado de la base | `basePoint` / `base_latitude`, `base_longitude` | Dónde se dibuja el marcador: la base profesional redondeada a la manzana. Nunca la coordenada exacta |
-| Bandeja de solicitudes | `request_inbox` / `InboxRequest` | Las solicitudes inmediatas publicadas dentro del radio del profesional y las agendadas dirigidas a él, leídas por la RPC de definidor. Cada fila lleva tipo, ciudad, presupuesto, modalidad, la hora de la cita si la hay y la distancia redondeada, nunca la ubicación exacta ni la identidad del paciente. Reemplazó a `immediate_inbox` en HU-16 |
-| Cita agendada | `RequestModality.SCHEDULED` / `create_scheduled_request` | Solicitud dirigida a un profesional para una fecha y hora. Solo nace por la función de servidor, que valida la hora contra `bookable_start_times` |
-| Horarios reservables | `bookable_start_times` / `BookableTimes` / `BookableStart` | Las horas de inicio que un profesional ofrece para un servicio en los próximos 14 días: cada 30 minutos desde el inicio de la franja, con 2 horas de anticipación y la atención completa dentro de una franja. Cada inicio trae el instante y su fecha y hora en La Paz |
-| Parte del día | `PartOfDay` | `MORNING` antes de las 12:00, `AFTERNOON` hasta las 18:00, `EVENING` desde las 18:00. Agrupa las horas del carrusel. Vive en `core/vo/`: lo usan agendar y disponibilidad |
-| Atención ahora | `ImmediateCare` / `ImmediateCareRoute` | La pantalla de la inmediata desde HT-23: el mapa de disponibles, el formulario y la espera de ofertas en una sola. Reemplazó a `CreateRequestScreen` |
-| Disponibles cerca | `NearbyState` / `FindProfessionalsAvailableNowUseCase` | Quiénes muestra el mapa de «Atención ahora»: disponibles ahora, que prestan el servicio elegido, en el radio mayor, alrededor de la dirección elegida. Indicativo, no la lista de destinatarios |
-| Solicitud inmediata activa | `ActiveRequestResult` / `GetActiveImmediateRequestUseCase` | La inmediata más reciente del paciente que sigue publicada o en negociación: `Found`, `None` o `Failure` |
-| Selector desplegable | `ExpandableOptionPicker` | La lista que se abre para elegir entre muchas opciones de nombre largo, como los tipos de servicio |
-| Agendar una cita | `ScheduleAppointment` | La pantalla y su modelo de vista; se abre desde la ficha del profesional |
-| Zona de la cita | `AppointmentZone` | `America/La_Paz`. Solo para mostrar una `scheduled_at` guardada; el cálculo vive en el motor |
-| Puede agendar | `CanScheduleAppointmentUseCase` / `showsScheduleAction` | Si la ficha ofrece «Agendar cita»: rol activo paciente, ficha ajena y profesional con servicios declarados |
-| Carrusel de días | `DayCarousel` | Fila de tarjetas de día que se detiene en cada una al deslizar; reemplazó a `DatePickerRow` |
-| Fila de horas | `TimeChipRow` | Fila de píldoras de hora, agrupadas por parte del día, que se detiene en cada una al deslizar. La comparten la pantalla de agendar y el editor de franjas |
-| Barra de acción al pie | `BottomActionBar` | El botón principal fijo al pie, fuera del contenido que se desplaza |
-| Pantalla de inicio | `HomeShell` / `HomeRoute` | La pantalla de después del ingreso: cabecera, cuerpo por destino y barra. Reemplazó a `AccountScreen` y `AccountRoute` en HT-25 |
-| Destino de la barra | `HomeTab` | `HOME`, `SETTINGS`, `REQUESTS`, `ACCOUNT`: Inicio, Ajustes, Solicitudes y Cuenta, los mismos para los dos roles. El administrador no tiene |
-| Barra de navegación | `BottomNavigationBar` | La barra anclada al pie con los destinos y sus rótulos. Reemplazó a `FloatingNavigationBar`, que nunca se usó |
-| Menú de la cuenta | `AccountMenu` | El menú de las iniciales en la cabecera: la persona, el cambio de rol y «Cerrar sesión» |
-| Ajustes | `SettingsContent` | Lo que se configura una vez y se vuelve a cambiar: verificación, servicios, disponibilidad y direcciones. Su pantalla se titula «Configuración» |
-| Solicitudes cerca de ti | `NearbyRequests` | Las primeras tres de la bandeja en el Inicio del profesional, con «Ver todas» hacia el destino |
-| Tu solicitud | `PatientHomeUiState.Content.activeRequest` | La solicitud inmediata activa del paciente en su Inicio. Un atajo: si su lectura falla, no se dibuja |
-| Círculos del fondo | `FloatingCircles` | Los dos círculos y el anillo que derivan detrás de Inicio |
-| Entrada en cascada | `StaggeredEntrance` | Cada bloque de Inicio sube a su lugar un paso después del de arriba |
-| Aviso de la bandeja | `inboxSignals` / `notify_immediate_inbox` | El Broadcast sin datos que dispara un trigger al tema `immediate_inbox` para que el cliente re-consulte. No transporta la fila |
-| Notificación push | `PushPayload` / `features/notifications/` | Lo que llega al teléfono: el evento, a quién y lo necesario para abrirlo. Nunca texto escrito por un usuario (RF-09.10). El texto lo compone el teléfono |
-| Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`, `OFFER_RECEIVED`, `COUNTER_OFFER_RECEIVED`, `OFFER_ACCEPTED`, `MESSAGE_RECEIVED`, `PROFESSIONAL_ARRIVED`, `SERVICE_COMPLETED`, `ATTENTION_CANCELLED`, `DOCUMENT_VERDICT`, `VERIFICATION_APPROVED`. El de mensaje lleva `senderName` y nunca el contenido; con el teléfono bloqueado no muestra el nombre. Los dos últimos no tienen solicitud: `PushSubject.requestId`, `recipientRole` y `serviceTypeName` son nulos, y abrirlos nunca cambia el rol activo (HU-37). Los mismos nombres en SQL y en Kotlin; `NotificationEventParityTest` lo vigila, y solo mira la última migración que define `request_push_body`, así que esa función se reescribe entera cada vez |
-| Veredicto de un documento | `DOCUMENT_VERDICT` / `queue_verification_document_push` | El aviso de un veredicto, propio o conjunto: un disparador por sentencia, no por fila, agrupado por `profile_id`, para que aprobar varios documentos a la vez avise una sola vez. Lleva el estado y la cantidad, nunca el motivo del rechazo (RF-09.10), que se lee abriendo la verificación como antes de esta historia (HU-37) |
-| Verificación aprobada | `VERIFICATION_APPROVED` / `queue_verification_approved_push` | El aviso al profesional de que ya aparece en las búsquedas, cuando `professionals.verification_status` llega a `APPROVED`. Un disparador por fila, solo en esa transición (HU-37) |
-| Sujeto del aviso | `PushSubject` | La solicitud, el destinatario, el rol con el que recibe y el tipo de servicio |
-| Destino al tocar | `NotificationDestination` | `Inbox`, `MyRequests`, `OfferThread(requestId, professionalId)`, `Attention(requestId)` o `Conversation(requestId)`, que se abre sobre la atención. Una solicitud para el profesional abre la solicitud con `professionalId` nulo; una oferta o una contraoferta, el hilo de ese profesional; una oferta aceptada, la atención de esa solicitud. El rol con el que se recibe se activa antes de abrir (HT-24) |
-| Avisos mostrados | `ShownNotificationsDataSource` | Los que siguen en la bandeja del sistema. Se retiran al cerrar sesión |
-| Identificador de instalación | FID / `installationId` | Lo que guarda `device_tokens.token` desde HU-20: el ID de instalación de Firebase, que reemplazó al token de registro deprecado |
-| Registrar el dispositivo | `register_my_device` / `unregister_my_device` | Las dos únicas vías de escritura de `device_tokens`. El registro le pasa el FID a la última cuenta que ingresó en el teléfono |
-| Destinatarios de la inmediata | `immediate_request_recipients` | La regla de `request_inbox` más `available_now`. Solo la llama el motor |
-| Cuerpo del envío | `request_push_body` | Arma el evento, los identificadores y la lista de destinatarios con sus FID. Lo encola `queue_request_push` con `pg_net` hacia la función `send-push` |
-| Cobertura de un profesional dado | `professional_covers_for` | La regla de cobertura escrita una vez. Ningún cliente puede ejecutarla: con un profesional y un punto libres sería un oráculo sobre su base |
-| Canal de notificación | `NotificationChannelSpec` | Un canal de Android por categoría. Cada historia agrega el de su evento; hoy `REQUESTS`, `MESSAGES` y `ATTENTIONS` |
-| Explicación del permiso | `NotificationPermissionPrompt` / `NotificationRationale` | La tarjeta que explica para qué sirven los avisos antes de pedir el permiso. Se muestra una sola vez |
-| Alcance de la aplicación | `ApplicationScope` | El `CoroutineScope` que sobrevive a las pantallas, donde el servicio de mensajería deja su trabajo |
+
+## Verificación y revisión
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Documento de verificación | `VerificationDocument` | Respaldo de identidad o título |
+| Documento adicional | `DocumentType.OTHER` | Adjunto opcional por persona, con leyenda obligatoria |
+| Leyenda del documento | `caption` / `DocumentCaption` | Línea de texto que acompaña al `OTHER` |
+| Checklist de verificación | `VerificationChecklist` | Documentos requeridos según rol más el adjunto opcional |
+| Documentos requeridos | `required_document_types` | Función del motor que dice qué debe tener aprobado una persona |
 | Cola de revisión | `PendingReviewSubject` | Persona con trabajo pendiente del administrador: documentos por revisar, la verificación por conceder, o las dos |
 | Listo para verificar | `awaitingVerification` / `awaiting_verification` | Profesional con todos sus requeridos aprobados que todavía no es `APPROVED` |
-| Esperando desde | `waitingSince` / `waiting_since` | Cuándo el turno pasó al administrador: la subida del documento o la aprobación del último requerido |
 | Quién espera la verificación | `professionals_awaiting_verification` | Función del motor, solo para el administrador, que dice a quién le falta el acto de verificar |
-| Criterios de la cola | `PendingReviewQuery` | Búsqueda, filtro por rol y orden con que el administrador recorta la cola |
+| Esperando desde | `waitingSince` / `waiting_since` | Cuándo pasó el turno al administrador: la subida del documento o la aprobación del último requerido |
+| Criterios de la cola | `PendingReviewQuery` | Búsqueda, filtro por rol y orden |
 | Filtro por rol | `ReviewRoleFilter` | `ALL`, `PATIENT` o `PROFESSIONAL` |
 | Orden de la cola | `ReviewQueueOrder` | `OLDEST_FIRST` o `NEWEST_FIRST`, por la fecha del documento más antiguo |
-| Documentos marcados | `checkedTypes` | Los que el administrador seleccionó para un veredicto conjunto |
-| Visor a pantalla completa | `FullScreenDocumentImage` | El documento abierto sobre fondo oscuro, con zoom y arrastre |
+| Revisado | `DocumentReviewSubject` | La persona cuyos documentos revisa el administrador |
+| Expediente de revisión | `DocumentReviewDossier` | La persona revisada, sus documentos y su lista de requeridos |
+| Documentos marcados | `checkedTypes` | Los seleccionados para un veredicto conjunto |
+| Veredicto | `verdict` | Aprobación o rechazo de un documento por el administrador |
+| Motivo de rechazo | `RejectionReason` | Objeto de valor del texto que el usuario lee al ser rechazado un documento |
+| Verificar al profesional | `approveProfessional` | Acto del administrador que lleva al profesional a `APPROVED` |
+| Visor a pantalla completa | `FullScreenDocumentImage` | El documento sobre fondo oscuro, con zoom y arrastre |
 | Transformación de la imagen | `ImageTransform` | La escala y el desplazamiento del visor, con su recorte |
-| Marca | `brand` | El logo, el nombre dibujado y sus colores: `ic_brand_mark`, `ic_brand_wordmark`, `BrandColors` |
-| Animación de arranque | `intro` / `playIntro` | Se reproduce al abrir la aplicación, nunca al volver del ingreso |
-| Línea cardio | `HeartbeatTrace` | La línea que se traza bajo el nombre en el arranque, con sus ondas P, QRS y T |
+
+## Notificaciones
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Notificación push | `PushPayload` / `features/notifications/` | El evento, a quién y lo necesario para abrirlo. Nunca texto escrito por un usuario (RF-09.10): el texto lo compone el teléfono |
+| Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`, `OFFER_RECEIVED`, `COUNTER_OFFER_RECEIVED`, `OFFER_ACCEPTED`, `MESSAGE_RECEIVED`, `PROFESSIONAL_ARRIVED`, `SERVICE_COMPLETED`, `ATTENTION_CANCELLED`, `DOCUMENT_VERDICT`, `VERIFICATION_APPROVED`. Mismos nombres en SQL y Kotlin: `NotificationEventParityTest` lee solo la última migración que define `request_push_body`, así que esa función se reescribe entera cada vez |
+| Aviso de mensaje | `MESSAGE_RECEIVED` / `senderName` | Lleva el nombre del remitente, nunca el contenido; con el teléfono bloqueado no muestra el nombre |
+| Veredicto de un documento | `DOCUMENT_VERDICT` / `queue_verification_document_push` | Disparador por sentencia, agrupado por `profile_id`: un veredicto conjunto avisa una vez. Lleva el estado y la cantidad, nunca el motivo del rechazo (HU-37) |
+| Verificación aprobada | `VERIFICATION_APPROVED` / `queue_verification_approved_push` | Al profesional, cuando `verification_status` llega a `APPROVED`. Disparador por fila, solo en esa transición (HU-37) |
+| Sujeto del aviso | `PushSubject` | Solicitud, destinatario, rol con que recibe y tipo de servicio. Sin solicitud (los dos de verificación), `requestId`, `recipientRole` y `serviceTypeName` son nulos y abrirlos nunca cambia el rol activo (HU-37) |
+| Destino al tocar | `NotificationDestination` | `Inbox`, `MyRequests`, `OfferThread(requestId, professionalId)`, `Attention(requestId)`, `Conversation(requestId)` sobre la atención, y `Verification`. El rol con que se recibe se activa antes de abrir (HT-24) |
+| Espacio del aviso | `NotificationSlot` | `EVENT` o `MESSAGE`: un aviso se identifica por su solicitud y su espacio, y un mensaje no reemplaza otro evento de la misma solicitud. Sin solicitud, por el destinatario |
+| Canal de notificación | `NotificationChannelSpec` | Un canal de Android por categoría: `REQUESTS`, `MESSAGES`, `ATTENTIONS` y `VERIFICATION`. Cada historia agrega el de su evento |
+| Avisos mostrados | `ShownNotificationsDataSource` | Los que siguen en la bandeja del sistema. Se retiran al cerrar sesión |
+| Explicación del permiso | `NotificationPermissionPrompt` / `NotificationRationale` | La tarjeta que explica los avisos antes de pedir el permiso. Se muestra una sola vez |
+| Identificador de dispositivo | `DeviceToken` | Destino de notificaciones |
+| Identificador de instalación | FID / `installationId` | Lo que guarda `device_tokens.token`: el ID de instalación de Firebase (HU-20) |
+| Registrar el dispositivo | `register_my_device` / `unregister_my_device` | Las dos únicas vías de escritura de `device_tokens`. El registro le da el FID a la última cuenta que ingresó en el teléfono |
+| Destinatarios de la inmediata | `immediate_request_recipients` | La regla de `request_inbox` más `available_now`. Solo la llama el motor |
+| Cuerpo del envío | `request_push_body` | Arma el evento, los identificadores y los destinatarios con sus FID. Lo encola `queue_request_push` con `pg_net` hacia la función `send-push` |
+| Alcance de la aplicación | `ApplicationScope` | El `CoroutineScope` que sobrevive a las pantallas, donde el servicio de mensajería deja su trabajo |
+
+## Inicio, navegación y componentes
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Pantalla de inicio | `HomeShell` / `HomeRoute` | Después del ingreso: cabecera, cuerpo por destino y barra (HT-25) |
+| Destino de la barra | `HomeTab` | `HOME`, `SETTINGS`, `REQUESTS`, `ACCOUNT`: los mismos para los dos roles. El administrador no tiene |
+| Barra de navegación | `BottomNavigationBar` | La barra anclada al pie con los destinos y sus rótulos |
+| Menú de la cuenta | `AccountMenu` | El menú de las iniciales en la cabecera: la persona, el cambio de rol y «Cerrar sesión» |
+| Ajustes | `SettingsContent` | Verificación, servicios, disponibilidad y direcciones. Su pantalla se titula «Configuración» |
+| Solicitudes cerca de ti | `NearbyRequests` | Las primeras tres de la bandeja en el Inicio del profesional, con «Ver todas» |
+| Tu solicitud | `PatientHomeUiState.Content.activeRequest` | La inmediata activa del paciente en su Inicio. Un atajo: si su lectura falla, no se dibuja |
+| Vistas de Solicitudes | `RequestsTabContent` / `ProfessionalRequestsTab` / `PatientRequestsTab` / `RequestsView` | `REQUESTS` («Disponibles» o «Mis solicitudes») y `MY_ATTENTIONS`. Salir del destino vuelve a la primera; volver de una atención conserva la vista |
+| Tarjeta común | `ServiceCard` / `ServiceCardAmount` | La tarjeta de las tres listas: los dos lados leen lo mismo en el mismo lugar |
+| Píldora de estado | `StatusBadge` / `StatusTone` | El estado de una solicitud o atención, igual dondequiera que se lea |
+| Deslizar para actualizar | `RefreshableContent` / `ListRefresher` / `ListRefresh` | Relee la primera página; si falla, deja la lista como estaba y lo dice |
+| Selector desplegable | `ExpandableOptionPicker` | Para elegir entre muchas opciones de nombre largo, como los tipos de servicio |
+| Carrusel de días | `DayCarousel` | Tarjetas de día que se detienen en cada una al deslizar |
+| Fila de horas | `TimeChipRow` | Píldoras de hora por parte del día, que se detienen al deslizar. La comparten agendar y el editor de franjas |
+| Barra de acción al pie | `BottomActionBar` | El botón principal fijo al pie, fuera del contenido que se desplaza |
+| Círculos del fondo | `FloatingCircles` | Los dos círculos y el anillo que derivan detrás de Inicio |
+| Entrada en cascada | `StaggeredEntrance` | Cada bloque de Inicio sube un paso después del de arriba |
+
+## Marca y tema
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Marca | `brand` | Logo, nombre dibujado y colores: `ic_brand_mark`, `ic_brand_wordmark`, `BrandColors` |
+| Botón de marca | `BrandColors.button` | El turquesa del botón de ingreso, igual en claro y oscuro |
+| Animación de arranque | `intro` / `playIntro` | Al abrir la aplicación, nunca al volver del ingreso |
+| Línea cardio | `HeartbeatTrace` | La línea bajo el nombre en el arranque, con sus ondas P, QRS y T |
 | Barrido | `Sweep` | Hasta dónde llegó la cabeza de la línea, y si es una pasada repetida |
 | Latido del logo | `beatScale` | El pulso doble del logo cuando la línea cruza el pico |
-| Entrada de la bienvenida | `entrance` / `entranceFrom` | La marca va desde donde la dejó el arranque hasta su lugar en la bienvenida |
 | Marca asentada del arranque | `SettledStartupBrand` / `settledStartupBrand` | Dónde deja el cuadro final del arranque el logo, el nombre y la línea |
-| Puntos de valor | `WelcomeValues` | Lo que la bienvenida promete y la aplicación ya cumple: verificación, cercanía y rol doble |
-| Botón de marca | `BrandColors.button` | El turquesa del botón de ingreso, el mismo en claro y en oscuro |
-| Píldora de disponibilidad | `AvailabilityPill` | El punto y «Disponible ahora» sobre el contenedor positivo, en la tarjeta y en la ficha |
-| Contenedor positivo | `positiveContainer` / `onPositiveContainer` | El fondo verde suave de lo disponible y lo verificado, y el texto que va encima |
-| Cifras de la ficha | `Stats` / `Stat` | Calificación, años de experiencia y atenciones realizadas en la cabecera de la ficha |
-| Profesión y especialidad | `occupation` | La línea que une el tipo de profesional y su especialidad bajo el nombre |
-| Expediente de revisión | `DocumentReviewDossier` | La persona revisada, sus documentos y su lista de requeridos |
-| Veredicto | `verdict` | Aprobación o rechazo de un documento por el administrador |
-| Revisado | `DocumentReviewSubject` | La persona cuyos documentos revisa el administrador |
-| Verificar al profesional | `approveProfessional` | Acto del administrador que lleva a `APPROVED` al profesional |
-| Motivo de rechazo | `RejectionReason` | Objeto de valor del texto que el usuario lee al ser rechazado un documento |
-| Documentos requeridos | `required_document_types` | Función del motor que dice qué debe tener aprobado una persona |
+| Entrada de la bienvenida | `entrance` / `entranceFrom` | La marca va desde donde la dejó el arranque hasta su lugar en la bienvenida |
+| Puntos de valor | `WelcomeValues` | Lo que la bienvenida promete y la aplicación cumple: verificación, cercanía y rol doble |
+| Píldora de disponibilidad | `AvailabilityPill` | El punto y «Disponible ahora» sobre el contenedor positivo, en la tarjeta y la ficha |
+| Contenedor positivo | `positiveContainer` / `onPositiveContainer` | El verde suave de lo disponible y lo verificado, y el texto encima |
+| Cifras de la ficha | `Stats` / `Stat` | Calificación, años de experiencia y atenciones en la cabecera de la ficha |
+| Profesión y especialidad | `occupation` | La línea que une tipo de profesional y especialidad bajo el nombre |
+| Grosor del borde | `borderWidth` | Medida de `Spacing`: el trazo de un control que se lee como campo |
+| Ancho de la burbuja | `bubbleMaxWidthFraction` | Fracción de `Spacing`: lo que ocupa una burbuja en su fila, para que el lado diga quién escribió |
+| Burbuja de mensaje | `myBubble` / `theirBubble` | Formas de `ExtraShapes`: el radio del botón, con la esquina del lado de quien escribió más cerrada |
 
 ## Atributos frecuentes
 
@@ -228,10 +292,6 @@ que lo introduce.
 | Revisado por | `reviewedBy` / `reviewed_by` |
 | Revisado en | `reviewedAt` / `reviewed_at` |
 | Motivo de rechazo | `rejectionReason` / `rejection_reason` |
-| Tope de ancho de una ficha | `filterChipMaxWidth` | Medida de `Spacing`: sin ella una etiqueta del catálogo no tiene ancho dentro del que envolver |
-| Grosor del borde | `borderWidth` | Medida de `Spacing`: el trazo de un control que se lee como campo |
-| Ancho de la burbuja | `bubbleMaxWidthFraction` | Fracción de `Spacing`: lo que ocupa una burbuja de mensaje en su fila, para que el lado diga quién escribió |
-| Burbuja de mensaje | `myBubble` / `theirBubble` | Formas de `ExtraShapes`: el radio del botón, con la esquina del lado de quien escribió más cerrada |
 | Precio de referencia | `referencePriceBob` / `reference_price_bob` |
 | Duración estimada | `estimatedDurationMin` / `estimated_duration_min` |
 | Día de la semana | `dayOfWeek` / `day_of_week` |
@@ -247,21 +307,19 @@ que lo introduce.
 | Emisor | `issuer` |
 | Monto final | `finalAmountBob` / `final_amount_bob` |
 | Inicio / fin de la atención | `startedAt` / `finishedAt` |
-| Notas del profesional | `professionalNotes` / `professional_notes` |
 | Monto total | `totalAmountBob` / `total_amount_bob` |
-| Comisión | `platformFeeBob` / `platform_fee_bob` |
-| Monto del profesional | `professionalAmountBob` / `professional_amount_bob` |
+| Comisión | `platformFeeBob` / `platform_fee_bob` — se retira en HT-30 |
+| Monto del profesional | `professionalAmountBob` / `professional_amount_bob` — se retira en HT-30 |
 | Método de pago | `method` |
 | Proveedor | `provider` |
 | Referencia externa | `externalReference` / `external_reference` |
-| Conciliado en | `settledAt` / `settled_at` |
+| Conciliado en | `settledAt` / `settled_at` — se retira en HT-30 |
 | Confirmado por el paciente | `patientConfirmedAt` / `patient_confirmed_at` |
 | Confirmado por el profesional | `professionalConfirmedAt` / `professional_confirmed_at` |
 | Motivo de cancelación | `cancellationReason` / `cancellation_reason` |
 | Cancelado por | `cancelledBy` / `cancelled_by` |
 | Cancelado en | `cancelledAt` / `cancelled_at` |
 | Autor | `authorId` / `author_id` |
-| Leyenda | `caption` / `caption` |
 | Destinatario | `recipientId` / `recipient_id` |
 | Puntaje | `rating` |
 | Comentario | `comment` |
@@ -272,10 +330,17 @@ que lo introduce.
 | Plataforma | `platform` |
 | Último uso | `lastUsedAt` / `last_used_at` |
 | Creado en | `createdAt` / `created_at` |
+| Notas del profesional | `professionalNotes` — **no existe y no se crea**: ver la nota de abajo |
+
+**`professionalNotes` no es una columna.** Lo realizado en una atención vive en la
+conversación (`is_work_record`). Una columna de notas en `services` sería el «campo
+suelto para salir del paso» que `docs/decisions.md` prohíbe el 2026-09-08, y
+comprometería el registro clínico estructurado (FA-01). El nombre se reserva por si esa
+tabla llega a existir.
 
 ## Tipos enumerados
 
-Los valores se escriben en `SCREAMING_SNAKE_CASE`, tanto en Kotlin como en PostgreSQL.
+`SCREAMING_SNAKE_CASE`, igual en Kotlin y en PostgreSQL.
 
 | Tipo | Valores |
 |---|---|
@@ -289,46 +354,50 @@ Los valores se escriben en `SCREAMING_SNAKE_CASE`, tanto en Kotlin como en Postg
 | `offer_status` | `PROPOSED`, `ACCEPTED`, `REJECTED`, `EXPIRED` |
 | `service_status` | `ASSIGNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` |
 | `payment_method` | `CASH`, `DIRECT_QR`, `GATEWAY` |
-| `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `SETTLED`, `DISPUTED`, `CANCELLED` |
-| `device_platform` | `ANDROID`, `IOS` |
+| `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `SETTLED` (se retira en HT-30), `DISPUTED`, `CANCELLED` |
+| `device_platform` | `ANDROID`. `IOS` se retiró el 2026-09-12 (FA-04) |
 
-## Nota sobre `professionalNotes`
+## Esquema
 
-El término figura arriba, pero **no existe como columna en el esquema y no debe
-crearse**. El detalle de lo realizado durante una atención vive en la
-conversación de la solicitud. Una columna de notas en `services` sería
-exactamente el «campo suelto para salir del paso» que `docs/decisions.md`
-prohíbe el 2026-09-08: comprometería la incorporación posterior del registro
-clínico estructurado (FA-01), que exige autoría, fecha y semántica de solo
-agregar. El término se conserva aquí por si esa tabla llega a existir.
+**Tablas, diecisiete:** `profiles` · `profile_roles` · `patients` · `professionals` ·
+`verification_documents` · `addresses` · `service_types` · `professional_services` ·
+`availability_slots` · `service_requests` · `request_offers` · `messages` · `services` ·
+`payments` · `reviews` · `device_tokens` · `platform_settings`, la fila única de lo
+configurable.
 
-## Tablas del esquema
-
-`profiles` · `profile_roles` · `patients` · `professionals` ·
-`verification_documents` · `addresses` · `service_types` ·
-`professional_services` · `availability_slots` · `service_requests` ·
-`request_offers` · `messages` · `services` · `payments` · `reviews` ·
-`device_tokens`
-
-Dieciséis tablas. `profile_roles` se agregó en el Sprint 2.5, al dejar de ser
-único el rol de una persona.
-
-`professional_directory` es además **lo único que la contraparte lee de un profesional**:
-`professionals_select_counterpart` se retiró en HU-11, de modo que nadie lee la fila completa
-—con su `verification_status`— por compartir un servicio (`docs/decisions.md`, 2026-10-09).
-
-Vistas de apoyo: `professional_directory`, la proyección pública del profesional
-sin datos de contacto · `professional_reviews`, los comentarios que la ficha
-muestra, que son los recibidos **como profesional** y nada más: la tabla `reviews`
-responde distinto al dueño de la ficha que a un paciente, porque `reviews_select_own`
-es una segunda política permisiva (`docs/decisions.md`, 2026-10-11) · `my_addresses`, las direcciones propias con el punto ya
-proyectado a latitud y longitud · `my_roles`, los roles propios y el rol activo
-en una sola fila · `document_review_subject_queue`, una fila por persona con
-documentos pendientes, y `document_review_profiles`, las dos lecturas del
-administrador en la revisión de documentos.
+**Vistas:**
+- `professional_directory`: la proyección pública del profesional, sin contacto. Es lo
+  único que la contraparte lee de un profesional (`docs/decisions.md`, 2026-10-09).
+- `professional_reviews`: los comentarios recibidos **como profesional** y nada más.
+  `reviews` responde distinto al dueño de la ficha, porque `reviews_select_own` es una
+  segunda política permisiva (`docs/decisions.md`, 2026-10-11).
+- `my_addresses`: las direcciones propias, con el punto en latitud y longitud.
+- `my_roles`: los roles propios y el rol activo, en una fila.
+- `my_service_requests`: las solicitudes propias con `is_open`, `has_attention` y
+  `open_offer_count`.
+- `document_review_subject_queue` y `document_review_profiles`: las dos lecturas del
+  administrador en la revisión de documentos.
 
 ## Sufijo de moneda
 
-Toda columna y propiedad monetaria lleva el sufijo `Bob` o `_bob`, porque el
-sistema opera en bolivianos y una fase posterior podría incorporar otra moneda.
-Nunca usar `amount` a secas para un valor monetario.
+Toda columna y propiedad monetaria lleva el sufijo `Bob` o `_bob`, porque el sistema
+opera en bolivianos y una fase posterior podría incorporar otra moneda. Nunca `amount` a
+secas para un valor monetario.
+
+## Nombres retirados
+
+No se vuelven a usar. Cada uno dice qué lo reemplazó y cuándo.
+
+| Retirado | Lo reemplaza | Cuándo |
+|---|---|---|
+| `MakeOfferScreen` | `OfferThreadUiState.Opening`, en la pantalla del hilo | HT-24 |
+| `NegotiationScreen` | `OfferCard` y el hilo | HT-24 |
+| `CreateRequestScreen` | `ImmediateCare` | HT-23 |
+| `immediate_inbox` (RPC) | `request_inbox`. El tema de Broadcast `immediate_inbox` sigue | HU-16 |
+| `DatePickerRow` | `DayCarousel` | HU-16 |
+| `AccountScreen` / `AccountRoute` | `HomeShell` / `HomeRoute` | HT-25 |
+| `FloatingNavigationBar`, que nunca se usó | `BottomNavigationBar` | HT-25 |
+| `service_requests_select_addressee` | `professional_may_offer_on` | HU-17 |
+| `professionals_select_counterpart` | `professional_directory` | HU-11 |
+| Token de registro de FCM | FID (`installationId`) | HU-20 |
+| `Spacing.filterChipMaxWidth` | Ya no existe en `Spacing.kt` | — |

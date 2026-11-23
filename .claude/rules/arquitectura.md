@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.kt"
+---
+
 # Arquitectura y convenciones Kotlin
 
 Se carga al trabajar con cualquier archivo Kotlin.

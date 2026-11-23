@@ -1,3 +1,9 @@
+---
+paths:
+  - "app/src/main/java/**/presentation/**/*.kt"
+  - "app/src/main/java/**/ui/**/*.kt"
+---
+
 # Convenciones de interfaz
 
 Se carga al trabajar con pantallas y componentes Compose.
