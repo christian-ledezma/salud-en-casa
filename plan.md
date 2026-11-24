@@ -210,7 +210,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 5 | Solicitudes de atención | 3 · Coordinación | 24 | `[x]` | [`sprint-05.md`](docs/sprints/sprint-05.md) |
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` | [`sprint-06.md`](docs/sprints/sprint-06.md) |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 56 | `[x]` | [`sprint-07.md`](docs/sprints/sprint-07.md) |
-| 8 | Pago de la atención y vigencia del profesional | 4 · Pagos | 24 | `[ ]` | Abajo, sprint activo |
+| 8 | Pago de la atención y vigencia del profesional | 4 · Pagos | 29 | `[ ]` | Abajo, sprint activo |
 | 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` | Abajo |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` | Abajo |
 | 11 | Publicación y suscripción en Google Play | 4 · Pagos | Por estimar | `[ ]` | Abajo |
@@ -497,7 +497,7 @@ depender de una suscripción vigente.
 
 **Objetivo específico.** 4 · Controles de confirmación y validación mutua de pagos.
 
-**Puntos:** 24.
+**Puntos:** 29. Eran 24 hasta el 2026-11-24, cuando HU-28 sumó la confirmación en cualquier orden (de 3 a 8 puntos).
 
 **Replanificado el 2026-11-22, antes de empezar.** La plataforma dejó la comisión por
 atención y se financia con una suscripción que paga solo el profesional, cobrada por
@@ -782,31 +782,138 @@ La plataforma ya no cobra comisión, y RF-11.6 se retiró con ella. El número s
 conserva para que las referencias anteriores sigan siendo legibles. Su lugar en el
 sprint lo ocupa HU-38.
 
-### HU-28 · Resolver las disputas de pago `[ ]` — 3 puntos
+### HU-28 · Resolver las disputas de pago y confirmar en cualquier orden `[x]` — 2026-11-24 — 8 puntos
 
 > Como **administrador**, quiero **revisar y resolver los pagos en disputa**, para
 > **que un desacuerdo entre paciente y profesional no quede abierto**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que hay pagos en disputa, cuando abro la revisión, entonces los veo con
+- [x] Dado que hay pagos en disputa, cuando abro la revisión, entonces los veo con
       monto, medio declarado, participantes y fechas, del más antiguo al más
       reciente y paginados.
-- [ ] Dado que reviso una disputa, cuando la resuelvo en cualquiera de los dos
+- [x] Dado que reviso una disputa, cuando la resuelvo en cualquiera de los dos
       sentidos, entonces queda registrado quién la resolvió, cuándo y en qué sentido.
-- [ ] Dado que soy administrador, cuando abro una disputa, entonces veo montos,
+- [x] Dado que soy administrador, cuando abro una disputa, entonces veo montos,
       estados y participantes, pero nunca el contenido de la conversación.
-- [ ] Dado que resuelvo una disputa, cuando registro la resolución, entonces al
+- [x] Dado que resuelvo una disputa, cuando registro la resolución, entonces al
       paciente y al profesional les llega una notificación que los lleva al pago.
+- [x] Dado que la atención se completó y el pago está pendiente, cuando el profesional
+      confirma que cobró eligiendo el medio, entonces su parte queda cerrada y al paciente
+      le llega un aviso para aceptarlo.
+- [x] Dado que el profesional confirmó el cobro, cuando el paciente lo acepta, entonces el
+      pago pasa a confirmado por ambas partes; el paciente no puede negarlo.
+- [x] Dado que una parte ya declaró, cuando la otra intenta declarar primero, entonces se
+      rechaza y ve lo que declaró la otra.
 
-**Requisitos:** RF-11.5, RF-11.7, RF-09.7, RF-09.10, RN-11, INV-05, INV-12.
+**Requisitos:** RF-11.2, RF-11.3, RF-11.4, RF-11.5, RF-11.7, RF-09.7, RF-09.10, RN-09, RN-11, INV-05, INV-09,
+INV-12.
 
-**Antes 5 puntos, con la conciliación.** Agrupar comisiones por profesional y
-registrar liquidaciones se retira. **Por decidir al planificarla:** qué estado deja
-«no se pagó», porque hoy `payment_status` no tiene uno; cómo reescribir
-`confirmations_match_status` para un pago resuelto, que hoy exige que una disputa no tenga
-hora del profesional; y qué hacer con el pago que el paciente nunca confirma, porque HU-26
-solo deja responder al profesional después del paciente (`docs/decisions.md`, 2026-11-24).
+**Antes 5 puntos, con la conciliación,** que se retiró con la comisión, y después 3. **Pasó a 8 el 2026-11-24:** el
+autor vio que el orden de HU-25 y HU-26 hacía esperar al profesional que ya había cobrado, y pidió que declare primero
+quien sea. Los tres criterios nuevos son ese cambio.
+
+**Decisiones del autor, 2026-11-24** (`docs/decisions.md`, «HU-28: el pago se declara en cualquier orden»):
+- **Orden.** Declara primero quien sea. Si el profesional es el primero, elige el medio, al paciente le llega un aviso
+  y el paciente solo acepta. «No recibí el pago» sigue siendo solo una respuesta, y el paciente que nunca confirma queda
+  como FA-21.
+- **Resolución.** Dos estados finales, resuelto como pagado y resuelto como no pagado; el motor sella quién y cuándo.
+  Es definitiva, con un diálogo antes y sin nota.
+- **Pantallas del administrador.** Inicio, después la lista y después el detalle; el detalle muestra el correo de las
+  dos partes, nunca la conversación.
+- **Propuestas menores aprobadas con el plan.** Aceptar el cobro sin diálogo; «Se pagó» y «No se pagó» con el mismo
+  peso visual; ningún aviso al administrador.
+
+Prototipo aprobado: [Pago en cualquier orden y disputas HU-28](https://claude.ai/artifact/M4fXW5Wjk9EvHUmDbKXehf).
+
+**Hallazgo de la planificación.** Desde el primer esquema, la guarda de pagos devolvía la fila tal como llegara si
+quien escribía era administrador: podía reescribir cualquier pago. Ahora solo pasa una disputa a una de sus dos
+resoluciones.
+
+**Experimentos SQL, 2026-11-24.** Contra el remoto, antes del `db push`: cada uno aplica la migración
+`20261124150053_hu28_payment_in_any_order_and_disputes.sql` completa dentro de `begin … rollback`, con la identidad
+indicada (paciente `299073bc…`, profesional `fcab94c0…`, administrador `08ddb28f…`). Las atenciones son de la misma
+pareja: Aplicación de inyectables, Bs 45,00, en curso y completada dentro del experimento; la otra de Bs 45,00, en
+disputa desde HU-26; la de Bs 35,00, confirmada por ambos; y Curación de heridas, Bs 100,00, asignada. Después se
+confirmó que el remoto quedó intacto: el tipo con sus cinco estados, sin `resolved_at` ni la vista, y la disputa de
+Bs 45,00 todavía en `DISPUTED`.
+
+| # | Experimento | Resultado |
+|---|---|---|
+| 0 | Estructura, sobre los 9 pagos reales | La migración aplica; ocho estados; los pagos conservan el suyo (3 pendientes, 2 confirmados por ambos, 1 en disputa, 3 cancelados); los siete disparadores siguen |
+| 1 | El profesional declara primero, en efectivo | `PROFESSIONAL_CONFIRMED`, su hora igual a la de la transacción, sin hora del paciente; 1 aviso y 1 señal |
+| 1b | `notificationPayloadCarriesNoTextWrittenByAUser` para `PROFESSIONAL_CONFIRMED_PAYMENT` | Destinatario: solo el paciente. Cuerpo: evento, solicitud, rol `PATIENT`, tipo de servicio, monto, medio y nombre del profesional |
+| 2 | `paymentReachesConfirmedOnlyWhenBothPartiesConfirm`: el paciente acepta el cobro por QR | `BOTH_CONFIRMED`, medio intacto, hora del paciente sellada ahora; 0 avisos y 1 señal |
+| 3a | El paciente niega el cobro del profesional | Rechazado: `patient_only_accepts_the_professionals_receipt` |
+| 3b | El paciente acepta cambiando el medio | Rechazado: `patient_only_accepts_the_professionals_receipt` |
+| 3c | El paciente declara después de que declaró el profesional | Rechazado: `patient_only_accepts_the_professionals_receipt` |
+| 4a | El profesional declara sin medio | Rechazado: `payment_method_not_allowed` |
+| 4b | El profesional declara con `GATEWAY` | Rechazado: `payment_method_not_allowed` |
+| 4c | El profesional declara con la atención en curso | Rechazado: `payment_confirmation_requires_a_completed_service` |
+| 4d | El profesional declara después de que declaró el paciente | Rechazado: `professional_declares_a_pending_payment_once` |
+| 4e | El profesional cierra el pago con su propio cobro | Rechazado: `professional_answers_a_patient_confirmed_payment_once` (INV-09) |
+| 4f | El profesional cambia después el medio que declaró | Rechazado: `professional_declares_a_pending_payment_once` |
+| 5 | El camino de HU-26 sigue: el paciente primero, el profesional confirma | `BOTH_CONFIRMED`; 0 avisos y 1 señal |
+| 5b | El paciente primero sigue avisando al profesional | `PATIENT_CONFIRMED`; 1 aviso y 1 señal |
+| 6 | `onlyAnAdministratorResolvesADispute`: se pagó | `RESOLVED_PAID`, `resolved_at` igual a la hora de la transacción, `resolved_by` el administrador, horas anteriores intactas; 2 avisos y 1 señal |
+| 6b | No se pagó | `RESOLVED_NOT_PAID`, lo mismo; 2 avisos y 1 señal |
+| 6c | Cuerpo de «Pago revisado» para el paciente | Solo el paciente, rol `PATIENT`, `status` `RESOLVED_NOT_PAID`, nombre del profesional; ni el del administrador ni texto escrito |
+| 6d | Cuerpo para el profesional | Solo el profesional, rol `PROFESSIONAL`, nombre del paciente |
+| 6e | Cuerpo pedido para alguien que no es parte | Vacío: no se envía |
+| 7a | Resolver dos veces, en sentidos distintos | Rechazado: `an_administrator_only_resolves_a_dispute` |
+| 7b | El administrador resuelve un pago confirmado por ambos | Rechazado: `an_administrator_only_resolves_a_dispute` |
+| 7c | El administrador pasa una disputa a confirmada por ambos | Rechazado: `an_administrator_only_resolves_a_dispute` |
+| 7d | El administrador cambia el medio al resolver | Rechazado: `an_administrator_only_resolves_a_dispute` |
+| 7e | El administrador escribe la hora de la resolución | Rechazado: `confirmation_time_is_sealed_by_the_engine` |
+| 7f | El administrador nombra a otro como quien resolvió | Rechazado: `confirmation_time_is_sealed_by_the_engine` |
+| 8a | El paciente resuelve | Rechazado: `patient_confirms_a_pending_payment_once` |
+| 8b | El profesional resuelve | Rechazado: `each_party_confirms_separately` |
+| 8c | Una cuenta ajena resuelve | 0 filas: la política no la deja ver el pago |
+| 9a | El administrador lee la lista | 1 disputa con tipo, monto, medio, horas y nombre y correo de cada parte |
+| 9b | El paciente y el profesional leen la lista | 0 filas cada uno |
+| 9c | Escribir por la vista | Rechazado: la vista no se puede actualizar |
+| 9d | Una disputa resuelta sale de la lista | 0 filas |
+| 9e | `adminCannotReadMessages` sobre la atención en disputa | La conversación tiene 3 mensajes; el administrador lee 0 |
+| 10a | `my_attention` del paciente tras la resolución | `RESOLVED_PAID`, con hora de disputa y de resolución, sin hora del profesional |
+| 10b | `my_attention` del profesional que declaró primero | `PROFESSIONAL_CONFIRMED`, `CASH`, sin hora del paciente |
+| 11 | El paciente cancela una atención asignada | El pago pasa a `CANCELLED`: la guarda nueva no bloquea la cancelación |
+
+**Verificación de código, 2026-11-24.** `./gradlew build --rerun` en verde: 1233 pruebas, 0 fallas, 0 omitidas (49
+nuevas). Una prueba previa cambió porque cambió la regla, no porque fallara:
+`thePayDialogOpensOnlyForThePatientOfACompletedAttention` pasó a
+`theDeclarationOpensOnlyOnACompletedAttentionNobodyDeclaredYet`, ya que ahora el profesional también declara. ktlint
+dejó tres líneas largas sin corregir solo, y se partieron a mano.
+
+**Aplicada, 2026-11-24.** El autor ejecutó `db push`; `send-push` no se volvió a desplegar. Consulta de solo lectura
+después: `db push --dry-run` dice «Remote database is up to date», `payment_status` tiene sus ocho estados y existe
+`payment_dispute_queue`.
+
+**Recorrido en emuladores, 2026-11-24.** Historia crítica («Cuándo hace falta un dispositivo»). Paciente
+`ledezma.aramayo.73`, profesional `chris.ledezma.s` y administrador `christian.ledezma@ucb.edu.bo`. Sobre la
+atención de Aplicación de inyectables, Bs 45,00, que estaba en curso: el profesional la completó, vio «Confirmar que
+cobré», eligió efectivo en el diálogo y leyó que su parte estaba cerrada; al paciente le llegó «Cobro confirmado»,
+que abre la atención con solo «Aceptar el cobro», y al aceptarlo el pago quedó confirmado por ambos sin aviso. Sobre la
+disputa de Bs 45,00 de HU-26: el administrador entró desde «Revisar pagos en disputa», vio la disputa en la lista y su
+detalle con lo que declaró cada uno y el correo de las dos partes, volvió una vez desde el diálogo y la dio por no
+pagada; la lista quedó vacía y a las dos partes les llegó «Pago revisado», que abre la atención con «Resuelto: no
+pagado». El autor lo recorrió sin observaciones.
+
+Después, en la base, a la hora de La Paz:
+
+| Atención | Estado | Medio | Paciente | Profesional | Disputa | Resolución |
+|---|---|---|---|---|---|---|
+| Aplicación de inyectables, Bs 45,00, la que estaba en curso | `BOTH_CONFIRMED` | `CASH` | 24/11 14:16:18 | 24/11 14:11:16 | — | — |
+| Aplicación de inyectables, Bs 45,00, la disputa de HU-26 | `RESOLVED_NOT_PAID` | `DIRECT_QR` | 24/11 10:09:47 | — | 24/11 10:11:58 | 24/11 14:21:25, por el administrador |
+
+`net._http_response` registra, todas 200 con un envío: la atención completada a las 14:09:39, «Cobro confirmado» a las
+14:11:16 y una respuesta a las 14:21:25. A esa hora debían salir dos, una por parte, y el autor vio llegar las dos; la
+tabla conserva solo una, y después el paciente quedó sin teléfono registrado, porque el administrador cerró su sesión
+en el emulador del paciente. Que la resolución encola un aviso por parte lo prueban los experimentos 6 y 6b. Al aceptar
+el cobro no hubo envío. Las dos atenciones quedan como evidencia.
+
+**Previsualizaciones.** Veintiséis nuevas: 13 en `AttentionScreen.kt`, 6 en `DisputeQueueScreen.kt` y 7 en
+`DisputeReviewScreen.kt`, en claro, oscuro y 200 % a 320 dp. El autor las miró el 2026-11-24, sin observaciones (punto
+9 de la Definición de Terminado).
 
 ### HU-38 · Saber hasta cuándo aparezco ante los pacientes `[ ]` — 8 puntos
 

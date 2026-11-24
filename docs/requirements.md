@@ -142,7 +142,7 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | RF-09.4 | El sistema notifica a los profesionales cercanos cuando se publica una solicitud inmediata compatible con sus servicios, y al profesional destinatario cuando un paciente le agenda una cita. |
 | RF-09.5 | El sistema notifica a cada parte los eventos de la negociación que le tocan: oferta recibida, contraoferta recibida y oferta aceptada. |
 | RF-09.6 | El sistema notifica a cada parte los eventos de la atención que le tocan: mensaje nuevo, llegada del profesional, servicio finalizado y cancelación por la contraparte. |
-| RF-09.7 | El sistema notifica los eventos del pago: al profesional, que el paciente confirmó haber pagado; al paciente, que el pago quedó en disputa, porque la abre el profesional al declarar que no lo recibió; a ambas partes, cómo se resolvió. |
+| RF-09.7 | El sistema notifica los eventos del pago: al profesional, que el paciente confirmó haber pagado; al paciente, que el profesional confirmó haberlo recibido, para que lo acepte, y que el pago quedó en disputa, porque la abre el profesional al declarar que no lo recibió; a ambas partes, cómo se resolvió. |
 | RF-09.8 | El sistema notifica al paciente que su solicitud venció sin acuerdo, y al profesional que el paciente canceló la cita que le había agendado. |
 | RF-09.9 | El sistema notifica a cada usuario el veredicto sobre cada documento de verificación y, al profesional, que su verificación fue aprobada. |
 | RF-09.10 | Una notificación transporta solo el tipo de evento y lo necesario para abrirlo, nunca texto escrito por un usuario: ni el contenido de un mensaje, ni la descripción de una solicitud, ni un motivo de cancelación o de rechazo, ni la dirección exacta. Su texto se compone en el dispositivo, en el idioma del usuario. |
@@ -164,8 +164,8 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | Código | Requisito |
 |---|---|
 | RF-11.1 | Al acordarse un servicio, el sistema registra su pago pendiente por el monto acordado, que corresponde íntegro al profesional. La plataforma no retiene parte de él (RN-08). |
-| RF-11.2 | El paciente confirma en la aplicación haber efectuado el pago, indicando el medio empleado. |
-| RF-11.3 | El profesional confirma haber recibido el pago. |
+| RF-11.2 | El paciente confirma en la aplicación haber efectuado el pago, indicando el medio empleado. Si el profesional confirmó primero haberlo recibido, el paciente solo lo acepta. |
+| RF-11.3 | El profesional confirma haber recibido el pago: antes que el paciente, indicando el medio, o como respuesta a lo que el paciente declaró. |
 | RF-11.4 | El pago alcanza el estado confirmado únicamente cuando ambas partes coinciden. |
 | RF-11.5 | Si las confirmaciones no coinciden, el pago queda en disputa y se deriva a revisión administrativa. |
 | RF-11.6 | ~~El profesional consulta el saldo de comisiones acumuladas, liquidadas y pendientes.~~ **Retirado el 2026-11-22:** la plataforma no cobra comisión; se financia con la suscripción del profesional (RF-14). El código se conserva para que las referencias anteriores sigan siendo legibles. |
@@ -311,3 +311,4 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-18 | Cobrar la suscripción por fuera de Google Play | QR o transferencia con comprobante revisado por el administrador. Se descartó el 2026-11-22: con la aplicación en Play, la política de pagos no deja guiar dentro de ella hacia otro medio para un servicio digital, y habría que retirarlo al publicar. |
 | FA-19 | Varios planes de suscripción | Plan anual, precio por tipo de profesional o un nivel gratuito con ofertas limitadas. Ningún requisito lo pide; Play Billing admite varios planes por producto sin cambio de esquema. |
 | FA-20 | Avisar por notificación que la prueba está por vencer | La aplicación muestra la fecha de fin en el Inicio del profesional (RF-14.3). Avisarlo exigiría un trabajo de `pg_cron`, como FA-14. Las renovaciones de un período pagado las avisa Google Play. |
+| FA-21 | Declarar que no se cobró antes que el paciente | Si el paciente nunca confirma, el profesional no puede abrir una disputa por su cuenta: RF-11.5 la define como dos declaraciones que no coinciden, y la plataforma no cobra deudas, así que el administrador tampoco podría resolver el silencio. Nada queda irreversible: el paciente puede confirmar cuando sea, y el profesional, declarar que cobró. Se incorporaría con un estado de «no pagado» acordado y la respuesta del paciente. HU-28 lo dejó fuera el 2026-11-24. |

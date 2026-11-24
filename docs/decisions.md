@@ -6716,6 +6716,51 @@ administrador. HU-28 parte de pagos en `DISPUTED` con `disputed_at`, y tiene que
 pago resuelto en cada sentido, y qué hacer con el que el paciente nunca confirma. `request_push_body` sigue
 reescribiéndose entera, ahora con quince eventos.
 
+## 2026-11-24 · HU-28: el pago se declara en cualquier orden y el administrador resuelve la disputa una vez
+
+**Contexto.** RF-11.7 pide que el administrador revise los pagos en disputa y los resuelva en cualquiera de los dos
+sentidos, dejando registro. Al planificarla, el autor observó que el orden de HU-25 y HU-26 bloqueaba sin necesidad:
+el profesional que ya cobró tenía que esperar a que el paciente hablara primero. Además, la guarda dejaba pasar al
+administrador sin revisar nada, de modo que podía reescribir cualquier pago.
+
+**Decisión.** Las tomó el autor el 2026-11-24:
+
+- **Declara primero quien sea.** Si es el paciente, el profesional confirma o niega, como en HU-26. Si es el
+  profesional, elige el medio, su parte queda cerrada y al paciente le llega un aviso para aceptarlo; el paciente no
+  puede negarlo. El cambio va dentro de HU-28, que pasa de 3 a 8 puntos.
+- **El profesional no declara primero que no cobró.** El paciente que nunca confirma queda como FA-21.
+- **Dos estados finales para la resolución:** `RESOLVED_PAID` y `RESOLVED_NOT_PAID`, con `resolved_at` y
+  `resolved_by` sellados por el motor. «No pagado» es un registro final: la plataforma no cobra ni vuelve a pedir.
+- **La resolución es definitiva,** con un diálogo antes, y sin nota del administrador.
+- **El administrador llega desde su Inicio** a la lista de disputas, de la más antigua a la más reciente, y de ahí al
+  detalle, donde ve el correo de las dos partes para preguntarles; nunca la conversación.
+- **A cada parte le llega «Pago revisado»** con el sentido. Al administrador no se le avisa una disputa nueva.
+
+**Razonamiento.**
+
+- **Un estado propio para el cobro declarado primero.** `PROFESSIONAL_CONFIRMED` lleva solo la hora del profesional;
+  al aceptar, el motor sella la del paciente y el pago llega a `BOTH_CONFIRMED`. INV-09 sigue en pie: ninguna
+  declaración sola cierra el pago, y el profesional no puede pasar su propio cobro a `BOTH_CONFIRMED`.
+- **Una resolución no es una confirmación.** Darla por pagada con `BOTH_CONFIRMED` habría dicho que las dos partes
+  coincidieron, y devolverla a `PENDING` habría reescrito la historia (INV-05) y repetido la disputa sin fin.
+- **El tipo se rehace, no se extiende.** `ALTER TYPE ... ADD VALUE` no deja usar el valor nuevo en la transacción
+  que lo agrega, y los experimentos corren dentro de `begin … rollback`. Como en HT-30, se rehace el tipo; antes salen
+  `my_attention`, que lo devuelve, y `payments_notify_change`, que es `after update of status`.
+- **El administrador deja de saltarse la guarda.** Ahora solo pasa `DISPUTED` a una de las dos resoluciones, sin
+  tocar el medio ni ninguna hora. Lo encontró la planificación: desde el primer esquema, `is_admin()` devolvía la fila
+  tal como llegara.
+- **La lista es una vista con el filtro de `is_admin()`.** Corre con los permisos de quien consulta, que ya dejan al
+  administrador leer cada tabla; el filtro impide que una parte lea por ella el correo de la otra. No es
+  auto-actualizable, y aun así se le quita todo a `authenticated` salvo `select`.
+- **«Pago revisado» va en dos envíos.** `recipientRole` es uno por cuerpo, y cada parte lo abre con su rol. El sentido
+  viaja en `status`, una clave que `send-push` ya deja pasar: no hay que volver a desplegarla.
+- **Aceptar el cobro no lleva diálogo.** Solo da la razón a lo que ya quedó registrado.
+- **«Se pagó» y «No se pagó» tienen el mismo peso visual,** para no inclinar al administrador.
+
+**Consecuencia.** El ciclo de confirmación queda completo para las partes y para el administrador. HU-31 y HU-32
+filtran por estado: `BOTH_CONFIRMED`, `PROFESSIONAL_CONFIRMED` y `RESOLVED_PAID` son pagos cobrados.
+`request_push_body` sigue reescribiéndose entera, ahora con diecisiete eventos.
+
 ## Plantilla para entradas nuevas
 
 ```

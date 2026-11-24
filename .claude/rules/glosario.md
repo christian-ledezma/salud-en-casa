@@ -155,15 +155,22 @@ pasa a «Nombres retirados», al final.
 |---|---|---|
 | Pago | `Payment` | El pago de una atención por `totalAmountBob`, igual al monto congelado del servicio e íntegro del profesional (INV-10). Se confirma por las dos partes (INV-09) |
 | Pago de la atención | `AttentionPayment` / `payment_status`, `payment_method` en `my_attention` | El estado, el medio y las dos horas de confirmación, como los lee cualquiera de las dos partes (HU-25) |
-| Estado del pago | `PaymentStatus` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `DISPUTED`, `CANCELLED` |
-| Medio de pago | `PaymentMethod` / `patientChoices` | `CASH` y `DIRECT_QR` los elige el paciente, sin uno preseleccionado. `GATEWAY` nunca lo escribe un cliente (FA-02): lo rechazan el caso de uso y el motor |
+| Estado del pago | `PaymentStatus` | `PENDING`, `PATIENT_CONFIRMED`, `PROFESSIONAL_CONFIRMED`, `BOTH_CONFIRMED`, `DISPUTED`, `RESOLVED_PAID`, `RESOLVED_NOT_PAID`, `CANCELLED` |
+| Medio de pago | `PaymentMethod` / `declarable` | `CASH` y `DIRECT_QR` los elige quien declara primero, sin uno preseleccionado (HU-28). `GATEWAY` nunca lo escribe un cliente (FA-02): lo rechazan el caso de uso y el motor |
 | Confirmar que pagué | `canConfirmPayment` / `ConfirmPaymentUseCase` / `PaymentDraft` | Solo el paciente, con la atención completada y el pago pendiente, una sola vez: no se deshace ni cambia el medio (HU-25). El cliente envía estado y medio; el borrador guarda el medio mientras el diálogo está abierto |
 | Confirmar que cobré | `canAnswerPayment` / `PaymentAnswer` / `AnswerPaymentUseCase` / `AnswerDraft` | El profesional responde una sola vez, después de que el paciente confirmó: `RECEIVED` lleva a `BOTH_CONFIRMED`, `NOT_RECEIVED` a `DISPUTED`. Sin motivo, y no se deshace (HU-26). El botón elige la respuesta; el diálogo solo la confirma |
+| Confirmar el cobro primero | `canConfirmReceipt` / `ConfirmReceiptUseCase` / `PROFESSIONAL_CONFIRMED` | El profesional declara que cobró antes que el paciente, con el medio; su parte queda cerrada (HU-28). Comparte el diálogo y el borrador de «Confirmar que pagué» |
+| Aceptar el cobro | `canAcceptReceipt` / `AcceptReceiptUseCase` / `onAcceptReceipt` | Lo único que el paciente hace ante el cobro que el profesional declaró primero: lleva a `BOTH_CONFIRMED` y conserva el medio. Sin diálogo, porque solo da la razón a lo registrado |
+| Declarar el pago | `canDeclarePayment` | Confirmar que pagué o confirmar el cobro primero: lo que cada parte puede hacer mientras nadie habló |
 | Pago en revisión | `DISPUTED` / `disputed_at` / `disputedAt` | La disputa que abrió el profesional, a la espera del administrador (HU-28). La hora la sella el motor |
-| Sellar la confirmación | `stamp_payment_confirmation` | El motor pone `patient_confirmed_at`, `professional_confirmed_at` y `disputed_at` en sus transiciones. Su disparador se ordena después de la guarda, que ve la fila como la mandó el cliente |
-| Quién escribe el pago | `guard_payment_confirmation` | El paciente, solo `PENDING` → `PATIENT_CONFIRMED` con su medio; el profesional, solo `PATIENT_CONFIRMED` → `BOTH_CONFIRMED` o `DISPUTED`; nadie las horas ni los campos de pasarela. La cancelación que sigue al servicio pasa antes de esas reglas |
+| Resolver la disputa | `DisputeResolution` / `ResolveDisputeUseCase` / `RESOLVED_PAID`, `RESOLVED_NOT_PAID` | El administrador da el pago por pagado o por no pagado, una sola vez. Los dos estados son finales; el motor sella `resolved_at` y `resolved_by` (HU-28) |
+| Disputa de pago | `PaymentDispute` / `payment_dispute_queue` | Lo que el administrador revisa: monto, medio declarado, las dos partes con su correo y cada hora, nunca la conversación. La vista filtra por `is_admin()` |
+| Sellar la confirmación | `stamp_payment_confirmation` | El motor pone `patient_confirmed_at`, `professional_confirmed_at`, `disputed_at`, `resolved_at` y `resolved_by` en sus transiciones. Su disparador se ordena después de la guarda, que ve la fila como la mandó el cliente |
+| Quién escribe el pago | `guard_payment_confirmation` | El paciente, `PENDING` → `PATIENT_CONFIRMED` con su medio, o `PROFESSIONAL_CONFIRMED` → `BOTH_CONFIRMED`; el profesional, `PENDING` → `PROFESSIONAL_CONFIRMED` con su medio, o `PATIENT_CONFIRMED` → `BOTH_CONFIRMED` o `DISPUTED`; el administrador, solo `DISPUTED` → una resolución; nadie las horas ni los campos de pasarela. La cancelación que sigue al servicio pasa antes de esas reglas |
 | Aviso de pago confirmado | `PATIENT_CONFIRMED_PAYMENT` / `queue_payment_push` / `paymentMethod` | Al profesional, con el nombre del paciente, el monto y el medio, y abre la atención. Canal `ATTENTIONS`. `paymentMethod` es una clave más de la lista de `send-push` |
+| Aviso de cobro confirmado | `PROFESSIONAL_CONFIRMED_PAYMENT` / `ProfessionalConfirmedPayment` | Al paciente, cuando el profesional declaró primero, con su nombre, el monto, el medio y el tipo de servicio; abre la atención para aceptarlo. Canal `ATTENTIONS` |
 | Aviso de pago en revisión | `PAYMENT_DISPUTED` / `PaymentDisputed` | Al paciente, con el nombre del profesional, el monto y el tipo de servicio, y abre la atención. Canal `ATTENTIONS`. Nadie recibe aviso cuando confirman ambos |
+| Aviso de pago revisado | `PAYMENT_RESOLVED` / `PaymentResolved` | A cada parte, en un envío propio, con el nombre de la otra, el monto, el tipo de servicio y el sentido en `status`; abre la atención. Nunca nombra al administrador |
 | Señal del pago | `notify_attention_payment_changed` | Un cambio de estado del pago avisa al tema `attention:<request_id>`, así la atención abierta se relee |
 | Anular el pago | `cancel_payment_with_service` | Disparador que lleva el pago a `CANCELLED` al cancelarse la atención. Ningún cliente lo hace: `guard_payment_confirmation` exige el servicio cancelado, y de ese estado no se sale |
 
@@ -207,7 +214,7 @@ pasa a «Nombres retirados», al final.
 | Español | Inglés | Uso |
 |---|---|---|
 | Notificación push | `PushPayload` / `features/notifications/` | El evento, a quién y lo necesario para abrirlo. Nunca texto escrito por un usuario (RF-09.10): el texto lo compone el teléfono |
-| Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`, `OFFER_RECEIVED`, `COUNTER_OFFER_RECEIVED`, `OFFER_ACCEPTED`, `MESSAGE_RECEIVED`, `PROFESSIONAL_ARRIVED`, `SERVICE_COMPLETED`, `ATTENTION_CANCELLED`, `DOCUMENT_VERDICT`, `VERIFICATION_APPROVED`, `PATIENT_CONFIRMED_PAYMENT`, `PAYMENT_DISPUTED`. Mismos nombres en SQL y Kotlin: `NotificationEventParityTest` lee solo la última migración que define `request_push_body`, así que esa función se reescribe entera cada vez |
+| Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`, `OFFER_RECEIVED`, `COUNTER_OFFER_RECEIVED`, `OFFER_ACCEPTED`, `MESSAGE_RECEIVED`, `PROFESSIONAL_ARRIVED`, `SERVICE_COMPLETED`, `ATTENTION_CANCELLED`, `DOCUMENT_VERDICT`, `VERIFICATION_APPROVED`, `PATIENT_CONFIRMED_PAYMENT`, `PROFESSIONAL_CONFIRMED_PAYMENT`, `PAYMENT_DISPUTED`, `PAYMENT_RESOLVED`. Mismos nombres en SQL y Kotlin: `NotificationEventParityTest` lee solo la última migración que define `request_push_body`, así que esa función se reescribe entera cada vez |
 | Aviso de mensaje | `MESSAGE_RECEIVED` / `senderName` | Lleva el nombre del remitente, nunca el contenido; con el teléfono bloqueado no muestra el nombre |
 | Veredicto de un documento | `DOCUMENT_VERDICT` / `queue_verification_document_push` | Disparador por sentencia, agrupado por `profile_id`: un veredicto conjunto avisa una vez. Lleva el estado y la cantidad, nunca el motivo del rechazo (HU-37) |
 | Verificación aprobada | `VERIFICATION_APPROVED` / `queue_verification_approved_push` | Al profesional, cuando `verification_status` llega a `APPROVED`. Disparador por fila, solo en esa transición (HU-37) |
@@ -324,6 +331,8 @@ pasa a «Nombres retirados», al final.
 | Confirmado por el paciente | `patientConfirmedAt` / `patient_confirmed_at` |
 | Confirmado por el profesional | `professionalConfirmedAt` / `professional_confirmed_at` |
 | En disputa desde | `disputedAt` / `disputed_at` |
+| Resuelto en | `resolvedAt` / `resolved_at` |
+| Resuelto por | `resolvedBy` / `resolved_by` |
 | Motivo de cancelación | `cancellationReason` / `cancellation_reason` |
 | Cancelado por | `cancelledBy` / `cancelled_by` |
 | Cancelado en | `cancelledAt` / `cancelled_at` |
@@ -362,7 +371,7 @@ tabla llega a existir.
 | `offer_status` | `PROPOSED`, `ACCEPTED`, `REJECTED`, `EXPIRED` |
 | `service_status` | `ASSIGNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` |
 | `payment_method` | `CASH`, `DIRECT_QR`, `GATEWAY` |
-| `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `DISPUTED`, `CANCELLED` |
+| `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `PROFESSIONAL_CONFIRMED`, `BOTH_CONFIRMED`, `DISPUTED`, `RESOLVED_PAID`, `RESOLVED_NOT_PAID`, `CANCELLED` |
 | `device_platform` | `ANDROID`. `IOS` se retiró el 2026-09-12 (FA-04) |
 
 ## Esquema
