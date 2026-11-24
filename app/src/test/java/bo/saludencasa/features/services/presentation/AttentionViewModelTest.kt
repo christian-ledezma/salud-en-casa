@@ -10,11 +10,13 @@ import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
+import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
+import bo.saludencasa.features.services.domain.usecase.AnswerPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ConfirmPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
@@ -47,6 +49,7 @@ class AttentionViewModelTest {
             ObserveAttentionUseCase(repository),
             CancelAttentionUseCase(repository),
             ConfirmPaymentUseCase(repository),
+            AnswerPaymentUseCase(repository),
         )
 
     private fun TestScope.opened(attention: Attention): AttentionViewModel {
@@ -571,5 +574,134 @@ class AttentionViewModelTest {
             repository.holdPayment!!.complete(Unit)
             advanceUntilIdle()
             assertNull(viewModel.content().paymentDraft)
+        }
+
+    private fun declaredToTheProfessional() =
+        attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, payment = paidInCash())
+
+    @Test
+    fun theAnswerOpensOnlyForTheProfessionalOnceThePatientConfirmed() =
+        runTest {
+            listOf(
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false),
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash()),
+                attention(
+                    status = ServiceStatus.COMPLETED,
+                    iAmThePatient = false,
+                    payment = paidInCash().copy(status = PaymentStatus.BOTH_CONFIRMED),
+                ),
+            ).forEach { attention ->
+                val viewModel = opened(attention)
+                viewModel.onAnswerRequested(PaymentAnswer.RECEIVED)
+                assertNull(viewModel.content().answerDraft)
+            }
+        }
+
+    // The button chose the answer; dismissing the dialog sends nothing.
+    @Test
+    fun dismissingTheAnswerSendsNothing() =
+        runTest {
+            val viewModel = opened(declaredToTheProfessional())
+
+            viewModel.onAnswerRequested(PaymentAnswer.NOT_RECEIVED)
+            viewModel.onAnswerDismissed()
+            advanceUntilIdle()
+
+            assertTrue(repository.answers.isEmpty())
+            assertNull(viewModel.content().answerDraft)
+        }
+
+    @Test
+    fun confirmingTheReceiptClosesTheDialogAndShowsThePaymentConfirmedByBoth() =
+        runTest {
+            val viewModel = opened(declaredToTheProfessional())
+
+            viewModel.onAnswerRequested(PaymentAnswer.RECEIVED)
+            viewModel.onAnswerConfirmed()
+            advanceUntilIdle()
+
+            val state = viewModel.content()
+            assertEquals(listOf(PaymentAnswer.RECEIVED), repository.answers)
+            assertNull(state.answerDraft)
+            assertEquals(PaymentStatus.BOTH_CONFIRMED, state.attention.payment.status)
+            assertFalse(state.attention.canAnswerPayment)
+        }
+
+    @Test
+    fun sayingItWasNotReceivedLeavesThePaymentInReview() =
+        runTest {
+            val viewModel = opened(declaredToTheProfessional())
+
+            viewModel.onAnswerRequested(PaymentAnswer.NOT_RECEIVED)
+            viewModel.onAnswerConfirmed()
+            advanceUntilIdle()
+
+            assertEquals(listOf(PaymentAnswer.NOT_RECEIVED), repository.answers)
+            assertEquals(
+                PaymentStatus.DISPUTED,
+                viewModel
+                    .content()
+                    .attention.payment.status,
+            )
+        }
+
+    @Test
+    fun aFailedAnswerKeepsTheDialogWithItsAnswer() =
+        runTest {
+            repository.answerError = ServiceError.NetworkUnavailable
+            val viewModel = opened(declaredToTheProfessional())
+
+            viewModel.onAnswerRequested(PaymentAnswer.NOT_RECEIVED)
+            viewModel.onAnswerConfirmed()
+            advanceUntilIdle()
+
+            val draft = viewModel.content().answerDraft!!
+            assertEquals(PaymentAnswer.NOT_RECEIVED, draft.answer)
+            assertEquals(ServiceError.NetworkUnavailable, draft.error)
+            assertFalse(draft.sending)
+        }
+
+    // Answered from another phone first: the dialog closes on what the engine says.
+    @Test
+    fun aPaymentAnsweredElsewhereClosesTheDialog() =
+        runTest {
+            val viewModel = opened(declaredToTheProfessional())
+            viewModel.onAnswerRequested(PaymentAnswer.RECEIVED)
+
+            repository.answerError = ServiceError.AttentionChanged
+            repository.result =
+                AttentionResult.Loaded(
+                    declaredToTheProfessional().copy(payment = paidInCash().copy(status = PaymentStatus.DISPUTED)),
+                )
+            viewModel.onAnswerConfirmed()
+            advanceUntilIdle()
+
+            assertNull(viewModel.content().answerDraft)
+            assertEquals(
+                PaymentStatus.DISPUTED,
+                viewModel
+                    .content()
+                    .attention.payment.status,
+            )
+        }
+
+    @Test
+    fun anAnswerOnItsWayCannotBeDismissedOrSentTwice() =
+        runTest {
+            repository.holdAnswer = CompletableDeferred()
+            val viewModel = opened(declaredToTheProfessional())
+            viewModel.onAnswerRequested(PaymentAnswer.RECEIVED)
+
+            viewModel.onAnswerConfirmed()
+            advanceUntilIdle()
+            viewModel.onAnswerDismissed()
+            viewModel.onAnswerConfirmed()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.content().answerDraft!!.sending)
+            assertEquals(1, repository.answers.size)
+            repository.holdAnswer!!.complete(Unit)
+            advanceUntilIdle()
+            assertNull(viewModel.content().answerDraft)
         }
 }

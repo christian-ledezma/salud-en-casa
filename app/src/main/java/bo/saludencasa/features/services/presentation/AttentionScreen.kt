@@ -71,6 +71,7 @@ import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
 import bo.saludencasa.features.services.domain.model.Counterpart
+import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
@@ -110,6 +111,9 @@ internal data class AttentionActions(
     val onPaymentMethodChosen: (PaymentMethod) -> Unit = {},
     val onPayDismissed: () -> Unit = {},
     val onPayConfirmed: () -> Unit = {},
+    val onAnswerRequested: (PaymentAnswer) -> Unit = {},
+    val onAnswerDismissed: () -> Unit = {},
+    val onAnswerConfirmed: () -> Unit = {},
 )
 
 // docs/decisions.md, 2026-10-30, and 2026-11-04, HU-23.
@@ -152,6 +156,9 @@ fun AttentionScreen(
                 onPaymentMethodChosen = viewModel::onPaymentMethodChosen,
                 onPayDismissed = viewModel::onPayDismissed,
                 onPayConfirmed = viewModel::onPayConfirmed,
+                onAnswerRequested = viewModel::onAnswerRequested,
+                onAnswerDismissed = viewModel::onAnswerDismissed,
+                onAnswerConfirmed = viewModel::onAnswerConfirmed,
             ),
         modifier = modifier,
     )
@@ -279,6 +286,20 @@ private fun AttentionBody(
                 PrimaryButton(text = stringResource(R.string.attention_pay_action), onClick = actions.onPayRequested)
             }
         }
+
+        if (attention.canAnswerPayment) {
+            BottomActionBar {
+                PrimaryButton(
+                    text = stringResource(R.string.attention_receipt_action),
+                    onClick = { actions.onAnswerRequested(PaymentAnswer.RECEIVED) },
+                )
+                OutlinedErrorButton(
+                    text = stringResource(R.string.attention_not_received_action),
+                    enabled = true,
+                    onClick = { actions.onAnswerRequested(PaymentAnswer.NOT_RECEIVED) },
+                )
+            }
+        }
     }
 
     content.confirming?.let { step ->
@@ -291,6 +312,10 @@ private fun AttentionBody(
 
     content.paymentDraft?.let { draft ->
         ConfirmPaymentDialog(draft = draft, attention = attention, actions = actions)
+    }
+
+    content.answerDraft?.let { draft ->
+        AnswerPaymentDialog(draft = draft, attention = attention, actions = actions)
     }
 }
 
@@ -795,6 +820,7 @@ private fun PaymentLines(
     val payment = attention.payment
     val counterpart = attention.counterpart.name
     val confirmedAt = payment.patientConfirmedAt
+    val receivedAtInstant = payment.professionalConfirmedAt
 
     when {
         attention.status == ServiceStatus.CANCELLED -> {
@@ -833,6 +859,33 @@ private fun PaymentLines(
                 },
             )
         }
+
+        payment.status == PaymentStatus.BOTH_CONFIRMED && confirmedAt != null && receivedAtInstant != null -> {
+            val receivedAt = formatAppointment(receivedAtInstant, locale)
+            if (attention.iAmThePatient) {
+                PaymentConfirmedChip(
+                    stringResource(payment.method.youPaidRes(), formatAppointment(confirmedAt, locale)),
+                )
+                MutedLine(stringResource(R.string.attention_payment_professional_received, counterpart, receivedAt))
+            } else {
+                PaymentConfirmedChip(stringResource(payment.method.youReceivedRes(), receivedAt))
+                // RF-11.1, INV-10: the platform keeps no part of the amount.
+                MutedLine(stringResource(R.string.attention_payment_whole_for_you))
+            }
+        }
+
+        payment.status == PaymentStatus.DISPUTED && payment.disputedAt != null -> {
+            val disputedAt = formatAppointment(payment.disputedAt, locale)
+            PaymentInReviewChip()
+            MutedLine(
+                if (attention.iAmThePatient) {
+                    stringResource(payment.method.disputedByProfessionalRes(), counterpart, disputedAt)
+                } else {
+                    stringResource(payment.method.disputedByYouRes(), counterpart, disputedAt)
+                },
+            )
+            MutedLine(stringResource(R.string.attention_payment_review_next))
+        }
     }
 }
 
@@ -860,6 +913,118 @@ private fun PaymentConfirmedChip(text: String) {
         )
         Text(text = text, style = MaterialTheme.typography.bodyMedium, color = onContainer)
     }
+}
+
+// A dispute is waiting on the administrator: the tone of what is still running.
+@Composable
+private fun PaymentInReviewChip() {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier =
+            Modifier
+                .clip(MaterialTheme.shapes.small)
+                .background(colors.tertiaryContainer)
+                .padding(horizontal = Spacing.scale12, vertical = Spacing.scale8),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_schedule),
+            contentDescription = null,
+            tint = colors.onTertiaryContainer,
+            modifier = Modifier.size(Spacing.scale16),
+        )
+        Text(
+            text = stringResource(R.string.attention_payment_in_review),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.onTertiaryContainer,
+        )
+    }
+}
+
+@Composable
+private fun AnswerPaymentDialog(
+    draft: AnswerDraft,
+    attention: Attention,
+    actions: AttentionActions,
+) {
+    val locale = LocalConfiguration.current.locales[0]
+    val scroll = rememberScrollState()
+    val amount = formatBob(attention.finalAmountBob, locale)
+    val patient = attention.counterpart.name
+    val method = attention.payment.method
+    val received = draft.answer == PaymentAnswer.RECEIVED
+    // The error sits under the body, below the fold at a large font.
+    LaunchedEffect(draft.error) {
+        if (draft.error != null) scroll.animateScrollTo(scroll.maxValue)
+    }
+
+    AlertDialog(
+        onDismissRequest = actions.onAnswerDismissed,
+        title = {
+            Text(
+                text =
+                    stringResource(
+                        if (received) {
+                            R.string.attention_receipt_dialog_title
+                        } else {
+                            R.string.attention_not_received_dialog_title
+                        },
+                    ),
+            )
+        },
+        text = {
+            // docs/decisions.md, 2026-11-04, HT-29: AlertDialog clips its content.
+            Column(
+                modifier = Modifier.verticalScroll(scroll),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
+            ) {
+                Text(
+                    text =
+                        if (received) {
+                            stringResource(method.receiptBodyRes(), amount, patient)
+                        } else {
+                            stringResource(method.notReceivedBodyRes(), patient, amount)
+                        },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                draft.error?.let { error ->
+                    Text(
+                        text = stringResource(error.answerMessageRes()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = actions.onAnswerConfirmed,
+                enabled = !draft.sending,
+                colors =
+                    if (received) {
+                        ButtonDefaults.textButtonColors()
+                    } else {
+                        ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (received) {
+                                R.string.attention_receipt_confirm
+                            } else {
+                                R.string.attention_not_received_confirm
+                            },
+                        ),
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = actions.onAnswerDismissed, enabled = !draft.sending) {
+                Text(text = stringResource(R.string.attention_pay_back))
+            }
+        },
+    )
 }
 
 @Composable
@@ -996,6 +1161,21 @@ private fun CancelAttentionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    OutlinedErrorButton(
+        text = stringResource(R.string.attention_cancel_action),
+        enabled = enabled,
+        onClick = onClick,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun OutlinedErrorButton(
+    text: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val error = MaterialTheme.colorScheme.error
     OutlinedButton(
         onClick = onClick,
@@ -1005,7 +1185,7 @@ private fun CancelAttentionButton(
         border = BorderStroke(Spacing.borderWidth, error),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = error),
     ) {
-        Text(text = stringResource(R.string.attention_cancel_action), style = MaterialTheme.typography.labelLarge)
+        Text(text = text, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -1174,6 +1354,54 @@ private fun PaymentMethod?.patientPaidRes(): Int =
         PaymentMethod.CASH -> R.string.attention_payment_patient_paid_cash
         PaymentMethod.DIRECT_QR -> R.string.attention_payment_patient_paid_direct_qr
         PaymentMethod.GATEWAY, null -> R.string.attention_payment_patient_paid
+    }
+
+@StringRes
+private fun PaymentMethod?.youReceivedRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.attention_payment_you_received_cash
+        PaymentMethod.DIRECT_QR -> R.string.attention_payment_you_received_direct_qr
+        PaymentMethod.GATEWAY, null -> R.string.attention_payment_you_received
+    }
+
+@StringRes
+private fun PaymentMethod?.disputedByYouRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.attention_payment_disputed_by_you_cash
+        PaymentMethod.DIRECT_QR -> R.string.attention_payment_disputed_by_you_direct_qr
+        PaymentMethod.GATEWAY, null -> R.string.attention_payment_disputed_by_you
+    }
+
+@StringRes
+private fun PaymentMethod?.disputedByProfessionalRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.attention_payment_disputed_by_professional_cash
+        PaymentMethod.DIRECT_QR -> R.string.attention_payment_disputed_by_professional_direct_qr
+        PaymentMethod.GATEWAY, null -> R.string.attention_payment_disputed_by_professional
+    }
+
+@StringRes
+private fun PaymentMethod?.receiptBodyRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.attention_receipt_dialog_body_cash
+        PaymentMethod.DIRECT_QR -> R.string.attention_receipt_dialog_body_direct_qr
+        PaymentMethod.GATEWAY, null -> R.string.attention_receipt_dialog_body
+    }
+
+@StringRes
+private fun PaymentMethod?.notReceivedBodyRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.attention_not_received_dialog_body_cash
+        PaymentMethod.DIRECT_QR -> R.string.attention_not_received_dialog_body_direct_qr
+        PaymentMethod.GATEWAY, null -> R.string.attention_not_received_dialog_body
+    }
+
+@StringRes
+private fun ServiceError.answerMessageRes(): Int =
+    when (this) {
+        ServiceError.NetworkUnavailable -> R.string.attention_answer_failed_network
+        ServiceError.AttentionChanged -> R.string.attention_mark_changed
+        ServiceError.NotSignedIn, ServiceError.Unexpected -> R.string.error_unexpected
     }
 
 @StringRes
@@ -1462,4 +1690,123 @@ private fun AttentionProfessionalPaidPreview() {
 @Composable
 private fun AttentionProfessionalPaidLargeFontPreview() {
     AttentionPreviewFrame(AttentionUiState.Content(previewCompleted.copy(payment = previewPaidInCash)))
+}
+
+private val previewBothConfirmed =
+    previewPaidInCash.copy(
+        status = PaymentStatus.BOTH_CONFIRMED,
+        professionalConfirmedAt = Instant.parse("2026-11-04T16:10:00Z"),
+    )
+
+private val previewDisputed =
+    previewPaidInCash.copy(
+        status = PaymentStatus.DISPUTED,
+        disputedAt = Instant.parse("2026-11-04T16:10:00Z"),
+    )
+
+private val previewProfessionalAnswering = previewCompleted.copy(payment = previewPaidInCash)
+
+@Preview(name = "Attention professional answers", showBackground = true)
+@Composable
+private fun AttentionProfessionalAnswersPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewProfessionalAnswering))
+}
+
+@Preview(name = "Attention professional answers dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionProfessionalAnswersDarkPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewProfessionalAnswering))
+}
+
+@Preview(name = "Attention professional answers large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionProfessionalAnswersLargeFontPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewProfessionalAnswering))
+}
+
+@Preview(name = "Attention receipt dialog", showBackground = true)
+@Composable
+private fun AttentionReceiptDialogPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(previewProfessionalAnswering, answerDraft = AnswerDraft(PaymentAnswer.RECEIVED)),
+    )
+}
+
+@Preview(name = "Attention not received dialog", showBackground = true)
+@Composable
+private fun AttentionNotReceivedDialogPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(previewProfessionalAnswering, answerDraft = AnswerDraft(PaymentAnswer.NOT_RECEIVED)),
+    )
+}
+
+@Preview(name = "Attention not received dialog dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionNotReceivedDialogDarkPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(previewProfessionalAnswering, answerDraft = AnswerDraft(PaymentAnswer.NOT_RECEIVED)),
+    )
+}
+
+@Preview(name = "Attention not received dialog large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionNotReceivedDialogLargeFontPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(
+            previewProfessionalAnswering,
+            answerDraft = AnswerDraft(PaymentAnswer.NOT_RECEIVED, error = ServiceError.NetworkUnavailable),
+        ),
+    )
+}
+
+@Preview(name = "Attention professional received", showBackground = true)
+@Composable
+private fun AttentionProfessionalReceivedPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewCompleted.copy(payment = previewBothConfirmed)))
+}
+
+@Preview(name = "Attention professional received large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionProfessionalReceivedLargeFontPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewCompleted.copy(payment = previewBothConfirmed)))
+}
+
+@Preview(name = "Attention patient both confirmed", showBackground = true)
+@Composable
+private fun AttentionPatientBothConfirmedPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted.copy(payment = previewBothConfirmed)))
+}
+
+@Preview(
+    name = "Attention patient both confirmed dark",
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+)
+@Composable
+private fun AttentionPatientBothConfirmedDarkPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted.copy(payment = previewBothConfirmed)))
+}
+
+@Preview(name = "Attention patient in review", showBackground = true)
+@Composable
+private fun AttentionPatientInReviewPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted.copy(payment = previewDisputed)))
+}
+
+@Preview(name = "Attention patient in review dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionPatientInReviewDarkPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted.copy(payment = previewDisputed)))
+}
+
+@Preview(name = "Attention patient in review large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionPatientInReviewLargeFontPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted.copy(payment = previewDisputed)))
+}
+
+@Preview(name = "Attention professional in review", showBackground = true)
+@Composable
+private fun AttentionProfessionalInReviewPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewCompleted.copy(payment = previewDisputed)))
 }

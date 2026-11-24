@@ -69,6 +69,7 @@ internal fun AttentionDto.toAttention(): Attention? {
                     },
                 patientConfirmedAt = patientConfirmedAt?.let { parseInstant(it) ?: return null },
                 professionalConfirmedAt = professionalConfirmedAt?.let { parseInstant(it) ?: return null },
+                disputedAt = disputedAt?.let { parseInstant(it) ?: return null },
             ),
     )
 }
@@ -106,8 +107,8 @@ internal fun Throwable.toServiceError(): ServiceError =
     }
 
 // Raised by guard_service_transition and, when both parties cancel at once, by
-// guard_service_direct_update; the last two by guard_payment_confirmation, when
-// the payment or the attention moved before the patient confirmed.
+// guard_service_direct_update; the last three by guard_payment_confirmation, when
+// the payment or the attention moved before its party answered.
 private val TRANSITION_REFUSALS =
     listOf(
         "invalid_service_transition",
@@ -115,4 +116,5 @@ private val TRANSITION_REFUSALS =
         "cancellation_reason_is_written_once",
         "patient_confirms_a_pending_payment_once",
         "payment_confirmation_requires_a_completed_service",
+        "professional_answers_a_patient_confirmed_payment_once",
     )

@@ -90,6 +90,21 @@ class SupabaseServiceDataSource(
             }.decodeList<ServiceStatusRow>()
             .size
 
+    // The engine seals when; the client sends only the answer as a status.
+    suspend fun answerPayment(
+        serviceId: String,
+        status: String,
+    ): Int =
+        supabase
+            .from(PAYMENTS)
+            .update({
+                set("status", status)
+            }) {
+                filter { eq("service_id", serviceId) }
+                select(Columns.list("status"))
+            }.decodeList<ServiceStatusRow>()
+            .size
+
     // notify_attention_changed sends to this topic, and attention_listen lets only
     // the two parties of the service hear it.
     fun signals(requestId: String): Flow<Unit> = supabase.broadcastSignals(TOPIC_PREFIX + requestId, EVENT)

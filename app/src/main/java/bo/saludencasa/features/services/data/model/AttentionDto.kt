@@ -71,6 +71,7 @@ data class AttentionDto(
     @SerialName("payment_method") val paymentMethod: String? = null,
     @SerialName("patient_confirmed_at") val patientConfirmedAt: String? = null,
     @SerialName("professional_confirmed_at") val professionalConfirmedAt: String? = null,
+    @SerialName("disputed_at") val disputedAt: String? = null,
 )
 
 @Serializable

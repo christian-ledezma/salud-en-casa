@@ -19,7 +19,9 @@ import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
+import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
+import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.paidInCash
@@ -384,5 +386,156 @@ class AttentionScreenLargeFontTest {
             composeRule.onNodeWithText(string(R.string.attention_payment_patient_paid_cash, "María Quispe", paidAt())),
         )
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_payment_waiting_you)))
+    }
+
+    private fun declared(iAmThePatient: Boolean = false) =
+        attention(status = ServiceStatus.COMPLETED, iAmThePatient = iAmThePatient, payment = paidInCash())
+
+    private fun receiptButton() = composeRule.onNodeWithText(string(R.string.attention_receipt_action))
+
+    private fun notReceivedButton() = composeRule.onNodeWithText(string(R.string.attention_not_received_action))
+
+    private val answeredAt: Instant = Instant.parse("2026-11-04T16:30:00Z")
+
+    private fun answeredAtText() = formatAppointment(answeredAt, Locale.getDefault())
+
+    private fun bothConfirmed(iAmThePatient: Boolean) =
+        declared(iAmThePatient).copy(
+            payment = paidInCash().copy(status = PaymentStatus.BOTH_CONFIRMED, professionalConfirmedAt = answeredAt),
+        )
+
+    private fun disputed(iAmThePatient: Boolean) =
+        declared(
+            iAmThePatient,
+        ).copy(payment = paidInCash().copy(status = PaymentStatus.DISPUTED, disputedAt = answeredAt))
+
+    // Both at the foot, like the patient's pay button: neither answer hides behind the other.
+    @Test
+    fun theProfessionalHasBothAnswersAtTheFoot() {
+        show(AttentionUiState.Content(declared()))
+
+        composeRule.assertFitsTheScreenWithoutScrolling(receiptButton())
+        composeRule.assertFitsTheScreenWithoutScrolling(notReceivedButton())
+    }
+
+    @Test
+    fun thePatientIsNeverOfferedTheProfessionalsAnswers() {
+        show(AttentionUiState.Content(declared(iAmThePatient = true)))
+
+        receiptButton().assertDoesNotExist()
+        notReceivedButton().assertDoesNotExist()
+    }
+
+    @Test
+    fun theNotReceivedDialogKeepsItsWarningTheErrorAndItsAnswersOnScreen() {
+        show(
+            AttentionUiState.Content(
+                declared(),
+                answerDraft = AnswerDraft(PaymentAnswer.NOT_RECEIVED, error = ServiceError.NetworkUnavailable),
+            ),
+        )
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_not_received_dialog_title)),
+        )
+        // Reached without a gesture: a refused answer must say why where it can be
+        // seen. Checked first, because scrolling up to the body below would hide it.
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_answer_failed_network)),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(composeRule.onNodeWithText(string(R.string.attention_pay_back)))
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_not_received_confirm)),
+        )
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(
+                    R.string.attention_not_received_dialog_body_cash,
+                    "María Quispe",
+                    formatBob(BigDecimal("150.00"), Locale.getDefault()),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun theReceiptDialogSaysTheAmountTheMethodAndThatItIsFinal() {
+        show(AttentionUiState.Content(declared(), answerDraft = AnswerDraft(PaymentAnswer.RECEIVED)))
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(
+                    R.string.attention_receipt_dialog_body_cash,
+                    formatBob(BigDecimal("150.00"), Locale.getDefault()),
+                    "María Quispe",
+                ),
+            ),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_receipt_confirm)),
+        )
+    }
+
+    @Test
+    fun anAnswerOnItsWayCannotBeAnsweredAgain() {
+        show(
+            AttentionUiState.Content(declared(), answerDraft = AnswerDraft(PaymentAnswer.RECEIVED, sending = true)),
+        )
+
+        composeRule.onNodeWithText(string(R.string.attention_receipt_confirm)).assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.attention_pay_back)).assertIsNotEnabled()
+    }
+
+    // RF-11.1, INV-10: the professional is told the whole amount is theirs.
+    @Test
+    fun theProfessionalReadsTheReceiptAndThatTheAmountIsWhollyTheirs() {
+        show(AttentionUiState.Content(bothConfirmed(iAmThePatient = false)))
+
+        receiptButton().assertDoesNotExist()
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_payment_you_received_cash, answeredAtText())),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_payment_whole_for_you)))
+    }
+
+    @Test
+    fun thePatientReadsThatTheProfessionalConfirmedTheReceipt() {
+        show(AttentionUiState.Content(bothConfirmed(iAmThePatient = true)))
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_payment_you_paid_cash, paidAt())),
+        )
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(R.string.attention_payment_professional_received, "María Quispe", answeredAtText()),
+            ),
+        )
+    }
+
+    @Test
+    fun thePatientReadsThePaymentIsInReviewAndWhatHappensNext() {
+        show(AttentionUiState.Content(disputed(iAmThePatient = true)))
+
+        payButton().assertDoesNotExist()
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_payment_in_review)))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(R.string.attention_payment_disputed_by_professional_cash, "María Quispe", answeredAtText()),
+            ),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_payment_review_next)))
+    }
+
+    @Test
+    fun theProfessionalReadsTheirOwnDisputeWithoutTheAnswersAgain() {
+        show(AttentionUiState.Content(disputed(iAmThePatient = false)))
+
+        receiptButton().assertDoesNotExist()
+        notReceivedButton().assertDoesNotExist()
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(R.string.attention_payment_disputed_by_you_cash, "María Quispe", answeredAtText()),
+            ),
+        )
     }
 }

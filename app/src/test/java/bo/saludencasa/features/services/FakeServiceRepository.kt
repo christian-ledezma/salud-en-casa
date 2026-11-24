@@ -2,6 +2,7 @@ package bo.saludencasa.features.services
 
 import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
+import bo.saludencasa.features.services.domain.model.AnswerPaymentResult
 import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionPayment
@@ -16,6 +17,7 @@ import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.Counterpart
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
@@ -43,6 +45,9 @@ class FakeServiceRepository : IServiceRepository {
     var paymentError: ServiceError? = null
     var holdPayment: CompletableDeferred<Unit>? = null
     val payments = mutableListOf<PaymentMethod>()
+    var answerError: ServiceError? = null
+    var holdAnswer: CompletableDeferred<Unit>? = null
+    val answers = mutableListOf<PaymentAnswer>()
     val signals = MutableSharedFlow<Unit>()
 
     override suspend fun getAttention(requestId: String): AttentionResult = result
@@ -134,6 +139,39 @@ class FakeServiceRepository : IServiceRepository {
                 )
         }
         return ConfirmPaymentResult.Confirmed
+    }
+
+    // The engine seals the time of the answer, so the reread finds it.
+    override suspend fun answerPayment(
+        serviceId: String,
+        answer: PaymentAnswer,
+    ): AnswerPaymentResult {
+        answers += answer
+        holdAnswer?.await()
+        answerError?.let { return AnswerPaymentResult.Failure(it) }
+        val current = (result as? AttentionResult.Loaded)?.attention
+        if (current != null) {
+            val at = Instant.parse("2026-11-04T16:30:00Z")
+            result =
+                AttentionResult.Loaded(
+                    current.copy(
+                        payment =
+                            when (answer) {
+                                PaymentAnswer.RECEIVED -> {
+                                    current.payment.copy(
+                                        status = PaymentStatus.BOTH_CONFIRMED,
+                                        professionalConfirmedAt = at,
+                                    )
+                                }
+
+                                PaymentAnswer.NOT_RECEIVED -> {
+                                    current.payment.copy(status = PaymentStatus.DISPUTED, disputedAt = at)
+                                }
+                            },
+                    ),
+                )
+        }
+        return AnswerPaymentResult.Answered
     }
 
     override fun attentionSignals(requestId: String): Flow<Unit> = signals

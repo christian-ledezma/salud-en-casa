@@ -6,6 +6,7 @@ import bo.saludencasa.features.services.data.mapper.toAttentionSummary
 import bo.saludencasa.features.services.data.mapper.toServiceError
 import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
+import bo.saludencasa.features.services.domain.model.AnswerPaymentResult
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
@@ -14,7 +15,9 @@ import bo.saludencasa.features.services.domain.model.CancelAttentionResult
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
+import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
 import bo.saludencasa.features.services.domain.vo.CancellationReason
@@ -145,6 +148,32 @@ class ServiceRepository(
     }
 
     private fun paymentFailure(error: ServiceError) = ConfirmPaymentResult.Failure(ConfirmPaymentError.Service(error))
+
+    override suspend fun answerPayment(
+        serviceId: String,
+        answer: PaymentAnswer,
+    ): AnswerPaymentResult {
+        if (dataSource.currentUserId() == null) {
+            return AnswerPaymentResult.Failure(ServiceError.NotSignedIn)
+        }
+        val status =
+            when (answer) {
+                PaymentAnswer.RECEIVED -> PaymentStatus.BOTH_CONFIRMED
+                PaymentAnswer.NOT_RECEIVED -> PaymentStatus.DISPUTED
+            }
+
+        return try {
+            if (dataSource.answerPayment(serviceId, status.name) == 0) {
+                AnswerPaymentResult.Failure(ServiceError.Unexpected)
+            } else {
+                AnswerPaymentResult.Answered
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            AnswerPaymentResult.Failure(failure.toServiceError())
+        }
+    }
 
     override fun attentionSignals(requestId: String): Flow<Unit> {
         if (dataSource.currentUserId() == null) return emptyFlow()

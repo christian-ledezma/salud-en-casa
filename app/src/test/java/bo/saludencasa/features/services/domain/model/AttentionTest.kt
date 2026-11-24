@@ -35,6 +35,41 @@ class AttentionTest {
         assertFalse(paid.canConfirmPayment)
     }
 
+    // RF-11.3, RF-11.5: the professional answers what the patient declared.
+    @Test
+    fun theProfessionalAnswersOnceThePatientConfirmed() {
+        val declared = attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, payment = paidInCash())
+
+        assertTrue(declared.canAnswerPayment)
+    }
+
+    // docs/decisions.md, 2026-11-24, HU-26: a dispute is two confirmations that
+    // disagree, so there is nothing to answer until the patient has spoken.
+    @Test
+    fun theProfessionalCannotAnswerBeforeThePatientConfirms() {
+        assertFalse(attention(status = ServiceStatus.COMPLETED, iAmThePatient = false).canAnswerPayment)
+    }
+
+    @Test
+    fun thePatientNeverAnswersTheirOwnPayment() {
+        val declared = attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash())
+
+        assertFalse(declared.canAnswerPayment)
+    }
+
+    @Test
+    fun anAnsweredPaymentIsNotOfferedAgain() {
+        listOf(PaymentStatus.BOTH_CONFIRMED, PaymentStatus.DISPUTED).forEach { status ->
+            val answered =
+                attention(
+                    status = ServiceStatus.COMPLETED,
+                    iAmThePatient = false,
+                    payment = paidInCash().copy(status = status),
+                )
+            assertFalse(status.name, answered.canAnswerPayment)
+        }
+    }
+
     // serviceStateTransitionsRejectInvalidJumps, on the phone's side: the engine's
     // half is the experiment in plan.md, HU-23. No state offers a jump.
     @Test

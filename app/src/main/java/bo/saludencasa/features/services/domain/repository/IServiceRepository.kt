@@ -2,12 +2,14 @@ package bo.saludencasa.features.services.domain.repository
 
 import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
+import bo.saludencasa.features.services.domain.model.AnswerPaymentResult
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionResult
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.vo.CancellationReason
 import kotlinx.coroutines.flow.Flow
@@ -40,6 +42,11 @@ interface IServiceRepository {
         serviceId: String,
         method: PaymentMethod,
     ): ConfirmPaymentResult
+
+    suspend fun answerPayment(
+        serviceId: String,
+        answer: PaymentAnswer,
+    ): AnswerPaymentResult
 
     fun attentionSignals(requestId: String): Flow<Unit>
 }

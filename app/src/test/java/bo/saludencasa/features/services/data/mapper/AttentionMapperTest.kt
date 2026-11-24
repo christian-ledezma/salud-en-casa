@@ -25,6 +25,7 @@ class AttentionMapperTest {
         paymentStatus: String = "PENDING",
         paymentMethod: String? = null,
         patientConfirmedAt: String? = null,
+        disputedAt: String? = null,
     ) = AttentionDto(
         serviceId = "s1",
         requestId = "r1",
@@ -45,6 +46,7 @@ class AttentionMapperTest {
         paymentStatus = paymentStatus,
         paymentMethod = paymentMethod,
         patientConfirmedAt = patientConfirmedAt,
+        disputedAt = disputedAt,
     )
 
     @Test
@@ -180,6 +182,36 @@ class AttentionMapperTest {
     @Test
     fun aPaymentAlreadyConfirmedMeansTheAttentionChanged() {
         val refused = IllegalStateException("patient_confirms_a_pending_payment_once")
+
+        assertEquals(ServiceError.AttentionChanged, refused.toServiceError())
+    }
+
+    // HU-28 shows when a dispute was opened, so the screen must read that time.
+    @Test
+    fun aDisputeCarriesWhenItWasOpened() {
+        val payment =
+            dto(
+                status = "COMPLETED",
+                paymentStatus = "DISPUTED",
+                paymentMethod = "CASH",
+                patientConfirmedAt = "2026-11-23T13:40:00+00:00",
+                disputedAt = "2026-11-24T09:15:00+00:00",
+            ).toAttention()!!.payment
+
+        assertEquals(PaymentStatus.DISPUTED, payment.status)
+        assertEquals(Instant.parse("2026-11-24T09:15:00Z"), payment.disputedAt)
+    }
+
+    @Test
+    fun anUnreadableDisputeTimeIsAContractMismatch() {
+        assertNull(dto(paymentStatus = "DISPUTED", disputedAt = "ayer").toAttention())
+    }
+
+    // The professional answered meanwhile, from another phone: the screen rereads
+    // and finds the answer, instead of an error.
+    @Test
+    fun aPaymentAlreadyAnsweredMeansTheAttentionChanged() {
+        val refused = IllegalStateException("professional_answers_a_patient_confirmed_payment_once")
 
         assertEquals(ServiceError.AttentionChanged, refused.toServiceError())
     }

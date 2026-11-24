@@ -3,6 +3,7 @@ package bo.saludencasa.features.services.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
+import bo.saludencasa.features.services.domain.model.AnswerPaymentResult
 import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionStep
@@ -10,9 +11,11 @@ import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.CancelAttentionResult
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
+import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
+import bo.saludencasa.features.services.domain.usecase.AnswerPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ConfirmPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
@@ -33,6 +36,7 @@ sealed interface AttentionUiState {
         val notice: ServiceError? = null,
         val cancelDraft: CancelDraft? = null,
         val paymentDraft: PaymentDraft? = null,
+        val answerDraft: AnswerDraft? = null,
     ) : AttentionUiState
 
     // The service is not there for this caller: the acceptance did not land, or
@@ -59,6 +63,14 @@ data class PaymentDraft(
     val canConfirm: Boolean get() = method != null && !sending
 }
 
+// The answer is chosen by the button the professional pressed; the dialog only
+// asks them to confirm it, because it cannot be undone.
+data class AnswerDraft(
+    val answer: PaymentAnswer,
+    val error: ServiceError? = null,
+    val sending: Boolean = false,
+)
+
 class AttentionViewModel(
     private val requestId: String,
     private val getAttention: GetAttentionUseCase,
@@ -66,6 +78,7 @@ class AttentionViewModel(
     private val observeAttention: ObserveAttentionUseCase,
     private val cancelAttention: CancelAttentionUseCase,
     private val confirmPayment: ConfirmPaymentUseCase,
+    private val answerPayment: AnswerPaymentUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<AttentionUiState>(AttentionUiState.Loading)
     val uiState: StateFlow<AttentionUiState> = state.asStateFlow()
@@ -193,6 +206,39 @@ class AttentionViewModel(
         }
     }
 
+    fun onAnswerRequested(answer: PaymentAnswer) {
+        updateContent {
+            if (it.attention.canAnswerPayment) it.copy(answerDraft = AnswerDraft(answer), notice = null) else it
+        }
+    }
+
+    fun onAnswerDismissed() {
+        updateContent { if (it.answerDraft?.sending == true) it else it.copy(answerDraft = null) }
+    }
+
+    fun onAnswerConfirmed() {
+        val content = state.value as? AttentionUiState.Content ?: return
+        val draft = content.answerDraft ?: return
+        if (draft.sending) return
+
+        updateAnswerDraft { it.copy(sending = true, error = null) }
+        viewModelScope.launch {
+            when (val result = answerPayment(content.attention.serviceId, draft.answer)) {
+                AnswerPaymentResult.Answered -> {
+                    updateContent { it.copy(answerDraft = null) }
+                    reread()
+                }
+
+                is AnswerPaymentResult.Failure -> {
+                    // docs/decisions.md, 2026-11-04, HU-23: reread closes the dialog
+                    // when the payment stopped being answerable.
+                    if (result.error == ServiceError.AttentionChanged) reread()
+                    updateAnswerDraft { it.copy(sending = false, error = result.error) }
+                }
+            }
+        }
+    }
+
     private fun load() {
         state.value = AttentionUiState.Loading
         viewModelScope.launch {
@@ -217,6 +263,7 @@ class AttentionViewModel(
                     confirming = current.confirming?.takeIf { it == result.attention.nextStepForMe },
                     cancelDraft = current.cancelDraft?.takeIf { result.attention.canCancel },
                     paymentDraft = current.paymentDraft?.takeIf { result.attention.canConfirmPayment },
+                    answerDraft = current.answerDraft?.takeIf { result.attention.canAnswerPayment },
                 )
             } else {
                 AttentionUiState.Content(result.attention)
@@ -231,6 +278,10 @@ class AttentionViewModel(
 
     private fun updatePaymentDraft(transform: (PaymentDraft) -> PaymentDraft) {
         updateContent { content -> content.copy(paymentDraft = content.paymentDraft?.let(transform)) }
+    }
+
+    private fun updateAnswerDraft(transform: (AnswerDraft) -> AnswerDraft) {
+        updateContent { content -> content.copy(answerDraft = content.answerDraft?.let(transform)) }
     }
 
     private fun updateContent(transform: (AttentionUiState.Content) -> AttentionUiState.Content) {

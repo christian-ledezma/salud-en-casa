@@ -30,6 +30,7 @@ data class AttentionPayment(
     val method: PaymentMethod?,
     val patientConfirmedAt: Instant?,
     val professionalConfirmedAt: Instant?,
+    val disputedAt: Instant? = null,
 ) {
     companion object {
         val Pending =
@@ -40,6 +41,12 @@ data class AttentionPayment(
                 professionalConfirmedAt = null,
             )
     }
+}
+
+// RF-11.3, RF-11.5: what the professional says of the patient's confirmation.
+enum class PaymentAnswer {
+    RECEIVED,
+    NOT_RECEIVED,
 }
 
 sealed interface ConfirmPaymentError {
@@ -56,4 +63,12 @@ sealed interface ConfirmPaymentResult {
     data class Failure(
         val error: ConfirmPaymentError,
     ) : ConfirmPaymentResult
+}
+
+sealed interface AnswerPaymentResult {
+    data object Answered : AnswerPaymentResult
+
+    data class Failure(
+        val error: ServiceError,
+    ) : AnswerPaymentResult
 }
