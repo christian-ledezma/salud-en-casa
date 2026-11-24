@@ -1,6 +1,7 @@
 package bo.saludencasa.features.notifications.domain.model
 
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import java.math.BigDecimal
 import java.time.Instant
@@ -20,6 +21,7 @@ enum class NotificationEvent {
     ATTENTION_CANCELLED,
     DOCUMENT_VERDICT,
     VERIFICATION_APPROVED,
+    PATIENT_CONFIRMED_PAYMENT,
 }
 
 // requestId, recipientRole and serviceTypeName are null for HU-37's two events:
@@ -131,6 +133,17 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.ATTENTION_CANCELLED
     }
 
+    // To the professional of the attention (RF-09.7). The name is the patient's, a
+    // profile attribute; the amount and the method are system values (RF-09.10).
+    data class PatientConfirmedPayment(
+        override val subject: PushSubject,
+        val senderName: String,
+        val amountBob: BigDecimal,
+        val method: PaymentMethod,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.PATIENT_CONFIRMED_PAYMENT
+    }
+
     // Reaches whoever uploaded the document, for one verdict or several
     // registered together (RF-09.9). The reason, written by the administrator,
     // never travels (RF-09.10): it is read by opening the checklist, as before
@@ -204,6 +217,12 @@ sealed interface PushPayload {
                     put(KEY_SENDER_NAME, senderName)
                 }
 
+                is PatientConfirmedPayment -> {
+                    put(KEY_SENDER_NAME, senderName)
+                    put(KEY_AMOUNT_BOB, amountBob.toPlainString())
+                    put(KEY_PAYMENT_METHOD, method.name)
+                }
+
                 is DocumentVerdict -> {
                     put(KEY_STATUS, status.name)
                     put(KEY_DOCUMENT_COUNT, documentCount.toString())
@@ -228,6 +247,7 @@ sealed interface PushPayload {
         const val KEY_SENDER_NAME = "senderName"
         const val KEY_STATUS = "status"
         const val KEY_DOCUMENT_COUNT = "documentCount"
+        const val KEY_PAYMENT_METHOD = "paymentMethod"
 
         private val UUID_PATTERN = Regex("^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
         private val RECIPIENT_ROLES = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
@@ -330,6 +350,15 @@ sealed interface PushPayload {
                 NotificationEvent.ATTENTION_CANCELLED -> {
                     val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
                     Result.success(AttentionCancelled(subject, senderName))
+                }
+
+                NotificationEvent.PATIENT_CONFIRMED_PAYMENT -> {
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
+                    val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
+                    val method =
+                        PaymentMethod.entries.firstOrNull { it.name == data[KEY_PAYMENT_METHOD] }
+                            ?: return failure("push_payload_invalid_payment_method")
+                    Result.success(PatientConfirmedPayment(subject, senderName, amount, method))
                 }
 
                 NotificationEvent.DOCUMENT_VERDICT, NotificationEvent.VERIFICATION_APPROVED -> {

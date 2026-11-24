@@ -6,6 +6,7 @@ import bo.saludencasa.features.notifications.REQUEST_ID
 import bo.saludencasa.features.notifications.SIGNED_IN_USER
 import bo.saludencasa.features.notifications.everyPayload
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -271,6 +272,40 @@ class PushPayloadTest {
                 ),
             ),
         )
+    }
+
+    private fun paymentWire(vararg overrides: Pair<String, String?>): Map<String, String> =
+        wire(
+            "event" to "PATIENT_CONFIRMED_PAYMENT",
+            "distanceM" to null,
+            "senderName" to "Ana Quispe",
+            "amountBob" to "35.00",
+            "paymentMethod" to "CASH",
+            *overrides,
+        )
+
+    // RF-09.10: the patient's name, the amount and the method, all system values.
+    @Test
+    fun parsesThePatientsConfirmationWithAmountAndMethod() {
+        val payment = PushPayload.parse(paymentWire()).getOrThrow() as PushPayload.PatientConfirmedPayment
+
+        assertEquals("Ana Quispe", payment.senderName)
+        assertEquals(BigDecimal("35.00"), payment.amountBob)
+        assertEquals(PaymentMethod.CASH, payment.method)
+        assertEquals(UserRole.PROFESSIONAL, payment.subject.recipientRole)
+    }
+
+    // The body names the method; without one there is no sentence to show.
+    @Test
+    fun rejectsAConfirmationWithoutAKnownMethod() {
+        assertEquals("push_payload_invalid_payment_method", failureKey(paymentWire("paymentMethod" to null)))
+        assertEquals("push_payload_invalid_payment_method", failureKey(paymentWire("paymentMethod" to "CARD")))
+    }
+
+    @Test
+    fun rejectsAConfirmationWithoutAnAmount() {
+        assertEquals("push_payload_invalid_amount", failureKey(paymentWire("amountBob" to null)))
+        assertEquals("push_payload_invalid_amount", failureKey(paymentWire("amountBob" to "0")))
     }
 
     @Test

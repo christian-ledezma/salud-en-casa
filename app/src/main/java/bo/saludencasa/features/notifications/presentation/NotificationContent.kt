@@ -7,6 +7,7 @@ import bo.saludencasa.core.util.distanceText
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.notifications.domain.model.PushPayload
+import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import java.util.Locale
 
@@ -29,6 +30,7 @@ private fun PushPayload.titleRes(): Int =
         is PushPayload.ProfessionalArrived -> R.string.notification_professional_arrived_title
         is PushPayload.ServiceCompleted -> R.string.notification_service_completed_title
         is PushPayload.AttentionCancelled -> R.string.notification_attention_cancelled_title
+        is PushPayload.PatientConfirmedPayment -> R.string.notification_patient_confirmed_payment_title
         is PushPayload.DocumentVerdict -> R.string.notification_document_verdict_title
         is PushPayload.VerificationApproved -> R.string.notification_verification_approved_title
     }
@@ -109,6 +111,16 @@ internal fun PushPayload.text(
                 resources.getString(R.string.notification_attention_cancelled_body, senderName, type)
             }
 
+            is PushPayload.PatientConfirmedPayment -> {
+                val body =
+                    when (method) {
+                        PaymentMethod.CASH -> R.string.notification_patient_confirmed_payment_body_cash
+                        PaymentMethod.DIRECT_QR -> R.string.notification_patient_confirmed_payment_body_direct_qr
+                        PaymentMethod.GATEWAY -> R.string.notification_patient_confirmed_payment_body
+                    }
+                resources.getString(body, senderName, formatBob(amountBob, locale), type)
+            }
+
             is PushPayload.DocumentVerdict -> {
                 val plural =
                     when (status) {
@@ -149,6 +161,7 @@ internal fun PushPayload.channel(): NotificationChannelSpec =
         is PushPayload.ProfessionalArrived,
         is PushPayload.ServiceCompleted,
         is PushPayload.AttentionCancelled,
+        is PushPayload.PatientConfirmedPayment,
         -> NotificationChannelSpec.ATTENTIONS
 
         is PushPayload.DocumentVerdict,

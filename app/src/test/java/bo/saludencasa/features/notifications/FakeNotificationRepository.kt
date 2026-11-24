@@ -5,6 +5,7 @@ import bo.saludencasa.features.notifications.domain.model.PushPayload
 import bo.saludencasa.features.notifications.domain.model.PushSubject
 import bo.saludencasa.features.notifications.domain.repository.INotificationRepository
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.verification.domain.model.ReviewStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -155,6 +156,17 @@ fun attentionCancelled(
     senderName: String = "Ana Quispe",
 ): PushPayload = PushPayload.AttentionCancelled(pushSubject(recipientRole = recipientRole), senderName)
 
+fun patientConfirmedPayment(
+    senderName: String = "Ana Quispe",
+    method: PaymentMethod = PaymentMethod.CASH,
+): PushPayload =
+    PushPayload.PatientConfirmedPayment(
+        pushSubject(recipientRole = UserRole.PROFESSIONAL),
+        senderName,
+        BigDecimal("35.00"),
+        method,
+    )
+
 // Neither HU-37 event is about a request: no requestId, role or service type
 // to fix.
 fun verificationSubject(recipientId: String = SIGNED_IN_USER): PushSubject =
@@ -186,4 +198,5 @@ fun everyPayload(): List<PushPayload> =
         attentionCancelled(),
         documentVerdict(),
         verificationApproved(),
+        patientConfirmedPayment(),
     )

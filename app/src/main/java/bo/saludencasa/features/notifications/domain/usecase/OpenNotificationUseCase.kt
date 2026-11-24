@@ -99,6 +99,10 @@ class OpenNotificationUseCase(
                 NotificationDestination.Attention(subject.requestIdOfARequest)
             }
 
+            is PushPayload.PatientConfirmedPayment -> {
+                NotificationDestination.Attention(subject.requestIdOfARequest)
+            }
+
             is PushPayload.DocumentVerdict,
             is PushPayload.VerificationApproved,
             -> {

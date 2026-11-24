@@ -13,6 +13,7 @@ const SHARED_KEYS = [
   "senderName",
   "status",
   "documentCount",
+  "paymentMethod",
 ];
 const TARGET_KEYS = ["recipientId", "distanceM"];
 
