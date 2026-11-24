@@ -608,26 +608,79 @@ monto congelado de su servicio. Lo que la base prueba es que los dos caminos lle
 estado final; lo que se vio en pantalla lo reportó el autor. La confirmación del pago por las dos partes no tiene pantalla hasta HU-25, de modo que esa parte
 queda cubierta por el experimento 6 y no por el recorrido.
 
-### HU-25 · Confirmar que pagué `[ ]` — 5 puntos
+### HU-25 · Confirmar que pagué `[x]` — 2026-11-24 — 5 puntos
 
 > Como **paciente**, quiero **declarar que pagué la atención**, para **cerrar mi
 > parte del compromiso**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que la atención se completó, cuando abro el pago, entonces veo el monto
+- [x] Dado que la atención se completó, cuando abro el pago, entonces veo el monto
       acordado y el medio de pago a elegir.
-- [ ] Dado que confirmo el pago, cuando el profesional consulta, entonces ve mi confirmación.
-- [ ] Dado que confirmé, cuando el profesional aún no confirma, entonces el pago
+- [x] Dado que confirmo el pago, cuando el profesional consulta, entonces ve mi confirmación.
+- [x] Dado que confirmé, cuando el profesional aún no confirma, entonces el pago
       figura pendiente de la otra parte.
-- [ ] Dado que la atención no se completó, cuando intento confirmar, entonces se rechaza.
-- [ ] Dado que confirmo el pago, cuando se registra, entonces al profesional le
+- [x] Dado que la atención no se completó, cuando intento confirmar, entonces se rechaza.
+- [x] Dado que confirmo el pago, cuando se registra, entonces al profesional le
       llega una notificación que lo lleva a confirmar el cobro.
 
 **Requisitos:** RF-11.2, RF-11.4, RF-09.7, RF-09.10, INV-09.
 
 **A tener en cuenta (2026-11-04).** El aviso `SERVICE_COMPLETED` de HU-23 ya abre la pantalla de la atención. Esta historia
 pone ahí la acción de pagar, con lo que se termina de cumplir su último criterio, y puede sumar el pago a la línea de tiempo.
+
+**Decisiones del autor, 2026-11-23** (`docs/decisions.md`, «HU-25: el paciente confirma que pagó»): en la
+pantalla de la atención, con «Confirmar que pagué» al pie y un diálogo; efectivo y QR o transferencia, sin uno
+preseleccionado; definitiva; el aviso lleva nombre, monto y medio; el profesional ve la confirmación sin botón
+hasta HU-26; el pago no entra en la línea de tiempo. Prototipo aprobado:
+[Confirmar pago HU-25](https://claude.ai/artifact/TA8muKTUVSFfQqMHti8r84).
+
+**Experimentos SQL, 2026-11-23.** Contra el remoto, antes del `db push`: cada uno aplica la migración
+`20261123140557_hu25_confirm_payment.sql` completa dentro de `begin … rollback`, con la identidad indicada
+(paciente `299073bc…`, profesional `fcab94c0…`) sobre la atención completada de Aplicación de inyectables,
+Bs 35,00. Después se confirmó que el remoto quedó intacto: ninguno de los tres disparadores nuevos existe y
+ningún pago tiene confirmación.
+
+| # | Experimento | Resultado |
+|---|---|---|
+| 1 | `paymentReachesConfirmedOnlyWhenBothPartiesConfirm`: el paciente confirma | `PATIENT_CONFIRMED`, medio `CASH`, `patient_confirmed_at` igual a la hora de la transacción, `professional_confirmed_at` nulo; 1 aviso encolado y 1 señal en `attention:<solicitud>` |
+| 1b | El paciente intenta saltar a `BOTH_CONFIRMED` | Rechazado: `patient_confirms_a_pending_payment_once` |
+| 2 | Confirmar sobre una atención en curso | Rechazado: `payment_confirmation_requires_a_completed_service` |
+| 3a | El profesional pasa el pago a `PATIENT_CONFIRMED` | Rechazado: `each_party_confirms_separately` |
+| 3b | El profesional escribe el medio | Rechazado: `payment_method_is_declared_by_the_patient` |
+| 4a | El paciente deshace su confirmación | Rechazado: `patient_confirms_a_pending_payment_once` |
+| 4b | El paciente cambia el medio después | Rechazado: `patient_confirms_a_pending_payment_once` |
+| 4c | Confirmar dos veces lo mismo | Pasa sin cambiar nada: sigue `PATIENT_CONFIRMED`, `CASH` |
+| 5a | Confirmar sin medio | Rechazado: `payment_method_not_allowed` |
+| 5b | Confirmar con `GATEWAY` | Rechazado: `payment_method_not_allowed` |
+| 5c | Confirmar con `DIRECT_QR` | Pasa: `PATIENT_CONFIRMED`, `DIRECT_QR` |
+| 6 | El paciente envía su propia hora | Rechazado: `confirmation_time_is_sealed_by_the_engine` |
+| 7 | `notificationPayloadCarriesNoTextWrittenByAUser` para el evento nuevo | Destinatarios: solo el profesional. Cuerpo: evento, solicitud, rol `PROFESSIONAL`, tipo de servicio, `amountBob` 35.00, `paymentMethod` `CASH`, `senderName` del paciente y `ttlSeconds`; ni la descripción ni ningún texto escrito |
+| 8 | El paciente cancela una atención asignada | El pago pasa a `CANCELLED`: la regla nueva no bloquea la cancelación |
+| 9 | `my_attention` para cada parte | Las dos leen `PATIENT_CONFIRMED`, `CASH` y la confirmación del paciente |
+
+**Verificación de código, 2026-11-23.** `./gradlew build` en verde: 1159 pruebas, 0 fallas, 0 omitidas (27
+nuevas). La primera corrida falló en `NotificationContentTest.theLockScreenVersionNeverShowsTheServiceType`: el
+aviso nuevo no nombraba el tipo de servicio, que esa regla previa exige a todo aviso de una solicitud. Se corrigió
+el texto, no la prueba (`docs/decisions.md`, HU-25).
+
+**Aplicada y desplegada, 2026-11-23.** El autor ejecutó `db push` y `functions deploy send-push`. Consulta de
+solo lectura después: `db push --dry-run` dice «Remote database is up to date» y existen
+`payments_stamp_confirmation`, `payments_queue_push` y `payments_notify_change`.
+
+**Recorrido en emuladores, 2026-11-24.** Historia crítica («Cuándo hace falta un dispositivo»). Paciente
+`ledezma.aramayo.73` y profesional `chris.ledezma.s`, sobre la atención completada de Aplicación de inyectables,
+Bs 35,00: el profesional la tenía abierta sin botón de pago; el paciente vio «Confirmar que pagué», el diálogo con
+«Confirmar pago» deshabilitado hasta elegir el medio, eligió efectivo y confirmó; la atención del profesional se
+actualizó sola y le llegó el aviso «Pago confirmado», que abre esa atención; una atención en curso no ofreció
+pagar. El autor lo recorrió sin observaciones. Después, en la base: ese pago en `PATIENT_CONFIRMED`, `CASH`,
+`patient_confirmed_at` 24/11 00:54 sellado por el motor, `professional_confirmed_at` nulo; es el único pago
+confirmado del remoto, y las atenciones en curso siguen `PENDING`. La entrega del aviso la confirma el recorrido:
+`net._http_response` ya no conserva esa respuesta.
+
+**Previsualizaciones.** Siete nuevas en `AttentionScreen.kt`, en claro, oscuro y 200 % a 320 dp: el diálogo, el
+paciente que pagó y el profesional que lo lee. Mirarlas es del autor (punto 9 de la Definición de Terminado);
+las pruebas de interfaz al 200 % no ven el texto recortado dentro de su contenedor.
 
 ### HU-26 · Confirmar que cobré `[ ]` — 5 puntos
 

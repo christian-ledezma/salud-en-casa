@@ -6632,6 +6632,49 @@ hoy `payment_status` no tiene. `guard_payment_confirmation` se reescribió enter
 HU-24, para que la última migración que la define sea también la vigente. El administrador sigue pudiendo escribir
 cualquier estado que la restricción admita: HU-28 lo acota.
 
+## 2026-11-23 · HU-25: el paciente confirma que pagó, una vez, y el motor sella cuándo
+
+**Contexto.** RF-11.2 pide que el paciente confirme el pago indicando el medio, y RF-09.7 que al profesional
+le llegue un aviso. La guarda de pagos ya dejaba al paciente escribir su lado, pero con tres huecos: el teléfono
+ponía la fecha, el paciente podía deshacer su confirmación, y nada exigía el medio.
+
+**Decisión.** Las tomó el autor el 2026-11-23:
+
+- **Se confirma en la pantalla de la atención,** con «Confirmar que pagué» fijo al pie cuando la atención está
+  completada y el pago pendiente, y un diálogo con el monto y el medio. No hay pantalla de pago propia.
+- **Medios: efectivo y QR o transferencia,** sin uno preseleccionado. La pasarela no se ofrece (FA-02).
+- **La confirmación es definitiva.** Un desacuerdo se resuelve con la disputa (HU-26, HU-28), no editando.
+- **El aviso lleva el nombre del paciente, el monto y el medio,** y abre la atención.
+- **El profesional ve la confirmación bajo el monto, sin botón:** «Confirmar que cobré» es HU-26.
+- **El pago no entra en la línea de tiempo,** que sigue siendo el ciclo de la atención.
+
+**Razonamiento.**
+
+- **Escritura directa y no una función.** Igual que marcar llegada y cancelar: el cliente envía el estado y el
+  medio, y el motor sella la hora con `stamp_payment_confirmation`, como `stamp_service_progress`.
+- **La guarda decide por transición, no por columna.** El paciente solo pasa de `PENDING` a `PATIENT_CONFIRMED`
+  con `CASH` o `DIRECT_QR`; nadie escribe la hora ni los campos de pasarela. El profesional solo mueve el estado
+  hacia `BOTH_CONFIRMED`: el disparador que sella la hora actúa sobre cualquier paso a `PATIENT_CONFIRMED`, y sin
+  esa regla el profesional habría podido fabricar la confirmación del paciente. Lo encontró el diseño de los
+  experimentos, antes de aplicar la migración.
+- **La cancelación pasa antes que las reglas de las partes.** `cancel_payment_with_service` corre con los claims
+  de quien cancela, así que la guarda la ve como escrita por esa parte; sin el paso previo, la regla nueva del
+  paciente habría rechazado su propia cancelación.
+- **El aviso se encola con `after update` y no con `after update of patient_confirmed_at`.** Esa columna la pone
+  otro disparador y nunca va en el `SET` del cliente, y una lista `OF` solo se dispara con las columnas que la
+  sentencia nombra: el aviso no habría salido nunca.
+- **El aviso nombra también el tipo de servicio.** El texto aprobado no lo llevaba, y
+  `NotificationContentTest.theLockScreenVersionNeverShowsTheServiceType` lo exige para todo aviso de una
+  solicitud: el profesional puede tener varias atenciones con el mismo paciente. La regla es anterior a esta
+  historia, así que se corrigió el texto y no la prueba: «Ana Quispe confirmó que te pagó Bs 35,00 en efectivo
+  por Aplicación de inyectables. Confirma el cobro.».
+- **`paymentMethod` entra a la lista de `send-push`.** La función solo deja pasar claves conocidas
+  (2026-10-16), así que el medio exige volver a desplegarla.
+
+**Consecuencia.** HU-26 parte de una guarda que ya admite el paso del profesional a `BOTH_CONFIRMED`, y sella su
+hora del mismo modo. La señal en vivo de la atención también suena al cambiar el pago. `request_push_body` sigue
+reescribiéndose entera, ahora con catorce eventos.
+
 ## Plantilla para entradas nuevas
 
 ```

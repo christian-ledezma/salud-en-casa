@@ -154,6 +154,14 @@ pasa a «Nombres retirados», al final.
 | Español | Inglés | Uso |
 |---|---|---|
 | Pago | `Payment` | El pago de una atención por `totalAmountBob`, igual al monto congelado del servicio e íntegro del profesional (INV-10). Se confirma por las dos partes (INV-09) |
+| Pago de la atención | `AttentionPayment` / `payment_status`, `payment_method` en `my_attention` | El estado, el medio y las dos horas de confirmación, como los lee cualquiera de las dos partes (HU-25) |
+| Estado del pago | `PaymentStatus` | `PENDING`, `PATIENT_CONFIRMED`, `BOTH_CONFIRMED`, `DISPUTED`, `CANCELLED` |
+| Medio de pago | `PaymentMethod` / `patientChoices` | `CASH` y `DIRECT_QR` los elige el paciente, sin uno preseleccionado. `GATEWAY` nunca lo escribe un cliente (FA-02): lo rechazan el caso de uso y el motor |
+| Confirmar que pagué | `canConfirmPayment` / `ConfirmPaymentUseCase` / `PaymentDraft` | Solo el paciente, con la atención completada y el pago pendiente, una sola vez: no se deshace ni cambia el medio (HU-25). El cliente envía estado y medio; el borrador guarda el medio mientras el diálogo está abierto |
+| Sellar la confirmación | `stamp_payment_confirmation` | El motor pone `patient_confirmed_at` al pasar de `PENDING` a `PATIENT_CONFIRMED`. Su disparador se ordena después de la guarda, que ve la fila como la mandó el cliente |
+| Quién escribe el pago | `guard_payment_confirmation` | El paciente, solo `PENDING` → `PATIENT_CONFIRMED` con su medio; el profesional, solo hacia `BOTH_CONFIRMED`; nadie la hora ni los campos de pasarela. La cancelación que sigue al servicio pasa antes de esas reglas |
+| Aviso de pago confirmado | `PATIENT_CONFIRMED_PAYMENT` / `queue_payment_push` / `paymentMethod` | Al profesional, con el nombre del paciente, el monto y el medio, y abre la atención. Canal `ATTENTIONS`. `paymentMethod` es una clave más de la lista de `send-push` |
+| Señal del pago | `notify_attention_payment_changed` | Un cambio de estado del pago avisa al tema `attention:<request_id>`, así la atención abierta se relee |
 | Anular el pago | `cancel_payment_with_service` | Disparador que lleva el pago a `CANCELLED` al cancelarse la atención. Ningún cliente lo hace: `guard_payment_confirmation` exige el servicio cancelado, y de ese estado no se sale |
 
 ## Calificaciones
@@ -196,7 +204,7 @@ pasa a «Nombres retirados», al final.
 | Español | Inglés | Uso |
 |---|---|---|
 | Notificación push | `PushPayload` / `features/notifications/` | El evento, a quién y lo necesario para abrirlo. Nunca texto escrito por un usuario (RF-09.10): el texto lo compone el teléfono |
-| Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`, `OFFER_RECEIVED`, `COUNTER_OFFER_RECEIVED`, `OFFER_ACCEPTED`, `MESSAGE_RECEIVED`, `PROFESSIONAL_ARRIVED`, `SERVICE_COMPLETED`, `ATTENTION_CANCELLED`, `DOCUMENT_VERDICT`, `VERIFICATION_APPROVED`. Mismos nombres en SQL y Kotlin: `NotificationEventParityTest` lee solo la última migración que define `request_push_body`, así que esa función se reescribe entera cada vez |
+| Evento notificado | `NotificationEvent` | `REQUEST_NEARBY`, `APPOINTMENT_SCHEDULED`, `APPOINTMENT_CANCELLED`, `REQUEST_EXPIRED`, `OFFER_RECEIVED`, `COUNTER_OFFER_RECEIVED`, `OFFER_ACCEPTED`, `MESSAGE_RECEIVED`, `PROFESSIONAL_ARRIVED`, `SERVICE_COMPLETED`, `ATTENTION_CANCELLED`, `DOCUMENT_VERDICT`, `VERIFICATION_APPROVED`, `PATIENT_CONFIRMED_PAYMENT`. Mismos nombres en SQL y Kotlin: `NotificationEventParityTest` lee solo la última migración que define `request_push_body`, así que esa función se reescribe entera cada vez |
 | Aviso de mensaje | `MESSAGE_RECEIVED` / `senderName` | Lleva el nombre del remitente, nunca el contenido; con el teléfono bloqueado no muestra el nombre |
 | Veredicto de un documento | `DOCUMENT_VERDICT` / `queue_verification_document_push` | Disparador por sentencia, agrupado por `profile_id`: un veredicto conjunto avisa una vez. Lleva el estado y la cantidad, nunca el motivo del rechazo (HU-37) |
 | Verificación aprobada | `VERIFICATION_APPROVED` / `queue_verification_approved_push` | Al profesional, cuando `verification_status` llega a `APPROVED`. Disparador por fila, solo en esa transición (HU-37) |

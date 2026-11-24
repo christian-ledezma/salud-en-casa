@@ -239,7 +239,7 @@ un invariante dejó de cumplirse.
 | INV-06 · Ofertas de solo agregar | Disparador `request_offers_guard_append_only` y ausencia de política de borrado |
 | INV-07 · Solo profesionales aprobados y activos | Vista `professional_directory`, filtro de `search_nearby_professionals` y restricción `professionals_approved_profile_is_complete`, que impide aprobar un profesional sin tipo ni tarifa |
 | INV-08 · Cercanía con PostGIS | `search_nearby_professionals` con `st_dwithin` sobre el índice GIST `idx_addresses_location` |
-| INV-09 · Pago confirmado solo por ambas partes | Restricción `confirmations_match_status` y disparador `payments_guard_confirmation` |
+| INV-09 · Pago confirmado solo por ambas partes | Restricciones `confirmations_match_status` y `confirmed_payment_names_its_method`; disparador `payments_guard_confirmation`, que deja a cada parte solo su paso, y `payments_stamp_confirmation`, que sella la hora del paciente (HU-25) |
 | INV-10 · El pago es el monto acordado, íntegro del profesional | Disparador `payments_guard_total_matches_service` al insertar, y `payments_guard_frozen` al actualizar. La plataforma no retiene comisión (`docs/decisions.md`, 2026-11-22) |
 | INV-11 · Calificación única, de 1 a 5, autor distinto del destinatario | Restricciones `unique (service_id, author_id)`, `rating between 1 and 5` y `author_is_not_recipient` |
 | INV-12 · El administrador no accede a `messages` | Ninguna política de `messages` invoca `is_admin()`, en esta ni en ninguna migración posterior |
