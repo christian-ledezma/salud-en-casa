@@ -29,6 +29,15 @@ jobs:
       - name: Set up Gradle with dependency caching
         uses: gradle/actions/setup-gradle@v6
 
+      # Robolectric downloads android-all from Maven Central while the tests run,
+      # outside Gradle's cache, and a failed download fails every interface test.
+      - name: Cache the Android that Robolectric runs
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'app/src/test/resources/robolectric.properties') }}
+          restore-keys: robolectric-${{ runner.os }}-
+
       # RNF-06: no credential lives in the repository. The build reads these
       # from local.properties, so continuous integration rebuilds that file from
       # the repository secrets. Values travel through the environment instead of
