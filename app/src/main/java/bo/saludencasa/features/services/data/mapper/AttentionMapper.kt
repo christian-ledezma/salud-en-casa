@@ -4,9 +4,12 @@ import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionSummaryDto
 import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionCancellation
+import bo.saludencasa.features.services.domain.model.AttentionPayment
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.Counterpart
+import bo.saludencasa.features.services.domain.model.PaymentMethod
+import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import io.github.jan.supabase.exceptions.HttpRequestException
@@ -57,6 +60,16 @@ internal fun AttentionDto.toAttention(): Attention? {
                     at = parseInstant(at) ?: return null,
                 )
             },
+        payment =
+            AttentionPayment(
+                status = PaymentStatus.entries.firstOrNull { it.name == paymentStatus } ?: return null,
+                method =
+                    paymentMethod?.let { raw ->
+                        PaymentMethod.entries.firstOrNull { it.name == raw } ?: return null
+                    },
+                patientConfirmedAt = patientConfirmedAt?.let { parseInstant(it) ?: return null },
+                professionalConfirmedAt = professionalConfirmedAt?.let { parseInstant(it) ?: return null },
+            ),
     )
 }
 
@@ -93,6 +106,13 @@ internal fun Throwable.toServiceError(): ServiceError =
     }
 
 // Raised by guard_service_transition and, when both parties cancel at once, by
-// guard_service_direct_update.
+// guard_service_direct_update; the last two by guard_payment_confirmation, when
+// the payment or the attention moved before the patient confirmed.
 private val TRANSITION_REFUSALS =
-    listOf("invalid_service_transition", "service_status_is_terminal", "cancellation_reason_is_written_once")
+    listOf(
+        "invalid_service_transition",
+        "service_status_is_terminal",
+        "cancellation_reason_is_written_once",
+        "patient_confirms_a_pending_payment_once",
+        "payment_confirmation_requires_a_completed_service",
+    )

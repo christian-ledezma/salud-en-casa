@@ -2,6 +2,8 @@ package bo.saludencasa.features.services.data.mapper
 
 import bo.saludencasa.features.services.data.model.AttentionDto
 import bo.saludencasa.features.services.data.model.AttentionSummaryDto
+import bo.saludencasa.features.services.domain.model.PaymentMethod
+import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import org.junit.Assert.assertEquals
@@ -20,6 +22,9 @@ class AttentionMapperTest {
         cancellationReason: String? = null,
         cancelledByMe: Boolean? = null,
         cancelledAt: String? = null,
+        paymentStatus: String = "PENDING",
+        paymentMethod: String? = null,
+        patientConfirmedAt: String? = null,
     ) = AttentionDto(
         serviceId = "s1",
         requestId = "r1",
@@ -37,6 +42,9 @@ class AttentionMapperTest {
         cancellationReason = cancellationReason,
         cancelledByMe = cancelledByMe,
         cancelledAt = cancelledAt,
+        paymentStatus = paymentStatus,
+        paymentMethod = paymentMethod,
+        patientConfirmedAt = patientConfirmedAt,
     )
 
     @Test
@@ -53,6 +61,33 @@ class AttentionMapperTest {
 
     // A status the client does not know is a contract mismatch, not a value to
     // guess at: the row is dropped so the repository reports Unexpected.
+    @Test
+    fun mapsThePatientsConfirmationWithItsMethodAndTime() {
+        val payment =
+            dto(
+                status = "COMPLETED",
+                paymentStatus = "PATIENT_CONFIRMED",
+                paymentMethod = "DIRECT_QR",
+                patientConfirmedAt = "2026-11-23T13:40:00+00:00",
+            ).toAttention()!!.payment
+
+        assertEquals(PaymentStatus.PATIENT_CONFIRMED, payment.status)
+        assertEquals(PaymentMethod.DIRECT_QR, payment.method)
+        assertEquals(Instant.parse("2026-11-23T13:40:00Z"), payment.patientConfirmedAt)
+        assertNull(payment.professionalConfirmedAt)
+    }
+
+    // The engine retired SETTLED in HT-30: a row that still says it is a mismatch.
+    @Test
+    fun rejectsAPaymentStatusTheClientDoesNotKnow() {
+        assertNull(dto(paymentStatus = "SETTLED").toAttention())
+    }
+
+    @Test
+    fun rejectsAPaymentMethodTheClientDoesNotKnow() {
+        assertNull(dto(paymentMethod = "CARD").toAttention())
+    }
+
     @Test
     fun rejectsAnUnknownStatus() {
         assertNull(dto(status = "ARCHIVED").toAttention())
@@ -138,6 +173,23 @@ class AttentionMapperTest {
         val refused = IllegalStateException("cancellation_reason_is_written_once")
 
         assertEquals(ServiceError.AttentionChanged, refused.toServiceError())
+    }
+
+    // The payment was confirmed meanwhile, from another phone or a second tap that
+    // arrived first: the screen rereads and finds it, instead of an error.
+    @Test
+    fun aPaymentAlreadyConfirmedMeansTheAttentionChanged() {
+        val refused = IllegalStateException("patient_confirms_a_pending_payment_once")
+
+        assertEquals(ServiceError.AttentionChanged, refused.toServiceError())
+    }
+
+    // A refusal the patient cannot fix by rereading stays an error.
+    @Test
+    fun aRefusedMethodIsNotTakenForAChange() {
+        val refused = IllegalStateException("payment_method_not_allowed")
+
+        assertEquals(ServiceError.Unexpected, refused.toServiceError())
     }
 
     private fun summaryDto(

@@ -1,6 +1,7 @@
 package bo.saludencasa.features.services.domain.model
 
 import bo.saludencasa.features.services.attention
+import bo.saludencasa.features.services.paidInCash
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -8,6 +9,32 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AttentionTest {
+    @Test
+    fun thePatientConfirmsThePaymentOfACompletedAttention() {
+        assertTrue(attention(status = ServiceStatus.COMPLETED, iAmThePatient = true).canConfirmPayment)
+    }
+
+    // RF-11.3 is the professional's own confirmation, a different act (HU-26).
+    @Test
+    fun theProfessionalNeverConfirmsThePatientsPayment() {
+        assertFalse(attention(status = ServiceStatus.COMPLETED, iAmThePatient = false).canConfirmPayment)
+    }
+
+    @Test
+    fun noPaymentIsConfirmedBeforeTheAttentionIsCompleted() {
+        listOf(ServiceStatus.ASSIGNED, ServiceStatus.IN_PROGRESS, ServiceStatus.CANCELLED).forEach { status ->
+            assertFalse(status.name, attention(status = status, iAmThePatient = true).canConfirmPayment)
+        }
+    }
+
+    // docs/decisions.md, 2026-11-23, HU-25: a confirmation is final.
+    @Test
+    fun aConfirmedPaymentIsNotOfferedAgain() {
+        val paid = attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash())
+
+        assertFalse(paid.canConfirmPayment)
+    }
+
     // serviceStateTransitionsRejectInvalidJumps, on the phone's side: the engine's
     // half is the experiment in plan.md, HU-23. No state offers a jump.
     @Test

@@ -6,7 +6,9 @@ import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionResult
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.vo.CancellationReason
 import kotlinx.coroutines.flow.Flow
 
@@ -32,6 +34,12 @@ interface IServiceRepository {
         requestId: String,
         reason: CancellationReason,
     ): CancelAttentionResult
+
+    // RF-11.2: the patient's side. The engine seals when.
+    suspend fun confirmPayment(
+        serviceId: String,
+        method: PaymentMethod,
+    ): ConfirmPaymentResult
 
     fun attentionSignals(requestId: String): Flow<Unit>
 }

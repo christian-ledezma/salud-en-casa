@@ -9,12 +9,17 @@ import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
+import bo.saludencasa.features.services.domain.model.PaymentMethod
+import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
+import bo.saludencasa.features.services.domain.usecase.ConfirmPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ObserveAttentionUseCase
+import bo.saludencasa.features.services.paidInCash
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -41,6 +46,7 @@ class AttentionViewModelTest {
             AdvanceAttentionUseCase(repository),
             ObserveAttentionUseCase(repository),
             CancelAttentionUseCase(repository),
+            ConfirmPaymentUseCase(repository),
         )
 
     private fun TestScope.opened(attention: Attention): AttentionViewModel {
@@ -453,4 +459,117 @@ class AttentionViewModelTest {
     private companion object {
         const val REASON = "Me surgió una emergencia."
     }
+
+    private fun completedForThePatient() = attention(status = ServiceStatus.COMPLETED, iAmThePatient = true)
+
+    @Test
+    fun thePayDialogOpensOnlyForThePatientOfACompletedAttention() =
+        runTest {
+            listOf(
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false),
+                attention(status = ServiceStatus.IN_PROGRESS, iAmThePatient = true),
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash()),
+            ).forEach { attention ->
+                val viewModel = opened(attention)
+                viewModel.onPayRequested()
+                assertNull(viewModel.content().paymentDraft)
+            }
+        }
+
+    // RF-11.2: the method is the patient's answer, never a default.
+    @Test
+    fun nothingIsSentUntilAMethodIsChosen() =
+        runTest {
+            val viewModel = opened(completedForThePatient())
+
+            viewModel.onPayRequested()
+            viewModel.onPayConfirmed()
+            advanceUntilIdle()
+
+            assertTrue(repository.payments.isEmpty())
+            assertFalse(viewModel.content().paymentDraft!!.canConfirm)
+        }
+
+    @Test
+    fun confirmingClosesTheDialogAndShowsThePatientsConfirmation() =
+        runTest {
+            val viewModel = opened(completedForThePatient())
+
+            viewModel.onPayRequested()
+            viewModel.onPaymentMethodChosen(PaymentMethod.DIRECT_QR)
+            viewModel.onPayConfirmed()
+            advanceUntilIdle()
+
+            val state = viewModel.content()
+            assertEquals(listOf(PaymentMethod.DIRECT_QR), repository.payments)
+            assertNull(state.paymentDraft)
+            assertEquals(PaymentStatus.PATIENT_CONFIRMED, state.attention.payment.status)
+            assertFalse(state.attention.canConfirmPayment)
+        }
+
+    @Test
+    fun aFailedConfirmationKeepsTheDialogAndTheChosenMethod() =
+        runTest {
+            repository.paymentError = ServiceError.NetworkUnavailable
+            val viewModel = opened(completedForThePatient())
+
+            viewModel.onPayRequested()
+            viewModel.onPaymentMethodChosen(PaymentMethod.CASH)
+            viewModel.onPayConfirmed()
+            advanceUntilIdle()
+
+            val draft = viewModel.content().paymentDraft!!
+            assertEquals(PaymentMethod.CASH, draft.method)
+            assertEquals(ConfirmPaymentError.Service(ServiceError.NetworkUnavailable), draft.error)
+            assertFalse(draft.sending)
+        }
+
+    // Confirmed from another phone first: the dialog closes on what the engine says.
+    @Test
+    fun aPaymentConfirmedElsewhereClosesTheDialog() =
+        runTest {
+            val viewModel = opened(completedForThePatient())
+            viewModel.onPayRequested()
+            viewModel.onPaymentMethodChosen(PaymentMethod.CASH)
+
+            repository.paymentError = ServiceError.AttentionChanged
+            repository.result =
+                AttentionResult.Loaded(
+                    attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash()),
+                )
+            viewModel.onPayConfirmed()
+            advanceUntilIdle()
+
+            assertNull(viewModel.content().paymentDraft)
+            assertEquals(
+                PaymentStatus.PATIENT_CONFIRMED,
+                viewModel
+                    .content()
+                    .attention.payment.status,
+            )
+        }
+
+    @Test
+    fun aConfirmationOnItsWayCannotBeDismissedOrSentTwice() =
+        runTest {
+            repository.holdPayment = CompletableDeferred()
+            val viewModel = opened(completedForThePatient())
+            viewModel.onPayRequested()
+            viewModel.onPaymentMethodChosen(PaymentMethod.CASH)
+
+            viewModel.onPayConfirmed()
+            advanceUntilIdle()
+            viewModel.onPayDismissed()
+            viewModel.onPayConfirmed()
+            viewModel.onPaymentMethodChosen(PaymentMethod.DIRECT_QR)
+            advanceUntilIdle()
+
+            val draft = viewModel.content().paymentDraft!!
+            assertTrue(draft.sending)
+            assertEquals(PaymentMethod.CASH, draft.method)
+            assertEquals(1, repository.payments.size)
+            repository.holdPayment!!.complete(Unit)
+            advanceUntilIdle()
+            assertNull(viewModel.content().paymentDraft)
+        }
 }

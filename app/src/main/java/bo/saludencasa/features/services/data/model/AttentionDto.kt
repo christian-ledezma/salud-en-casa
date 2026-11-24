@@ -67,6 +67,10 @@ data class AttentionDto(
     @SerialName("cancellation_reason") val cancellationReason: String? = null,
     @SerialName("cancelled_by_me") val cancelledByMe: Boolean? = null,
     @SerialName("cancelled_at") val cancelledAt: String? = null,
+    @SerialName("payment_status") val paymentStatus: String,
+    @SerialName("payment_method") val paymentMethod: String? = null,
+    @SerialName("patient_confirmed_at") val patientConfirmedAt: String? = null,
+    @SerialName("professional_confirmed_at") val professionalConfirmedAt: String? = null,
 )
 
 @Serializable

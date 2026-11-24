@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,6 +39,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalConfiguration
@@ -52,6 +56,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,10 +65,14 @@ import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionCancellation
+import bo.saludencasa.features.services.domain.model.AttentionPayment
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
 import bo.saludencasa.features.services.domain.model.Counterpart
+import bo.saludencasa.features.services.domain.model.PaymentMethod
+import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.vo.CancellationReason
@@ -97,6 +106,10 @@ internal data class AttentionActions(
     val onCancelReasonChanged: (String) -> Unit = {},
     val onCancelDismissed: () -> Unit = {},
     val onCancelConfirmed: () -> Unit = {},
+    val onPayRequested: () -> Unit = {},
+    val onPaymentMethodChosen: (PaymentMethod) -> Unit = {},
+    val onPayDismissed: () -> Unit = {},
+    val onPayConfirmed: () -> Unit = {},
 )
 
 // docs/decisions.md, 2026-10-30, and 2026-11-04, HU-23.
@@ -135,6 +148,10 @@ fun AttentionScreen(
                 onCancelReasonChanged = viewModel::onCancelReasonChanged,
                 onCancelDismissed = viewModel::onCancelDismissed,
                 onCancelConfirmed = viewModel::onCancelConfirmed,
+                onPayRequested = viewModel::onPayRequested,
+                onPaymentMethodChosen = viewModel::onPaymentMethodChosen,
+                onPayDismissed = viewModel::onPayDismissed,
+                onPayConfirmed = viewModel::onPayConfirmed,
             ),
         modifier = modifier,
     )
@@ -256,6 +273,12 @@ private fun AttentionBody(
         attention.nextStepForMe?.let { step ->
             NextStepBar(step = step, content = content, actions = actions)
         }
+
+        if (attention.canConfirmPayment) {
+            BottomActionBar {
+                PrimaryButton(text = stringResource(R.string.attention_pay_action), onClick = actions.onPayRequested)
+            }
+        }
     }
 
     content.confirming?.let { step ->
@@ -264,6 +287,10 @@ private fun AttentionBody(
 
     content.cancelDraft?.let { draft ->
         CancelAttentionDialog(draft = draft, counterpartName = attention.counterpart.name, actions = actions)
+    }
+
+    content.paymentDraft?.let { draft ->
+        ConfirmPaymentDialog(draft = draft, attention = attention, actions = actions)
     }
 }
 
@@ -426,13 +453,7 @@ private fun SummaryCard(
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                if (attention.status == ServiceStatus.CANCELLED) {
-                    Text(
-                        text = stringResource(R.string.attention_no_payment_pending),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                PaymentLines(attention = attention, locale = locale)
             }
         }
     }
@@ -765,6 +786,185 @@ private fun ConfirmStepDialog(
     )
 }
 
+// RF-11.2, RF-11.4: what each party reads of the payment, under its amount.
+@Composable
+private fun PaymentLines(
+    attention: Attention,
+    locale: Locale,
+) {
+    val payment = attention.payment
+    val counterpart = attention.counterpart.name
+    val confirmedAt = payment.patientConfirmedAt
+
+    when {
+        attention.status == ServiceStatus.CANCELLED -> {
+            MutedLine(stringResource(R.string.attention_no_payment_pending))
+        }
+
+        attention.status == ServiceStatus.COMPLETED && payment.status == PaymentStatus.PENDING -> {
+            Text(
+                text = stringResource(R.string.attention_payment_pending),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            MutedLine(
+                if (attention.iAmThePatient) {
+                    stringResource(R.string.attention_payment_pending_patient_hint, counterpart)
+                } else {
+                    stringResource(R.string.attention_payment_pending_professional_hint, counterpart)
+                },
+            )
+        }
+
+        payment.status == PaymentStatus.PATIENT_CONFIRMED && confirmedAt != null -> {
+            val at = formatAppointment(confirmedAt, locale)
+            PaymentConfirmedChip(
+                if (attention.iAmThePatient) {
+                    stringResource(payment.method.youPaidRes(), at)
+                } else {
+                    stringResource(payment.method.patientPaidRes(), counterpart, at)
+                },
+            )
+            MutedLine(
+                if (attention.iAmThePatient) {
+                    stringResource(R.string.attention_payment_waiting_professional, counterpart)
+                } else {
+                    stringResource(R.string.attention_payment_waiting_you)
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MutedLine(text: String) {
+    Text(text = text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun PaymentConfirmedChip(text: String) {
+    val onContainer = SaludEnCasaTheme.statusColors.onPositiveContainer
+    Row(
+        modifier =
+            Modifier
+                .clip(MaterialTheme.shapes.small)
+                .background(SaludEnCasaTheme.statusColors.positiveContainer)
+                .padding(horizontal = Spacing.scale12, vertical = Spacing.scale8),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.scale8),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Check,
+            contentDescription = null,
+            tint = onContainer,
+            modifier = Modifier.size(Spacing.scale16),
+        )
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = onContainer)
+    }
+}
+
+@Composable
+private fun ConfirmPaymentDialog(
+    draft: PaymentDraft,
+    attention: Attention,
+    actions: AttentionActions,
+) {
+    val locale = LocalConfiguration.current.locales[0]
+    val scroll = rememberScrollState()
+    // The error sits under the options, below the fold at a large font.
+    LaunchedEffect(draft.error) {
+        if (draft.error != null) scroll.animateScrollTo(scroll.maxValue)
+    }
+
+    AlertDialog(
+        onDismissRequest = actions.onPayDismissed,
+        title = { Text(text = stringResource(R.string.attention_pay_dialog_title)) },
+        text = {
+            // docs/decisions.md, 2026-11-04, HT-29: AlertDialog clips its content.
+            Column(
+                modifier = Modifier.verticalScroll(scroll),
+                verticalArrangement = Arrangement.spacedBy(Spacing.scale12),
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            R.string.attention_pay_dialog_body,
+                            formatBob(attention.finalAmountBob, locale),
+                            attention.counterpart.name,
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = stringResource(R.string.attention_pay_method_label),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Column(
+                    modifier = Modifier.selectableGroup(),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
+                ) {
+                    PaymentMethod.patientChoices.forEach { method ->
+                        PaymentMethodOption(
+                            method = method,
+                            selected = draft.method == method,
+                            enabled = !draft.sending,
+                            onSelect = { actions.onPaymentMethodChosen(method) },
+                        )
+                    }
+                }
+                draft.error?.let { error ->
+                    Text(
+                        text = stringResource(error.messageRes()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = actions.onPayConfirmed, enabled = draft.canConfirm) {
+                Text(text = stringResource(R.string.attention_pay_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = actions.onPayDismissed, enabled = !draft.sending) {
+                Text(text = stringResource(R.string.attention_pay_back))
+            }
+        },
+    )
+}
+
+@Composable
+private fun PaymentMethodOption(
+    method: PaymentMethod,
+    selected: Boolean,
+    enabled: Boolean,
+    onSelect: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = Spacing.minTouchTarget)
+                .clip(MaterialTheme.shapes.medium)
+                .border(
+                    width = if (selected) Spacing.timelineStroke else Spacing.borderWidth,
+                    color = if (selected) colors.primary else colors.outline,
+                    shape = MaterialTheme.shapes.medium,
+                ).background(if (selected) colors.primaryContainer else colors.surface)
+                .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onSelect)
+                .padding(horizontal = Spacing.scale12, vertical = Spacing.scale8),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.scale12),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
+        Text(
+            text = stringResource(method.labelRes()),
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (selected) colors.onPrimaryContainer else colors.onSurface,
+        )
+    }
+}
+
 @Composable
 private fun CancellationReasonCard(
     cancellation: AttentionCancellation,
@@ -946,6 +1146,46 @@ private fun CancelAttentionError.messageRes(): Int =
         is CancelAttentionError.Service -> {
             when (error) {
                 ServiceError.NetworkUnavailable -> R.string.attention_cancel_failed_network
+                ServiceError.AttentionChanged -> R.string.attention_mark_changed
+                ServiceError.NotSignedIn, ServiceError.Unexpected -> R.string.error_unexpected
+            }
+        }
+    }
+
+@StringRes
+private fun PaymentMethod.labelRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.payment_method_cash
+        PaymentMethod.DIRECT_QR -> R.string.payment_method_direct_qr
+        PaymentMethod.GATEWAY -> error("unreachable: a person never chooses GATEWAY (FA-02)")
+    }
+
+@StringRes
+private fun PaymentMethod?.youPaidRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.attention_payment_you_paid_cash
+        PaymentMethod.DIRECT_QR -> R.string.attention_payment_you_paid_direct_qr
+        PaymentMethod.GATEWAY, null -> R.string.attention_payment_you_paid
+    }
+
+@StringRes
+private fun PaymentMethod?.patientPaidRes(): Int =
+    when (this) {
+        PaymentMethod.CASH -> R.string.attention_payment_patient_paid_cash
+        PaymentMethod.DIRECT_QR -> R.string.attention_payment_patient_paid_direct_qr
+        PaymentMethod.GATEWAY, null -> R.string.attention_payment_patient_paid
+    }
+
+@StringRes
+private fun ConfirmPaymentError.messageRes(): Int =
+    when (this) {
+        ConfirmPaymentError.MethodNotAllowed -> {
+            R.string.error_unexpected
+        }
+
+        is ConfirmPaymentError.Service -> {
+            when (error) {
+                ServiceError.NetworkUnavailable -> R.string.attention_pay_failed_network
                 ServiceError.AttentionChanged -> R.string.attention_mark_changed
                 ServiceError.NotSignedIn, ServiceError.Unexpected -> R.string.error_unexpected
             }
@@ -1157,4 +1397,69 @@ private fun AttentionCancellingLargeFontPreview() {
 @Composable
 private fun AttentionFailedPreview() {
     AttentionPreviewFrame(AttentionUiState.Failed(ServiceError.NetworkUnavailable))
+}
+
+private val previewPatientCompleted = previewCompleted.copy(iAmThePatient = true, counterpart = previewForThePatient)
+
+private val previewPaidInCash =
+    AttentionPayment(
+        status = PaymentStatus.PATIENT_CONFIRMED,
+        method = PaymentMethod.CASH,
+        patientConfirmedAt = Instant.parse("2026-11-04T15:50:00Z"),
+        professionalConfirmedAt = null,
+    )
+
+@Preview(name = "Attention pay dialog", showBackground = true)
+@Composable
+private fun AttentionPayDialogPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(previewPatientCompleted, paymentDraft = PaymentDraft(method = PaymentMethod.CASH)),
+    )
+}
+
+@Preview(name = "Attention pay dialog dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionPayDialogDarkPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(previewPatientCompleted, paymentDraft = PaymentDraft(method = PaymentMethod.CASH)),
+    )
+}
+
+@Preview(name = "Attention pay dialog large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionPayDialogLargeFontPreview() {
+    AttentionPreviewFrame(
+        AttentionUiState.Content(
+            previewPatientCompleted,
+            paymentDraft =
+                PaymentDraft(
+                    method = PaymentMethod.DIRECT_QR,
+                    error = ConfirmPaymentError.Service(ServiceError.NetworkUnavailable),
+                ),
+        ),
+    )
+}
+
+@Preview(name = "Attention patient paid", showBackground = true)
+@Composable
+private fun AttentionPatientPaidPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted.copy(payment = previewPaidInCash)))
+}
+
+@Preview(name = "Attention patient paid dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionPatientPaidDarkPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted.copy(payment = previewPaidInCash)))
+}
+
+@Preview(name = "Attention professional paid", showBackground = true)
+@Composable
+private fun AttentionProfessionalPaidPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewCompleted.copy(payment = previewPaidInCash)))
+}
+
+@Preview(name = "Attention professional paid large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionProfessionalPaidLargeFontPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewCompleted.copy(payment = previewPaidInCash)))
 }

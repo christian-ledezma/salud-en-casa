@@ -4,6 +4,7 @@ import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AdvanceAttentionResult
 import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionCancellation
+import bo.saludencasa.features.services.domain.model.AttentionPayment
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionSide
@@ -11,8 +12,12 @@ import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.CancelAttentionResult
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.Counterpart
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import bo.saludencasa.features.services.domain.model.PaymentMethod
+import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
@@ -35,6 +40,9 @@ class FakeServiceRepository : IServiceRepository {
     var cancelError: ServiceError? = null
     var holdCancel: CompletableDeferred<Unit>? = null
     val cancels = mutableListOf<String>()
+    var paymentError: ServiceError? = null
+    var holdPayment: CompletableDeferred<Unit>? = null
+    val payments = mutableListOf<PaymentMethod>()
     val signals = MutableSharedFlow<Unit>()
 
     override suspend fun getAttention(requestId: String): AttentionResult = result
@@ -102,6 +110,32 @@ class FakeServiceRepository : IServiceRepository {
         return CancelAttentionResult.Cancelled
     }
 
+    // The engine seals the time, so the reread finds it.
+    override suspend fun confirmPayment(
+        serviceId: String,
+        method: PaymentMethod,
+    ): ConfirmPaymentResult {
+        payments += method
+        holdPayment?.await()
+        paymentError?.let { return ConfirmPaymentResult.Failure(ConfirmPaymentError.Service(it)) }
+        val current = (result as? AttentionResult.Loaded)?.attention
+        if (current != null) {
+            result =
+                AttentionResult.Loaded(
+                    current.copy(
+                        payment =
+                            AttentionPayment(
+                                status = PaymentStatus.PATIENT_CONFIRMED,
+                                method = method,
+                                patientConfirmedAt = Instant.parse("2026-11-04T16:00:00Z"),
+                                professionalConfirmedAt = null,
+                            ),
+                    ),
+                )
+        }
+        return ConfirmPaymentResult.Confirmed
+    }
+
     override fun attentionSignals(requestId: String): Flow<Unit> = signals
 }
 
@@ -131,6 +165,7 @@ fun attention(
     conversationOpen: Boolean = status != ServiceStatus.CANCELLED,
     conversationWritableUntil: Instant? = null,
     cancellation: AttentionCancellation? = null,
+    payment: AttentionPayment = AttentionPayment.Pending,
 ): Attention =
     Attention(
         serviceId = "s1",
@@ -154,6 +189,15 @@ fun attention(
         conversationOpen = conversationOpen,
         conversationWritableUntil = conversationWritableUntil,
         cancellation = cancellation,
+        payment = payment,
+    )
+
+fun paidInCash(at: Instant = Instant.parse("2026-11-04T16:00:00Z")): AttentionPayment =
+    AttentionPayment(
+        status = PaymentStatus.PATIENT_CONFIRMED,
+        method = PaymentMethod.CASH,
+        patientConfirmedAt = at,
+        professionalConfirmedAt = null,
     )
 
 fun attentionPlace(

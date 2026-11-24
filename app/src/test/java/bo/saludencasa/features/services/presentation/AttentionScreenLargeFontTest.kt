@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
+import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.services.attention
 import bo.saludencasa.features.services.attentionPlace
@@ -17,8 +18,11 @@ import bo.saludencasa.features.services.domain.model.Attention
 import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
+import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
+import bo.saludencasa.features.services.paidInCash
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
 import bo.saludencasa.ui.setContentAtDoubleFontScale
@@ -274,5 +278,111 @@ class AttentionScreenLargeFontTest {
         composeRule.assertFitsTheScreenWithoutScrolling(
             composeRule.onNodeWithText(string(R.string.common_retry)),
         )
+    }
+
+    private fun completed(iAmThePatient: Boolean) =
+        attention(status = ServiceStatus.COMPLETED, iAmThePatient = iAmThePatient)
+
+    private fun payButton() = composeRule.onNodeWithText(string(R.string.attention_pay_action))
+
+    private fun paidAt() = formatAppointment(Instant.parse("2026-11-04T16:00:00Z"), Locale.getDefault())
+
+    // Fixed to the foot, like the professional's marks.
+    @Test
+    fun thePatientOfACompletedAttentionHasThePayButtonAndItsReasonOnScreen() {
+        show(AttentionUiState.Content(completed(iAmThePatient = true)))
+
+        composeRule.assertFitsTheScreenWithoutScrolling(payButton())
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_payment_pending)))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_payment_pending_patient_hint, "María Quispe")),
+        )
+    }
+
+    @Test
+    fun theProfessionalIsNeverOfferedThePatientsPayButton() {
+        show(AttentionUiState.Content(completed(iAmThePatient = false)))
+
+        payButton().assertDoesNotExist()
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_payment_pending_professional_hint, "María Quispe")),
+        )
+    }
+
+    @Test
+    fun thePayDialogKeepsBothMethodsTheErrorAndItsAnswersOnScreen() {
+        show(
+            AttentionUiState.Content(
+                completed(iAmThePatient = true),
+                paymentDraft =
+                    PaymentDraft(
+                        method = PaymentMethod.CASH,
+                        error = ConfirmPaymentError.Service(ServiceError.NetworkUnavailable),
+                    ),
+            ),
+        )
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_pay_dialog_title)),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.payment_method_cash)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.payment_method_direct_qr)))
+        // Reached without a gesture: a refused answer must say why where it can be seen.
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_pay_failed_network)),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_pay_back)),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.attention_pay_confirm)),
+        )
+    }
+
+    @Test
+    fun withoutAMethodThePaymentCannotBeConfirmed() {
+        show(AttentionUiState.Content(completed(iAmThePatient = true), paymentDraft = PaymentDraft()))
+
+        composeRule.onNodeWithText(string(R.string.attention_pay_confirm)).assertIsNotEnabled()
+    }
+
+    @Test
+    fun aConfirmationOnItsWayCannotBeAnsweredAgain() {
+        show(
+            AttentionUiState.Content(
+                completed(iAmThePatient = true),
+                paymentDraft = PaymentDraft(method = PaymentMethod.CASH, sending = true),
+            ),
+        )
+
+        composeRule.onNodeWithText(string(R.string.attention_pay_confirm)).assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.attention_pay_back)).assertIsNotEnabled()
+    }
+
+    @Test
+    fun thePatientReadsTheirConfirmationAndWhoStillHasToConfirm() {
+        show(AttentionUiState.Content(attention(status = ServiceStatus.COMPLETED, payment = paidInCash())))
+
+        payButton().assertDoesNotExist()
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_payment_you_paid_cash, paidAt())),
+        )
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_payment_waiting_professional, "María Quispe")),
+        )
+    }
+
+    @Test
+    fun theProfessionalReadsThePatientsConfirmation() {
+        show(
+            AttentionUiState.Content(
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, payment = paidInCash()),
+            ),
+        )
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.attention_payment_patient_paid_cash, "María Quispe", paidAt())),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.attention_payment_waiting_you)))
     }
 }

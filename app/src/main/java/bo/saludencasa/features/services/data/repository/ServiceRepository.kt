@@ -11,7 +11,10 @@ import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.CancelAttentionResult
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
+import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
 import bo.saludencasa.features.services.domain.vo.CancellationReason
@@ -119,6 +122,29 @@ class ServiceRepository(
     }
 
     private fun cancelFailure(error: ServiceError) = CancelAttentionResult.Failure(CancelAttentionError.Service(error))
+
+    override suspend fun confirmPayment(
+        serviceId: String,
+        method: PaymentMethod,
+    ): ConfirmPaymentResult {
+        if (dataSource.currentUserId() == null) {
+            return paymentFailure(ServiceError.NotSignedIn)
+        }
+
+        return try {
+            if (dataSource.confirmPayment(serviceId, method.name) == 0) {
+                paymentFailure(ServiceError.Unexpected)
+            } else {
+                ConfirmPaymentResult.Confirmed
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Exception) {
+            paymentFailure(failure.toServiceError())
+        }
+    }
+
+    private fun paymentFailure(error: ServiceError) = ConfirmPaymentResult.Failure(ConfirmPaymentError.Service(error))
 
     override fun attentionSignals(requestId: String): Flow<Unit> {
         if (dataSource.currentUserId() == null) return emptyFlow()

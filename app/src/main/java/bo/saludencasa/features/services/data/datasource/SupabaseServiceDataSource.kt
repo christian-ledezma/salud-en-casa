@@ -74,13 +74,31 @@ class SupabaseServiceDataSource(
             }.decodeList<ServiceStatusRow>()
             .size
 
+    // No date: stamp_payment_confirmation seals it.
+    suspend fun confirmPayment(
+        serviceId: String,
+        method: String,
+    ): Int =
+        supabase
+            .from(PAYMENTS)
+            .update({
+                set("status", PATIENT_CONFIRMED)
+                set("method", method)
+            }) {
+                filter { eq("service_id", serviceId) }
+                select(Columns.list("status"))
+            }.decodeList<ServiceStatusRow>()
+            .size
+
     // notify_attention_changed sends to this topic, and attention_listen lets only
     // the two parties of the service hear it.
     fun signals(requestId: String): Flow<Unit> = supabase.broadcastSignals(TOPIC_PREFIX + requestId, EVENT)
 
     private companion object {
         const val SERVICES = "services"
+        const val PAYMENTS = "payments"
         const val CANCELLED = "CANCELLED"
+        const val PATIENT_CONFIRMED = "PATIENT_CONFIRMED"
         const val TOPIC_PREFIX = "attention:"
         const val EVENT = "attention_changed"
         const val MY_ATTENTION = "my_attention"

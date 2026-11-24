@@ -41,11 +41,16 @@ data class Attention(
     val conversationOpen: Boolean,
     val conversationWritableUntil: Instant? = null,
     val cancellation: AttentionCancellation? = null,
+    val payment: AttentionPayment = AttentionPayment.Pending,
 ) {
     val nextStepForMe: AttentionStep? get() = if (iAmThePatient) null else status.nextStep()
 
     // RF-10.3: either party, until it is completed.
     val canCancel: Boolean get() = status == ServiceStatus.ASSIGNED || status == ServiceStatus.IN_PROGRESS
+
+    // RF-11.2: the patient, once the attention is completed, and only once.
+    val canConfirmPayment: Boolean
+        get() = iAmThePatient && status == ServiceStatus.COMPLETED && payment.status == PaymentStatus.PENDING
 }
 
 data class AttentionCancellation(
