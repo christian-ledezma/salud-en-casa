@@ -112,6 +112,7 @@ data class HomeNavigation(
     val onOpenAddresses: () -> Unit = {},
     val onOpenVerification: () -> Unit = {},
     val onOpenDocumentReview: () -> Unit = {},
+    val onOpenDisputes: () -> Unit = {},
 )
 
 internal data class HomeActions(
@@ -294,7 +295,11 @@ private fun SignedInShell(
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when {
                 admin -> {
-                    AdminHome(greeting = greeting, onOpenDocumentReview = navigation.onOpenDocumentReview)
+                    AdminHome(
+                        greeting = greeting,
+                        onOpenDocumentReview = navigation.onOpenDocumentReview,
+                        onOpenDisputes = navigation.onOpenDisputes,
+                    )
                 }
 
                 shownTab == HomeTab.HOME && active == UserRole.PATIENT -> {

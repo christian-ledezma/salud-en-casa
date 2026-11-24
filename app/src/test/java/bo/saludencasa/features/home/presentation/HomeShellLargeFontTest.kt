@@ -248,6 +248,7 @@ class HomeShellLargeFontTest {
         show(setOf(UserRole.ADMIN), UserRole.ADMIN)
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_review_documents_title)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_review_disputes_title)))
         composeRule.onNodeWithText(string(R.string.common_nav_settings)).assertDoesNotExist()
     }
 

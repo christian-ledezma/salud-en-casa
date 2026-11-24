@@ -6,6 +6,7 @@ import bo.saludencasa.di.availabilityModule
 import bo.saludencasa.di.catalogModule
 import bo.saludencasa.di.conversationModule
 import bo.saludencasa.di.coreModule
+import bo.saludencasa.di.disputesModule
 import bo.saludencasa.di.homeModule
 import bo.saludencasa.di.locationModule
 import bo.saludencasa.di.notificationsModule
@@ -33,6 +34,7 @@ class SaludEnCasaApplication : Application() {
                 profileModule,
                 locationModule,
                 verificationModule,
+                disputesModule,
                 catalogModule,
                 searchModule,
                 reviewModule,

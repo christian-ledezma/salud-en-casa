@@ -90,3 +90,12 @@ data object DocumentReviewQueueRoute
 data class DocumentReviewRoute(
     val profileId: String,
 )
+
+// HU-28: the administrator's disputes, oldest first, and one of them.
+@Serializable
+data object DisputeQueueRoute
+
+@Serializable
+data class DisputeReviewRoute(
+    val paymentId: String,
+)

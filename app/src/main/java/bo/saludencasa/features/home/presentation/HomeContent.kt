@@ -275,6 +275,7 @@ private fun ActiveAttentionBlock(
 internal fun AdminHome(
     greeting: @Composable () -> Unit,
     onOpenDocumentReview: () -> Unit,
+    onOpenDisputes: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     HomeColumn(modifier = modifier) {
@@ -287,6 +288,13 @@ internal fun AdminHome(
                     details = listOf(stringResource(R.string.home_review_documents_body)),
                     icon = painterResource(R.drawable.ic_verified_user),
                     onClick = onOpenDocumentReview,
+                )
+                HomeRowDivider()
+                HomeRow(
+                    title = stringResource(R.string.home_review_disputes_title),
+                    details = listOf(stringResource(R.string.home_review_disputes_body)),
+                    icon = painterResource(R.drawable.ic_payments),
+                    onClick = onOpenDisputes,
                 )
             }
         }

@@ -15,6 +15,8 @@ import bo.saludencasa.features.auth.presentation.WelcomeScreen
 import bo.saludencasa.features.availability.presentation.AvailabilityScreen
 import bo.saludencasa.features.catalog.presentation.MyServicesScreen
 import bo.saludencasa.features.conversation.presentation.ConversationScreen
+import bo.saludencasa.features.disputes.presentation.DisputeQueueScreen
+import bo.saludencasa.features.disputes.presentation.DisputeReviewScreen
 import bo.saludencasa.features.home.presentation.HomeNavigation
 import bo.saludencasa.features.home.presentation.HomeShell
 import bo.saludencasa.features.location.presentation.AddressListScreen
@@ -101,6 +103,7 @@ fun SaludEnCasaNavHost(
                         onOpenAddresses = { navController.navigate(AddressListRoute) },
                         onOpenVerification = { navController.navigate(VerificationRoute) },
                         onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
+                        onOpenDisputes = { navController.navigate(DisputeQueueRoute) },
                     ),
             )
         }
@@ -280,6 +283,20 @@ fun SaludEnCasaNavHost(
         composable<DocumentReviewRoute> { entry ->
             DocumentReviewScreen(
                 profileId = entry.toRoute<DocumentReviewRoute>().profileId,
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable<DisputeQueueRoute> {
+            DisputeQueueScreen(
+                onBack = { navController.popBackStack() },
+                onOpenDispute = { paymentId -> navController.navigate(DisputeReviewRoute(paymentId)) },
+            )
+        }
+
+        composable<DisputeReviewRoute> { entry ->
+            DisputeReviewScreen(
+                paymentId = entry.toRoute<DisputeReviewRoute>().paymentId,
                 onBack = { navController.popBackStack() },
             )
         }
