@@ -6675,6 +6675,47 @@ ponía la fecha, el paciente podía deshacer su confirmación, y nada exigía el
 hora del mismo modo. La señal en vivo de la atención también suena al cambiar el pago. `request_push_body` sigue
 reescribiéndose entera, ahora con catorce eventos.
 
+## 2026-11-24 · HU-26: el profesional responde una vez a lo que declaró el paciente
+
+**Contexto.** RF-11.3 pide que el profesional confirme haber recibido el pago, y RF-11.5 que, si las
+confirmaciones no coinciden, el pago quede en disputa para el administrador. La guarda de HU-25 ya admitía el paso
+del profesional a `BOTH_CONFIRMED`, pero no sellaba su hora y cerraba toda escritura de `DISPUTED`
+(`dispute_requires_the_guarded_resolution_path`), a la espera de esta regla.
+
+**Decisión.** Las tomó el autor el 2026-11-24:
+
+- **Dos botones al pie** cuando el paciente ya confirmó: «Confirmar que cobré» y «No recibí el pago», con borde
+  rojo. Cada uno abre su diálogo, y los dos son definitivos.
+- **La disputa no lleva motivo.** El hecho es el desacuerdo, y el administrador no lee texto libre fuera de la
+  conversación.
+- **El profesional responde solo después del paciente.** Con el pago pendiente no hay dos confirmaciones que
+  contrastar. El paciente que nunca confirma queda para HU-28.
+- **Avisos: solo al paciente, cuando queda en disputa.** Nadie recibe aviso cuando confirman ambos: la atención
+  abierta se relee sola. RF-09.7 se corrigió en ese sentido.
+- **`payments.disputed_at`**, sellada por el motor, para que HU-28 muestre cuándo se abrió.
+- **El profesional lee que el monto es íntegro suyo** bajo el chip del cobro (RF-11.1, INV-10).
+
+**Razonamiento.**
+
+- **Escritura directa, como en HU-25.** El cliente envía solo el estado; `stamp_payment_confirmation` sella
+  `professional_confirmed_at` al pasar a `BOTH_CONFIRMED` y `disputed_at` al pasar a `DISPUTED`, siempre desde
+  `PATIENT_CONFIRMED`. Nadie escribe esas horas: lo rechaza la guarda.
+- **La guarda decide por transición.** Del profesional solo admite `PATIENT_CONFIRMED` → `BOTH_CONFIRMED` o
+  `DISPUTED`; cualquier otro origen es `professional_answers_a_patient_confirmed_payment_once`, que el cliente lee
+  como «la atención cambió» y relee. Eso deja una sola respuesta: confirmado no pasa a disputa, ni disputa a
+  confirmado; deshacerlo es del administrador.
+- **`professional_confirmed_at` sigue significando «cobró».** Reutilizarla para la disputa la habría hecho decir dos
+  cosas opuestas según el estado, y la resolución de HU-28 habría borrado cuál de las dos fue.
+- **`confirmations_match_status` exige en cada estado exactamente las horas que alcanzó.** Una disputa tiene la del
+  paciente y la propia, nunca la del profesional. HU-28 la reescribirá cuando defina cómo queda un pago resuelto.
+- **El aviso no necesita volver a desplegar `send-push`.** Lleva nombre, monto y tipo de servicio, claves que la
+  función ya deja pasar.
+
+**Consecuencia.** El ciclo de confirmación queda completo del lado de las partes; lo que falta es del
+administrador. HU-28 parte de pagos en `DISPUTED` con `disputed_at`, y tiene que decidir dos cosas: cómo queda un
+pago resuelto en cada sentido, y qué hacer con el que el paciente nunca confirma. `request_push_body` sigue
+reescribiéndose entera, ahora con quince eventos.
+
 ## Plantilla para entradas nuevas
 
 ```

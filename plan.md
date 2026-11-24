@@ -682,20 +682,20 @@ confirmado del remoto, y las atenciones en curso siguen `PENDING`. La entrega de
 paciente que pagó y el profesional que lo lee. Mirarlas es del autor (punto 9 de la Definición de Terminado);
 las pruebas de interfaz al 200 % no ven el texto recortado dentro de su contenedor.
 
-### HU-26 · Confirmar que cobré `[ ]` — 5 puntos
+### HU-26 · Confirmar que cobré `[x]` — 2026-11-24 — 5 puntos
 
 > Como **profesional**, quiero **declarar si recibí el pago**, para **que la atención
 > quede cerrada o, si no me pagaron, que la plataforma lo revise**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que el paciente confirmó, cuando confirmo la recepción, entonces el pago
+- [x] Dado que el paciente confirmó, cuando confirmo la recepción, entonces el pago
       pasa a confirmado por ambas partes.
-- [ ] Dado que el pago se confirma, cuando lo consulto, entonces veo el monto
+- [x] Dado que el pago se confirma, cuando lo consulto, entonces veo el monto
       acordado, íntegro para mí, y el medio que declaró el paciente.
-- [ ] Dado que el paciente declara haber pagado y yo declaro no haber recibido,
+- [x] Dado que el paciente declara haber pagado y yo declaro no haber recibido,
       cuando ambos registramos, entonces el pago queda en disputa.
-- [ ] Dado que el pago queda en disputa, cuando ocurre, entonces al paciente le
+- [x] Dado que el pago queda en disputa, cuando ocurre, entonces al paciente le
       llega una notificación de que el administrador lo revisará.
 
 **Requisitos:** RF-11.3, RF-11.4, RF-11.5, RF-09.7, RF-09.10, RN-09, INV-09, INV-10.
@@ -703,6 +703,78 @@ las pruebas de interfaz al 200 % no ven el texto recortado dentro de su contened
 **Antes 8 puntos.** Llevaba el desglose de la comisión, su cálculo como caso de uso con
 pruebas de valores límite y la restricción de cuadre en el motor; HT-30 retira las tres.
 Queda el estado de disputa.
+
+**Decisiones del autor, 2026-11-24** (`docs/decisions.md`, «HU-26: el profesional responde una vez»): dos botones
+al pie, «Confirmar que cobré» y «No recibí el pago», cada uno con su diálogo y definitivos; la disputa sin motivo;
+solo después de que el paciente confirmó; aviso solo al paciente al quedar en disputa, y RF-09.7 corregido;
+`payments.disputed_at` sellada por el motor; bajo el chip del cobro, que el monto es todo del profesional. Prototipo
+aprobado: [Confirmar cobro HU-26](https://claude.ai/artifact/LNr2uo5Lf3M2vhMJqRNp88).
+
+**Experimentos SQL, 2026-11-24.** Contra el remoto, antes del `db push`: cada uno aplica la migración
+`20261124054159_hu26_confirm_receipt.sql` completa dentro de `begin … rollback`, con la identidad indicada (paciente
+`299073bc…`, profesional `fcab94c0…`). Sobre la atención de Aplicación de inyectables, Bs 35,00, ya confirmada por el
+paciente en efectivo, salvo donde se dice otra cosa. Después se confirmó que el remoto quedó intacto: sin
+`disputed_at` y ese pago todavía en `PATIENT_CONFIRMED`.
+
+| # | Experimento | Resultado |
+|---|---|---|
+| 0 | Estructura, sobre los 9 pagos reales | La migración aplica; `disputed_at` existe; ningún pago en disputa; los siete disparadores de `payments` siguen |
+| 1 | `paymentReachesConfirmedOnlyWhenBothPartiesConfirm`: el profesional confirma el cobro | `BOTH_CONFIRMED`, `professional_confirmed_at` igual a la hora de la transacción, sin `disputed_at`; 0 avisos encolados y 1 señal en `attention:<solicitud>` |
+| 2 | `mismatchedConfirmationsLeavePaymentInDispute`: el profesional declara que no lo recibió | `DISPUTED`, `disputed_at` igual a la hora de la transacción, `professional_confirmed_at` nulo; 1 aviso encolado y 1 señal |
+| 3a | Confirmar el cobro con el pago pendiente (Bs 45,00, completada) | Rechazado: `professional_answers_a_patient_confirmed_payment_once` |
+| 3b | Disputar con el pago pendiente | Rechazado: `professional_answers_a_patient_confirmed_payment_once` |
+| 3c | El profesional pasa el pago a `PATIENT_CONFIRMED` | Rechazado: `each_party_confirms_separately` |
+| 3d | Disputar una atención en curso | Rechazado: `professional_answers_a_patient_confirmed_payment_once` |
+| 4a | Confirmado, después disputar | Rechazado: `professional_answers_a_patient_confirmed_payment_once` |
+| 4b | En disputa, después confirmar | Rechazado: `professional_answers_a_patient_confirmed_payment_once` |
+| 4c | Confirmar el cobro dos veces | Pasa sin cambiar nada: sigue `BOTH_CONFIRMED` |
+| 4d | Confirmado, volver a `PATIENT_CONFIRMED` | Rechazado: `each_party_confirms_separately` |
+| 5a | El profesional envía su propia hora | Rechazado: `confirmation_time_is_sealed_by_the_engine` |
+| 5b | El profesional envía la hora de la disputa | Rechazado: `confirmation_time_is_sealed_by_the_engine` |
+| 6a | El paciente pasa el pago a `DISPUTED` | Rechazado: `patient_confirms_a_pending_payment_once` |
+| 6b | El paciente pasa el pago a `BOTH_CONFIRMED` | Rechazado: `patient_confirms_a_pending_payment_once` |
+| 7 | `notificationPayloadCarriesNoTextWrittenByAUser` para `PAYMENT_DISPUTED` | Destinatarios: solo el paciente, en sus dos dispositivos. Cuerpo: evento, solicitud, rol `PATIENT`, tipo de servicio, `amountBob` 35.00, `senderName` del profesional y `ttlSeconds`; ni medio, ni descripción, ni texto escrito |
+| 8a | `my_attention` del paciente, en disputa | `DISPUTED`, `CASH`, con `disputed_at`, sin hora del profesional |
+| 8b | `my_attention` del profesional, cobrado | `BOTH_CONFIRMED`, `CASH`, con la hora del profesional, sin `disputed_at` |
+| 9 | El ciclo entero sobre Bs 45,00: el paciente confirma por QR y el profesional disputa | `DISPUTED`, `DIRECT_QR`, horas selladas; 1 aviso y 1 señal |
+| 10 | Una cuenta ajena a la atención intenta disputar | 0 filas actualizadas: la política no la deja ver el pago |
+
+**Verificación de código, 2026-11-24.** `./gradlew build --rerun` en verde: 1184 pruebas, 0 fallas, 0 omitidas (25
+nuevas). La primera corrida de `theNotReceivedDialogKeepsItsWarningTheErrorAndItsAnswersOnScreen` falló por la
+prueba, no por la pantalla: comprobaba primero el cuerpo largo, y desplazarse hasta él dejaba fuera de la vista el
+error, que el diálogo ya había mostrado solo. Se reordenó para comprobar primero lo que la persona ve sin gesto.
+
+**Aplicada, 2026-11-24.** El autor ejecutó `db push`; `send-push` no se volvió a desplegar porque el aviso nuevo no
+agrega claves. Consulta de solo lectura después: `db push --dry-run` dice «Remote database is up to date», existe
+`payments.disputed_at`, y `confirmations_match_status`, `guard_payment_confirmation` y `request_push_body` son los
+de esta migración.
+
+**Recorrido en emuladores, 2026-11-24.** Historia crítica («Cuándo hace falta un dispositivo»). Paciente
+`ledezma.aramayo.73` y profesional `chris.ledezma.s`. Sobre la atención de Aplicación de inyectables, Bs 35,00, ya
+pagada en efectivo: el profesional vio los dos botones al pie, volvió atrás desde el diálogo sin cambiar nada,
+confirmó el cobro y leyó que el monto es todo suyo; la pantalla del paciente se actualizó sola, sin aviso. Sobre la
+otra, Bs 45,00, con el pago pendiente: el paciente confirmó por QR o transferencia, al profesional le llegó «Pago
+confirmado», que abre la atención, y declaró que no lo recibió; los dos vieron «Pago en revisión» y al paciente le
+llegó el aviso. La atención de Curación de heridas, Bs 95,00, no ofreció responder mientras estaba en curso; el autor
+además la completó y las dos partes confirmaron su pago. El autor lo recorrió sin observaciones.
+
+Después, en la base, a la hora de La Paz:
+
+| Atención | Estado | Medio | Paciente | Profesional | Disputa |
+|---|---|---|---|---|---|
+| Aplicación de inyectables, Bs 35,00 | `BOTH_CONFIRMED` | `CASH` | 24/11 00:54:47 | 24/11 10:06:44 | — |
+| Aplicación de inyectables, Bs 45,00 | `DISPUTED` | `DIRECT_QR` | 24/11 10:09:47 | — | 24/11 10:11:58 |
+| Curación de heridas, Bs 95,00 | `BOTH_CONFIRMED` | `CASH` | 24/11 10:13:15 | 24/11 10:13:25 | — |
+
+`net._http_response` registra las cuatro llamadas a `send-push` del recorrido, todas 200 con un envío: la confirmación
+del paciente a las 10:09:47, la disputa a las 10:11:58 (que además retiró un token caducado del paciente), la
+atención completada a las 10:12:57 y la segunda confirmación del paciente a las 10:13:15. A las 10:06:44 y 10:13:25,
+cuando el profesional confirmó el cobro, no hay ninguna: confirmar no avisa a nadie. Las tres quedan como evidencia;
+la de Bs 45,00 es la disputa real con la que se prueba HU-28.
+
+**Previsualizaciones.** Quince nuevas en `AttentionScreen.kt`, en claro, oscuro y 200 % a 320 dp: la barra con los
+dos botones, los dos diálogos, el cobro confirmado visto por cada parte y el pago en revisión. El autor las miró el
+2026-11-24, sin observaciones (punto 9 de la Definición de Terminado).
 
 ### ~~HU-27 · Consultar mi saldo de comisiones~~ — retirada el 2026-11-22
 
@@ -731,7 +803,10 @@ sprint lo ocupa HU-38.
 
 **Antes 5 puntos, con la conciliación.** Agrupar comisiones por profesional y
 registrar liquidaciones se retira. **Por decidir al planificarla:** qué estado deja
-«no se pagó», porque hoy `payment_status` no tiene uno.
+«no se pagó», porque hoy `payment_status` no tiene uno; cómo reescribir
+`confirmations_match_status` para un pago resuelto, que hoy exige que una disputa no tenga
+hora del profesional; y qué hacer con el pago que el paciente nunca confirma, porque HU-26
+solo deja responder al profesional después del paciente (`docs/decisions.md`, 2026-11-24).
 
 ### HU-38 · Saber hasta cuándo aparezco ante los pacientes `[ ]` — 8 puntos
 

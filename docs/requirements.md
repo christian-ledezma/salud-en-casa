@@ -142,7 +142,7 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | RF-09.4 | El sistema notifica a los profesionales cercanos cuando se publica una solicitud inmediata compatible con sus servicios, y al profesional destinatario cuando un paciente le agenda una cita. |
 | RF-09.5 | El sistema notifica a cada parte los eventos de la negociación que le tocan: oferta recibida, contraoferta recibida y oferta aceptada. |
 | RF-09.6 | El sistema notifica a cada parte los eventos de la atención que le tocan: mensaje nuevo, llegada del profesional, servicio finalizado y cancelación por la contraparte. |
-| RF-09.7 | El sistema notifica los eventos del pago: al profesional, que el paciente confirmó haber pagado; a ambas partes, que el pago quedó en disputa y cómo se resolvió. |
+| RF-09.7 | El sistema notifica los eventos del pago: al profesional, que el paciente confirmó haber pagado; al paciente, que el pago quedó en disputa, porque la abre el profesional al declarar que no lo recibió; a ambas partes, cómo se resolvió. |
 | RF-09.8 | El sistema notifica al paciente que su solicitud venció sin acuerdo, y al profesional que el paciente canceló la cita que le había agendado. |
 | RF-09.9 | El sistema notifica a cada usuario el veredicto sobre cada documento de verificación y, al profesional, que su verificación fue aprobada. |
 | RF-09.10 | Una notificación transporta solo el tipo de evento y lo necesario para abrirlo, nunca texto escrito por un usuario: ni el contenido de un mensaje, ni la descripción de una solicitud, ni un motivo de cancelación o de rechazo, ni la dirección exacta. Su texto se compone en el dispositivo, en el idioma del usuario. |
