@@ -103,6 +103,10 @@ class OpenNotificationUseCase(
                 NotificationDestination.Attention(subject.requestIdOfARequest)
             }
 
+            is PushPayload.PaymentDisputed -> {
+                NotificationDestination.Attention(subject.requestIdOfARequest)
+            }
+
             is PushPayload.DocumentVerdict,
             is PushPayload.VerificationApproved,
             -> {

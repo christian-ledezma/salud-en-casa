@@ -167,6 +167,9 @@ fun patientConfirmedPayment(
         method,
     )
 
+fun paymentDisputed(senderName: String = "María Flores"): PushPayload =
+    PushPayload.PaymentDisputed(pushSubject(recipientRole = UserRole.PATIENT), senderName, BigDecimal("35.00"))
+
 // Neither HU-37 event is about a request: no requestId, role or service type
 // to fix.
 fun verificationSubject(recipientId: String = SIGNED_IN_USER): PushSubject =
@@ -199,4 +202,5 @@ fun everyPayload(): List<PushPayload> =
         documentVerdict(),
         verificationApproved(),
         patientConfirmedPayment(),
+        paymentDisputed(),
     )

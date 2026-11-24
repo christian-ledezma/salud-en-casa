@@ -22,6 +22,7 @@ enum class NotificationEvent {
     DOCUMENT_VERDICT,
     VERIFICATION_APPROVED,
     PATIENT_CONFIRMED_PAYMENT,
+    PAYMENT_DISPUTED,
 }
 
 // requestId, recipientRole and serviceTypeName are null for HU-37's two events:
@@ -144,6 +145,16 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.PATIENT_CONFIRMED_PAYMENT
     }
 
+    // To the patient, when the professional says they did not receive it (RF-09.7).
+    // The name is the professional's; no reason exists to carry (RF-09.10).
+    data class PaymentDisputed(
+        override val subject: PushSubject,
+        val senderName: String,
+        val amountBob: BigDecimal,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.PAYMENT_DISPUTED
+    }
+
     // Reaches whoever uploaded the document, for one verdict or several
     // registered together (RF-09.9). The reason, written by the administrator,
     // never travels (RF-09.10): it is read by opening the checklist, as before
@@ -221,6 +232,11 @@ sealed interface PushPayload {
                     put(KEY_SENDER_NAME, senderName)
                     put(KEY_AMOUNT_BOB, amountBob.toPlainString())
                     put(KEY_PAYMENT_METHOD, method.name)
+                }
+
+                is PaymentDisputed -> {
+                    put(KEY_SENDER_NAME, senderName)
+                    put(KEY_AMOUNT_BOB, amountBob.toPlainString())
                 }
 
                 is DocumentVerdict -> {
@@ -359,6 +375,12 @@ sealed interface PushPayload {
                         PaymentMethod.entries.firstOrNull { it.name == data[KEY_PAYMENT_METHOD] }
                             ?: return failure("push_payload_invalid_payment_method")
                     Result.success(PatientConfirmedPayment(subject, senderName, amount, method))
+                }
+
+                NotificationEvent.PAYMENT_DISPUTED -> {
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
+                    val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
+                    Result.success(PaymentDisputed(subject, senderName, amount))
                 }
 
                 NotificationEvent.DOCUMENT_VERDICT, NotificationEvent.VERIFICATION_APPROVED -> {

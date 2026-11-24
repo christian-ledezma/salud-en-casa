@@ -31,6 +31,7 @@ private fun PushPayload.titleRes(): Int =
         is PushPayload.ServiceCompleted -> R.string.notification_service_completed_title
         is PushPayload.AttentionCancelled -> R.string.notification_attention_cancelled_title
         is PushPayload.PatientConfirmedPayment -> R.string.notification_patient_confirmed_payment_title
+        is PushPayload.PaymentDisputed -> R.string.notification_payment_disputed_title
         is PushPayload.DocumentVerdict -> R.string.notification_document_verdict_title
         is PushPayload.VerificationApproved -> R.string.notification_verification_approved_title
     }
@@ -121,6 +122,15 @@ internal fun PushPayload.text(
                 resources.getString(body, senderName, formatBob(amountBob, locale), type)
             }
 
+            is PushPayload.PaymentDisputed -> {
+                resources.getString(
+                    R.string.notification_payment_disputed_body,
+                    senderName,
+                    formatBob(amountBob, locale),
+                    type,
+                )
+            }
+
             is PushPayload.DocumentVerdict -> {
                 val plural =
                     when (status) {
@@ -162,6 +172,7 @@ internal fun PushPayload.channel(): NotificationChannelSpec =
         is PushPayload.ServiceCompleted,
         is PushPayload.AttentionCancelled,
         is PushPayload.PatientConfirmedPayment,
+        is PushPayload.PaymentDisputed,
         -> NotificationChannelSpec.ATTENTIONS
 
         is PushPayload.DocumentVerdict,

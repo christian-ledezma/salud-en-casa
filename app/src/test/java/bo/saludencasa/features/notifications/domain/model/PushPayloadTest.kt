@@ -302,6 +302,32 @@ class PushPayloadTest {
         assertEquals("push_payload_invalid_payment_method", failureKey(paymentWire("paymentMethod" to "CARD")))
     }
 
+    private fun disputeWire(vararg overrides: Pair<String, String?>): Map<String, String> =
+        wire(
+            "event" to "PAYMENT_DISPUTED",
+            "distanceM" to null,
+            "recipientRole" to "PATIENT",
+            "senderName" to "María Flores",
+            "amountBob" to "35.00",
+            *overrides,
+        )
+
+    // RF-09.7: the patient is told who said it was not received, and how much.
+    @Test
+    fun parsesADisputeWithTheProfessionalsNameAndTheAmount() {
+        val dispute = PushPayload.parse(disputeWire()).getOrThrow() as PushPayload.PaymentDisputed
+
+        assertEquals("María Flores", dispute.senderName)
+        assertEquals(BigDecimal("35.00"), dispute.amountBob)
+        assertEquals(UserRole.PATIENT, dispute.subject.recipientRole)
+    }
+
+    @Test
+    fun rejectsADisputeWithoutANameOrAnAmount() {
+        assertEquals("push_payload_missing_sender_name", failureKey(disputeWire("senderName" to null)))
+        assertEquals("push_payload_invalid_amount", failureKey(disputeWire("amountBob" to null)))
+    }
+
     @Test
     fun rejectsAConfirmationWithoutAnAmount() {
         assertEquals("push_payload_invalid_amount", failureKey(paymentWire("amountBob" to null)))
