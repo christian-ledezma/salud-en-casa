@@ -25,7 +25,9 @@ class AttentionMapperTest {
         paymentStatus: String = "PENDING",
         paymentMethod: String? = null,
         patientConfirmedAt: String? = null,
+        professionalConfirmedAt: String? = null,
         disputedAt: String? = null,
+        resolvedAt: String? = null,
     ) = AttentionDto(
         serviceId = "s1",
         requestId = "r1",
@@ -46,7 +48,9 @@ class AttentionMapperTest {
         paymentStatus = paymentStatus,
         paymentMethod = paymentMethod,
         patientConfirmedAt = patientConfirmedAt,
+        professionalConfirmedAt = professionalConfirmedAt,
         disputedAt = disputedAt,
+        resolvedAt = resolvedAt,
     )
 
     @Test
@@ -214,6 +218,56 @@ class AttentionMapperTest {
         val refused = IllegalStateException("professional_answers_a_patient_confirmed_payment_once")
 
         assertEquals(ServiceError.AttentionChanged, refused.toServiceError())
+    }
+
+    // The professional said they were paid before the patient said anything.
+    @Test
+    fun aReceiptDeclaredFirstIsReadWithoutThePatientsTime() {
+        val payment =
+            dto(
+                status = "COMPLETED",
+                paymentStatus = "PROFESSIONAL_CONFIRMED",
+                paymentMethod = "DIRECT_QR",
+                professionalConfirmedAt = "2026-11-24T13:45:00+00:00",
+            ).toAttention()!!.payment
+
+        assertEquals(PaymentStatus.PROFESSIONAL_CONFIRMED, payment.status)
+        assertEquals(PaymentMethod.DIRECT_QR, payment.method)
+        assertNull(payment.patientConfirmedAt)
+        assertEquals(Instant.parse("2026-11-24T13:45:00Z"), payment.professionalConfirmedAt)
+    }
+
+    @Test
+    fun aResolvedDisputeCarriesWhenItWasResolved() {
+        val payment =
+            dto(
+                status = "COMPLETED",
+                paymentStatus = "RESOLVED_NOT_PAID",
+                paymentMethod = "CASH",
+                patientConfirmedAt = "2026-11-23T13:40:00+00:00",
+                disputedAt = "2026-11-24T09:15:00+00:00",
+                resolvedAt = "2026-11-24T15:20:00+00:00",
+            ).toAttention()!!.payment
+
+        assertEquals(PaymentStatus.RESOLVED_NOT_PAID, payment.status)
+        assertEquals(Instant.parse("2026-11-24T15:20:00Z"), payment.resolvedAt)
+    }
+
+    @Test
+    fun anUnreadableResolutionTimeIsAContractMismatch() {
+        assertNull(dto(paymentStatus = "RESOLVED_PAID", resolvedAt = "ayer").toAttention())
+    }
+
+    // Both declared at once and the other arrived first: the screen rereads and
+    // shows what the other said, instead of an error.
+    @Test
+    fun aDeclarationThatArrivedSecondMeansTheAttentionChanged() {
+        listOf(
+            "professional_declares_a_pending_payment_once",
+            "patient_only_accepts_the_professionals_receipt",
+        ).forEach { code ->
+            assertEquals(code, ServiceError.AttentionChanged, IllegalStateException(code).toServiceError())
+        }
     }
 
     // A refusal the patient cannot fix by rereading stays an error.

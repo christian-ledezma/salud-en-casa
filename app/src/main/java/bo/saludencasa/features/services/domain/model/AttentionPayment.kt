@@ -5,8 +5,11 @@ import java.time.Instant
 enum class PaymentStatus {
     PENDING,
     PATIENT_CONFIRMED,
+    PROFESSIONAL_CONFIRMED,
     BOTH_CONFIRMED,
     DISPUTED,
+    RESOLVED_PAID,
+    RESOLVED_NOT_PAID,
     CANCELLED,
 }
 
@@ -18,8 +21,8 @@ enum class PaymentMethod {
 
     companion object {
         // FA-02: there is no gateway, and guard_payment_confirmation refuses it
-        // from a client.
-        val patientChoices: List<PaymentMethod> = listOf(CASH, DIRECT_QR)
+        // from a client. Whoever declares first names one of these.
+        val declarable: List<PaymentMethod> = listOf(CASH, DIRECT_QR)
     }
 }
 
@@ -31,6 +34,7 @@ data class AttentionPayment(
     val patientConfirmedAt: Instant?,
     val professionalConfirmedAt: Instant?,
     val disputedAt: Instant? = null,
+    val resolvedAt: Instant? = null,
 ) {
     companion object {
         val Pending =

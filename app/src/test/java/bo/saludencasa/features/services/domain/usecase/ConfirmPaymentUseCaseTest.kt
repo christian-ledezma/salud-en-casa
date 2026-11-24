@@ -26,7 +26,7 @@ class ConfirmPaymentUseCaseTest {
     @Test
     fun bothMethodsAPersonUsesReachTheEngine() =
         runTest {
-            PaymentMethod.patientChoices.forEach { method ->
+            PaymentMethod.declarable.forEach { method ->
                 assertEquals(ConfirmPaymentResult.Confirmed, confirmPayment("s1", method))
             }
 

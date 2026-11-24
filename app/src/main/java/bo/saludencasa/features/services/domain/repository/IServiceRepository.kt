@@ -43,10 +43,18 @@ interface IServiceRepository {
         method: PaymentMethod,
     ): ConfirmPaymentResult
 
+    // RF-11.3: the professional's side when they declare first.
+    suspend fun confirmReceipt(
+        serviceId: String,
+        method: PaymentMethod,
+    ): ConfirmPaymentResult
+
     suspend fun answerPayment(
         serviceId: String,
         answer: PaymentAnswer,
     ): AnswerPaymentResult
+
+    suspend fun acceptReceipt(serviceId: String): AnswerPaymentResult
 
     fun attentionSignals(requestId: String): Flow<Unit>
 }

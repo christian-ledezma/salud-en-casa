@@ -52,9 +52,22 @@ data class Attention(
     val canConfirmPayment: Boolean
         get() = iAmThePatient && status == ServiceStatus.COMPLETED && payment.status == PaymentStatus.PENDING
 
+    // RF-11.3: the professional may also declare first, naming the method.
+    val canConfirmReceipt: Boolean
+        get() = !iAmThePatient && status == ServiceStatus.COMPLETED && payment.status == PaymentStatus.PENDING
+
+    val canDeclarePayment: Boolean get() = canConfirmPayment || canConfirmReceipt
+
     // RF-11.3, RF-11.5: the professional, once the patient confirmed, and only once.
     val canAnswerPayment: Boolean
         get() = !iAmThePatient && status == ServiceStatus.COMPLETED && payment.status == PaymentStatus.PATIENT_CONFIRMED
+
+    // docs/decisions.md, 2026-11-24, HU-28: the professional's receipt is final,
+    // so the patient only accepts it.
+    val canAcceptReceipt: Boolean
+        get() =
+            iAmThePatient && status == ServiceStatus.COMPLETED &&
+                payment.status == PaymentStatus.PROFESSIONAL_CONFIRMED
 }
 
 data class AttentionCancellation(

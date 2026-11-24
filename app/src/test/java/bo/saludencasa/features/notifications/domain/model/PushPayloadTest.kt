@@ -328,6 +328,74 @@ class PushPayloadTest {
         assertEquals("push_payload_invalid_amount", failureKey(disputeWire("amountBob" to null)))
     }
 
+    private fun receiptWire(vararg overrides: Pair<String, String?>): Map<String, String> =
+        wire(
+            "event" to "PROFESSIONAL_CONFIRMED_PAYMENT",
+            "distanceM" to null,
+            "recipientRole" to "PATIENT",
+            "senderName" to "María Flores",
+            "amountBob" to "35.00",
+            "paymentMethod" to "DIRECT_QR",
+            *overrides,
+        )
+
+    // RF-09.7: the patient is told who said they were paid, how much and how.
+    @Test
+    fun parsesAReceiptDeclaredFirstWithTheProfessionalsNameAmountAndMethod() {
+        val receipt = PushPayload.parse(receiptWire()).getOrThrow() as PushPayload.ProfessionalConfirmedPayment
+
+        assertEquals("María Flores", receipt.senderName)
+        assertEquals(BigDecimal("35.00"), receipt.amountBob)
+        assertEquals(PaymentMethod.DIRECT_QR, receipt.method)
+        assertEquals(UserRole.PATIENT, receipt.subject.recipientRole)
+    }
+
+    @Test
+    fun rejectsAReceiptWithoutAKnownMethod() {
+        assertEquals("push_payload_invalid_payment_method", failureKey(receiptWire("paymentMethod" to null)))
+        assertEquals("push_payload_invalid_payment_method", failureKey(receiptWire("paymentMethod" to "GIFT")))
+    }
+
+    private fun resolutionWire(vararg overrides: Pair<String, String?>): Map<String, String> =
+        wire(
+            "event" to "PAYMENT_RESOLVED",
+            "distanceM" to null,
+            "recipientRole" to "PROFESSIONAL",
+            "senderName" to "Ana Quispe",
+            "amountBob" to "45.00",
+            "status" to "RESOLVED_NOT_PAID",
+            *overrides,
+        )
+
+    // Each party gets its own body: the role and the other party's name differ.
+    @Test
+    fun parsesAResolutionWithItsSenseAndTheOtherPartysName() {
+        val resolution = PushPayload.parse(resolutionWire()).getOrThrow() as PushPayload.PaymentResolved
+
+        assertEquals("Ana Quispe", resolution.senderName)
+        assertEquals(BigDecimal("45.00"), resolution.amountBob)
+        assertEquals(false, resolution.paid)
+        assertEquals(UserRole.PROFESSIONAL, resolution.subject.recipientRole)
+        assertEquals(
+            true,
+            (
+                PushPayload
+                    .parse(
+                        resolutionWire("status" to "RESOLVED_PAID"),
+                    ).getOrThrow() as PushPayload.PaymentResolved
+            ).paid,
+        )
+    }
+
+    // A status that is no resolution would tell a party the opposite of what was
+    // decided, so it is refused rather than read as one of the two.
+    @Test
+    fun rejectsAResolutionWithoutItsSense() {
+        assertEquals("push_payload_invalid_status", failureKey(resolutionWire("status" to null)))
+        assertEquals("push_payload_invalid_status", failureKey(resolutionWire("status" to "DISPUTED")))
+        assertEquals("push_payload_missing_sender_name", failureKey(resolutionWire("senderName" to null)))
+    }
+
     @Test
     fun rejectsAConfirmationWithoutAnAmount() {
         assertEquals("push_payload_invalid_amount", failureKey(paymentWire("amountBob" to null)))

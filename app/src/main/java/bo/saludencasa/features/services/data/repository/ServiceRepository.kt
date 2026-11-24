@@ -129,13 +129,24 @@ class ServiceRepository(
     override suspend fun confirmPayment(
         serviceId: String,
         method: PaymentMethod,
+    ): ConfirmPaymentResult = declare(serviceId, PaymentStatus.PATIENT_CONFIRMED, method)
+
+    override suspend fun confirmReceipt(
+        serviceId: String,
+        method: PaymentMethod,
+    ): ConfirmPaymentResult = declare(serviceId, PaymentStatus.PROFESSIONAL_CONFIRMED, method)
+
+    private suspend fun declare(
+        serviceId: String,
+        status: PaymentStatus,
+        method: PaymentMethod,
     ): ConfirmPaymentResult {
         if (dataSource.currentUserId() == null) {
             return paymentFailure(ServiceError.NotSignedIn)
         }
 
         return try {
-            if (dataSource.confirmPayment(serviceId, method.name) == 0) {
+            if (dataSource.declarePayment(serviceId, status.name, method.name) == 0) {
                 paymentFailure(ServiceError.Unexpected)
             } else {
                 ConfirmPaymentResult.Confirmed
@@ -152,15 +163,27 @@ class ServiceRepository(
     override suspend fun answerPayment(
         serviceId: String,
         answer: PaymentAnswer,
+    ): AnswerPaymentResult =
+        answer(
+            serviceId,
+            when (answer) {
+                PaymentAnswer.RECEIVED -> PaymentStatus.BOTH_CONFIRMED
+                PaymentAnswer.NOT_RECEIVED -> PaymentStatus.DISPUTED
+            },
+        )
+
+    // The patient accepting the professional's receipt is the patient's own
+    // confirmation (INV-09); the engine seals it and keeps the method.
+    override suspend fun acceptReceipt(serviceId: String): AnswerPaymentResult =
+        answer(serviceId, PaymentStatus.BOTH_CONFIRMED)
+
+    private suspend fun answer(
+        serviceId: String,
+        status: PaymentStatus,
     ): AnswerPaymentResult {
         if (dataSource.currentUserId() == null) {
             return AnswerPaymentResult.Failure(ServiceError.NotSignedIn)
         }
-        val status =
-            when (answer) {
-                PaymentAnswer.RECEIVED -> PaymentStatus.BOTH_CONFIRMED
-                PaymentAnswer.NOT_RECEIVED -> PaymentStatus.DISPUTED
-            }
 
         return try {
             if (dataSource.answerPayment(serviceId, status.name) == 0) {

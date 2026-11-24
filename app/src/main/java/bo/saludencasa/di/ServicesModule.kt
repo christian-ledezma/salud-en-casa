@@ -4,10 +4,12 @@ import bo.saludencasa.features.services.data.datasource.SupabaseServiceDataSourc
 import bo.saludencasa.features.services.data.repository.ServiceRepository
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.repository.IServiceRepository
+import bo.saludencasa.features.services.domain.usecase.AcceptReceiptUseCase
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.AnswerPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ConfirmPaymentUseCase
+import bo.saludencasa.features.services.domain.usecase.ConfirmReceiptUseCase
 import bo.saludencasa.features.services.domain.usecase.GetActiveAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.GetMyAttentionsUseCase
@@ -30,6 +32,8 @@ val servicesModule =
         factory { CancelAttentionUseCase(get()) }
         factory { ConfirmPaymentUseCase(get()) }
         factory { AnswerPaymentUseCase(get()) }
+        factory { ConfirmReceiptUseCase(get()) }
+        factory { AcceptReceiptUseCase(get()) }
 
         viewModel { (requestId: String) ->
             AttentionViewModel(
@@ -40,6 +44,8 @@ val servicesModule =
                 cancelAttention = get(),
                 confirmPayment = get(),
                 answerPayment = get(),
+                confirmReceipt = get(),
+                acceptReceipt = get(),
             )
         }
         viewModel { (side: AttentionSide) -> MyAttentionsViewModel(side, get()) }

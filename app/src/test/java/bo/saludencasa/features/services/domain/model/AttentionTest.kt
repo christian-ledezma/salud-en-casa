@@ -2,6 +2,7 @@ package bo.saludencasa.features.services.domain.model
 
 import bo.saludencasa.features.services.attention
 import bo.saludencasa.features.services.paidInCash
+import bo.saludencasa.features.services.receivedFirst
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -68,6 +69,58 @@ class AttentionTest {
                 )
             assertFalse(status.name, answered.canAnswerPayment)
         }
+    }
+
+    // docs/decisions.md, 2026-11-24, HU-28: the professional need not wait for
+    // the patient to say they paid.
+    @Test
+    fun theProfessionalMayDeclareTheReceiptFirst() {
+        assertTrue(attention(status = ServiceStatus.COMPLETED, iAmThePatient = false).canConfirmReceipt)
+        assertFalse(attention(status = ServiceStatus.IN_PROGRESS, iAmThePatient = false).canConfirmReceipt)
+        assertFalse(attention(status = ServiceStatus.COMPLETED, iAmThePatient = true).canConfirmReceipt)
+    }
+
+    // Whoever spoke first leaves the other only an answer, never a second
+    // declaration of their own.
+    @Test
+    fun nobodyDeclaresOnceTheOtherPartyHas() {
+        val patientDeclared = attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, payment = paidInCash())
+        val professionalDeclared =
+            attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = receivedFirst())
+
+        assertFalse(patientDeclared.canDeclarePayment)
+        assertFalse(professionalDeclared.canDeclarePayment)
+    }
+
+    // The professional's receipt is final: the patient accepts it and nothing else.
+    @Test
+    fun onlyThePatientAcceptsAReceiptTheProfessionalDeclaredFirst() {
+        assertTrue(
+            attention(
+                status = ServiceStatus.COMPLETED,
+                iAmThePatient = true,
+                payment = receivedFirst(),
+            ).canAcceptReceipt,
+        )
+        assertFalse(
+            attention(
+                status = ServiceStatus.COMPLETED,
+                iAmThePatient = false,
+                payment = receivedFirst(),
+            ).canAcceptReceipt,
+        )
+        assertFalse(
+            attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash()).canAcceptReceipt,
+        )
+        assertFalse(
+            attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = receivedFirst())
+                .copy(payment = receivedFirst().copy(status = PaymentStatus.BOTH_CONFIRMED))
+                .canAcceptReceipt,
+        )
+        assertFalse(
+            attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = receivedFirst())
+                .canAnswerPayment,
+        )
     }
 
     // serviceStateTransitionsRejectInvalidJumps, on the phone's side: the engine's

@@ -15,13 +15,16 @@ import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.model.ServiceStatus
+import bo.saludencasa.features.services.domain.usecase.AcceptReceiptUseCase
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.AnswerPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ConfirmPaymentUseCase
+import bo.saludencasa.features.services.domain.usecase.ConfirmReceiptUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ObserveAttentionUseCase
 import bo.saludencasa.features.services.paidInCash
+import bo.saludencasa.features.services.receivedFirst
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -50,6 +53,8 @@ class AttentionViewModelTest {
             CancelAttentionUseCase(repository),
             ConfirmPaymentUseCase(repository),
             AnswerPaymentUseCase(repository),
+            ConfirmReceiptUseCase(repository),
+            AcceptReceiptUseCase(repository),
         )
 
     private fun TestScope.opened(attention: Attention): AttentionViewModel {
@@ -465,13 +470,18 @@ class AttentionViewModelTest {
 
     private fun completedForThePatient() = attention(status = ServiceStatus.COMPLETED, iAmThePatient = true)
 
+    // HU-28: either party declares first, so the dialog opens for both, but only
+    // on a completed attention nobody has declared yet.
     @Test
-    fun thePayDialogOpensOnlyForThePatientOfACompletedAttention() =
+    fun theDeclarationOpensOnlyOnACompletedAttentionNobodyDeclaredYet() =
         runTest {
             listOf(
-                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false),
                 attention(status = ServiceStatus.IN_PROGRESS, iAmThePatient = true),
+                attention(status = ServiceStatus.IN_PROGRESS, iAmThePatient = false),
                 attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash()),
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, payment = paidInCash()),
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = receivedFirst()),
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, payment = receivedFirst()),
             ).forEach { attention ->
                 val viewModel = opened(attention)
                 viewModel.onPayRequested()
@@ -703,5 +713,123 @@ class AttentionViewModelTest {
             repository.holdAnswer!!.complete(Unit)
             advanceUntilIdle()
             assertNull(viewModel.content().answerDraft)
+        }
+
+    private fun completedForTheProfessional() = attention(status = ServiceStatus.COMPLETED, iAmThePatient = false)
+
+    // RF-11.3: the professional who declares first sends a receipt with its
+    // method, never the patient's confirmation.
+    @Test
+    fun theProfessionalDeclaringFirstSendsTheReceiptWithTheMethodTheyNamed() =
+        runTest {
+            val viewModel = opened(completedForTheProfessional())
+
+            viewModel.onPayRequested()
+            viewModel.onPaymentMethodChosen(PaymentMethod.DIRECT_QR)
+            viewModel.onPayConfirmed()
+            advanceUntilIdle()
+
+            val state = viewModel.content()
+            assertEquals(listOf(PaymentMethod.DIRECT_QR), repository.receipts)
+            assertTrue(repository.payments.isEmpty())
+            assertNull(state.paymentDraft)
+            assertEquals(PaymentStatus.PROFESSIONAL_CONFIRMED, state.attention.payment.status)
+            assertFalse(state.attention.canDeclarePayment)
+        }
+
+    // The patient declared a moment earlier: the professional's dialog closes on
+    // what the engine says, and the professional now answers instead.
+    @Test
+    fun aDeclarationThatArrivedFirstFromTheOtherPartyClosesTheDialog() =
+        runTest {
+            val viewModel = opened(completedForTheProfessional())
+            viewModel.onPayRequested()
+            viewModel.onPaymentMethodChosen(PaymentMethod.CASH)
+
+            repository.paymentError = ServiceError.AttentionChanged
+            repository.result = AttentionResult.Loaded(declaredToTheProfessional())
+            viewModel.onPayConfirmed()
+            advanceUntilIdle()
+
+            val state = viewModel.content()
+            assertNull(state.paymentDraft)
+            assertTrue(state.attention.canAnswerPayment)
+        }
+
+    @Test
+    fun thePatientAcceptsTheReceiptAndThePaymentIsConfirmedByBoth() =
+        runTest {
+            val viewModel =
+                opened(attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = receivedFirst()))
+
+            viewModel.onAcceptReceipt()
+            advanceUntilIdle()
+
+            val state = viewModel.content()
+            assertEquals(1, repository.accepts)
+            assertFalse(state.accepting)
+            assertNull(state.notice)
+            assertEquals(PaymentStatus.BOTH_CONFIRMED, state.attention.payment.status)
+            assertEquals(PaymentMethod.CASH, state.attention.payment.method)
+            assertFalse(state.attention.canAcceptReceipt)
+        }
+
+    @Test
+    fun onlyAReceiptDeclaredFirstCanBeAccepted() =
+        runTest {
+            listOf(
+                completedForThePatient(),
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = paidInCash()),
+                attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, payment = receivedFirst()),
+            ).forEach { attention ->
+                val viewModel = opened(attention)
+                viewModel.onAcceptReceipt()
+                advanceUntilIdle()
+            }
+
+            assertEquals(0, repository.accepts)
+        }
+
+    @Test
+    fun aFailedAcceptanceSaysWhyAndCanBeRetried() =
+        runTest {
+            repository.acceptError = ServiceError.NetworkUnavailable
+            val viewModel =
+                opened(attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = receivedFirst()))
+
+            viewModel.onAcceptReceipt()
+            advanceUntilIdle()
+            assertEquals(ServiceError.NetworkUnavailable, viewModel.content().notice)
+            assertFalse(viewModel.content().accepting)
+
+            repository.acceptError = null
+            viewModel.onAcceptReceipt()
+            advanceUntilIdle()
+            assertNull(viewModel.content().notice)
+            assertEquals(
+                PaymentStatus.BOTH_CONFIRMED,
+                viewModel
+                    .content()
+                    .attention.payment.status,
+            )
+        }
+
+    @Test
+    fun anAcceptanceOnItsWayIsNotSentTwice() =
+        runTest {
+            repository.holdAccept = CompletableDeferred()
+            val viewModel =
+                opened(attention(status = ServiceStatus.COMPLETED, iAmThePatient = true, payment = receivedFirst()))
+
+            viewModel.onAcceptReceipt()
+            advanceUntilIdle()
+            viewModel.onAcceptReceipt()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.content().accepting)
+            assertEquals(1, repository.accepts)
+            repository.holdAccept!!.complete(Unit)
+            advanceUntilIdle()
+            assertFalse(viewModel.content().accepting)
         }
 }

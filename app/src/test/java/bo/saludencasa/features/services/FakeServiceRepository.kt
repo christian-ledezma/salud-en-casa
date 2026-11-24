@@ -48,6 +48,10 @@ class FakeServiceRepository : IServiceRepository {
     var answerError: ServiceError? = null
     var holdAnswer: CompletableDeferred<Unit>? = null
     val answers = mutableListOf<PaymentAnswer>()
+    val receipts = mutableListOf<PaymentMethod>()
+    var acceptError: ServiceError? = null
+    var holdAccept: CompletableDeferred<Unit>? = null
+    var accepts = 0
     val signals = MutableSharedFlow<Unit>()
 
     override suspend fun getAttention(requestId: String): AttentionResult = result
@@ -174,8 +178,62 @@ class FakeServiceRepository : IServiceRepository {
         return AnswerPaymentResult.Answered
     }
 
+    // The engine seals the professional's time and keeps the method they named.
+    override suspend fun confirmReceipt(
+        serviceId: String,
+        method: PaymentMethod,
+    ): ConfirmPaymentResult {
+        receipts += method
+        holdPayment?.await()
+        paymentError?.let { return ConfirmPaymentResult.Failure(ConfirmPaymentError.Service(it)) }
+        val current = (result as? AttentionResult.Loaded)?.attention
+        if (current != null) {
+            result = AttentionResult.Loaded(current.copy(payment = receivedFirst(method)))
+        }
+        return ConfirmPaymentResult.Confirmed
+    }
+
+    // Accepting seals the patient's time; the professional's method stays.
+    override suspend fun acceptReceipt(serviceId: String): AnswerPaymentResult {
+        accepts++
+        holdAccept?.await()
+        acceptError?.let { return AnswerPaymentResult.Failure(it) }
+        val current = (result as? AttentionResult.Loaded)?.attention
+        if (current != null) {
+            result =
+                AttentionResult.Loaded(
+                    current.copy(
+                        payment =
+                            current.payment.copy(
+                                status = PaymentStatus.BOTH_CONFIRMED,
+                                patientConfirmedAt = Instant.parse("2026-11-04T16:45:00Z"),
+                            ),
+                    ),
+                )
+        }
+        return AnswerPaymentResult.Answered
+    }
+
     override fun attentionSignals(requestId: String): Flow<Unit> = signals
 }
+
+fun receivedFirst(
+    method: PaymentMethod = PaymentMethod.CASH,
+    at: Instant = Instant.parse("2026-11-04T16:00:00Z"),
+): AttentionPayment =
+    AttentionPayment(
+        status = PaymentStatus.PROFESSIONAL_CONFIRMED,
+        method = method,
+        patientConfirmedAt = null,
+        professionalConfirmedAt = at,
+    )
+
+fun resolved(paid: Boolean): AttentionPayment =
+    paidInCash().copy(
+        status = if (paid) PaymentStatus.RESOLVED_PAID else PaymentStatus.RESOLVED_NOT_PAID,
+        disputedAt = Instant.parse("2026-11-04T16:30:00Z"),
+        resolvedAt = Instant.parse("2026-11-05T15:20:00Z"),
+    )
 
 fun attentionSummary(
     requestId: String = "r1",

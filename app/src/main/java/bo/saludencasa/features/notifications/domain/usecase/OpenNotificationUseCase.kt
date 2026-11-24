@@ -103,7 +103,15 @@ class OpenNotificationUseCase(
                 NotificationDestination.Attention(subject.requestIdOfARequest)
             }
 
+            is PushPayload.ProfessionalConfirmedPayment -> {
+                NotificationDestination.Attention(subject.requestIdOfARequest)
+            }
+
             is PushPayload.PaymentDisputed -> {
+                NotificationDestination.Attention(subject.requestIdOfARequest)
+            }
+
+            is PushPayload.PaymentResolved -> {
                 NotificationDestination.Attention(subject.requestIdOfARequest)
             }
 

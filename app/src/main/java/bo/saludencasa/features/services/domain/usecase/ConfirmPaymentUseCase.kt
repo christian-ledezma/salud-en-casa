@@ -12,7 +12,7 @@ class ConfirmPaymentUseCase(
         serviceId: String,
         method: PaymentMethod,
     ): ConfirmPaymentResult {
-        if (method !in PaymentMethod.patientChoices) {
+        if (method !in PaymentMethod.declarable) {
             return ConfirmPaymentResult.Failure(ConfirmPaymentError.MethodNotAllowed)
         }
         return repository.confirmPayment(serviceId, method)

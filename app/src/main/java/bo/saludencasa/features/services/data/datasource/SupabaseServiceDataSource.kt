@@ -74,15 +74,17 @@ class SupabaseServiceDataSource(
             }.decodeList<ServiceStatusRow>()
             .size
 
-    // No date: stamp_payment_confirmation seals it.
-    suspend fun confirmPayment(
+    // Whoever declares first sends the status and the method; no date:
+    // stamp_payment_confirmation seals it.
+    suspend fun declarePayment(
         serviceId: String,
+        status: String,
         method: String,
     ): Int =
         supabase
             .from(PAYMENTS)
             .update({
-                set("status", PATIENT_CONFIRMED)
+                set("status", status)
                 set("method", method)
             }) {
                 filter { eq("service_id", serviceId) }
@@ -113,7 +115,6 @@ class SupabaseServiceDataSource(
         const val SERVICES = "services"
         const val PAYMENTS = "payments"
         const val CANCELLED = "CANCELLED"
-        const val PATIENT_CONFIRMED = "PATIENT_CONFIRMED"
         const val TOPIC_PREFIX = "attention:"
         const val EVENT = "attention_changed"
         const val MY_ATTENTION = "my_attention"

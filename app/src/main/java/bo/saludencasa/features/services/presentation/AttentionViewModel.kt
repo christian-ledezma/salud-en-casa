@@ -14,10 +14,12 @@ import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.ServiceError
+import bo.saludencasa.features.services.domain.usecase.AcceptReceiptUseCase
 import bo.saludencasa.features.services.domain.usecase.AdvanceAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.AnswerPaymentUseCase
 import bo.saludencasa.features.services.domain.usecase.CancelAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ConfirmPaymentUseCase
+import bo.saludencasa.features.services.domain.usecase.ConfirmReceiptUseCase
 import bo.saludencasa.features.services.domain.usecase.GetAttentionUseCase
 import bo.saludencasa.features.services.domain.usecase.ObserveAttentionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +39,7 @@ sealed interface AttentionUiState {
         val cancelDraft: CancelDraft? = null,
         val paymentDraft: PaymentDraft? = null,
         val answerDraft: AnswerDraft? = null,
+        val accepting: Boolean = false,
     ) : AttentionUiState
 
     // The service is not there for this caller: the acceptance did not land, or
@@ -54,7 +57,8 @@ data class CancelDraft(
     val sending: Boolean = false,
 )
 
-// No method preselected: RF-11.2 asks the patient to say which one they used.
+// No method preselected: RF-11.2 asks the patient to say which one they used, and
+// the professional who declares first names it too.
 data class PaymentDraft(
     val method: PaymentMethod? = null,
     val error: ConfirmPaymentError? = null,
@@ -79,6 +83,8 @@ class AttentionViewModel(
     private val cancelAttention: CancelAttentionUseCase,
     private val confirmPayment: ConfirmPaymentUseCase,
     private val answerPayment: AnswerPaymentUseCase,
+    private val confirmReceipt: ConfirmReceiptUseCase,
+    private val acceptReceipt: AcceptReceiptUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<AttentionUiState>(AttentionUiState.Loading)
     val uiState: StateFlow<AttentionUiState> = state.asStateFlow()
@@ -163,7 +169,7 @@ class AttentionViewModel(
 
     fun onPayRequested() {
         updateContent {
-            if (it.attention.canConfirmPayment) {
+            if (it.attention.canDeclarePayment) {
                 it.copy(
                     paymentDraft = PaymentDraft(),
                     notice = null,
@@ -190,7 +196,14 @@ class AttentionViewModel(
 
         updatePaymentDraft { it.copy(sending = true, error = null) }
         viewModelScope.launch {
-            when (val result = confirmPayment(content.attention.serviceId, method)) {
+            val serviceId = content.attention.serviceId
+            val result =
+                if (content.attention.iAmThePatient) {
+                    confirmPayment(serviceId, method)
+                } else {
+                    confirmReceipt(serviceId, method)
+                }
+            when (result) {
                 ConfirmPaymentResult.Confirmed -> {
                     updateContent { it.copy(paymentDraft = null) }
                     reread()
@@ -198,7 +211,7 @@ class AttentionViewModel(
 
                 is ConfirmPaymentResult.Failure -> {
                     // docs/decisions.md, 2026-11-04, HU-23: reread closes the dialog
-                    // when the payment stopped being confirmable.
+                    // when the other party declared first.
                     if (result.error == ConfirmPaymentError.Service(ServiceError.AttentionChanged)) reread()
                     updatePaymentDraft { it.copy(sending = false, error = result.error) }
                 }
@@ -239,6 +252,29 @@ class AttentionViewModel(
         }
     }
 
+    fun onAcceptReceipt() {
+        val content = state.value as? AttentionUiState.Content ?: return
+        if (!content.attention.canAcceptReceipt || content.accepting) return
+
+        updateContent { it.copy(accepting = true, notice = null) }
+        viewModelScope.launch {
+            val notice =
+                when (val result = acceptReceipt(content.attention.serviceId)) {
+                    AnswerPaymentResult.Answered -> {
+                        reread()
+                        null
+                    }
+
+                    is AnswerPaymentResult.Failure -> {
+                        // docs/decisions.md, 2026-11-04, HU-23.
+                        val reread = result.error == ServiceError.AttentionChanged && reread()
+                        result.error.takeUnless { reread }
+                    }
+                }
+            updateContent { it.copy(accepting = false, notice = notice) }
+        }
+    }
+
     private fun load() {
         state.value = AttentionUiState.Loading
         viewModelScope.launch {
@@ -262,7 +298,7 @@ class AttentionViewModel(
                     attention = result.attention,
                     confirming = current.confirming?.takeIf { it == result.attention.nextStepForMe },
                     cancelDraft = current.cancelDraft?.takeIf { result.attention.canCancel },
-                    paymentDraft = current.paymentDraft?.takeIf { result.attention.canConfirmPayment },
+                    paymentDraft = current.paymentDraft?.takeIf { result.attention.canDeclarePayment },
                     answerDraft = current.answerDraft?.takeIf { result.attention.canAnswerPayment },
                 )
             } else {

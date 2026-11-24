@@ -22,7 +22,9 @@ enum class NotificationEvent {
     DOCUMENT_VERDICT,
     VERIFICATION_APPROVED,
     PATIENT_CONFIRMED_PAYMENT,
+    PROFESSIONAL_CONFIRMED_PAYMENT,
     PAYMENT_DISPUTED,
+    PAYMENT_RESOLVED,
 }
 
 // requestId, recipientRole and serviceTypeName are null for HU-37's two events:
@@ -145,6 +147,18 @@ sealed interface PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.PATIENT_CONFIRMED_PAYMENT
     }
 
+    // To the patient, when the professional declared first that they were paid
+    // (RF-09.7). The name is the professional's; the amount and the method they
+    // named are system values (RF-09.10).
+    data class ProfessionalConfirmedPayment(
+        override val subject: PushSubject,
+        val senderName: String,
+        val amountBob: BigDecimal,
+        val method: PaymentMethod,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.PROFESSIONAL_CONFIRMED_PAYMENT
+    }
+
     // To the patient, when the professional says they did not receive it (RF-09.7).
     // The name is the professional's; no reason exists to carry (RF-09.10).
     data class PaymentDisputed(
@@ -153,6 +167,17 @@ sealed interface PushPayload {
         val amountBob: BigDecimal,
     ) : PushPayload {
         override val event: NotificationEvent get() = NotificationEvent.PAYMENT_DISPUTED
+    }
+
+    // To each party, one body each, when an administrator resolves the dispute
+    // (RF-09.7). The name is the other party's; the administrator's never travels.
+    data class PaymentResolved(
+        override val subject: PushSubject,
+        val senderName: String,
+        val amountBob: BigDecimal,
+        val paid: Boolean,
+    ) : PushPayload {
+        override val event: NotificationEvent get() = NotificationEvent.PAYMENT_RESOLVED
     }
 
     // Reaches whoever uploaded the document, for one verdict or several
@@ -234,9 +259,21 @@ sealed interface PushPayload {
                     put(KEY_PAYMENT_METHOD, method.name)
                 }
 
+                is ProfessionalConfirmedPayment -> {
+                    put(KEY_SENDER_NAME, senderName)
+                    put(KEY_AMOUNT_BOB, amountBob.toPlainString())
+                    put(KEY_PAYMENT_METHOD, method.name)
+                }
+
                 is PaymentDisputed -> {
                     put(KEY_SENDER_NAME, senderName)
                     put(KEY_AMOUNT_BOB, amountBob.toPlainString())
+                }
+
+                is PaymentResolved -> {
+                    put(KEY_SENDER_NAME, senderName)
+                    put(KEY_AMOUNT_BOB, amountBob.toPlainString())
+                    put(KEY_STATUS, if (paid) RESOLVED_PAID else RESOLVED_NOT_PAID)
                 }
 
                 is DocumentVerdict -> {
@@ -264,6 +301,9 @@ sealed interface PushPayload {
         const val KEY_STATUS = "status"
         const val KEY_DOCUMENT_COUNT = "documentCount"
         const val KEY_PAYMENT_METHOD = "paymentMethod"
+
+        private const val RESOLVED_PAID = "RESOLVED_PAID"
+        private const val RESOLVED_NOT_PAID = "RESOLVED_NOT_PAID"
 
         private val UUID_PATTERN = Regex("^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
         private val RECIPIENT_ROLES = setOf(UserRole.PATIENT, UserRole.PROFESSIONAL)
@@ -371,10 +411,15 @@ sealed interface PushPayload {
                 NotificationEvent.PATIENT_CONFIRMED_PAYMENT -> {
                     val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
                     val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
-                    val method =
-                        PaymentMethod.entries.firstOrNull { it.name == data[KEY_PAYMENT_METHOD] }
-                            ?: return failure("push_payload_invalid_payment_method")
+                    val method = data.methodOrNull() ?: return failure("push_payload_invalid_payment_method")
                     Result.success(PatientConfirmedPayment(subject, senderName, amount, method))
+                }
+
+                NotificationEvent.PROFESSIONAL_CONFIRMED_PAYMENT -> {
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
+                    val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
+                    val method = data.methodOrNull() ?: return failure("push_payload_invalid_payment_method")
+                    Result.success(ProfessionalConfirmedPayment(subject, senderName, amount, method))
                 }
 
                 NotificationEvent.PAYMENT_DISPUTED -> {
@@ -383,11 +428,26 @@ sealed interface PushPayload {
                     Result.success(PaymentDisputed(subject, senderName, amount))
                 }
 
+                NotificationEvent.PAYMENT_RESOLVED -> {
+                    val senderName = data.senderNameOrNull() ?: return failure("push_payload_missing_sender_name")
+                    val amount = data.amountOrNull() ?: return failure("push_payload_invalid_amount")
+                    val paid =
+                        when (data[KEY_STATUS]) {
+                            RESOLVED_PAID -> true
+                            RESOLVED_NOT_PAID -> false
+                            else -> return failure("push_payload_invalid_status")
+                        }
+                    Result.success(PaymentResolved(subject, senderName, amount, paid))
+                }
+
                 NotificationEvent.DOCUMENT_VERDICT, NotificationEvent.VERIFICATION_APPROVED -> {
                     error("unreachable: $event already returned above")
                 }
             }
         }
+
+        private fun Map<String, String>.methodOrNull(): PaymentMethod? =
+            PaymentMethod.entries.firstOrNull { it.name == this[KEY_PAYMENT_METHOD] }
 
         private fun Map<String, String>.senderNameOrNull(): String? = this[KEY_SENDER_NAME]?.takeIf(String::isNotBlank)
 
