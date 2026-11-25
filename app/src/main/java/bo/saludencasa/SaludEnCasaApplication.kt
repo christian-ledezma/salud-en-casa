@@ -15,6 +15,7 @@ import bo.saludencasa.di.requestsModule
 import bo.saludencasa.di.reviewModule
 import bo.saludencasa.di.searchModule
 import bo.saludencasa.di.servicesModule
+import bo.saludencasa.di.subscriptionModule
 import bo.saludencasa.di.verificationModule
 import bo.saludencasa.features.notifications.presentation.NotificationChannelSpec
 import org.koin.android.ext.koin.androidContext
@@ -35,6 +36,7 @@ class SaludEnCasaApplication : Application() {
                 locationModule,
                 verificationModule,
                 disputesModule,
+                subscriptionModule,
                 catalogModule,
                 searchModule,
                 reviewModule,

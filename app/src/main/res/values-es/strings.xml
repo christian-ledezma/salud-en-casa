@@ -54,6 +54,11 @@
     <string name="home_available_now_off">No</string>
     <string name="home_verification_pending_title">Verificación pendiente</string>
     <string name="home_verification_pending_body">Mientras no estés verificado no apareces en las búsquedas.</string>
+    <string name="home_subscription_valid_title">Visible para pacientes</string>
+    <string name="home_subscription_trial_until">Tu prueba gratuita termina el %1$s</string>
+    <string name="home_subscription_expired_title">Tu suscripción venció</string>
+    <string name="home_subscription_expired_body">No apareces en búsquedas ni recibes solicitudes nuevas.</string>
+    <string name="home_subscription_expired_on">Venció el %1$s</string>
     <string name="home_nearby_requests_title">Solicitudes cerca de ti</string>
     <string name="home_nearby_requests_empty_title">Ninguna por ahora</string>
     <string name="home_nearby_requests_empty_body">Te avisamos en cuanto alguien pida atención cerca.</string>
@@ -70,6 +75,9 @@
     <string name="home_settings_title">Configuración</string>
     <string name="home_settings_verification">Mi verificación</string>
     <string name="home_settings_verification_body">Tus documentos y su estado</string>
+    <string name="home_settings_subscription">Suscripción</string>
+    <string name="home_settings_subscription_trial">En prueba hasta el %1$s</string>
+    <string name="home_settings_subscription_expired">Vencida desde el %1$s</string>
     <string name="home_settings_verified">Verificado</string>
     <string name="home_settings_pending">Pendiente</string>
     <string name="home_settings_services">Mis servicios</string>
@@ -508,6 +516,7 @@
     <string name="error_request_time_not_bookable">Esa hora ya no está disponible. Actualizamos los horarios: elige otra.</string>
     <string name="error_offer_invalid_amount">Ingresa un monto válido, mayor a cero y con hasta dos decimales.</string>
     <string name="error_offer_not_allowed">No puedes responder ahora. Puede que la negociación esté cerrada, que la solicitud ya no esté disponible o que no sea tu turno.</string>
+    <string name="error_offer_subscription_expired">Tu suscripción venció: no puedes hacer ofertas nuevas. Las negociaciones que ya abriste siguen.</string>
 
     <string name="schedule_title">Agendar una cita</string>
     <string name="schedule_subtitle">Elige el servicio, el día y la hora. El profesional recibirá tu solicitud y podrá responder con una oferta.</string>
@@ -850,4 +859,28 @@
     <string name="dispute_review_failed_network">No pudimos registrar la resolución. Revisa tu conexión e inténtalo de nuevo.</string>
     <string name="dispute_review_gone_title">Esta disputa ya no está pendiente</string>
     <string name="dispute_review_gone_body">Ya se resolvió. Vuelve a la lista para ver las que faltan.</string>
+    <!-- HU-38: the professional's subscription -->
+    <string name="subscription_title">Mi suscripción</string>
+    <string name="subscription_status_trial">En prueba</string>
+    <string name="subscription_status_expired">Vencida</string>
+    <string name="subscription_valid_until">Vigente hasta el %1$s</string>
+    <string name="subscription_expired_on">Venció el %1$s</string>
+    <string name="subscription_trial_body">Es tu prueba gratuita, desde que se aprobó tu verificación.</string>
+    <string name="subscription_expired_body">Los pacientes ya no te encuentran y no recibes solicitudes nuevas.</string>
+    <string name="subscription_gains_title_valid">Mientras esté vigente puedes</string>
+    <string name="subscription_gains_title_expired">Sin suscripción no puedes</string>
+    <string name="subscription_gain_search">Aparecer en las búsquedas de los pacientes</string>
+    <string name="subscription_gain_requests">Recibir las solicitudes cercanas y sus avisos</string>
+    <string name="subscription_gain_booking">Que un paciente te agende una cita</string>
+    <string name="subscription_gain_offers">Hacer ofertas nuevas</string>
+    <string name="subscription_keeps_title_valid">Si vence, conservas</string>
+    <string name="subscription_keeps_title_expired">Lo que conservas</string>
+    <string name="subscription_keep_negotiations">Tus negociaciones abiertas, hasta que terminen</string>
+    <string name="subscription_keep_attentions">Tus atenciones acordadas, hasta completarlas</string>
+    <string name="subscription_purchase_soon">Pronto podrás suscribirte desde esta pantalla.</string>
+    <string name="subscription_not_required_title">Hoy no se exige suscripción</string>
+    <string name="subscription_not_required_body">Apareces ante los pacientes mientras tu verificación esté aprobada.</string>
+    <string name="subscription_expired_notice_title">Tu suscripción venció</string>
+    <string name="subscription_expired_notice_body">No recibes solicitudes nuevas. Las negociaciones que ya abriste siguen aquí.</string>
+    <string name="subscription_expired_notice_open">Ver mi suscripción</string>
 </resources>

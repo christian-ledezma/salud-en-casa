@@ -99,3 +99,7 @@ data object DisputeQueueRoute
 data class DisputeReviewRoute(
     val paymentId: String,
 )
+
+// HU-38: the professional's own subscription.
+@Serializable
+data object SubscriptionRoute

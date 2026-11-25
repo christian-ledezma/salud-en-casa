@@ -48,6 +48,11 @@ fun formatDayOfMonth(
     locale: Locale,
 ): String = date.format(skeleton("d", locale))
 
+fun formatDate(
+    at: Instant,
+    locale: Locale,
+): String = at.atZone(AppointmentZone).toLocalDate().format(skeleton("EEEdMMMy", locale))
+
 fun formatFullDate(
     date: LocalDate,
     locale: Locale,
