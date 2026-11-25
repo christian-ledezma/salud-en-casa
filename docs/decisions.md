@@ -6810,6 +6810,34 @@ tendrán la prueba vencida cuando se encienda el cobro: HU-39 decide si les da u
 agendada a un profesional que vence antes de responder no recibe oferta y expira a la hora de la cita, como cualquier
 cita sin acuerdo.
 
+## 2026-11-25 · El entorno local se levanta reducido y se borra entero al terminar
+
+**Contexto.** El cierre del Sprint 8 pedía `db reset` y `db diff --linked`, con Docker. El autor lo encendió con dos
+condiciones: cuidar la memoria del equipo, que tiene 8 GB, de los que Docker toma 4; y que al terminar no quedara nada
+de la prueba en Docker, cuyo peso no debía pasar de los 708,5 MB con que empezó. El `README.md` decía lo contrario:
+levantar sin Studio, conservar las imágenes, de unos 6 GB, porque se descargan una vez, y no usar nunca
+`docker image prune -a` con la pila detenida.
+
+**Decisión.** La pila local se levanta con `-x studio,postgres-meta,logflare,vector,imgproxy,mailpit`. Al terminar se
+corre `supabase stop --no-backup` y se borran por nombre solo las imágenes de `public.ecr.aws/supabase/`, con `docker
+rmi`.
+
+**Razonamiento.**
+
+- **Lo que queda es lo que las migraciones necesitan.** La base, `gotrue`, `storage-api` y `realtime` crean los
+  esquemas `auth`, `storage` y `realtime`, sobre los que las migraciones escriben políticas. PostgREST y Kong sostienen
+  la API. `edge-runtime` es donde corre `db diff`. Lo excluido solo sirve a la interfaz web o a los registros. Así son
+  siete contenedores y 5,8 GB de imágenes.
+- **Borrar por nombre y no con `prune`.** `docker image prune -a` borra también las imágenes de otros proyectos; ese
+  día había una, `welcome-to-docker`, que no es de Salud en Casa. `--no-backup` se lleva los volúmenes de datos, que
+  son de prueba y se recrean en el siguiente `start`.
+- **Se acepta volver a descargar.** El entorno local se usa una vez por sprint, al cerrarlo, y el disco del equipo
+  importa más que los minutos de descarga. El disco virtual pasó de 4,8 GB a 255 MB en unos 40 segundos, cuando Docker
+  Desktop devolvió los bloques liberados.
+
+**Consecuencia.** El `README.md` describe las dos formas: la habitual, que conserva las imágenes, y esta, que no deja
+nada. La regla de no usar `prune -a` con la pila detenida sigue en pie.
+
 ## Plantilla para entradas nuevas
 
 ```

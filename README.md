@@ -138,6 +138,21 @@ proyectos que no tengan un contenedor creado.
 En Docker Desktop, *Settings → Resources → Advanced → Disk usage limit* en 32 GB
 impide que el disco virtual crezca hasta ocupar el del equipo.
 
+**Para no dejar nada en Docker** al terminar, la pila se levanta reducida y se
+borra entera (`docs/decisions.md`, 2026-11-25):
+
+```bash
+npx supabase start -x studio,postgres-meta,logflare,vector,imgproxy,mailpit
+npx supabase db reset
+npx supabase db diff --linked --schema public
+npx supabase stop --no-backup                    # elimina contenedores y volúmenes
+docker images --format '{{.Repository}}:{{.Tag}}' | grep '^public.ecr.aws/supabase/' | xargs docker rmi
+```
+
+Quedan siete contenedores y unos 5,8 GB de imágenes, que el `rmi` borra por nombre
+sin tocar las de otros proyectos. El disco virtual tarda un minuto en devolver el
+espacio. El siguiente `start` vuelve a descargarlas.
+
 ### 4. Notificaciones push
 
 Las notificaciones las envía la función de servidor `send-push`, y la base la
