@@ -174,6 +174,20 @@ pasa a «Nombres retirados», al final.
 | Señal del pago | `notify_attention_payment_changed` | Un cambio de estado del pago avisa al tema `attention:<request_id>`, así la atención abierta se relee |
 | Anular el pago | `cancel_payment_with_service` | Disparador que lleva el pago a `CANCELLED` al cancelarse la atención. Ningún cliente lo hace: `guard_payment_confirmation` exige el servicio cancelado, y de ese estado no se sale |
 
+## Suscripción del profesional
+
+| Español | Inglés | Uso |
+|---|---|---|
+| Suscripción | `Subscription` / `features/subscription/` | Hasta cuándo el profesional aparece ante los pacientes. Solo el rol profesional la tiene (RF-14.1) |
+| Período de suscripción | `subscription_periods` / `SubscriptionStatus` | Inicio y fin. Solo el motor lo crea (INV-18); el profesional lee los suyos. Estado `TRIAL` o `EXPIRED` |
+| Origen del período | `subscription_source` | `TRIAL` hoy; `PLAY_BILLING` en el Sprint 11 |
+| Prueba gratuita | `TRIAL` / `grant_trial_on_approval` / `trial_days` | 30 días desde la transición a `APPROVED`, una sola por profesional: una segunda aprobación no la renueva |
+| Exigencia de suscripción | `subscription_required` | El interruptor de `platform_settings`. Apagado, todo profesional aprobado y activo es vigente y la aplicación no muestra nada de la suscripción (HU-38) |
+| Vigente | `professional_has_valid_subscription` / `isValid` | Lo decide el motor donde empieza algo nuevo: búsqueda, bandeja, aviso de cercanía, horarios reservables, cita y primera oferta. Nunca el directorio ni la cobertura, que sostienen lo ya iniciado. Ningún cliente la consulta por otro |
+| Mi suscripción | `my_subscription` / `GetMySubscriptionUseCase` / `SubscriptionScreen` | El interruptor y el último período propio. `SubscriptionResult.None` con la exigencia apagada o sin período |
+| Primera oferta sin suscripción | `subscription_expired` / `OfferError.SubscriptionExpired` | El disparador `request_offers_guard_first_offer_subscription` la rechaza con nombre propio, antes de la política. Una contraoferta nunca se pregunta |
+| Aviso de suscripción vencida | `SubscriptionExpiredNotice` | Arriba de la bandeja del vencido: no recibe solicitudes nuevas, sus negociaciones abiertas siguen ahí |
+
 ## Calificaciones
 
 | Español | Inglés | Uso |
@@ -239,7 +253,7 @@ pasa a «Nombres retirados», al final.
 | Destino de la barra | `HomeTab` | `HOME`, `SETTINGS`, `REQUESTS`, `ACCOUNT`: los mismos para los dos roles. El administrador no tiene |
 | Barra de navegación | `BottomNavigationBar` | La barra anclada al pie con los destinos y sus rótulos |
 | Menú de la cuenta | `AccountMenu` | El menú de las iniciales en la cabecera: la persona, el cambio de rol y «Cerrar sesión» |
-| Ajustes | `SettingsContent` | Verificación, servicios, disponibilidad y direcciones. Su pantalla se titula «Configuración» |
+| Ajustes | `SettingsContent` | Verificación, suscripción si se exige, servicios, disponibilidad y direcciones. Su pantalla se titula «Configuración» |
 | Solicitudes cerca de ti | `NearbyRequests` | Las primeras tres de la bandeja en el Inicio del profesional, con «Ver todas» |
 | Tu solicitud | `PatientHomeUiState.Content.activeRequest` | La inmediata activa del paciente en su Inicio. Un atajo: si su lectura falla, no se dibuja |
 | Vistas de Solicitudes | `RequestsTabContent` / `ProfessionalRequestsTab` / `PatientRequestsTab` / `RequestsView` | `REQUESTS` («Disponibles» o «Mis solicitudes») y `MY_ATTENTIONS`. Salir del destino vuelve a la primera; volver de una atención conserva la vista |
@@ -347,6 +361,7 @@ pasa a «Nombres retirados», al final.
 | Plataforma | `platform` |
 | Último uso | `lastUsedAt` / `last_used_at` |
 | Creado en | `createdAt` / `created_at` |
+| Inicio / fin del período | `startsAt` / `endsAt` · `starts_at` / `ends_at` |
 | Notas del profesional | `professionalNotes` — **no existe y no se crea**: ver la nota de abajo |
 
 **`professionalNotes` no es una columna.** Lo realizado en una atención vive en la
@@ -373,14 +388,15 @@ tabla llega a existir.
 | `payment_method` | `CASH`, `DIRECT_QR`, `GATEWAY` |
 | `payment_status` | `PENDING`, `PATIENT_CONFIRMED`, `PROFESSIONAL_CONFIRMED`, `BOTH_CONFIRMED`, `DISPUTED`, `RESOLVED_PAID`, `RESOLVED_NOT_PAID`, `CANCELLED` |
 | `device_platform` | `ANDROID`. `IOS` se retiró el 2026-09-12 (FA-04) |
+| `subscription_source` | `TRIAL` |
 
 ## Esquema
 
-**Tablas, diecisiete:** `profiles` · `profile_roles` · `patients` · `professionals` ·
+**Tablas, dieciocho:** `profiles` · `profile_roles` · `patients` · `professionals` ·
 `verification_documents` · `addresses` · `service_types` · `professional_services` ·
 `availability_slots` · `service_requests` · `request_offers` · `messages` · `services` ·
-`payments` · `reviews` · `device_tokens` · `platform_settings`, la fila única de lo
-configurable.
+`payments` · `reviews` · `device_tokens` · `subscription_periods` · `platform_settings`, la
+fila única de lo configurable.
 
 **Vistas:**
 - `professional_directory`: la proyección pública del profesional, sin contacto. Es lo

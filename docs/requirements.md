@@ -197,9 +197,9 @@ Incorporado el 2026-11-22, al reemplazar la comisión por atención (`docs/decis
 |---|---|
 | RF-14.1 | Solo el rol profesional se suscribe. El paciente usa la aplicación sin costo, también quien tiene los dos roles cuando actúa como paciente. |
 | RF-14.2 | Al aprobarse su verificación, el profesional recibe un período de prueba de 30 días. |
-| RF-14.3 | El profesional consulta el estado de su suscripción —en prueba, vigente o vencida, con su fecha de fin— y qué deja de tener sin ella. |
+| RF-14.3 | El profesional consulta el estado de su suscripción —en prueba, vigente o vencida, con su fecha de fin— y qué deja de tener sin ella. Con la exigencia desactivada no se le muestra (HU-38). |
 | RF-14.4 | El profesional se suscribe y renueva desde la aplicación con el sistema de facturación de Google Play. *(Pendiente: Sprint 11, condicionado a la publicación en la tienda.)* |
-| RF-14.5 | Sin suscripción vigente, el profesional no aparece en búsquedas, no recibe solicitudes en su bandeja ni sus avisos, no se le agenda una cita y no emite una primera oferta. Las negociaciones abiertas y las atenciones ya acordadas siguen hasta terminar. |
+| RF-14.5 | Sin suscripción vigente, el profesional no aparece en búsquedas, no recibe solicitudes en su bandeja ni sus avisos, no se le agenda una cita y no emite una primera oferta. Las negociaciones abiertas y las atenciones ya acordadas siguen hasta terminar: su bandeja conserva las solicitudes en las que ya ofertó. La primera oferta rechazada dice el motivo; el paciente nunca se entera de la suscripción del profesional (HU-38). |
 | RF-14.6 | La exigencia de suscripción se activa con un ajuste de la plataforma. Desactivada, todo profesional aprobado y activo cuenta como vigente. |
 | RF-14.7 | Un período pagado existe solo cuando el servidor verificó la compra con Google Play. Ningún cliente crea, extiende ni acorta un período. |
 

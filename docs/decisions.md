@@ -6761,6 +6761,55 @@ administrador sin revisar nada, de modo que podía reescribir cualquier pago.
 filtran por estado: `BOTH_CONFIRMED`, `PROFESSIONAL_CONFIRMED` y `RESOLVED_PAID` son pagos cobrados.
 `request_push_body` sigue reescribiéndose entera, ahora con diecisiete eventos.
 
+## 2026-11-24 · HU-38: la vigencia la decide el motor donde empieza algo nuevo, y lo ya iniciado sigue
+
+**Contexto.** RF-14.5 pide que el profesional sin suscripción vigente no aparezca en búsquedas, no reciba solicitudes
+ni sus avisos, no se le agende una cita y no haga una primera oferta, mientras sus negociaciones abiertas y atenciones
+acordadas siguen. La propuesta de `plan.md` era sumar la vigencia a las reglas que ya filtran al profesional. Al
+planificar se vio que esas reglas están también en el camino de lo ya iniciado: la política de inserción de ofertas
+llama a `professional_may_offer_on` en **toda** oferta del profesional, contraofertas incluidas, y
+`professional_directory` lo leen la ficha, los nombres en las ofertas del paciente, los avisos y las calificaciones.
+
+**Decisión.** Las tomó el autor el 2026-11-24:
+
+- **La bandeja del profesional vencido conserva las solicitudes en las que ya ofertó.** Solo se ocultan las nuevas.
+- **La ficha sigue visible.** «Agendar cita» muestra el aviso que ya existe de «sin horarios», y crear la cita se
+  rechaza como `professional_unavailable`: el paciente no se entera de la suscripción del profesional.
+- **El interruptor se enciende y se apaga por SQL**, para el recorrido y la demostración, y cada cambio se anota en
+  `plan.md`. El vencimiento se muestra corriendo por SQL el fin de la prueba, y después se restaura.
+- **Con el interruptor apagado el profesional no ve nada de la suscripción.**
+- **«Mi suscripción» es una pantalla propia**, que se abre desde una fila del Inicio y otra de Configuración; HU-39
+  le agregará la compra.
+- **La primera oferta se rechaza con su motivo, y la bandeja del vencido lo avisa arriba.**
+- **La fila del Inicio es neutra mientras vale y toma el tono de pendiente al vencer.** Sin aviso previo (FA-20).
+
+**Razonamiento.**
+
+- **Una regla propia, consultada solo donde empieza algo nuevo.** `professional_has_valid_subscription` la leen la
+  búsqueda, la bandeja, los destinatarios del aviso, los horarios reservables y la creación de la cita. Ponerla en el
+  directorio o en `professional_covers_for` habría cortado las contraofertas de un hilo abierto y vaciado los nombres
+  del profesional en las ofertas que el paciente todavía puede aceptar.
+- **La primera oferta, por un disparador y no por la política.** Una política rechaza con el error genérico de
+  seguridad por fila; el disparador `before insert`, que corre antes que el `with check`, nombra `subscription_expired`
+  y la aplicación puede decir por qué. Solo mira las filas del profesional sin `parent_offer_id`.
+- **Nadie consulta la vigencia ajena.** La función se revoca a los clientes; el profesional lee la suya con
+  `my_subscription`, un definidor fijado a `auth.uid()`.
+- **Los períodos, solo el motor (INV-18).** `subscription_periods` tiene una única política, de lectura propia, y se
+  revocan las escrituras a los clientes. La prueba la crea un disparador en la transición a `APPROVED`, una por
+  profesional por un índice único parcial: una segunda aprobación, después de que un documento lo devolvió a
+  `PENDING`, no la renueva. Los ya aprobados la reciben contada desde la migración.
+- **`subscription_source` nace con `TRIAL` solo.** `PLAY_BILLING` entra en el Sprint 11 con su compra; agregar un
+  valor después no obliga a rehacer el tipo, porque ninguna transacción lo usará en la misma migración.
+- **El interruptor como dato, no como migración.** Encenderlo para una demostración y apagarlo después no es un cambio
+  de esquema, y una migración por cada cambio dejaría que `db reset` reprodujera el último que quedó.
+- **Apagado, nada que mostrar.** Una fecha de fin que no cambia nada le diría al profesional algo falso; la prueba
+  igual se crea al aprobarse (RF-14.2).
+
+**Consecuencia.** El Sprint 10 corre con el interruptor apagado. Los profesionales que se aprueben durante el piloto
+tendrán la prueba vencida cuando se encienda el cobro: HU-39 decide si les da una nueva al activarlo. Una solicitud
+agendada a un profesional que vence antes de responder no recibe oferta y expira a la hora de la cita, como cualquier
+cita sin acuerdo.
+
 ## Plantilla para entradas nuevas
 
 ```

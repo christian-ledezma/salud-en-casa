@@ -915,49 +915,131 @@ el cobro no hubo envío. Las dos atenciones quedan como evidencia.
 `DisputeReviewScreen.kt`, en claro, oscuro y 200 % a 320 dp. El autor las miró el 2026-11-24, sin observaciones (punto
 9 de la Definición de Terminado).
 
-### HU-38 · Saber hasta cuándo aparezco ante los pacientes `[ ]` — 8 puntos
+### HU-38 · Saber hasta cuándo aparezco ante los pacientes `[x]` — 2026-11-25 — 8 puntos
 
 > Como **profesional**, quiero **saber hasta cuándo está vigente mi suscripción y qué
 > pierdo sin ella**, para **no dejar de recibir solicitudes sin enterarme**.
 
 **Criterios de aceptación**
 
-- [ ] Dado que se aprueba mi verificación, cuando consulto mi suscripción, entonces
+- [x] Dado que se aprueba mi verificación, cuando consulto mi suscripción, entonces
       tengo 30 días de prueba con su fecha de fin.
-- [ ] Dado que mi suscripción está vigente, cuando abro mi Inicio, entonces veo hasta
+- [x] Dado que mi suscripción está vigente, cuando abro mi Inicio, entonces veo hasta
       cuándo.
-- [ ] Dado que el cobro está activado y mi suscripción venció, cuando un paciente
+- [x] Dado que el cobro está activado y mi suscripción venció, cuando un paciente
       busca o publica una solicitud en mi radio, entonces no aparezco, no la recibo en
       mi bandeja y no me llega su aviso.
-- [ ] Dado que mi suscripción venció, cuando intento una primera oferta, entonces se
+- [x] Dado que mi suscripción venció, cuando intento una primera oferta, entonces se
       rechaza y la aplicación me dice por qué.
-- [ ] Dado que mi suscripción venció con una negociación abierta o una atención
+- [x] Dado que mi suscripción venció con una negociación abierta o una atención
       acordada, cuando sigo, entonces puedo contraofertar en ese hilo y avanzar la
       atención.
-- [ ] Dado que el cobro está desactivado, cuando un profesional aprobado y activo
+- [x] Dado que el cobro está desactivado, cuando un profesional aprobado y activo
       opera, entonces todo funciona como antes de esta historia.
-- [ ] Dado que soy paciente, también con los dos roles, cuando pido atención,
+- [x] Dado que soy paciente, también con los dos roles, cuando pido atención,
       entonces nada me pide una suscripción.
 
 **Requisitos:** RF-14.1, RF-14.2, RF-14.3, RF-14.5, RF-14.6, RN-01, INV-07, INV-18.
 
-**Tareas técnicas.** Propuesta, a confirmar al planificar la historia:
+**Decisiones del autor, 2026-11-24** (`docs/decisions.md`, «HU-38: la vigencia la decide el motor donde empieza algo
+nuevo»):
+- **Lo ya iniciado.** La bandeja del profesional vencido conserva las solicitudes en las que ya ofertó; solo se ocultan
+  las nuevas.
+- **La ficha.** Sigue visible; «Agendar cita» muestra el aviso de «sin horarios» que ya existía, y crear la cita se
+  rechaza como `professional_unavailable`. El paciente no se entera de la suscripción del profesional.
+- **El interruptor y el vencimiento, por SQL.** Se encienden y se restauran a mano para el recorrido y la demostración,
+  y cada cambio se anota aquí.
+- **Con el interruptor apagado, nada se muestra.**
+- **«Mi suscripción».** Una pantalla propia, desde una fila del Inicio y otra de Configuración; HU-39 le agrega la
+  compra.
+- **La primera oferta.** Se rechaza con su motivo, y la bandeja del vencido lo avisa arriba.
+- **La fila del Inicio.** Neutra mientras vale; con el tono de pendiente al vencer. Sin aviso previo (FA-20).
 
-- `platform_settings.subscription_required`, booleano apagado por omisión, y
-  `trial_days`, 30. Se cambian por migración, como el resto de `platform_settings`.
-- Tabla `subscription_periods`, de solo agregar y con su política en la misma
-  migración: profesional, origen (`TRIAL` ahora, `PLAY_BILLING` en el Sprint 11),
-  inicio y fin. Solo el motor escribe; el profesional lee los suyos.
-- Un definidor, `professional_has_valid_subscription`, que leen
-  `search_nearby_professionals`, `request_inbox`, `immediate_request_recipients`,
-  `professional_may_offer_on` (solo para la primera oferta), `create_scheduled_request`
-  y la acción «Agendar cita» de la ficha.
-- Un disparador que crea la prueba en la transición a `APPROVED`, y la prueba de los
-  profesionales ya aprobados, contada desde la fecha de la migración.
-- El estado de la suscripción en Ajustes y su fila en el Inicio del profesional, con
-  prototipo aprobado antes de programar.
-- El interruptor se enciende solo para el experimento y la demostración. El Sprint 10
-  corre con él apagado.
+Prototipo aprobado: [Suscripción del profesional HU-38](https://claude.ai/artifact/QBPccCjWxWJTLnmL251S6v). Dos
+diferencias con él, por consistencia con lo que ya existía: la fila vencida usa el tono de pendiente de
+«Verificación pendiente» (el ícono ámbar sobre gris, no el fondo ámbar entero), y la fila de Configuración lleva el
+estado con su fecha en el detalle y no en una píldora, porque al 200 % la píldora partía «Suscripción» a la mitad.
+
+**Hallazgo de la planificación.** La propuesta era sumar la vigencia a las reglas que ya filtran al profesional, pero
+`request_offers_insert_participants` llama a `professional_may_offer_on` en toda oferta del profesional, contraofertas
+incluidas, y `professional_directory` sostiene la ficha, los nombres en las ofertas del paciente, los avisos y las
+calificaciones. Ponerla ahí habría cortado las negociaciones abiertas (criterio 5). La vigencia va en
+`professional_has_valid_subscription`, que solo consultan los puntos donde empieza algo nuevo.
+
+**Experimentos SQL, 2026-11-24.** Contra el remoto, antes del `db push`, en una sola transacción que aplica
+`20261125021500_hu38_professional_subscription.sql` completa y termina en `rollback`. Paciente `299073bc…`, profesional
+`fcab94c0…` (con los dos roles), administrador `08ddb28f…` y un profesional `PENDING` con tipo y tarifa, `7f435cb7…`.
+Dentro, el paciente publica dos inmediatas de Aplicación de inyectables desde su dirección principal: en la primera el
+profesional oferta Bs 60 y el paciente contraoferta Bs 50; la segunda queda nueva. El vencimiento se simula corriendo
+el fin de la prueba a la hora de la transacción. Después se confirmó que el remoto quedó intacto: sin
+`subscription_periods`, una sola solicitud abierta, la atención de Bs 100 asignada y el profesional `7f435cb7…`
+pendiente.
+
+| # | Experimento | Resultado |
+|---|---|---|
+| 0 | La migración sobre los datos reales | Una prueba de 30 días para el único profesional aprobado; 1 período en total |
+| A | Interruptor encendido, prueba vigente | La búsqueda lo encuentra; 66 horarios reservables; es destinatario del aviso de la nueva; su bandeja tiene las dos; `my_subscription` dice `TRIAL`; la primera oferta y la contraoferta del paciente se insertan |
+| B1 | `aProfessionalWithoutAValidSubscriptionIsHiddenFromSearchAndInbox`, búsqueda | 0 filas |
+| B2 | La misma, horarios y cita | 0 horarios; crear la cita en un horario que valía: `professional_unavailable` |
+| B3 | La misma, aviso | No es destinatario de la nueva |
+| B4 | La misma, bandeja | Solo la solicitud donde ya ofertó; la nueva no |
+| B5 | El directorio | Sigue en `professional_directory`: la ficha y los nombres no cambian |
+| B6 | `aProfessionalWithoutAValidSubscriptionCannotMakeAFirstOffer` | Rechazado: `subscription_expired`. La nueva todavía se abre por su identificador, donde se ve el motivo |
+| B7 | `anOpenNegotiationAndAnAgreedAttentionSurviveAnExpiredSubscription`, contraoferta | La contraoferta de Bs 55 al hilo abierto se inserta |
+| B8 | La misma, atención acordada | La atención asignada de Bs 100 pasa a en curso: 1 fila |
+| B9 | `my_subscription` vencida | `EXPIRED` |
+| F | `aPatientNeverNeedsASubscription`, con los dos roles | El mismo profesional vencido publica una inmediata como paciente |
+| D1 | `noClientCanCreateExtendOrShortenASubscriptionPeriod`, insertar | Rechazado: `permission denied for table subscription_periods` |
+| D2 | La misma, extender y borrar el propio | Rechazado las dos veces: `permission denied` |
+| D3 | Preguntar la vigencia de otro | Rechazado: `permission denied for function professional_has_valid_subscription` |
+| D4 | Lectura de los períodos | El profesional lee 1, el suyo; el paciente 0; el período sigue terminando cuando se lo dejó |
+| C | `withTheSwitchOffEveryApprovedActiveProfessionalIsValid`, con el mismo profesional vencido | La búsqueda lo encuentra; 66 horarios; es destinatario; su bandeja tiene las dos; la primera oferta se inserta; `my_subscription` dice `false / EXPIRED` |
+| E | `approvingAVerificationGrantsExactlyOneThirtyDayTrial` | La aprobación crea 1 prueba de 30 días; volver a `PENDING` y aprobar de nuevo deja 1 |
+| G | `everyTableHasRowLevelSecurityEnabledAndAtLeastOnePolicy` | Ninguna tabla sin seguridad por fila o sin política |
+
+**Verificación de código, 2026-11-24.** `./gradlew build` en verde: 1258 pruebas, 0 fallas, 0 omitidas (25 nuevas). Una
+prueba nueva falló la primera vez por la aserción y no por la pantalla: el motivo de la primera oferta rechazada está
+en la barra fija del pie, que no se desplaza, y la aserción correcta es la de lo que cabe sin desplazar.
+
+**Aplicada, 2026-11-24.** `db push` de `20261125021500_hu38_professional_subscription.sql`; `send-push` no cambia.
+Consulta de solo lectura después: `subscription_required` en falso, `trial_days` en 30, y un período `TRIAL` para
+`chris.ledezma.s` del 24/11 22:56:44 al 24/12 22:56:44, hora de La Paz.
+
+**Recorrido en emuladores, 2026-11-25.** Profesional `chris.ledezma.s` y paciente `ledezma.aramayo.73`. Con el
+interruptor apagado, el Inicio y Configuración del profesional no mostraron nada de la suscripción y la paciente lo
+encontró al agendar. Encendido por SQL, el Inicio mostró «Visible para pacientes» con el fin de la prueba, y «Mi
+suscripción» y Configuración lo mismo. La paciente pidió Aplicación de inyectables, el profesional ofertó Bs 60 y ella
+contraofertó Bs 50; después le agendó una cita. Con la prueba vencida por SQL a las 00:39:10, el Inicio pasó a «Tu
+suscripción venció», «Mi suscripción» a «Vencida» y la bandeja mostró el aviso y solo la inmediata en negociación, sin
+la cita. El profesional contraofertó Bs 55 en ese hilo, la paciente aceptó, y él marcó la llegada y la completó. La
+paciente ya no lo encontró al agendar, publicó otra inmediata sin que a él le llegara nada y la canceló, y canceló la
+cita. El profesional, como paciente, publicó una inmediata sin que nada le pidiera suscripción, y la canceló.
+
+El criterio 4 se recorrió aparte: el autor había descartado el aviso de la cita y ya no había cómo abrir una solicitud
+nueva. Con la prueba de vuelta vigente, la paciente publicó otra inmediata; el profesional abrió su formulario y lo dejó
+abierto; se venció la prueba (00:55:09 y otra vez a las 00:57:52) y al tocar «Enviar oferta» apareció «Tu suscripción
+venció: no puedes hacer ofertas nuevas. Las negociaciones que ya abriste siguen.» Es el caso de la suscripción que vence
+con la pantalla abierta. Después se restauraron el período y el interruptor. El autor lo recorrió sin observaciones.
+
+Después, en la base, a la hora de La Paz del 25/11:
+
+| Solicitud | Quién la pidió | Estado | Ofertas |
+|---|---|---|---|
+| Aplicación de inyectables, 00:36:51 | Paciente | Completada: atención de Bs 55,00, llegada 00:46:07, fin 00:46:14, pago pendiente | Bs 60 del profesional, Bs 50 de la paciente, Bs 55 del profesional (00:45:01, vencido) aceptada |
+| Cita de Aplicación de inyectables para el 30/11 11:00, 00:38:51 | Paciente | Cancelada | Ninguna |
+| Aplicación de inyectables, 00:47:22 | Paciente | Cancelada | Ninguna |
+| Aplicación de inyectables, 00:50:14 | El profesional, como paciente | Cancelada | Ninguna |
+| Aplicación de inyectables, 00:54:49 | Paciente | Cancelada | Ninguna: la oferta enviada con la prueba vencida no se insertó |
+
+`net._http_response` registra diez envíos, todos 200. Coinciden con la solicitud de las 00:36:51, las ofertas de Bs 60 y
+Bs 50, la cita, la contraoferta de Bs 55, la aceptación, la llegada, el fin, una cancelación a las
+00:48:41 y la solicitud de las 00:54:49, que se publicó con la prueba vigente. **Ninguno a las 00:47:22**: la
+inmediata publicada con la prueba vencida no avisó a nadie. Estado final: interruptor apagado y período del 24/11
+22:56:44 al 24/12 22:56:44, como lo dejó la migración.
+
+**Previsualizaciones.** Quince nuevas y tres cambiadas: 8 en `SubscriptionScreen.kt`; 4 nuevas del Inicio en
+`HomeShell.kt`, cuyas tres de Configuración ahora muestran la fila; y 3 en `InboxScreen.kt`. El autor las miró el
+2026-11-25, sin observaciones (punto 9 de la Definición de Terminado).
 
 ## Incremento del sprint
 

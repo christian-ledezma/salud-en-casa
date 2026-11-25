@@ -23,6 +23,7 @@ erDiagram
 
     professionals ||--o{ professional_services : "declara"
     professionals ||--o{ availability_slots : "publica"
+    professionals ||--o{ subscription_periods : "aparece mientras vale"
     service_types ||--o{ professional_services : "clasifica"
 
     patients ||--o{ service_requests : "crea"
@@ -205,9 +206,17 @@ erDiagram
         device_platform platform
         timestamptz last_used_at
     }
+
+    subscription_periods {
+        uuid id PK
+        uuid professional_id FK
+        subscription_source source "TRIAL; una prueba por profesional"
+        timestamptz starts_at
+        timestamptz ends_at "solo el motor escribe"
+    }
 ```
 
-## Las dieciséis tablas
+## Las diecisiete tablas
 
 | Tabla | Qué guarda | Migración |
 |---|---|---|
@@ -227,6 +236,11 @@ erDiagram
 | `payments` | Registro económico y confirmación de ambas partes | `delivery` |
 | `reviews` | Calificaciones cruzadas sobre una atención completada | `delivery` |
 | `device_tokens` | Destinos de notificación por persona | `support` |
+| `subscription_periods` | Los períodos en que el profesional aparece ante los pacientes: hoy la prueba de 30 días. Solo el motor escribe | `hu38_professional_subscription` |
+
+`platform_settings`, la fila única de lo configurable, no figura en el diagrama: no
+se relaciona con ninguna tabla. Desde HU-38 guarda `subscription_required`, el
+interruptor de la exigencia, y `trial_days`.
 
 ## Dónde se hace cumplir cada invariante
 
@@ -241,17 +255,18 @@ un invariante dejó de cumplirse.
 | INV-04 · `services.final_amount_bob` congelado | Disparador `services_guard_frozen` |
 | INV-05 · No se corrige el histórico | Sin política de borrado en `services`, `payments`, `request_offers` ni `reviews`; disparadores `services_guard_transition` y `payments_guard_frozen` |
 | INV-06 · Ofertas de solo agregar | Disparador `request_offers_guard_append_only` y ausencia de política de borrado |
-| INV-07 · Solo profesionales aprobados y activos | Vista `professional_directory`, filtro de `search_nearby_professionals` y restricción `professionals_approved_profile_is_complete`, que impide aprobar un profesional sin tipo ni tarifa |
+| INV-07 · Solo profesionales aprobados, activos y vigentes | Vista `professional_directory`, filtro de `search_nearby_professionals` y restricción `professionals_approved_profile_is_complete`, que impide aprobar un profesional sin tipo ni tarifa. La vigencia, `professional_has_valid_subscription`, la consultan la búsqueda, `request_inbox`, `immediate_request_recipients`, `bookable_start_times`, `create_scheduled_request` y el disparador `request_offers_guard_first_offer_subscription`; nunca el directorio ni la cobertura, que también sostienen lo ya iniciado (HU-38) |
 | INV-08 · Cercanía con PostGIS | `search_nearby_professionals` con `st_dwithin` sobre el índice GIST `idx_addresses_location` |
 | INV-09 · Pago confirmado solo por ambas partes | Restricciones `confirmations_match_status` y `a_declared_payment_names_its_method`; disparador `payments_guard_confirmation`, que deja a cada parte solo su paso: declara primero quien sea; si es el paciente, el profesional responde una vez que cobró o que no; si es el profesional, el paciente solo acepta; y el administrador solo resuelve una disputa, una vez. `payments_stamp_confirmation` sella cada hora y quién resolvió (HU-25, HU-26, HU-28) |
 | INV-10 · El pago es el monto acordado, íntegro del profesional | Disparador `payments_guard_total_matches_service` al insertar, y `payments_guard_frozen` al actualizar. La plataforma no retiene comisión (`docs/decisions.md`, 2026-11-22) |
 | INV-11 · Calificación única, de 1 a 5, autor distinto del destinatario | Restricciones `unique (service_id, author_id)`, `rating between 1 and 5` y `author_is_not_recipient` |
 | INV-12 · El administrador no accede a `messages` | Ninguna política de `messages` invoca `is_admin()`, en esta ni en ninguna migración posterior |
-| INV-13 · Nadie lee filas ajenas | Políticas por `auth.uid()` en las dieciséis tablas |
+| INV-13 · Nadie lee filas ajenas | Políticas por `auth.uid()` en las diecisiete tablas |
 | INV-14 · La clave de servicio no sale del servidor | Fuera del esquema: `local.properties` y secretos del repositorio |
 | INV-15 · El rol activo es uno de los que la persona tiene | Clave foránea compuesta `profiles_active_role_is_held`, de `(id, active_role)` a la clave primaria de `profile_roles`. Ninguna política lee el rol activo: la seguridad decide por posesión |
 | INV-16 · Nadie es paciente y profesional de la misma atención | `patient_id <> auth.uid()` en `service_requests_select_inbox` y en la rama profesional de `request_offers_insert_participants`; `pro.id <> auth.uid()` en `search_nearby_professionals`; restricción `parties_are_different` en `services` |
 | INV-17 · La reputación es por rol | `patients.average_rating` y `professionals.average_rating` por separado, calculadas por `recalculate_reputation()` derivando el lado desde `services`; `reviews_select_visible` solo hace pública la recibida como profesional |
+| INV-18 · Un período de suscripción lo crea solo el motor | `subscription_periods` sin política de escritura y sin privilegio de escritura para los clientes; la prueba la crea `professionals_grant_trial_on_approval` en la transición a `APPROVED`, una sola por el índice único parcial `idx_subscription_periods_one_trial` (HU-38) |
 
 ## Tipos enumerados
 
@@ -262,6 +277,9 @@ constantes de Kotlin.
 `user_role` · `review_status` · `professional_type` · `document_type` ·
 `request_modality` · `request_status` · `offer_issuer` · `offer_status` ·
 `service_status` · `payment_method` · `payment_status` · `device_platform`
+
+`subscription_source` se agregó después, en `hu38_professional_subscription`, con
+`TRIAL` como único valor; `PLAY_BILLING` llega con la compra del Sprint 11.
 
 ## Vistas y funciones
 
@@ -279,6 +297,8 @@ constantes de Kotlin.
 | `unmark_previous_primary_address` | Desmarca la anterior cuando otra pasa a ser principal, en vez de fallar contra el índice único |
 | `unmark_previous_professional_base` | Lo mismo para la base profesional, que es la dirección desde la que se centra el radio de cobertura. No hay disparador equivalente a `first_address_is_primary`: declarar desde dónde se trabaja es una afirmación que solo el profesional puede hacer |
 | `is_admin`, `shares_service_with`, `professional_covers` | Auxiliares que usan las políticas |
+| `professional_has_valid_subscription` | Si un profesional es vigente: con el interruptor apagado, siempre; encendido, si un período cubre el instante. Solo la ejecutan otras funciones del motor, para que nadie consulte la vigencia ajena |
+| `my_subscription` | El interruptor y el último período del propio profesional, con su estado (`TRIAL` o `EXPIRED`), en una fila |
 | `offer_continues_thread`, `was_the_professional_of` | Auxiliares `security definer` que contestan un booleano a una política. Existen porque una subconsulta dentro de una política obedece a las políticas de la tabla que consulta: la primera recursaba sobre `request_offers`, la segunda no veía `services` desde un tercero. Ver `docs/decisions.md`, 2026-10-02 |
 
 `search_nearby_professionals`, `handle_new_user`, `recalculate_reputation`,
