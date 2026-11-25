@@ -15,6 +15,8 @@ internal fun Throwable.toOfferError(): OfferError {
         // The screen already checked the floor; the engine says so only when the
         // thread on screen was older than the one it read.
         if (body.contains(BELOW_FLOOR)) return OfferError.BelowMinimum(null)
+        // guard_first_offer_needs_a_subscription runs before the insert policy.
+        if (body.contains(SUBSCRIPTION_EXPIRED)) return OfferError.SubscriptionExpired
         if (REFUSAL_LABELS.any(body::contains)) {
             return OfferError.NotAllowed
         }
@@ -27,6 +29,7 @@ internal fun Throwable.toOfferError(): OfferError {
 }
 
 private const val BELOW_FLOOR = "counter_offer_below_your_last_offer"
+private const val SUBSCRIPTION_EXPIRED = "subscription_expired"
 
 private val REFUSAL_LABELS =
     listOf(

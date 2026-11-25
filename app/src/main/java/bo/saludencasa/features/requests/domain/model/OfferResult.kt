@@ -19,6 +19,10 @@ sealed interface OfferError {
 
     data object NotAllowed : OfferError
 
+    // A first offer without a valid subscription. The engine names this one,
+    // so the professional learns why and that open threads go on (HU-38).
+    data object SubscriptionExpired : OfferError
+
     data object NetworkUnavailable : OfferError
 
     data object Unexpected : OfferError

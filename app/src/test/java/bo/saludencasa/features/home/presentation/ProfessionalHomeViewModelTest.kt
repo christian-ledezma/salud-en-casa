@@ -22,11 +22,18 @@ import bo.saludencasa.features.services.domain.model.ActiveAttentionResult
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.ServiceError
 import bo.saludencasa.features.services.domain.usecase.GetActiveAttentionUseCase
+import bo.saludencasa.features.subscription.FakeSubscriptionRepository
+import bo.saludencasa.features.subscription.domain.model.SubscriptionError
+import bo.saludencasa.features.subscription.domain.model.SubscriptionStatus
+import bo.saludencasa.features.subscription.domain.usecase.GetMySubscriptionUseCase
+import bo.saludencasa.features.subscription.required
+import bo.saludencasa.features.subscription.subscription
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 
@@ -38,6 +45,7 @@ class ProfessionalHomeViewModelTest {
         FakeProfileRepository(profileResult = ProfileResult.Success(professionalProfile()))
     private val requests = FakeRequestRepository()
     private val services = FakeServiceRepository()
+    private val subscriptions = FakeSubscriptionRepository()
 
     private fun viewModel(): ProfessionalHomeViewModel =
         ProfessionalHomeViewModel(
@@ -46,6 +54,7 @@ class ProfessionalHomeViewModelTest {
             GetInboxUseCase(requests),
             ObserveInboxSignalsUseCase(requests),
             GetActiveAttentionUseCase(services),
+            GetMySubscriptionUseCase(subscriptions),
         )
 
     private fun ProfessionalHomeViewModel.content(): ProfessionalHomeUiState.Content =
@@ -147,5 +156,45 @@ class ProfessionalHomeViewModelTest {
             advanceUntilIdle()
 
             assertEquals("r2", viewModel.content().activeAttention?.requestId)
+        }
+
+    // HU-38, criterion 2: a valid subscription says on Inicio until when.
+    @Test
+    fun aRequiredSubscriptionReachesInicio() =
+        runTest {
+            subscriptions.state = required(subscription(SubscriptionStatus.TRIAL))
+            val viewModel = viewModel()
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertEquals(subscription(SubscriptionStatus.TRIAL), viewModel.content().subscription)
+        }
+
+    // The pilot runs with the requirement off: no row at all.
+    @Test
+    fun withTheRequirementOffInicioShowsNoSubscription() =
+        runTest {
+            val viewModel = viewModel()
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertNull(viewModel.content().subscription)
+        }
+
+    // An expired subscription is the one row that must not vanish on a dropped
+    // read: the professional would believe they are visible again.
+    @Test
+    fun aFailedReadKeepsAnExpiredSubscriptionOnInicio() =
+        runTest {
+            subscriptions.state = required(subscription(SubscriptionStatus.EXPIRED))
+            val viewModel = viewModel()
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            subscriptions.error = SubscriptionError.NetworkUnavailable
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertEquals(SubscriptionStatus.EXPIRED, viewModel.content().subscription?.status)
         }
 }

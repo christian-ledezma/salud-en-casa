@@ -10,11 +10,18 @@ import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.usecase.GetInboxUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveInboxSignalsUseCase
 import bo.saludencasa.features.requests.inboxRequest
+import bo.saludencasa.features.subscription.FakeSubscriptionRepository
+import bo.saludencasa.features.subscription.domain.model.SubscriptionError
+import bo.saludencasa.features.subscription.domain.model.SubscriptionStatus
+import bo.saludencasa.features.subscription.domain.usecase.GetMySubscriptionUseCase
+import bo.saludencasa.features.subscription.required
+import bo.saludencasa.features.subscription.subscription
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -24,11 +31,13 @@ class InboxViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeRequestRepository()
+    private val subscriptions = FakeSubscriptionRepository()
 
     private fun viewModel(): InboxViewModel =
         InboxViewModel(
             GetInboxUseCase(repository),
             ObserveInboxSignalsUseCase(repository),
+            GetMySubscriptionUseCase(subscriptions),
         )
 
     @Test
@@ -170,5 +179,43 @@ class InboxViewModelTest {
             val content = viewModel.uiState.value as InboxUiState.Content
             assertEquals(GetInboxUseCase.PAGE_SIZE + 1, content.requests.size)
             assertTrue(content.endReached)
+        }
+
+    // HU-38: an expired professional's inbox says why nothing new arrives.
+    @Test
+    fun anExpiredSubscriptionRaisesTheNotice() =
+        runTest {
+            subscriptions.state = required(subscription(SubscriptionStatus.EXPIRED))
+
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.subscriptionExpired.value)
+        }
+
+    @Test
+    fun aValidSubscriptionRaisesNoNotice() =
+        runTest {
+            subscriptions.state = required(subscription(SubscriptionStatus.TRIAL))
+
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            assertFalse(viewModel.subscriptionExpired.value)
+        }
+
+    // The notice is read again on resume; a dropped read must not take it away.
+    @Test
+    fun aFailedReadKeepsTheNotice() =
+        runTest {
+            subscriptions.state = required(subscription(SubscriptionStatus.EXPIRED))
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            subscriptions.error = SubscriptionError.NetworkUnavailable
+            viewModel.refresh()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.subscriptionExpired.value)
         }
 }

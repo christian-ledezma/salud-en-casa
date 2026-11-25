@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.core.util.formatBob
+import bo.saludencasa.core.util.formatDate
 import bo.saludencasa.features.profile.domain.model.ProfileError
 import bo.saludencasa.features.profile.presentation.messageRes
 import bo.saludencasa.features.requests.domain.model.InboxRequest
@@ -57,6 +58,7 @@ import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.presentation.cardDateText
 import bo.saludencasa.features.services.presentation.labelRes
 import bo.saludencasa.features.services.presentation.tone
+import bo.saludencasa.features.subscription.domain.model.Subscription
 import bo.saludencasa.ui.animations.FloatingCircles
 import bo.saludencasa.ui.animations.RadarPulse
 import bo.saludencasa.ui.animations.StaggeredEntrance
@@ -183,6 +185,7 @@ internal fun ProfessionalHome(
     onOpenAttention: (String) -> Unit,
     onSeeAllRequests: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSubscription: () -> Unit = {},
 ) {
     HomeColumn(modifier = modifier) {
         StaggeredEntrance(index = 0, modifier = Modifier.fillMaxWidth()) { greeting() }
@@ -216,6 +219,13 @@ internal fun ProfessionalHome(
                         }
                     }
                 }
+                uiState.subscription?.let { subscription ->
+                    StaggeredEntrance(index = 2, modifier = Modifier.fillMaxWidth()) {
+                        HomeRowGroup {
+                            SubscriptionRow(subscription = subscription, onClick = onOpenSubscription)
+                        }
+                    }
+                }
                 uiState.activeAttention?.let { attention ->
                     ActiveAttentionBlock(attention = attention, firstIndex = 3, onOpen = onOpenAttention)
                 }
@@ -233,6 +243,34 @@ internal fun ProfessionalHome(
             }
         }
     }
+}
+
+// HU-38: neutral while valid, in the pending tone once expired.
+@Composable
+private fun SubscriptionRow(
+    subscription: Subscription,
+    onClick: () -> Unit,
+) {
+    val end = formatDate(subscription.endsAt, LocalConfiguration.current.locales[0])
+    val valid = subscription.isValid
+    HomeRow(
+        title =
+            stringResource(
+                if (valid) R.string.home_subscription_valid_title else R.string.home_subscription_expired_title,
+            ),
+        details =
+            if (valid) {
+                listOf(stringResource(R.string.home_subscription_trial_until, end))
+            } else {
+                listOf(
+                    stringResource(R.string.home_subscription_expired_body),
+                    stringResource(R.string.home_subscription_expired_on, end),
+                )
+            },
+        icon = painterResource(R.drawable.ic_visibility),
+        tone = if (valid) RowTone.NEUTRAL else RowTone.PENDING,
+        onClick = onClick,
+    )
 }
 
 // docs/decisions.md, 2026-11-04, HT-27, the way to the active attention.

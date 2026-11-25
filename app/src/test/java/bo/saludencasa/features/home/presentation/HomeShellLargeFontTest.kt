@@ -3,12 +3,14 @@ package bo.saludencasa.features.home.presentation
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
+import bo.saludencasa.core.util.formatDate
 import bo.saludencasa.core.vo.Email
 import bo.saludencasa.core.vo.PersonName
 import bo.saludencasa.features.auth.domain.model.AuthError
@@ -22,6 +24,9 @@ import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.services.attentionSummary
 import bo.saludencasa.features.services.domain.model.ServiceStatus
+import bo.saludencasa.features.subscription.domain.model.Subscription
+import bo.saludencasa.features.subscription.domain.model.SubscriptionStatus
+import bo.saludencasa.features.subscription.subscription
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
 import bo.saludencasa.ui.setContentAtDoubleFontScale
@@ -34,6 +39,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.math.BigDecimal
 import java.time.Instant
+import java.util.Locale
 
 @RunWith(AndroidJUnit4::class)
 class HomeShellLargeFontTest {
@@ -233,6 +239,74 @@ class HomeShellLargeFontTest {
         }
     }
 
+    // HU-38, criterion 2: Inicio says until when the professional is visible.
+    @Test
+    fun aValidSubscriptionSaysOnInicioUntilWhen() {
+        val trial = subscription(SubscriptionStatus.TRIAL)
+        show(
+            bothRoles,
+            UserRole.PROFESSIONAL,
+            professionalHome = professionalContent(verified = true, subscription = trial),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_subscription_valid_title)))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(R.string.home_subscription_trial_until, formatDate(trial.endsAt, Locale.getDefault())),
+            ),
+        )
+    }
+
+    // Expired, the row says what is lost and when, and it opens the subscription.
+    @Test
+    fun anExpiredSubscriptionSaysWhatIsLostAndOpensTheSubscription() {
+        var opened = 0
+        show(
+            bothRoles,
+            UserRole.PROFESSIONAL,
+            professionalHome =
+                professionalContent(verified = true, subscription = subscription(SubscriptionStatus.EXPIRED)),
+            navigation = HomeNavigation(onOpenSubscription = { opened++ }),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_subscription_expired_body)))
+        composeRule.onNodeWithText(string(R.string.home_subscription_expired_title)).performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun theSettingsOfAProfessionalWithASubscriptionReachIt() {
+        show(
+            bothRoles,
+            UserRole.PROFESSIONAL,
+            tab = HomeTab.SETTINGS,
+            professionalHome =
+                professionalContent(verified = true, subscription = subscription(SubscriptionStatus.EXPIRED)),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_settings_subscription)))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(
+                string(
+                    R.string.home_settings_subscription_expired,
+                    formatDate(subscription().endsAt, Locale.getDefault()),
+                ),
+            ),
+        )
+    }
+
+    // Criterion 6: with the requirement off there is no subscription row.
+    @Test
+    fun withoutASubscriptionTheSettingsHaveNoSubscriptionRow() {
+        show(bothRoles, UserRole.PROFESSIONAL, tab = HomeTab.SETTINGS)
+
+        assertEquals(
+            0,
+            composeRule.onAllNodesWithText(string(R.string.home_settings_subscription)).fetchSemanticsNodes().size,
+        )
+    }
+
     @Test
     fun theAccountTabOffersToActivateTheMissingRole() {
         show(setOf(UserRole.PATIENT), UserRole.PATIENT, tab = HomeTab.ACCOUNT)
@@ -285,13 +359,17 @@ class HomeShellLargeFontTest {
             roleSection = RoleSection(roles = ProfileRoles.create(held, active).getOrThrow()),
         )
 
-    private fun professionalContent(verified: Boolean): ProfessionalHomeUiState =
+    private fun professionalContent(
+        verified: Boolean,
+        subscription: Subscription? = null,
+    ): ProfessionalHomeUiState =
         ProfessionalHomeUiState.Content(
             availableNow = true,
             availabilityError = null,
             verified = verified,
             activeAttention = null,
             nearby = NearbyRequests.Some(listOf(nearby("n1"), nearby("n2"))),
+            subscription = subscription,
         )
 
     private fun nearby(id: String): InboxRequest =

@@ -15,6 +15,9 @@ import bo.saludencasa.features.requests.domain.usecase.ObserveInboxSignalsUseCas
 import bo.saludencasa.features.services.domain.model.AttentionSide
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.usecase.GetActiveAttentionUseCase
+import bo.saludencasa.features.subscription.domain.model.Subscription
+import bo.saludencasa.features.subscription.domain.model.SubscriptionResult
+import bo.saludencasa.features.subscription.domain.usecase.GetMySubscriptionUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +47,8 @@ sealed interface ProfessionalHomeUiState {
         val verified: Boolean,
         val activeAttention: AttentionSummary?,
         val nearby: NearbyRequests,
+        // Null with the requirement off or before the first approval (HU-38).
+        val subscription: Subscription? = null,
     ) : ProfessionalHomeUiState
 
     data class Failed(
@@ -57,6 +62,7 @@ class ProfessionalHomeViewModel(
     private val getInbox: GetInboxUseCase,
     observeInboxSignals: ObserveInboxSignalsUseCase,
     private val getActiveAttention: GetActiveAttentionUseCase,
+    private val getMySubscription: GetMySubscriptionUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<ProfessionalHomeUiState>(ProfessionalHomeUiState.Loading)
     val uiState: StateFlow<ProfessionalHomeUiState> = state.asStateFlow()
@@ -76,6 +82,8 @@ class ProfessionalHomeViewModel(
             val profile = getProfile()
             val nearby = getInbox(offset = 0).toNearby()
             val attention = getActiveAttention(AttentionSide.PROFESSIONAL)
+            val subscription = getMySubscription()
+            val shown = state.value as? ProfessionalHomeUiState.Content
             state.value =
                 when (profile) {
                     is ProfileResult.Success -> {
@@ -84,9 +92,9 @@ class ProfessionalHomeViewModel(
                             availableNow = professional?.availableNow == true,
                             availabilityError = null,
                             verified = professional?.isVerified == true,
-                            activeAttention =
-                                attention.orShown((state.value as? ProfessionalHomeUiState.Content)?.activeAttention),
+                            activeAttention = attention.orShown(shown?.activeAttention),
                             nearby = nearby,
+                            subscription = subscription.orShown(shown?.subscription),
                         )
                     }
 
@@ -126,6 +134,15 @@ class ProfessionalHomeViewModel(
         }
     }
 }
+
+// A read that fails keeps the row on screen: an expired subscription must not
+// disappear from the home screen because the network dropped once.
+internal fun SubscriptionResult.orShown(shown: Subscription?): Subscription? =
+    when (this) {
+        is SubscriptionResult.Found -> subscription
+        SubscriptionResult.None -> null
+        is SubscriptionResult.Failure -> shown
+    }
 
 private fun InboxPageResult.toNearby(): NearbyRequests =
     when (this) {

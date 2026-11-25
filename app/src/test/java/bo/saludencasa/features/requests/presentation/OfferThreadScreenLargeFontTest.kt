@@ -62,6 +62,23 @@ class OfferThreadScreenLargeFontTest {
         )
     }
 
+    // HU-38, criterion 4: a refused first offer says why, on screen at 200 %.
+    // The reason sits in the bar fixed to the foot, above the button.
+    @Test
+    fun aFirstOfferWithoutASubscriptionSaysWhy() {
+        show(
+            OfferThreadUiState.Opening(
+                request = offerableRequest(),
+                amount = "160",
+                error = OfferError.SubscriptionExpired,
+            ),
+        )
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.error_offer_subscription_expired)),
+        )
+    }
+
     // The patient sees their floor under the amount before typing, so the
     // refusal is never the first time they hear of it.
     @Test

@@ -36,6 +36,7 @@ import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
+import bo.saludencasa.features.subscription.presentation.SubscriptionExpiredNotice
 import bo.saludencasa.ui.components.PrimaryButton
 import bo.saludencasa.ui.components.RefreshFailedNotice
 import bo.saludencasa.ui.components.RefreshableContent
@@ -55,10 +56,12 @@ fun InboxScreen(
     onBack: (() -> Unit)?,
     onOpenRequest: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSubscription: () -> Unit = {},
     viewModel: InboxViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val listRefresh by viewModel.listRefresh.collectAsStateWithLifecycle()
+    val subscriptionExpired by viewModel.subscriptionExpired.collectAsStateWithLifecycle()
 
     LifecycleResumeEffect(viewModel) {
         viewModel.refresh()
@@ -75,8 +78,10 @@ fun InboxScreen(
                 onRetry = viewModel::onRetry,
                 onOpenRequest = onOpenRequest,
                 onPullToRefresh = viewModel::onPullToRefresh,
+                onOpenSubscription = onOpenSubscription,
             ),
         modifier = modifier,
+        subscriptionExpired = subscriptionExpired,
         permissionPrompt = {
             NotificationPermissionPrompt(body = R.string.notification_permission_body_professional)
         },
@@ -90,6 +95,7 @@ internal data class InboxActions(
     // on the same screen (docs/decisions.md, 2026-10-27, HT-24).
     val onOpenRequest: (String) -> Unit = {},
     val onPullToRefresh: () -> Unit = {},
+    val onOpenSubscription: () -> Unit = {},
 )
 
 @Composable
@@ -99,10 +105,16 @@ internal fun InboxContent(
     actions: InboxActions,
     modifier: Modifier = Modifier,
     listRefresh: ListRefresh = ListRefresh(),
+    subscriptionExpired: Boolean = false,
     permissionPrompt: @Composable () -> Unit = {},
 ) {
     val header: @Composable () -> Unit = {
-        InboxHeader(onBack = onBack, permissionPrompt = permissionPrompt)
+        InboxHeader(
+            onBack = onBack,
+            permissionPrompt = permissionPrompt,
+            subscriptionExpired = subscriptionExpired,
+            onOpenSubscription = actions.onOpenSubscription,
+        )
     }
 
     if (uiState is InboxUiState.Loading) {
@@ -194,9 +206,12 @@ internal fun InboxContent(
 private fun InboxHeader(
     onBack: (() -> Unit)?,
     permissionPrompt: @Composable () -> Unit,
+    subscriptionExpired: Boolean,
+    onOpenSubscription: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.scale16)) {
         onBack?.let { ScreenHeader(title = stringResource(R.string.request_inbox_title), onBack = it) }
+        if (subscriptionExpired) SubscriptionExpiredNotice(onOpenSubscription = onOpenSubscription)
         permissionPrompt()
     }
 }
@@ -399,5 +414,29 @@ private fun InboxFailedPreview() {
             onBack = {},
             actions = InboxActions(),
         )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 320, name = "Bandeja con la suscripción vencida, claro")
+@Composable
+private fun InboxExpiredPreview() {
+    InboxPreviewFrame(darkTheme = false) {
+        InboxContent(previewContent(), onBack = {}, actions = InboxActions(), subscriptionExpired = true)
+    }
+}
+
+@Preview(showBackground = true, widthDp = 320, name = "Bandeja con la suscripción vencida, oscuro")
+@Composable
+private fun InboxExpiredDarkPreview() {
+    InboxPreviewFrame(darkTheme = true) {
+        InboxContent(previewContent(), onBack = {}, actions = InboxActions(), subscriptionExpired = true)
+    }
+}
+
+@Preview(showBackground = true, widthDp = 320, fontScale = 2f, name = "Bandeja con la suscripción vencida, 200%")
+@Composable
+private fun InboxExpiredLargeFontPreview() {
+    InboxPreviewFrame(darkTheme = false) {
+        InboxContent(InboxUiState.Empty, onBack = {}, actions = InboxActions(), subscriptionExpired = true)
     }
 }

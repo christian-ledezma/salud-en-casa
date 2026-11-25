@@ -48,7 +48,13 @@ internal fun ProfessionalRequestsTab(
         onViewChange = { view = it },
         requestsLabel = stringResource(R.string.home_requests_view_available),
         modifier = modifier,
-        requests = { InboxScreen(onBack = null, onOpenRequest = navigation.onOpenInboxRequest) },
+        requests = {
+            InboxScreen(
+                onBack = null,
+                onOpenRequest = navigation.onOpenInboxRequest,
+                onOpenSubscription = navigation.onOpenSubscription,
+            )
+        },
         myAttentions = {
             MyAttentionsScreen(side = AttentionSide.PROFESSIONAL, onOpenAttention = navigation.onOpenAttention)
         },

@@ -9,6 +9,8 @@ import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.usecase.GetInboxUseCase
 import bo.saludencasa.features.requests.domain.usecase.ObserveInboxSignalsUseCase
+import bo.saludencasa.features.subscription.domain.model.SubscriptionResult
+import bo.saludencasa.features.subscription.domain.usecase.GetMySubscriptionUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,9 +38,14 @@ sealed interface InboxUiState {
 class InboxViewModel(
     private val getInbox: GetInboxUseCase,
     observeInboxSignals: ObserveInboxSignalsUseCase,
+    private val getMySubscription: GetMySubscriptionUseCase,
 ) : ViewModel() {
     private val state = MutableStateFlow<InboxUiState>(InboxUiState.Loading)
     val uiState: StateFlow<InboxUiState> = state.asStateFlow()
+
+    // HU-38: says why no new request arrives. A failed read keeps what is shown.
+    private val expired = MutableStateFlow(false)
+    val subscriptionExpired: StateFlow<Boolean> = expired.asStateFlow()
 
     private val refresher = ListRefresher(viewModelScope)
     val listRefresh: StateFlow<ListRefresh> = refresher.state
@@ -62,6 +69,7 @@ class InboxViewModel(
         viewModelScope.launch {
             state.value = firstPageState(getInbox(offset = 0), onFailure = InboxUiState::Failed)
         }
+        readSubscription()
     }
 
     // A signal-driven refresh never flashes the loading spinner or blanks the
@@ -71,6 +79,17 @@ class InboxViewModel(
     fun refresh() {
         viewModelScope.launch {
             if (readFirstPage()) refresher.clearFailure()
+        }
+        readSubscription()
+    }
+
+    private fun readSubscription() {
+        viewModelScope.launch {
+            when (val result = getMySubscription()) {
+                is SubscriptionResult.Found -> expired.value = !result.subscription.isValid
+                SubscriptionResult.None -> expired.value = false
+                is SubscriptionResult.Failure -> Unit
+            }
         }
     }
 

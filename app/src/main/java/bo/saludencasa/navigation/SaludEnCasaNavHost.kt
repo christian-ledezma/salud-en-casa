@@ -34,6 +34,7 @@ import bo.saludencasa.features.requests.presentation.OfferThreadScreen
 import bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.services.presentation.AttentionScreen
+import bo.saludencasa.features.subscription.presentation.SubscriptionScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewQueueScreen
 import bo.saludencasa.features.verification.presentation.DocumentReviewScreen
 import bo.saludencasa.features.verification.presentation.VerificationScreen
@@ -104,6 +105,7 @@ fun SaludEnCasaNavHost(
                         onOpenVerification = { navController.navigate(VerificationRoute) },
                         onOpenDocumentReview = { navController.navigate(DocumentReviewQueueRoute) },
                         onOpenDisputes = { navController.navigate(DisputeQueueRoute) },
+                        onOpenSubscription = { navController.navigate(SubscriptionRoute) },
                     ),
             )
         }
@@ -161,6 +163,7 @@ fun SaludEnCasaNavHost(
             InboxScreen(
                 onBack = { navController.popBackStack() },
                 onOpenRequest = { requestId -> navController.navigate(OfferThreadRoute(requestId)) },
+                onOpenSubscription = { navController.navigate(SubscriptionRoute) },
             )
         }
 
@@ -299,6 +302,10 @@ fun SaludEnCasaNavHost(
                 paymentId = entry.toRoute<DisputeReviewRoute>().paymentId,
                 onBack = { navController.popBackStack() },
             )
+        }
+
+        composable<SubscriptionRoute> {
+            SubscriptionScreen(onBack = { navController.popBackStack() })
         }
     }
 }

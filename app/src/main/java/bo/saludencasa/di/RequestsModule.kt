@@ -63,7 +63,7 @@ val requestsModule =
         // across modules.
         viewModel { ImmediateCareViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
         viewModel { MyRequestsViewModel(get(), get()) }
-        viewModel { InboxViewModel(get(), get()) }
+        viewModel { InboxViewModel(get(), get(), get()) }
         viewModel { (professionalId: String, serviceTypeId: String?) ->
             ScheduleAppointmentViewModel(professionalId, serviceTypeId, get(), get(), get(), get(), get())
         }

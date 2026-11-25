@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
@@ -85,6 +86,34 @@ class InboxScreenLargeFontTest {
     // index first.
     private fun scrollTo(index: Int) {
         composeRule.onAllNodes(hasScrollToIndexAction())[0].performScrollToIndex(index)
+    }
+
+    // HU-38: an expired professional reads why no new request arrives, and the
+    // way to their subscription, above the threads they can still answer.
+    @Test
+    fun anExpiredSubscriptionSaysWhyAndOpensTheSubscription() {
+        var opened = 0
+        composeRule.setContentAtDoubleFontScale {
+            InboxContent(
+                uiState =
+                    InboxUiState.Content(
+                        requests = listOf(request("r1")),
+                        loadingMore = false,
+                        endReached = true,
+                        notice = null,
+                    ),
+                onBack = {},
+                actions = InboxActions(onOpenSubscription = { opened++ }),
+                subscriptionExpired = true,
+            )
+        }
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.subscription_expired_notice_body)),
+        )
+        composeRule.onNodeWithText(string(R.string.subscription_expired_notice_open)).performClick()
+
+        assertEquals(1, opened)
     }
 
     @Test

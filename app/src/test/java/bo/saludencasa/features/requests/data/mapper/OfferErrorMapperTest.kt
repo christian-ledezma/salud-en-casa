@@ -56,4 +56,14 @@ class OfferErrorMapperTest {
     fun aDroppedConnectionIsTheNetwork() {
         assertEquals(OfferError.NetworkUnavailable, IOException("reset").toOfferError())
     }
+
+    // HU-38: the trigger names the reason, so the screen can say it instead of
+    // the generic refusal. It is checked before the refusal labels.
+    @Test
+    fun aFirstOfferWithoutASubscriptionSaysSo() {
+        assertEquals(
+            OfferError.SubscriptionExpired,
+            refusal("""{"code":"P0001","message":"subscription_expired"}"""),
+        )
+    }
 }

@@ -77,6 +77,9 @@ import bo.saludencasa.features.requests.domain.model.ServiceRequest
 import bo.saludencasa.features.requests.presentation.NegotiationEntry
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.ServiceStatus
+import bo.saludencasa.features.subscription.domain.model.Subscription
+import bo.saludencasa.features.subscription.presentation.previewExpired
+import bo.saludencasa.features.subscription.presentation.previewTrial
 import bo.saludencasa.ui.components.BottomNavigationBar
 import bo.saludencasa.ui.components.InitialsText
 import bo.saludencasa.ui.components.PrimaryButton
@@ -113,6 +116,7 @@ data class HomeNavigation(
     val onOpenVerification: () -> Unit = {},
     val onOpenDocumentReview: () -> Unit = {},
     val onOpenDisputes: () -> Unit = {},
+    val onOpenSubscription: () -> Unit = {},
 )
 
 internal data class HomeActions(
@@ -269,6 +273,7 @@ private fun SignedInShell(
         )
     }
     val verified = (professionalHome as? ProfessionalHomeUiState.Content)?.verified
+    val subscription = (professionalHome as? ProfessionalHomeUiState.Content)?.subscription
 
     Column(modifier = modifier.fillMaxSize()) {
         HomeTopBar(
@@ -322,11 +327,17 @@ private fun SignedInShell(
                         onOpenRequest = navigation.onOpenInboxRequest,
                         onOpenAttention = navigation.onOpenAttention,
                         onSeeAllRequests = { onTabSelected(HomeTab.REQUESTS) },
+                        onOpenSubscription = navigation.onOpenSubscription,
                     )
                 }
 
                 shownTab == HomeTab.SETTINGS -> {
-                    SettingsContent(role = active, verified = verified, navigation = navigation)
+                    SettingsContent(
+                        role = active,
+                        verified = verified,
+                        navigation = navigation,
+                        subscription = subscription,
+                    )
                 }
 
                 shownTab == HomeTab.REQUESTS -> {
@@ -689,6 +700,7 @@ private fun previewProfessional(
                 previewNearby("n2", scheduledAt = Instant.parse("2026-10-31T13:00:00Z")),
             ),
         ),
+    subscription: Subscription? = null,
 ): ProfessionalHomeUiState =
     ProfessionalHomeUiState.Content(
         availableNow = true,
@@ -696,6 +708,7 @@ private fun previewProfessional(
         verified = verified,
         activeAttention = previewAttention(ServiceStatus.ASSIGNED),
         nearby = nearby,
+        subscription = subscription,
     )
 
 @Composable
@@ -767,22 +780,83 @@ private fun HomeProfessionalEmptyPreview() {
     )
 }
 
+@Preview(showBackground = true, widthDp = 320, heightDp = 720, name = "Inicio del profesional en prueba, claro")
+@Composable
+private fun HomeProfessionalTrialPreview() {
+    PreviewShell(
+        darkTheme = false,
+        account = previewAccount(bothRoles, UserRole.PROFESSIONAL),
+        professionalHome = previewProfessional(verified = true, subscription = previewTrial),
+    )
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 720, name = "Inicio del profesional vencido, claro")
+@Composable
+private fun HomeProfessionalExpiredPreview() {
+    PreviewShell(
+        darkTheme = false,
+        account = previewAccount(bothRoles, UserRole.PROFESSIONAL),
+        professionalHome = previewProfessional(verified = true, subscription = previewExpired),
+    )
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 720, name = "Inicio del profesional vencido, oscuro")
+@Composable
+private fun HomeProfessionalExpiredDarkPreview() {
+    PreviewShell(
+        darkTheme = true,
+        account = previewAccount(bothRoles, UserRole.PROFESSIONAL),
+        professionalHome = previewProfessional(verified = true, subscription = previewExpired),
+    )
+}
+
+@Preview(
+    showBackground = true,
+    widthDp = 320,
+    heightDp = 720,
+    fontScale = 2f,
+    name = "Inicio del profesional vencido, 200%",
+)
+@Composable
+private fun HomeProfessionalExpiredLargeFontPreview() {
+    PreviewShell(
+        darkTheme = false,
+        account = previewAccount(bothRoles, UserRole.PROFESSIONAL),
+        professionalHome = previewProfessional(verified = true, subscription = previewExpired),
+    )
+}
+
 @Preview(showBackground = true, widthDp = 320, heightDp = 720, name = "Ajustes del profesional, claro")
 @Composable
 private fun HomeSettingsLightPreview() {
-    PreviewShell(darkTheme = false, account = previewAccount(bothRoles, UserRole.PROFESSIONAL), tab = HomeTab.SETTINGS)
+    PreviewShell(
+        darkTheme = false,
+        account = previewAccount(bothRoles, UserRole.PROFESSIONAL),
+        tab = HomeTab.SETTINGS,
+        professionalHome = previewProfessional(verified = true, subscription = previewTrial),
+    )
 }
 
 @Preview(showBackground = true, widthDp = 320, heightDp = 720, name = "Ajustes del profesional, oscuro")
 @Composable
 private fun HomeSettingsDarkPreview() {
-    PreviewShell(darkTheme = true, account = previewAccount(bothRoles, UserRole.PROFESSIONAL), tab = HomeTab.SETTINGS)
+    PreviewShell(
+        darkTheme = true,
+        account = previewAccount(bothRoles, UserRole.PROFESSIONAL),
+        tab = HomeTab.SETTINGS,
+        professionalHome = previewProfessional(verified = true, subscription = previewExpired),
+    )
 }
 
 @Preview(showBackground = true, widthDp = 320, heightDp = 720, fontScale = 2f, name = "Ajustes del profesional, 200%")
 @Composable
 private fun HomeSettingsLargeFontPreview() {
-    PreviewShell(darkTheme = false, account = previewAccount(bothRoles, UserRole.PROFESSIONAL), tab = HomeTab.SETTINGS)
+    PreviewShell(
+        darkTheme = false,
+        account = previewAccount(bothRoles, UserRole.PROFESSIONAL),
+        tab = HomeTab.SETTINGS,
+        professionalHome = previewProfessional(verified = true, subscription = previewTrial),
+    )
 }
 
 @Preview(showBackground = true, widthDp = 320, heightDp = 720, name = "Cuenta con un solo rol, claro")

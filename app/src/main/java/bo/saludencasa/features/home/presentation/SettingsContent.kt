@@ -13,21 +13,26 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import bo.saludencasa.R
+import bo.saludencasa.core.util.formatDate
 import bo.saludencasa.features.profile.domain.model.UserRole
+import bo.saludencasa.features.subscription.domain.model.Subscription
 import bo.saludencasa.ui.theme.Spacing
 
 // What the person set up once and comes back to change: verification, services,
 // availability and addresses (docs/decisions.md, 2026-10-30, HT-25). verified is
-// null when it is not known, which is always the case for a patient.
+// null when it is not known, which is always the case for a patient. subscription
+// is null unless the platform requires one and the professional has a period (HU-38).
 @Composable
 internal fun SettingsContent(
     role: UserRole,
     verified: Boolean?,
     navigation: HomeNavigation,
     modifier: Modifier = Modifier,
+    subscription: Subscription? = null,
 ) {
     val professional = role == UserRole.PROFESSIONAL
 
@@ -61,6 +66,29 @@ internal fun SettingsContent(
                         }
                     },
             )
+            if (professional && subscription != null) {
+                HomeRowDivider()
+                // The state goes in the detail and not in a pill: at 200 % a pill
+                // leaves the title too narrow for one word.
+                val end = formatDate(subscription.endsAt, LocalConfiguration.current.locales[0])
+                HomeRow(
+                    title = stringResource(R.string.home_settings_subscription),
+                    details =
+                        listOf(
+                            stringResource(
+                                if (subscription.isValid) {
+                                    R.string.home_settings_subscription_trial
+                                } else {
+                                    R.string.home_settings_subscription_expired
+                                },
+                                end,
+                            ),
+                        ),
+                    icon = painterResource(R.drawable.ic_visibility),
+                    tone = if (subscription.isValid) RowTone.NEUTRAL else RowTone.PENDING,
+                    onClick = navigation.onOpenSubscription,
+                )
+            }
             if (professional) {
                 HomeRowDivider()
                 HomeRow(

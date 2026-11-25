@@ -40,6 +40,7 @@ internal fun OfferError.messageRes(): Int =
         OfferError.InvalidAmount -> R.string.error_offer_invalid_amount
         is OfferError.BelowMinimum -> R.string.error_offer_below_your_last
         OfferError.NotAllowed -> R.string.error_offer_not_allowed
+        OfferError.SubscriptionExpired -> R.string.error_offer_subscription_expired
         OfferError.NetworkUnavailable -> R.string.error_network_unavailable
         OfferError.Unexpected -> R.string.error_unexpected
     }
