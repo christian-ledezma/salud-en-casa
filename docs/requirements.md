@@ -131,6 +131,7 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | RF-08.4 | Ambas partes ven las ofertas nuevas en tiempo real, sin recargar. |
 | RF-08.5 | Al aceptarse una oferta, el sistema crea el servicio y su registro de pago pendiente en una sola operación. |
 | RF-08.6 | Los datos de contacto de la contraparte se revelan únicamente después de aceptada la oferta. |
+| RF-08.7 | Cualquiera de las dos partes puede marcar una oferta como su última, en la primera oferta o en cualquier contraoferta. La otra parte solo puede aceptarla o rechazarla (RN-15). |
 
 ### RF-09 · Comunicación
 
@@ -236,6 +237,7 @@ Incorporado el 2026-11-22, al reemplazar la comisión por atención (`docs/decis
 | RN-12 | La aplicación es un intermediario tecnológico. La responsabilidad clínica de la atención corresponde al profesional. |
 | RN-13 | Nadie participa de la misma atención como paciente y como profesional. Quien tiene ambos roles no ve sus propias solicitudes en su bandeja de profesional, no puede ofertar sobre ellas, y no aparece en sus propios resultados de búsqueda. |
 | RN-14 | La reputación se calcula por rol. Las calificaciones recibidas como paciente no afectan la reputación como profesional ni son visibles en su perfil público. |
+| RN-15 | Una oferta marcada como la última no admite contraoferta: solo se acepta o se rechaza. La marca no se quita ni se pone después de emitida la oferta. |
 
 ## 6. Invariantes del dominio
 
@@ -314,3 +316,4 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-21 | Declarar que no se cobró antes que el paciente | Si el paciente nunca confirma, el profesional no puede abrir una disputa por su cuenta: RF-11.5 la define como dos declaraciones que no coinciden, y la plataforma no cobra deudas, así que el administrador tampoco podría resolver el silencio. Nada queda irreversible: el paciente puede confirmar cuando sea, y el profesional, declarar que cobró. Se incorporaría con un estado de «no pagado» acordado y la respuesta del paciente. HU-28 lo dejó fuera el 2026-11-24. |
 | FA-22 | Buscar en el catálogo desde el motor, con paginación | HT-32 lee el catálogo completo, con un tope de 500 filas, y lo filtra en el teléfono (`docs/decisions.md`, 2026-11-25). Pasado de unos 300 tipos, filtrar en el teléfono una lectura con tope daría falsos «sin resultados», el argumento de FA-16: la búsqueda se movería al motor, con paginación por cursor y búsqueda sin tildes. |
 | FA-23 | Elegir un tipo de servicio entre muchos, del lado del paciente | El filtro de la búsqueda y «Atención ahora» eligen el tipo con un `ExpandableOptionPicker`, hecho para los doce tipos de hoy. Con un catálogo grande tienen el problema que HT-32 resolvió en «Mis servicios», y se resolverían con el mismo selector y su búsqueda; las categorías, descartadas en HT-32, les servirían más que a nadie. Ningún requisito lo pide todavía. |
+| FA-24 | Que el aviso push diga que llegó una última oferta | HU-41 dejó el aviso igual: «Respondieron tu propuesta» con el servicio y el monto, y el hilo muestra «Última oferta» al abrirlo. Decirlo en el aviso exige redefinir `request_push_body` otra vez, por un cambio de título (`docs/decisions.md`, 2026-11-25, HU-41). |

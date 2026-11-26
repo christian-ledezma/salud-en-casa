@@ -6929,6 +6929,63 @@ catálogo. El autor eligió B el 2026-11-25 y aprobó el plan y el prototipo ese
   con el fondo del tema: la aplicación lo pinta con su `Scaffold` y una vista previa no, y en oscuro el texto claro
   quedaba sobre blanco.
 
+## 2026-11-25 · HU-41: una oferta marcada como la última solo se acepta o se rechaza
+
+**Contexto.** El autor pidió una casilla en el hilo de negociación para que cualquiera de las dos partes diga «este es
+mi último precio». La otra parte, al recibirla, solo puede aceptarla o rechazarla. Hasta aquí una negociación seguía
+mientras alguno respondiera con otro monto, y ninguna parte tenía cómo cerrar la conversación sin rechazar.
+
+**Decisión.**
+
+1. **`request_offers.is_final`**, un booleano que nace en `false` y queda fijo con el resto de la oferta.
+2. **Un disparador antes de insertar rechaza la respuesta a una última oferta** con `final_offer_admits_no_counter`.
+   Aceptar y rechazar no cambian.
+3. **La casilla va solo en el hilo**: en la primera oferta del profesional y en cada contraoferta de los dos. No va al
+   publicar la solicitud.
+4. **El aviso push no cambia** (FA-24), y **enviar una última oferta no pide confirmación**: el texto bajo la casilla
+   y el botón «Enviar última oferta» avisan antes de enviar.
+
+**Razonamiento.**
+
+- *Fija como el resto de la oferta.* Una última oferta que se pudiera desmarcar sería un farol que el motor ayuda a
+  hacer. INV-06 ya congela el monto y el mensaje, y la marca es parte de lo que se ofreció.
+- *Un disparador y no una condición en la política.* Igual que en HT-29, la política solo sabe negar con el error
+  genérico de seguridad a nivel de fila, y la regla tiene que valer para cualquier cliente y no solo para esta
+  pantalla. El caso real es una versión instalada antes de HU-41, que no lee la marca y sigue mostrando «Contraofertar».
+  El error con nombre solo lo recibe una de las dos partes del hilo, como en `guard_counter_differs_from_the_offer`,
+  para no darle a nadie más un canal sobre el hilo ajeno.
+- *No hay carrera que atender en la pantalla.* El plan suponía que la otra parte podía mandar su última oferta
+  mientras la persona escribía una contraoferta. Eso no puede pasar: el hilo va por turnos, y cuando es el turno de
+  uno el otro no puede agregar nada. Además la marca se fija al insertar la oferta y la pantalla la lee junto con ella.
+  Por eso el modelo de vista no relee ante este error, y se retiró el criterio 7 del plan. El comentario de la migración
+  ya aplicada todavía nombra esa carrera, y no se editó porque una migración aplicada no se edita. El nombre del disparador lo ordena antes de las otras guardas de inserción, que corren por
+  orden de nombre, así que una contraoferta a una última oferta oye esta razón y no la del piso.
+- *Aceptar y rechazar no se tocan.* Responder una última oferta es exactamente lo que ya hacían `accept_offer` y la
+  política de rechazo, así que cambiarlos solo agregaría código.
+- *Solo en el hilo.* Marcar el presupuesto al publicar exigiría que el profesional pudiera aceptar una solicitud sin
+  ofertar, y `accept_offer` trabaja sobre una oferta. El paciente que no quiere pasar de 50 contraoferta 50 con la
+  casilla marcada: un paso más, sin operación nueva. **Lo eligió el autor con esa alternativa delante.**
+- *El aviso queda como está.* Cambiar su título exige redefinir `request_push_body` otra vez, y el hilo muestra la marca
+  al abrirlo. **Decisión del autor.**
+
+**Alternativas descartadas.**
+
+- **Marcar el presupuesto de la solicitud como final.** Es otra historia, de unos 8 puntos más.
+- **Un diálogo de confirmación al enviar.** Protege contra un toque accidental, a costa de un paso más en cada oferta
+  final; enviar una contraoferta común tampoco se confirma.
+- **Ocultar el botón «Contraofertar» solo en la pantalla.** Cualquier otro cliente podría seguir negociando, y la
+  pantalla que pierde la carrera no sabría por qué la rechazaron.
+
+**Consecuencia.**
+
+- `my_request_offers` devuelve `is_final`, así que se borró y se creó de nuevo. El profesional lo lee directo de la
+  tabla.
+- `OfferThread.canCounter` decide si «Contraofertar» aparece. `SubmitCounterOfferUseCase` rechaza sin red la respuesta
+  a una última oferta, con `OfferError.FinalOfferAdmitsNoCounter`, aunque la pantalla nunca le ofrezca ese camino. Es la
+  regla del dominio, igual que el piso del paciente.
+- RN-05 sigue valiendo: responder con el mismo monto es aceptar. Ante una última oferta ya no hay formulario, así que
+  esa regla no se cruza con esta.
+
 ## Plantilla para entradas nuevas
 
 ```

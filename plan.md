@@ -156,7 +156,7 @@ Con el alcance actual, eso son:
 | HU-01, HU-02 | Primer ingreso y elección de rol: si fallan, nadie entra |
 | HU-05, HU-06 | Mapa, permisos y geocodificador; y la eliminación de direcciones, que borra datos |
 | HU-11 | Búsqueda por cercanía, que es la pantalla que sostiene el producto |
-| HU-17, HU-18, HU-19 | Negociación y aceptación: hay dinero y un contrato de por medio |
+| HU-17, HU-18, HU-19, HU-41 | Negociación y aceptación: hay dinero y un contrato de por medio |
 | HU-25, HU-26 | Confirmación de pagos (INV-09) |
 | HU-29, HU-30 | Calificación, que es irreversible |
 
@@ -211,7 +211,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` | [`sprint-06.md`](docs/sprints/sprint-06.md) |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 56 | `[x]` | [`sprint-07.md`](docs/sprints/sprint-07.md) |
 | 8 | Pago de la atención y vigencia del profesional | 4 · Pagos | 29 | `[x]` | [`sprint-08.md`](docs/sprints/sprint-08.md) |
-| 9 | Calificación e historial | 5 · Evaluación | 27 | `[ ]` | Abajo, sprint activo |
+| 9 | Calificación e historial | 5 · Evaluación | 32 | `[ ]` | Abajo, sprint activo |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` | Abajo |
 | 11 | Publicación y suscripción en Google Play | 4 · Pagos | Por estimar | `[ ]` | Abajo |
 
@@ -511,7 +511,7 @@ cada usuario consulta su actividad.
 
 **Objetivo específico.** 5 · Evaluación, calificación y registro histórico centralizado.
 
-**Puntos:** 27. Eran 22; el 2026-11-25 entró HT-32, de 5 puntos, en el sprint en curso.
+**Puntos:** 32. Eran 22; el 2026-11-25 entraron HT-32 y HU-41, de 5 puntos cada una, en el sprint en curso.
 
 ### HT-32 · «Mis servicios» escala: lista corta y selector del catálogo `[x]` — 2026-11-25 — 5 puntos
 
@@ -659,6 +659,111 @@ recortado dentro de su contenedor, que es justo lo que habría que mirar.
 
 **Deuda reconocida.** Los selectores del paciente (FA-23) y la búsqueda en el motor (FA-22) quedaron
 anotados en `docs/requirements.md`.
+
+### HU-41 · Marcar una oferta como la última `[x]` — 2026-11-25 — 5 puntos
+
+> Como **paciente o profesional**, quiero **marcar una oferta como la última**, para que **la otra
+> parte solo pueda aceptarla o rechazarla y la negociación no siga**.
+
+**Origen.** El 2026-11-25 el autor lo pidió así: si el paciente quiere pagar 50 y no seguir
+negociando, marca la casilla, y al profesional le llega esa oferta y solo puede aceptarla o
+rechazarla. Lo mismo del lado del profesional. La opción está disponible en cualquier momento de la negociación.
+
+**Decisiones del autor (2026-11-25).** La casilla está **solo en el hilo**: en la primera oferta del
+profesional y en cada contraoferta de los dos, no al publicar la solicitud. Ponerla al publicar
+exigiría que el profesional pudiera aceptar una solicitud sin ofertar, y esa operación no existe.
+El aviso push **no cambia por ahora** (FA-24). Al enviar **no hay diálogo de confirmación**: el
+texto bajo la casilla y el botón «Enviar última oferta» avisan antes de enviar.
+
+**Decisiones técnicas, a veto del autor**
+
+- `request_offers.is_final`, que nace en `false` y queda fija con el resto de la oferta (INV-06).
+- Un disparador antes de insertar rechaza la respuesta a una última oferta con un error con nombre,
+  y solo para las dos partes del hilo, como la guarda de HT-29. La política de inserción no cambia.
+- `accept_offer` y el rechazo no cambian: aceptar o rechazar una última oferta es lo de siempre.
+
+**Requisitos:** RF-08.7, RN-15, RN-05, INV-06.
+
+**Criterios de aceptación**
+
+- [x] Dado que hago la primera oferta o una contraoferta, cuando marco «Es mi última oferta» y la
+      envío, entonces queda marcada, en cualquier ronda y desde cualquiera de los dos lados.
+      **Verificado con experimento SQL el 2026-11-25** contra el remoto, con la migración dentro de
+      la misma transacción y `rollback`: la primera oferta final del profesional, su contraoferta final
+      y la contraoferta final del paciente entraron. En el cliente,
+      `aFirstOfferMarkedAsFinalLeavesWithTheMark`, `aCounterOfferMarkedAsFinalLeavesWithTheMark`,
+      `theMarkOfTheFirstOfferTravelsWithIt` y `aSentCounterOfferLeavesWithTheMarkAndClearsIt`. Además,
+      `cancellingTheCounterOfferClearsTheMark`: una marca olvidada en un formulario cerrado haría final la
+      siguiente contraoferta.
+- [x] Dado que la oferta en la mesa es la última de la otra parte, cuando la abro, entonces solo
+      puedo aceptarla o rechazarla: «Contraofertar» no aparece. **Verificado** por
+      `theOtherSidesFinalOfferLeavesOnlyAcceptAndReject` (al 200 %, a 320 dp),
+      `theOtherSidesFinalOfferNeverOpensTheCounterForm` y
+      `OfferMapperTest.aFinalOfferOnTheTableLeavesTheTurnButNoCounter`, con su par
+      `anOfferThatIsNotFinalLeavesTheCounterOpen`.
+- [x] Dado cualquier cliente, cuando intenta responder una última oferta con otro monto,
+      entonces el motor lo rechaza con un error propio, y una oferta común sigue admitiendo respuesta.
+      **Verificado con el mismo experimento**: responder la última oferta del profesional (como
+      paciente), la del paciente (como profesional) y una primera oferta final dio
+      `final_offer_admits_no_counter` las tres veces; el control, una contraoferta a una oferta común,
+      entró. Un tercero que intentó la misma respuesta recibió el error genérico de seguridad a nivel
+      de fila y no el nombrado, así que la guarda no abre un canal sobre el hilo ajeno. En el cliente,
+      `aFinalOfferOnTheTableIsNeverAnsweredWithAnAmount`, `theProfessionalCannotAnswerThePatientsFinalOffer`
+      y `OfferErrorMapperTest.anAnswerToAFinalOfferSaysSo`.
+- [x] Dado que una oferta ya se envió, cuando alguien intenta quitarle o ponerle la marca,
+      entonces se rechaza. **Verificado con el mismo experimento**: el paciente al desmarcar, y el dueño
+      de la base, que pasa por encima de toda política, al desmarcar y al marcar, recibieron
+      `issued_offer_cannot_be_edited`.
+- [x] Dado una última oferta, cuando miro el hilo o la tarjeta de oferta del paciente,
+      entonces dice «Última oferta». **Verificado** por `theOtherSidesFinalOfferLeavesOnlyAcceptAndReject`
+      (insignia y estado), `myOwnFinalOfferIsWaitedOnAndSaysSo` y
+      `aFinalOfferOnTheCardIsAcceptedOrViewedButNotNegotiated`, donde la tarjeta ofrece «Aceptar» y «Ver
+      negociación», no «Negociar».
+- [x] Dado una última oferta, cuando la acepto, entonces se crea la atención con su pago, como
+      hoy; cuando la rechazo, el hilo se cierra y la solicitud sigue abierta para otros. **Verificado con
+      el mismo experimento**: `accept_offer` sobre la última oferta del profesional dejó 1 servicio, y el
+      profesional rechazó la última oferta del paciente actualizando 1 fila. `accept_offer` y el rechazo
+      no cambiaron.
+- **Retirado al programar (2026-11-25):** «Dado que escribo una contraoferta, cuando la otra parte
+      manda antes su última oferta, entonces la mía se rechaza…». Esa carrera no existe: el hilo va
+      por turnos, y en mi turno la otra parte no puede agregar nada. La marca se fija al insertar la
+      oferta y la pantalla la lee con ella. Lo que sí queda es el rechazo del motor para cualquier otro
+      cliente (criterio 3). Ver `docs/decisions.md`, 2026-11-25, HU-41.
+- [x] Dado el 200 % de fuente y un teléfono de 320 dp, cuando uso la casilla y respondo una
+      última oferta, entonces cada control se alcanza, se muestra y no se sale de los bordes.
+      **Verificado** por `theFinalOfferMarkIsReachableOnTheFirstOfferFormAndTheRowTogglesIt` (la fila
+      entera marca la casilla), `aMarkedCounterOfferSaysItIsTheLastOnItsButton` y las dos de arriba, y
+      **mirando** las vistas previas a 320 dp en claro, oscuro y 200 %: «Enviando la última», «Última
+      oferta recibida» y «Ofertas, última oferta». Al 200 % el texto de apoyo de la casilla envuelve en
+      tres líneas y «Enviar última oferta» en dos, sin recortarse.
+
+**Experimento SQL (2026-11-25).** Un solo bloque, como el paciente `ledezma.aramayo.73` y el profesional
+`chris.ledezma.s` sobre tres solicitudes agendadas creadas dentro de la transacción, con la migración
+aplicada en la misma transacción y `rollback` al final. Catorce resultados, todos los esperados. Sin
+residuo después (0 solicitudes del experimento). Después se aplicó con `db push`.
+
+**Mutaciones.** Sin la comprobación del caso de uso, con `canCounter` igual a `isMyTurn` y sin borrar la
+marca al cancelar, fallaron siete pruebas: las dos del caso de uso, la del transformador, las dos del
+modelo de vista y las dos de interfaz. Se restauró el código.
+
+**Resultado (2026-11-25).** `./gradlew build` terminó sin error: **1305 pruebas, 0 fallos, 0 omitidas**, y
+`ktlintCheck` sin hallazgos. La historia aportó 16 pruebas.
+
+**Qué no cubre ninguna prueba.** El aviso push, que no cambió (FA-24). Una versión instalada antes de
+HU-41 no lee la marca: mostraría «Contraofertar», el motor la rechazaría y ella lo diría como «error
+inesperado», porque su traductor de errores no conoce la etiqueta. Con una sola versión instalada en los
+emuladores no se da.
+
+**Recorrido del autor (2026-11-25).** La historia es crítica, así que pidió emulador. El autor la recorrió
+con dos emuladores, el paciente `ledezma.aramayo.73` y el profesional `chris.ledezma.s`, siguiendo los nueve
+pasos que se le entregaron:
+- una primera oferta común y una contraoferta del paciente marcada como la última, que el profesional solo
+  pudo aceptar o rechazar, y rechazó;
+- una primera oferta del profesional marcada como la última, que en la tarjeta del paciente ofrecía «Aceptar»
+  y «Ver negociación» pero no «Negociar»;
+- la repetición con la letra al máximo y el tema oscuro.
+
+Lo informó **sin observaciones**, y con eso se cerró la historia.
 
 ### HU-29 · Calificar al profesional `[ ]` — 5 puntos
 
