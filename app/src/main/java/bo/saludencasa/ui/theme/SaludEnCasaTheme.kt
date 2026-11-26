@@ -42,6 +42,8 @@ private val LightColorScheme =
         surfaceContainerHighest = Color(0xFFE3EBEF),
         outline = Color(0xFFC2CCD1),
         outlineVariant = Color(0xFFDEE5E8),
+        inverseSurface = Color(0xFF26343A),
+        inverseOnSurface = Color(0xFFF1F4F6),
     )
 
 // Not the light scheme inverted: the teal lightens to hold contrast on a dark
@@ -73,6 +75,8 @@ private val DarkColorScheme =
         surfaceContainerHighest = Color(0xFF26343A),
         outline = Color(0xFF3B4A51),
         outlineVariant = Color(0xFF26343A),
+        inverseSurface = Color(0xFFE6EDF0),
+        inverseOnSurface = Color(0xFF0E1518),
     )
 
 private val LocalStatusColors = compositionLocalOf { LightStatusColors }
