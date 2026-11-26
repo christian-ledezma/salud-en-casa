@@ -30,6 +30,7 @@ internal fun RequestOfferDto.toRequestOffer(): RequestOffer? {
         issuer = mappedIssuer,
         status = mappedStatus,
         createdAt = created,
+        isFinal = isFinal,
     )
 }
 

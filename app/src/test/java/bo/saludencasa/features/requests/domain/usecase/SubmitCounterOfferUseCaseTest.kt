@@ -12,6 +12,7 @@ import bo.saludencasa.features.requests.requestOffer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,7 +49,14 @@ class SubmitCounterOfferUseCaseTest {
         thread: OfferThread = patientThread(),
         amountRaw: String = "140",
         message: String = "",
-    ) = useCase(requestId = "r1", thread = thread, amountRaw = amountRaw, message = message)
+        isFinal: Boolean = false,
+    ) = useCase(requestId = "r1", thread = thread, amountRaw = amountRaw, message = message, isFinal = isFinal)
+
+    // The same thread with the professional's 150 on the table as their last offer.
+    private fun finalOnTheTable() =
+        patientThread().let { thread ->
+            thread.copy(offers = thread.offers.dropLast(1) + thread.offers.last().copy(isFinal = true))
+        }
 
     // HT-24: the patient never goes below what they already proposed on this
     // thread, even when the professional came down.
@@ -120,6 +128,49 @@ class SubmitCounterOfferUseCaseTest {
             assertEquals("o3", submission.parentOfferId)
             assertEquals(BigDecimal("139.90"), submission.amount.value)
             assertNull(submission.message)
+            assertFalse(submission.isFinal)
+        }
+
+    // HU-41: the mark rides with the counter-offer, from either side.
+    @Test
+    fun aCounterOfferMarkedAsFinalLeavesWithTheMark() =
+        runTest {
+            assertEquals(CounterOfferResult.Sent, counter(amountRaw = "140", isFinal = true))
+
+            assertTrue(repository.submitted.single().isFinal)
+        }
+
+    // RN-15: a final offer is accepted or rejected, never answered with an amount.
+    // Not even with its own amount, which would otherwise read as accepting it
+    // (HT-29): accepting a final offer is the accept button, not the form.
+    @Test
+    fun aFinalOfferOnTheTableIsNeverAnsweredWithAnAmount() =
+        runTest {
+            listOf("140", "150").forEach { typed ->
+                assertEquals(
+                    typed,
+                    CounterOfferResult.Failure(OfferError.FinalOfferAdmitsNoCounter),
+                    counter(thread = finalOnTheTable(), amountRaw = typed),
+                )
+            }
+            assertTrue(repository.submitted.isEmpty())
+        }
+
+    // The patient's own final offer on the table binds the professional too.
+    @Test
+    fun theProfessionalCannotAnswerThePatientsFinalOffer() =
+        runTest {
+            val professionalSide =
+                patientThread().let { thread ->
+                    val patientFinal = thread.offers[1].copy(isFinal = true)
+                    thread.copy(iAmTheProfessional = true, offers = listOf(thread.offers[0], patientFinal))
+                }
+
+            assertEquals(
+                CounterOfferResult.Failure(OfferError.FinalOfferAdmitsNoCounter),
+                counter(thread = professionalSide, amountRaw = "145"),
+            )
+            assertTrue(repository.submitted.isEmpty())
         }
 
     // HT-29: the amount on the table is accepted, not offered again, and nothing

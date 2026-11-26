@@ -41,6 +41,7 @@ internal fun OfferError.messageRes(): Int =
         is OfferError.BelowMinimum -> R.string.error_offer_below_your_last
         OfferError.NotAllowed -> R.string.error_offer_not_allowed
         OfferError.SubscriptionExpired -> R.string.error_offer_subscription_expired
+        OfferError.FinalOfferAdmitsNoCounter -> R.string.error_offer_final_admits_no_counter
         OfferError.NetworkUnavailable -> R.string.error_network_unavailable
         OfferError.Unexpected -> R.string.error_unexpected
     }
@@ -51,7 +52,9 @@ internal fun OfferError.messageRes(): Int =
 internal fun OfferThread.stateRes(): Int =
     when {
         isClosed -> R.string.thread_state_closed
+        isMyTurn && lastOfferIsFinal -> R.string.thread_state_final_to_answer
         isMyTurn -> R.string.thread_state_your_turn
+        lastOfferIsFinal -> R.string.thread_state_final_sent
         else -> R.string.thread_state_waiting
     }
 

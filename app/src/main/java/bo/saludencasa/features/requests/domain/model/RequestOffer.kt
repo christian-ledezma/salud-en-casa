@@ -33,6 +33,9 @@ data class RequestOffer(
     val issuer: OfferIssuer,
     val status: OfferStatus,
     val createdAt: Instant,
+    // A final offer is answered by accepting or rejecting it, never with another
+    // amount, and the mark never comes off (RN-15).
+    val isFinal: Boolean = false,
 )
 
 // One professional's chain on a request, in the order it was written, as either
@@ -75,6 +78,12 @@ data class OfferThread(
     // Whoever did not write the offer on the table is the one who answers it.
     val isMyTurn: Boolean
         get() = !isClosed && lastOffer?.issuer != myIssuer
+
+    val lastOfferIsFinal: Boolean
+        get() = lastOffer?.isFinal == true
+
+    val canCounter: Boolean
+        get() = isMyTurn && !lastOfferIsFinal
 }
 
 // The one request the professional opens to offer on, with whether they already

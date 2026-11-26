@@ -17,6 +17,10 @@ internal fun Throwable.toOfferError(): OfferError {
         if (body.contains(BELOW_FLOOR)) return OfferError.BelowMinimum(null)
         // guard_first_offer_needs_a_subscription runs before the insert policy.
         if (body.contains(SUBSCRIPTION_EXPIRED)) return OfferError.SubscriptionExpired
+        // A client that offers a counter on a final offer anyway, such as a build
+        // older than HU-41, which does not read the mark (docs/decisions.md,
+        // 2026-11-25, HU-41).
+        if (body.contains(FINAL_OFFER)) return OfferError.FinalOfferAdmitsNoCounter
         if (REFUSAL_LABELS.any(body::contains)) {
             return OfferError.NotAllowed
         }
@@ -30,6 +34,7 @@ internal fun Throwable.toOfferError(): OfferError {
 
 private const val BELOW_FLOOR = "counter_offer_below_your_last_offer"
 private const val SUBSCRIPTION_EXPIRED = "subscription_expired"
+private const val FINAL_OFFER = "final_offer_admits_no_counter"
 
 private val REFUSAL_LABELS =
     listOf(

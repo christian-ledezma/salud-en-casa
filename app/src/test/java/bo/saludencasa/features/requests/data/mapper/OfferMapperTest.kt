@@ -19,6 +19,7 @@ class OfferMapperTest {
         status: String = "PROPOSED",
         amount: String = "160.00",
         createdAt: String = "2026-10-27T18:00:00+00:00",
+        isFinal: Boolean = false,
     ) = RequestOfferDto(
         id = id,
         parentOfferId = parentOfferId,
@@ -31,6 +32,7 @@ class OfferMapperTest {
         issuer = issuer,
         status = status,
         createdAt = createdAt,
+        isFinal = isFinal,
     )
 
     // HT-24: each thread carries its professional's distance, rounded to whole
@@ -144,6 +146,30 @@ class OfferMapperTest {
 
         assertFalse(rows.toOfferThreads("patient-1")!!.single().isMyTurn)
         assertTrue(rows.toOfferThreads("p1")!!.single().isMyTurn)
+    }
+
+    // HU-41: the other side's final offer leaves the turn with its reader, but no
+    // amount to answer with; one's own final offer is simply waited on.
+    @Test
+    fun aFinalOfferOnTheTableLeavesTheTurnButNoCounter() {
+        val rows = listOf(dto("o1"), dto("o2", parentOfferId = "o1", issuer = "PATIENT", isFinal = true))
+
+        val professionalSide = rows.toOfferThreads("p1")!!.single()
+        assertTrue(professionalSide.isMyTurn)
+        assertTrue(professionalSide.lastOfferIsFinal)
+        assertFalse(professionalSide.canCounter)
+
+        val patientSide = rows.toOfferThreads("patient-1")!!.single()
+        assertFalse(patientSide.isMyTurn)
+        assertFalse(patientSide.canCounter)
+    }
+
+    // An offer that is not the last one does not bind the answer.
+    @Test
+    fun anOfferThatIsNotFinalLeavesTheCounterOpen() {
+        val rows = listOf(dto("o1"), dto("o2", parentOfferId = "o1", issuer = "PATIENT"))
+
+        assertTrue(rows.toOfferThreads("p1")!!.single().canCounter)
     }
 
     // An enum value the client does not know is a contract break, not a row to

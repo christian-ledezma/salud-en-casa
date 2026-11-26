@@ -25,6 +25,7 @@ class OfferRepository(
         requestId: String,
         amount: AmountBob,
         message: String?,
+        isFinal: Boolean,
     ): OfferSubmitResult {
         val userId = dataSource.currentUserId() ?: return OfferSubmitResult.Failure(OfferError.NotSignedIn)
 
@@ -36,6 +37,7 @@ class OfferRepository(
                     issuer = OfferIssuer.PROFESSIONAL.name,
                     amountBob = amount.value,
                     message = message,
+                    isFinal = isFinal,
                 ),
             )
             OfferSubmitResult.Success
@@ -54,6 +56,7 @@ class OfferRepository(
         parentOfferId: String,
         amount: AmountBob,
         message: String?,
+        isFinal: Boolean,
     ): OfferSubmitResult {
         val userId = dataSource.currentUserId() ?: return OfferSubmitResult.Failure(OfferError.NotSignedIn)
         val issuer = if (userId == professionalId) OfferIssuer.PROFESSIONAL else OfferIssuer.PATIENT
@@ -67,6 +70,7 @@ class OfferRepository(
                     issuer = issuer.name,
                     amountBob = amount.value,
                     message = message,
+                    isFinal = isFinal,
                 ),
             )
             OfferSubmitResult.Success

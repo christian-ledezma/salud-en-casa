@@ -8,6 +8,7 @@ import bo.saludencasa.features.requests.domain.model.OfferSubmitResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,7 +23,7 @@ class SubmitOfferUseCaseTest {
     @Test
     fun anOfferWithoutAMessageIsSent() =
         runTest {
-            val result = useCase(requestId = "r1", amountRaw = "120", message = "   ")
+            val result = useCase(requestId = "r1", amountRaw = "120", message = "   ", isFinal = false)
 
             assertEquals(OfferSubmitResult.Success, result)
             assertNull(repository.submitted.single().message)
@@ -32,7 +33,7 @@ class SubmitOfferUseCaseTest {
     @Test
     fun rejectsAnAmountThatIsNotPositive() =
         runTest {
-            val result = useCase(requestId = "r1", amountRaw = "0", message = "")
+            val result = useCase(requestId = "r1", amountRaw = "0", message = "", isFinal = false)
 
             assertEquals(OfferSubmitResult.Failure(OfferError.InvalidAmount), result)
             assertTrue(repository.submitted.isEmpty())
@@ -41,7 +42,7 @@ class SubmitOfferUseCaseTest {
     @Test
     fun rejectsAnAmountThatDoesNotParse() =
         runTest {
-            val result = useCase(requestId = "r1", amountRaw = "ciento veinte", message = "")
+            val result = useCase(requestId = "r1", amountRaw = "ciento veinte", message = "", isFinal = false)
 
             assertEquals(OfferSubmitResult.Failure(OfferError.InvalidAmount), result)
             assertTrue(repository.submitted.isEmpty())
@@ -52,12 +53,24 @@ class SubmitOfferUseCaseTest {
     @Test
     fun passesAValidOfferToTheRepository() =
         runTest {
-            val result = useCase(requestId = "r1", amountRaw = "120,50", message = "  Llevo el material  ")
+            val result =
+                useCase(requestId = "r1", amountRaw = "120,50", message = "  Llevo el material  ", isFinal = false)
 
             assertEquals(OfferSubmitResult.Success, result)
             val submission = repository.submitted.single()
             assertEquals("r1", submission.requestId)
             assertEquals(BigDecimal("120.50"), submission.amount.value)
             assertEquals("Llevo el material", submission.message)
+            assertFalse(submission.isFinal)
+        }
+
+    // HU-41: the professional's first offer may already be their last one.
+    @Test
+    fun aFirstOfferMarkedAsFinalLeavesWithTheMark() =
+        runTest {
+            val result = useCase(requestId = "r1", amountRaw = "120", message = "", isFinal = true)
+
+            assertEquals(OfferSubmitResult.Success, result)
+            assertTrue(repository.submitted.single().isFinal)
         }
 }

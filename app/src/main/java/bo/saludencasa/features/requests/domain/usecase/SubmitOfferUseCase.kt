@@ -15,12 +15,13 @@ class SubmitOfferUseCase(
         requestId: String,
         amountRaw: String,
         message: String,
+        isFinal: Boolean,
     ): OfferSubmitResult {
         val amount =
             AmountBob.parse(amountRaw).getOrElse {
                 return OfferSubmitResult.Failure(OfferError.InvalidAmount)
             }
 
-        return repository.submitOffer(requestId, amount, message.trim().ifEmpty { null })
+        return repository.submitOffer(requestId, amount, message.trim().ifEmpty { null }, isFinal)
     }
 }

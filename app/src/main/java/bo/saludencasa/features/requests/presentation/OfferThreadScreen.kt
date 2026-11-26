@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -24,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -78,6 +82,7 @@ fun OfferThreadScreen(
                 onCounterDismissed = viewModel::onCounterDismissed,
                 onAmountChanged = viewModel::onAmountChanged,
                 onMessageChanged = viewModel::onMessageChanged,
+                onFinalChanged = viewModel::onFinalChanged,
                 onSubmit = viewModel::onSubmit,
                 onReject = viewModel::onRejectClicked,
                 onRejectConfirmed = viewModel::onRejectConfirmed,
@@ -96,6 +101,7 @@ internal data class OfferThreadActions(
     val onCounterDismissed: () -> Unit = {},
     val onAmountChanged: (String) -> Unit = {},
     val onMessageChanged: (String) -> Unit = {},
+    val onFinalChanged: (Boolean) -> Unit = {},
     val onSubmit: () -> Unit = {},
     val onReject: () -> Unit = {},
     val onRejectConfirmed: () -> Unit = {},
@@ -192,6 +198,7 @@ private fun OpeningBody(
                 messageLabel = stringResource(R.string.offer_message_label),
                 amount = opening.amount,
                 message = opening.message,
+                isFinal = opening.isFinal,
                 error = opening.error,
                 floorBob = null,
                 actions = actions,
@@ -202,7 +209,7 @@ private fun OpeningBody(
         BottomActionBar {
             BarError(error = opening.error)
             PrimaryButton(
-                text = stringResource(R.string.offer_submit),
+                text = stringResource(if (opening.isFinal) R.string.offer_final_submit else R.string.offer_submit),
                 onClick = actions.onSubmit,
                 enabled = !opening.submitting,
             )
@@ -266,6 +273,7 @@ private fun ThreadBody(
                     messageLabel = stringResource(R.string.offer_counter_message_label),
                     amount = content.amount,
                     message = content.message,
+                    isFinal = content.isFinal,
                     error = content.error,
                     floorBob = thread.counterFloorBob,
                     actions = actions,
@@ -280,7 +288,10 @@ private fun ThreadBody(
 
                 if (content.countering) {
                     PrimaryButton(
-                        text = stringResource(R.string.offer_counter_submit),
+                        text =
+                            stringResource(
+                                if (content.isFinal) R.string.offer_final_submit else R.string.offer_counter_submit,
+                            ),
                         onClick = actions.onSubmit,
                         enabled = content.canSubmit,
                     )
@@ -293,12 +304,15 @@ private fun ThreadBody(
                         onClick = actions.onAccept,
                         enabled = content.canAnswer,
                     )
-                    OutlinedButton(
-                        onClick = actions.onCounter,
-                        enabled = content.canAnswer,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(R.string.offer_counter_open))
+                    // The other side's final offer leaves only accepting and rejecting.
+                    if (thread.canCounter) {
+                        OutlinedButton(
+                            onClick = actions.onCounter,
+                            enabled = content.canAnswer,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(text = stringResource(R.string.offer_counter_open))
+                        }
                     }
                     OutlinedButton(
                         onClick = actions.onReject,
@@ -357,6 +371,7 @@ private fun AmountAndMessage(
     messageLabel: String,
     amount: String,
     message: String,
+    isFinal: Boolean,
     error: OfferError?,
     floorBob: BigDecimal?,
     actions: OfferThreadActions,
@@ -387,6 +402,42 @@ private fun AmountAndMessage(
             onValueChange = actions.onMessageChanged,
             singleLine = false,
         )
+        FinalOfferCheckbox(checked = isFinal, onCheckedChange = actions.onFinalChanged)
+    }
+}
+
+// The whole row toggles, so the target is the label and not only the box; what the
+// mark does is said here, before sending, and not in a dialog after it.
+@Composable
+private fun FinalOfferCheckbox(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = Spacing.minTouchTarget)
+                .toggleable(value = checked, role = Role.Checkbox, onValueChange = onCheckedChange),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.scale12),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(Spacing.scale4),
+        ) {
+            Text(
+                text = stringResource(R.string.offer_final_label),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(R.string.offer_final_supporting),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -564,6 +615,13 @@ private fun OfferRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (offer.isFinal) {
+                Text(
+                    text = stringResource(R.string.thread_final_badge),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             if (offer.status == OfferStatus.REJECTED) {
                 Text(
                     text = stringResource(R.string.thread_rejected_badge),
@@ -610,9 +668,10 @@ internal fun previewRequest() =
 private fun previewContent(
     countering: Boolean = false,
     closed: Boolean = false,
+    finalOffer: Boolean = false,
 ) = OfferThreadUiState.Content(
     thread =
-        previewThreads()
+        previewThreads(finalOffer = finalOffer)
             .first()
             .let { thread ->
                 if (closed) {
@@ -725,4 +784,54 @@ private fun OfferThreadOpeningPreview() {
 @Composable
 private fun OfferThreadOpeningLargeFontPreview() {
     PreviewScreen(OfferThreadUiState.Opening(request = previewRequest(), amount = "160"))
+}
+
+// HU-41: the professional's offer on the table is their last one, so the patient
+// is left with accepting or rejecting it.
+@Preview(showBackground = true, widthDp = 320, heightDp = 900, name = "Hilo, última oferta recibida")
+@Composable
+private fun OfferThreadFinalReceivedPreview() {
+    PreviewScreen(previewContent(finalOffer = true))
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 900, name = "Hilo, última oferta recibida, oscuro")
+@Composable
+private fun OfferThreadFinalReceivedDarkPreview() {
+    PreviewScreen(previewContent(finalOffer = true), darkTheme = true)
+}
+
+@Preview(
+    showBackground = true,
+    widthDp = 320,
+    heightDp = 1800,
+    fontScale = 2f,
+    name = "Hilo, última oferta recibida, 200 %",
+)
+@Composable
+private fun OfferThreadFinalReceivedLargeFontPreview() {
+    PreviewScreen(previewContent(finalOffer = true))
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1100, name = "Hilo, enviando la última")
+@Composable
+private fun OfferThreadSendingFinalPreview() {
+    PreviewScreen(previewContent(countering = true).copy(isFinal = true))
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1100, name = "Hilo, enviando la última, oscuro")
+@Composable
+private fun OfferThreadSendingFinalDarkPreview() {
+    PreviewScreen(previewContent(countering = true).copy(isFinal = true), darkTheme = true)
+}
+
+@Preview(
+    showBackground = true,
+    widthDp = 320,
+    heightDp = 2200,
+    fontScale = 2f,
+    name = "Hilo, enviando la última, 200 %",
+)
+@Composable
+private fun OfferThreadSendingFinalLargeFontPreview() {
+    PreviewScreen(previewContent(countering = true).copy(isFinal = true))
 }

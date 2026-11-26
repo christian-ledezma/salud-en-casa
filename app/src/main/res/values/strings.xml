@@ -548,6 +548,7 @@
     <string name="error_offer_invalid_amount">Ingresa un monto válido, mayor a cero y con hasta dos decimales.</string>
     <string name="error_offer_not_allowed">No puedes responder ahora. Puede que la negociación esté cerrada, que la solicitud ya no esté disponible o que no sea tu turno.</string>
     <string name="error_offer_subscription_expired">Tu suscripción venció: no puedes hacer ofertas nuevas. Las negociaciones que ya abriste siguen.</string>
+    <string name="error_offer_final_admits_no_counter">La otra parte envió su última oferta: solo puedes aceptarla o rechazarla.</string>
 
     <string name="schedule_title">Agendar una cita</string>
     <string name="schedule_subtitle">Elige el servicio, el día y la hora. El profesional recibirá tu solicitud y podrá responder con una oferta.</string>
@@ -593,6 +594,12 @@
     <string name="thread_state_waiting">Esperando respuesta</string>
     <string name="thread_state_closed">Negociación cerrada</string>
     <string name="thread_rejected_badge">Rechazada</string>
+    <string name="thread_final_badge">Última oferta</string>
+    <string name="thread_state_final_to_answer">Es su última oferta: solo puedes aceptarla o rechazarla</string>
+    <string name="thread_state_final_sent">Enviaste tu última oferta. Esperando respuesta</string>
+    <string name="offer_final_label">Es mi última oferta</string>
+    <string name="offer_final_supporting">La otra parte solo podrá aceptarla o rechazarla.</string>
+    <string name="offer_final_submit">Enviar última oferta</string>
     <string name="offer_counter_open">Contraofertar</string>
     <string name="offer_counter_submit">Enviar contraoferta</string>
     <string name="offer_counter_amount_label">Tu contraoferta (Bs)</string>

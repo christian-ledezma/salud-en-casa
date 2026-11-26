@@ -739,6 +739,30 @@ private fun ImmediateWaitingWithOffersLargeFontPreview() {
     PreviewScreen(previewWaiting(threads = previewThreads()))
 }
 
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Ofertas, última oferta, claro")
+@Composable
+private fun ImmediateWaitingFinalOfferPreview() {
+    PreviewScreen(previewWaiting(threads = previewThreads(finalOffer = true)))
+}
+
+@Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Ofertas, última oferta, oscuro")
+@Composable
+private fun ImmediateWaitingFinalOfferDarkPreview() {
+    PreviewScreen(previewWaiting(threads = previewThreads(finalOffer = true)), darkTheme = true)
+}
+
+@Preview(
+    showBackground = true,
+    widthDp = 320,
+    heightDp = 2000,
+    fontScale = 2f,
+    name = "Ofertas, última oferta, 200 %",
+)
+@Composable
+private fun ImmediateWaitingFinalOfferLargeFontPreview() {
+    PreviewScreen(previewWaiting(threads = previewThreads(finalOffer = true)))
+}
+
 @Preview(showBackground = true, widthDp = 320, heightDp = 1000, name = "Ofertas, confirmar")
 @Composable
 private fun ImmediateWaitingConfirmPreview() {

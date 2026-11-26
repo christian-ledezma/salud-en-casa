@@ -228,6 +228,19 @@ class ImmediateCareScreenLargeFontTest {
         composeRule.onNodeWithText(string(R.string.offer_card_negotiate)).assertDoesNotExist()
     }
 
+    // HU-41: a professional's final offer is accepted on the card or opened to be
+    // read, never offered as something to negotiate.
+    @Test
+    fun aFinalOfferOnTheCardIsAcceptedOrViewedButNotNegotiated() {
+        val thread = offerThread(offers = listOf(requestOffer(isFinal = true)))
+        show(waitingWith(thread))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(acceptLabel(thread)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.offer_card_view)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.thread_state_final_to_answer)))
+        composeRule.onNodeWithText(string(R.string.offer_card_negotiate)).assertDoesNotExist()
+    }
+
     @Test
     fun theButtonsHandTheirOfferOverAndTheRestOpensTheNegotiation() {
         val thread = offerThread(professionalId = "p7")

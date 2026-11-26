@@ -132,6 +132,7 @@ internal fun OfferCard(
             }
             OfferCardActions(
                 isMyTurn = thread.isMyTurn,
+                canCounter = thread.canCounter,
                 amount = formatBob(last.amountBob, locale),
                 enabled = enabled,
                 onOpen = onOpen,
@@ -145,6 +146,7 @@ internal fun OfferCard(
 @Composable
 private fun OfferCardActions(
     isMyTurn: Boolean,
+    canCounter: Boolean,
     amount: String,
     enabled: Boolean,
     onOpen: () -> Unit,
@@ -162,7 +164,7 @@ private fun OfferCardActions(
             modifier = width.then(buttonSize),
         ) {
             Text(
-                text = stringResource(if (isMyTurn) R.string.offer_card_negotiate else R.string.offer_card_view),
+                text = stringResource(if (canCounter) R.string.offer_card_negotiate else R.string.offer_card_view),
                 textAlign = TextAlign.Center,
             )
         }
@@ -239,6 +241,7 @@ private fun previewOffer(
     amount: String,
     issuer: OfferIssuer,
     status: OfferStatus = OfferStatus.PROPOSED,
+    isFinal: Boolean = false,
 ) = RequestOffer(
     id = id,
     parentOfferId = null,
@@ -251,10 +254,12 @@ private fun previewOffer(
     issuer = issuer,
     status = status,
     createdAt = Instant.parse("2026-10-27T18:10:00Z"),
+    isFinal = isFinal,
 )
 
-// Shared by the previews of the waiting screen and of the thread.
-internal fun previewThreads() =
+// Shared by the previews of the waiting screen and of the thread. With finalOffer,
+// the first professional's offer on the table is their last one (HU-41).
+internal fun previewThreads(finalOffer: Boolean = false) =
     listOf(
         OfferThread(
             professionalId = "p1",
@@ -265,7 +270,7 @@ internal fun previewThreads() =
                 listOf(
                     previewOffer("o1", "p1", "160.00", OfferIssuer.PROFESSIONAL),
                     previewOffer("o2", "p1", "140.00", OfferIssuer.PATIENT),
-                    previewOffer("o3", "p1", "150.00", OfferIssuer.PROFESSIONAL),
+                    previewOffer("o3", "p1", "150.00", OfferIssuer.PROFESSIONAL, isFinal = finalOffer),
                 ),
             iAmTheProfessional = false,
             distanceM = 1200,

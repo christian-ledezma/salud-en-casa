@@ -654,4 +654,71 @@ class OfferThreadViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    // HU-41: the professional's first offer may already be their last one.
+    @Test
+    fun theMarkOfTheFirstOfferTravelsWithIt() =
+        runTest {
+            offers.threadResult = OfferThreadResult.NotFound
+            offers.offerableResult = OfferableRequestResult.Loaded(offerableRequest(id = "r1"))
+            val viewModel = opened(professionalId = null)
+
+            viewModel.onAmountChanged("160")
+            viewModel.onFinalChanged(true)
+            viewModel.onSubmit()
+            advanceUntilIdle()
+
+            assertTrue(offers.submitted.single().isFinal)
+        }
+
+    // A mark left on a form the person closed would make the next counter-offer
+    // final without them having ticked it again.
+    @Test
+    fun cancellingTheCounterOfferClearsTheMark() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            val viewModel = opened()
+
+            viewModel.onCounterClicked()
+            viewModel.onFinalChanged(true)
+            viewModel.onCounterDismissed()
+            viewModel.onCounterClicked()
+
+            assertFalse(content(viewModel).isFinal)
+        }
+
+    @Test
+    fun aSentCounterOfferLeavesWithTheMarkAndClearsIt() =
+        runTest {
+            offers.threadResult = OfferThreadResult.Loaded(theirTurnThread())
+            val viewModel = opened()
+
+            viewModel.onCounterClicked()
+            viewModel.onAmountChanged("140")
+            viewModel.onFinalChanged(true)
+            viewModel.onSubmit()
+            advanceUntilIdle()
+
+            assertTrue(offers.submitted.single().isFinal)
+            assertFalse(content(viewModel).isFinal)
+        }
+
+    // RN-15: the other side's final offer is accepted or rejected, so the form of
+    // a counter-offer never opens on it.
+    @Test
+    fun theOtherSidesFinalOfferNeverOpensTheCounterForm() =
+        runTest {
+            offers.threadResult =
+                OfferThreadResult.Loaded(
+                    offerThread(offers = listOf(requestOffer(id = "o1", isFinal = true))),
+                )
+            val viewModel = opened()
+
+            viewModel.onCounterClicked()
+
+            val state = content(viewModel)
+            assertFalse(state.countering)
+            assertFalse(state.canSubmit)
+            assertTrue(state.canAnswer)
+        }
 }

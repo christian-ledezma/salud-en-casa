@@ -1,8 +1,12 @@
 package bo.saludencasa.features.requests.presentation
 
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatBob
@@ -16,6 +20,7 @@ import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,9 +32,12 @@ class OfferThreadScreenLargeFontTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private fun show(uiState: OfferThreadUiState) {
+    private fun show(
+        uiState: OfferThreadUiState,
+        actions: OfferThreadActions = OfferThreadActions(),
+    ) {
         composeRule.setContentAtDoubleFontScale {
-            OfferThreadContent(uiState = uiState, onBack = {}, actions = OfferThreadActions())
+            OfferThreadContent(uiState = uiState, onBack = {}, actions = actions)
         }
     }
 
@@ -318,5 +326,70 @@ class OfferThreadScreenLargeFontTest {
         show(OfferThreadUiState.Failed(OfferError.NetworkUnavailable))
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.common_retry)))
+    }
+
+    // HU-41: the mark sits under the message of the first offer, with what it does
+    // said beside it, and the whole row is the target, not only the box.
+    @Test
+    fun theFinalOfferMarkIsReachableOnTheFirstOfferFormAndTheRowTogglesIt() {
+        var marked = false
+        show(
+            OfferThreadUiState.Opening(request = offerableRequest(), amount = "160"),
+            actions = OfferThreadActions(onFinalChanged = { marked = it }),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.offer_final_supporting)))
+        composeRule.onNodeWithText(string(R.string.offer_final_label)).performScrollTo().performClick()
+
+        assertTrue(marked)
+    }
+
+    // Marked, the button says what will leave before it leaves: there is no dialog.
+    @Test
+    fun aMarkedCounterOfferSaysItIsTheLastOnItsButton() {
+        show(
+            OfferThreadUiState.Content(
+                thread = offerThread(offers = chain("160.00" to OfferIssuer.PROFESSIONAL)),
+                countering = true,
+                amount = "140",
+                isFinal = true,
+            ),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNode(isToggleable()).assertIsOn())
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_final_submit)),
+        )
+        composeRule.onNodeWithText(string(R.string.offer_counter_submit)).assertDoesNotExist()
+    }
+
+    // RN-15: before the other side's final offer, accepting and rejecting are all
+    // there is, and the row and the state both say why.
+    @Test
+    fun theOtherSidesFinalOfferLeavesOnlyAcceptAndReject() {
+        val offers =
+            chain("160.00" to OfferIssuer.PROFESSIONAL).map { it.copy(isFinal = true) }
+        show(OfferThreadUiState.Content(thread = offerThread(offers = offers)))
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_accept_button)).assertIsEnabled(),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.offer_reject)).assertIsEnabled(),
+        )
+        composeRule.onNodeWithText(string(R.string.offer_counter_open)).assertDoesNotExist()
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.thread_final_badge)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.thread_state_final_to_answer)))
+    }
+
+    // One's own final offer is waited on, and the reader is told it was the last.
+    @Test
+    fun myOwnFinalOfferIsWaitedOnAndSaysSo() {
+        val offers =
+            chain("160.00" to OfferIssuer.PROFESSIONAL).map { it.copy(isFinal = true) }
+        show(OfferThreadUiState.Content(thread = offerThread(offers = offers, iAmTheProfessional = true)))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.thread_state_final_sent)))
+        composeRule.onNodeWithText(string(R.string.offer_accept_button)).assertDoesNotExist()
     }
 }

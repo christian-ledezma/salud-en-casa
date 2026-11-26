@@ -27,6 +27,7 @@ class FakeOfferRepository : IOfferRepository {
         val parentOfferId: String?,
         val amount: AmountBob,
         val message: String?,
+        val isFinal: Boolean,
     )
 
     val submitted = mutableListOf<Submission>()
@@ -56,9 +57,17 @@ class FakeOfferRepository : IOfferRepository {
         requestId: String,
         amount: AmountBob,
         message: String?,
+        isFinal: Boolean,
     ): OfferSubmitResult {
         submitted +=
-            Submission(requestId, professionalId = null, parentOfferId = null, amount = amount, message = message)
+            Submission(
+                requestId,
+                professionalId = null,
+                parentOfferId = null,
+                amount = amount,
+                message = message,
+                isFinal = isFinal,
+            )
         return submitResult
     }
 
@@ -68,9 +77,10 @@ class FakeOfferRepository : IOfferRepository {
         parentOfferId: String,
         amount: AmountBob,
         message: String?,
+        isFinal: Boolean,
     ): OfferSubmitResult {
         holdSubmit?.await()
-        submitted += Submission(requestId, professionalId, parentOfferId, amount, message)
+        submitted += Submission(requestId, professionalId, parentOfferId, amount, message, isFinal)
         return submitResult
     }
 
@@ -113,6 +123,7 @@ fun requestOffer(
     message: String? = "Llevo el material.",
     issuer: OfferIssuer = OfferIssuer.PROFESSIONAL,
     status: OfferStatus = OfferStatus.PROPOSED,
+    isFinal: Boolean = false,
 ): RequestOffer =
     RequestOffer(
         id = id,
@@ -126,6 +137,7 @@ fun requestOffer(
         issuer = issuer,
         status = status,
         createdAt = Instant.parse("2026-10-27T18:00:00Z"),
+        isFinal = isFinal,
     )
 
 fun offerThread(

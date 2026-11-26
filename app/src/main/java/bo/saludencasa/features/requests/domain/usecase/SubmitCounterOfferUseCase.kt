@@ -14,7 +14,9 @@ import bo.saludencasa.features.requests.domain.repository.IOfferRepository
 // before anything leaves; the engine checks it again (docs/decisions.md,
 // 2026-10-27, HT-24). The message is optional. An amount equal to the offer on the
 // table is not a counter-offer: nothing is written, and the person confirms
-// accepting it. The floor goes first (docs/decisions.md, 2026-11-04, HT-29).
+// accepting it. The floor goes first (docs/decisions.md, 2026-11-04, HT-29). A final
+// offer on the table admits no amount at all, so that goes before anything is read
+// from the form (docs/decisions.md, 2026-11-25, HU-41).
 class SubmitCounterOfferUseCase(
     private val repository: IOfferRepository,
 ) {
@@ -23,8 +25,10 @@ class SubmitCounterOfferUseCase(
         thread: OfferThread,
         amountRaw: String,
         message: String,
+        isFinal: Boolean,
     ): CounterOfferResult {
         val parent = thread.lastOffer ?: return CounterOfferResult.Failure(OfferError.NotAllowed)
+        if (parent.isFinal) return CounterOfferResult.Failure(OfferError.FinalOfferAdmitsNoCounter)
 
         val amount =
             AmountBob.parse(amountRaw).getOrElse {
@@ -46,6 +50,7 @@ class SubmitCounterOfferUseCase(
                 parentOfferId = parent.id,
                 amount = amount,
                 message = message.trim().ifEmpty { null },
+                isFinal = isFinal,
             )
         return when (result) {
             OfferSubmitResult.Success -> CounterOfferResult.Sent

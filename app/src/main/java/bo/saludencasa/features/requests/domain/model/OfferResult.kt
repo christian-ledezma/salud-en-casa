@@ -23,6 +23,10 @@ sealed interface OfferError {
     // so the professional learns why and that open threads go on (HU-38).
     data object SubscriptionExpired : OfferError
 
+    // The offer on the table is the other side's final one: it is accepted or
+    // rejected, never answered with another amount (RN-15).
+    data object FinalOfferAdmitsNoCounter : OfferError
+
     data object NetworkUnavailable : OfferError
 
     data object Unexpected : OfferError

@@ -20,6 +20,7 @@ data class NewOfferRow(
     @SerialName("amount_bob") val amountBob: BigDecimal,
     // Optional since HT-24: a null leaves the column empty.
     val message: String? = null,
+    @SerialName("is_final") val isFinal: Boolean = false,
 )
 
 // The single named argument of my_request_offers and inbox_request.
@@ -59,6 +60,7 @@ data class RequestOfferDto(
     @SerialName("distance_m") val distanceM: Double? = null,
     @Serializable(with = BigDecimalSerializer::class)
     @SerialName("suggested_budget_bob") val suggestedBudgetBob: BigDecimal? = null,
+    @SerialName("is_final") val isFinal: Boolean = false,
 )
 
 // A row of inbox_request: the inbox projection for one request, plus whether the

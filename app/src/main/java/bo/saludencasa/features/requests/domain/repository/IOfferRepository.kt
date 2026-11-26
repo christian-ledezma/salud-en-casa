@@ -10,11 +10,13 @@ import kotlinx.coroutines.flow.Flow
 
 interface IOfferRepository {
     // The professional issues the first offer of a thread (RF-08.1). The message is
-    // optional (docs/decisions.md, 2026-10-27, HT-24).
+    // optional (docs/decisions.md, 2026-10-27, HT-24). A final offer can only be
+    // accepted or rejected (RF-08.7).
     suspend fun submitOffer(
         requestId: String,
         amount: AmountBob,
         message: String?,
+        isFinal: Boolean,
     ): OfferSubmitResult
 
     // Either side answers the offer on the table with another amount (RF-08.2).
@@ -25,6 +27,7 @@ interface IOfferRepository {
         parentOfferId: String,
         amount: AmountBob,
         message: String?,
+        isFinal: Boolean,
     ): OfferSubmitResult
 
     // The threads on the patient's own request, one per professional (RF-08.3).

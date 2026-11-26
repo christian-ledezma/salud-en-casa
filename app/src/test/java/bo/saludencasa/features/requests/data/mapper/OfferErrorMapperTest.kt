@@ -66,4 +66,14 @@ class OfferErrorMapperTest {
             refusal("""{"code":"P0001","message":"subscription_expired"}"""),
         )
     }
+
+    // HU-41: the other side's final offer landed first. Named, so the screen says
+    // what is left instead of the generic refusal.
+    @Test
+    fun anAnswerToAFinalOfferSaysSo() {
+        assertEquals(
+            OfferError.FinalOfferAdmitsNoCounter,
+            refusal("""{"code":"P0001","message":"final_offer_admits_no_counter"}"""),
+        )
+    }
 }

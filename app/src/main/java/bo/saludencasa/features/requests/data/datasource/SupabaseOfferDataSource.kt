@@ -131,6 +131,7 @@ class SupabaseOfferDataSource(
                 "issuer",
                 "status",
                 "created_at",
+                "is_final",
             )
     }
 }

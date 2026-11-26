@@ -33,6 +33,7 @@ sealed interface OfferThreadUiState {
         val request: OfferableRequest,
         val amount: String = "",
         val message: String = "",
+        val isFinal: Boolean = false,
         val submitting: Boolean = false,
         val error: OfferError? = null,
     ) : OfferThreadUiState
@@ -45,6 +46,7 @@ sealed interface OfferThreadUiState {
         val countering: Boolean = false,
         val amount: String = "",
         val message: String = "",
+        val isFinal: Boolean = false,
         val submitting: Boolean = false,
         val confirmingRejection: Boolean = false,
         val confirmingAcceptance: Boolean = false,
@@ -54,7 +56,9 @@ sealed interface OfferThreadUiState {
         // which is also who may accept it (HU-19).
         val canAnswer: Boolean get() = thread.isMyTurn && !submitting
 
-        val canSubmit: Boolean get() = canAnswer && countering
+        // The other side's final offer is accepted or rejected, never answered
+        // with another amount (RN-15).
+        val canSubmit: Boolean get() = canAnswer && countering && thread.canCounter
     }
 
     // Nothing to negotiate here: the request is gone, or this thread does not
@@ -107,11 +111,22 @@ class OfferThreadViewModel(
     fun refresh() = relaunchLoad(showLoading = true)
 
     fun onCounterClicked() {
-        state.updateContent { it.copy(countering = true, error = null) }
+        state.updateContent { if (it.thread.canCounter) it.copy(countering = true, error = null) else it }
     }
 
     fun onCounterDismissed() {
-        state.updateContent { it.copy(countering = false, amount = "", message = "", error = null) }
+        state.updateContent {
+            it.copy(countering = false, amount = "", message = "", isFinal = false, error = null)
+        }
+    }
+
+    fun onFinalChanged(value: Boolean) {
+        state.value =
+            when (val current = state.value) {
+                is OfferThreadUiState.Opening -> current.copy(isFinal = value)
+                is OfferThreadUiState.Content -> current.copy(isFinal = value)
+                else -> current
+            }
     }
 
     fun onAmountChanged(value: String) {
@@ -204,7 +219,7 @@ class OfferThreadViewModel(
 
         state.value = opening.copy(submitting = true, error = null)
         viewModelScope.launch {
-            when (val result = submitOffer(requestId, opening.amount, opening.message)) {
+            when (val result = submitOffer(requestId, opening.amount, opening.message, opening.isFinal)) {
                 // The thread that now exists replaces the form on this same screen.
                 // A full load and not a quiet one: if it fails, the form must not
                 // stay up waiting with its button off for an offer already made.
@@ -232,11 +247,12 @@ class OfferThreadViewModel(
                     thread = content.thread,
                     amountRaw = content.amount,
                     message = content.message,
+                    isFinal = content.isFinal,
                 )
             when (result) {
                 CounterOfferResult.Sent -> {
                     state.updateContent {
-                        it.copy(submitting = false, countering = false, amount = "", message = "")
+                        it.copy(submitting = false, countering = false, amount = "", message = "", isFinal = false)
                     }
                     relaunchLoad(showLoading = false)
                 }
@@ -328,7 +344,7 @@ class OfferThreadViewModel(
         return (previous ?: OfferThreadUiState.Content(thread)).copy(
             thread = thread,
             request = previous?.request ?: requestOnScreen() ?: fetched,
-            countering = previous?.countering == true && thread.isMyTurn,
+            countering = previous?.countering == true && thread.canCounter,
         )
     }
 
