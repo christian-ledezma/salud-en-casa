@@ -39,10 +39,13 @@ class SupabaseCatalogDataSource(
                 limit(MAX_SERVICE_TYPES)
             }.decodeList<ProfessionalServiceDto>()
 
-    suspend fun insertService(row: ProfessionalServiceRow) {
+    // One request with every row: PostgREST runs it as a single statement, so
+    // a type that is already declared leaves none of the others behind
+    // (docs/decisions.md, 2026-11-25, HT-32).
+    suspend fun insertServices(rows: List<ProfessionalServiceRow>) {
         supabase
             .from(PROFESSIONAL_SERVICES)
-            .insert(row)
+            .insert(rows)
     }
 
     // Written with the column builder for the reason given in
@@ -77,8 +80,7 @@ class SupabaseCatalogDataSource(
 
         val SERVICE_COLUMNS: Columns = Columns.list("id", "service_type_id", "reference_price_bob")
 
-        // The catalog is platform reference data and a professional can declare
-        // each entry once, so one page holds both reads (RNF-08).
-        const val MAX_SERVICE_TYPES = 100L
+        // docs/decisions.md, 2026-11-25, HT-32, the ceiling of the catalog read.
+        const val MAX_SERVICE_TYPES = 500L
     }
 }

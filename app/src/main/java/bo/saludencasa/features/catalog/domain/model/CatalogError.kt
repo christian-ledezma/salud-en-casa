@@ -7,6 +7,10 @@ sealed interface CatalogError {
 
     data object ServiceAlreadyDeclared : CatalogError
 
+    data object ServiceTypeUnavailable : CatalogError
+
+    data object NothingSelected : CatalogError
+
     data object NetworkUnavailable : CatalogError
 
     data object Unexpected : CatalogError

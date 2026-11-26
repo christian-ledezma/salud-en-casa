@@ -371,25 +371,48 @@
     <string name="profile_open_my_services">Mis servicios</string>
 
     <string name="catalog_my_services_title">Mis servicios</string>
-    <string name="catalog_my_services_subtitle">Declara qué atenciones prestas y a qué precio. Los pacientes te encuentran filtrando por estos tipos.</string>
+    <string name="catalog_my_services_subtitle">Declara qué atenciones prestas y a qué precio.</string>
 
-    <string name="catalog_declared_section_title">Servicios actuales</string>
+    <string name="catalog_summary">Declarados: %1$d · Por declarar: %2$d</string>
+    <string name="catalog_search_declared_placeholder">Buscar en mis servicios</string>
+    <string name="catalog_search_catalog_placeholder">Buscar en el catálogo</string>
+    <string name="catalog_no_declared_match">Ninguno de tus servicios coincide con «%1$s».</string>
+
     <string name="catalog_declared_empty_title">Todavía no declaraste ningún servicio</string>
     <string name="catalog_declared_empty_description">Mientras no declares al menos uno no apareces cuando un paciente filtra por tipo de atención.</string>
 
-    <string name="catalog_available_section_title">Agregar un servicio</string>
-    <string name="catalog_available_empty">Ya declaraste todos los tipos del catálogo.</string>
-
-    <string name="catalog_declare_action">Declarar</string>
-    <string name="catalog_reprice_action">Cambiar precio</string>
+    <string name="catalog_add_services_action">Agregar servicios</string>
+    <string name="catalog_remove_service_action">Quitar servicio</string>
     <string name="catalog_remove_action">Quitar</string>
+    <string name="catalog_new_badge">Nuevo</string>
 
-    <string name="catalog_my_price">Tu precio: %1$s</string>
-    <string name="catalog_reference_price">Referencia del catálogo: %1$s</string>
-    <plurals name="catalog_estimated_duration">
-        <item quantity="one">Dura alrededor de %d minuto</item>
-        <item quantity="other">Dura alrededor de %d minutos</item>
+    <string name="catalog_duration_minutes">%d&#160;min</string>
+    <string name="catalog_duration_hours">%d&#160;h</string>
+    <string name="catalog_duration_hours_minutes">%1$d&#160;h %2$d&#160;min</string>
+
+    <plurals name="catalog_declared_notice">
+        <item quantity="one">%d servicio declarado. Revisa su precio.</item>
+        <item quantity="other">%d servicios declarados. Revisa sus precios.</item>
     </plurals>
+
+    <string name="catalog_picker_title">Agregar servicios</string>
+    <plurals name="catalog_picker_count">
+        <item quantity="one">%d tipo sin declarar</item>
+        <item quantity="other">%d tipos sin declarar</item>
+    </plurals>
+    <plurals name="catalog_picker_results">
+        <item quantity="one">%1$d resultado para «%2$s»</item>
+        <item quantity="other">%1$d resultados para «%2$s»</item>
+    </plurals>
+    <string name="catalog_picker_price_note">Se declaran al precio de referencia; luego puedes cambiar cada uno.</string>
+    <string name="catalog_picker_no_results">Ningún tipo del catálogo coincide con «%1$s».</string>
+    <string name="catalog_available_empty">Ya declaraste todos los tipos del catálogo.</string>
+    <string name="catalog_picker_row_meta">Ref. %1$s · %2$s</string>
+    <plurals name="catalog_picker_confirm">
+        <item quantity="one">Declarar %d servicio</item>
+        <item quantity="other">Declarar %d servicios</item>
+    </plurals>
+    <string name="catalog_picker_confirm_none">Elige uno o más servicios</string>
 
     <string name="catalog_price_dialog_title">Precio de «%1$s»</string>
     <string name="catalog_price_dialog_description">Es el precio con el que apareces en las búsquedas. El monto de cada atención se acuerda después, en la negociación.</string>
@@ -399,9 +422,17 @@
     <string name="catalog_remove_dialog_title">¿Quitar este servicio?</string>
     <string name="catalog_remove_dialog_message">Dejas de aparecer cuando un paciente filtra por «%1$s». Puedes volver a declararlo cuando quieras.</string>
 
+    <string name="cd_catalog_picker_close">Cerrar sin declarar</string>
+    <string name="cd_catalog_clear_search">Borrar la búsqueda</string>
+    <string name="cd_catalog_change_price">Cambiar el precio de %1$s, %2$s</string>
+    <string name="cd_catalog_service_expanded">Detalle abierto</string>
+    <string name="cd_catalog_service_collapsed">Detalle cerrado</string>
+
     <string name="error_catalog_not_signed_in">Tu sesión terminó. Vuelve a ingresar con tu cuenta de Google.</string>
     <string name="error_catalog_invalid_price">Escribe un precio mayor a cero, con hasta dos decimales.</string>
-    <string name="error_catalog_service_already_declared">Ya declaraste ese tipo de atención. Cambia su precio en la lista de arriba.</string>
+    <string name="error_catalog_service_already_declared">Uno de los servicios que elegiste ya estaba declarado. Revisa tu selección e intenta de nuevo.</string>
+    <string name="error_catalog_service_type_unavailable">Uno de los servicios que elegiste ya no está en el catálogo. Revisa tu selección.</string>
+    <string name="error_catalog_nothing_selected">Elige al menos un servicio para declararlo.</string>
 
 
     <string name="search_title">Agendar una cita</string>

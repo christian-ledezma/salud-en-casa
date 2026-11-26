@@ -3,7 +3,7 @@ package bo.saludencasa.di
 import bo.saludencasa.features.catalog.data.datasource.SupabaseCatalogDataSource
 import bo.saludencasa.features.catalog.data.repository.CatalogRepository
 import bo.saludencasa.features.catalog.domain.repository.ICatalogRepository
-import bo.saludencasa.features.catalog.domain.usecase.DeclareServiceUseCase
+import bo.saludencasa.features.catalog.domain.usecase.DeclareServicesUseCase
 import bo.saludencasa.features.catalog.domain.usecase.GetMyDeclaredServicesUseCase
 import bo.saludencasa.features.catalog.domain.usecase.GetProfessionalServicesUseCase
 import bo.saludencasa.features.catalog.domain.usecase.GetServiceTypeCatalogUseCase
@@ -22,7 +22,7 @@ val catalogModule =
         factory { GetMyDeclaredServicesUseCase(get()) }
         factory { GetServiceTypeCatalogUseCase(get()) }
         factory { GetProfessionalServicesUseCase(get()) }
-        factory { DeclareServiceUseCase(get()) }
+        factory { DeclareServicesUseCase(get()) }
         factory { UpdateServicePriceUseCase(get()) }
         factory { RemoveServiceUseCase(get()) }
 

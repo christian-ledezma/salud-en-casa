@@ -9,6 +9,7 @@ import bo.saludencasa.features.catalog.data.model.ProfessionalServiceRow
 import bo.saludencasa.features.catalog.domain.model.CatalogError
 import bo.saludencasa.features.catalog.domain.model.DeclaredServicesResult
 import bo.saludencasa.features.catalog.domain.model.ProfessionalServicesResult
+import bo.saludencasa.features.catalog.domain.model.ServiceDeclaration
 import bo.saludencasa.features.catalog.domain.model.ServiceDeclarationResult
 import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
 import bo.saludencasa.features.catalog.domain.repository.ICatalogRepository
@@ -69,21 +70,20 @@ class CatalogRepository(
         }
     }
 
-    override suspend fun declareService(
-        serviceTypeId: String,
-        price: AmountBob,
-    ): ServiceDeclarationResult {
+    override suspend fun declareServices(declarations: List<ServiceDeclaration>): ServiceDeclarationResult {
         val userId =
             dataSource.currentUserId()
                 ?: return ServiceDeclarationResult.Failure(CatalogError.NotSignedIn)
 
         return try {
-            dataSource.insertService(
-                ProfessionalServiceRow(
-                    professionalId = userId,
-                    serviceTypeId = serviceTypeId,
-                    referencePriceBob = price.value,
-                ),
+            dataSource.insertServices(
+                declarations.map { declaration ->
+                    ProfessionalServiceRow(
+                        professionalId = userId,
+                        serviceTypeId = declaration.serviceTypeId,
+                        referencePriceBob = declaration.price.value,
+                    )
+                },
             )
             ServiceDeclarationResult.Success
         } catch (cancellation: CancellationException) {

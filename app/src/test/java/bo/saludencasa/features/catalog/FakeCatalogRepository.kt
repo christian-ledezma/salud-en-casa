@@ -6,6 +6,7 @@ import bo.saludencasa.features.catalog.domain.model.DeclaredServices
 import bo.saludencasa.features.catalog.domain.model.DeclaredServicesResult
 import bo.saludencasa.features.catalog.domain.model.ProfessionalService
 import bo.saludencasa.features.catalog.domain.model.ProfessionalServicesResult
+import bo.saludencasa.features.catalog.domain.model.ServiceDeclaration
 import bo.saludencasa.features.catalog.domain.model.ServiceDeclarationResult
 import bo.saludencasa.features.catalog.domain.model.ServiceType
 import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
@@ -28,6 +29,8 @@ class FakeCatalogRepository(
     var writeFailure: CatalogError? = null
 
     var reads: Int = 0
+        private set
+    var declareCalls: Int = 0
         private set
     val declarations: MutableList<PricedAttempt> = mutableListOf()
     val repricings: MutableList<PricedAttempt> = mutableListOf()
@@ -60,18 +63,35 @@ class FakeCatalogRepository(
         return ProfessionalServicesResult.Loaded(stored.sortedBy { it.type.name })
     }
 
-    override suspend fun declareService(
-        serviceTypeId: String,
-        price: AmountBob,
-    ): ServiceDeclarationResult {
-        declarations += PricedAttempt(serviceTypeId, price.value)
+    // What the server does with one insert of several rows: every row or none.
+    // The unique index refuses the whole statement when a single type is
+    // already declared, so the fake refuses the whole batch too.
+    override suspend fun declareServices(declarations: List<ServiceDeclaration>): ServiceDeclarationResult {
+        declareCalls++
+        this.declarations += declarations.map { PricedAttempt(it.serviceTypeId, it.price.value) }
         writeFailure?.let { return ServiceDeclarationResult.Failure(it) }
 
-        val type =
-            catalog.firstOrNull { it.id == serviceTypeId }
-                ?: error("The test declared $serviceTypeId, which is not in the fake catalog.")
-        stored += professionalService(id = "declared-${stored.size}", type = type, price = price.value.toPlainString())
+        if (declarations.any { declaration -> stored.any { it.type.id == declaration.serviceTypeId } }) {
+            return ServiceDeclarationResult.Failure(CatalogError.ServiceAlreadyDeclared)
+        }
+
+        declarations.forEach { declaration ->
+            val type =
+                catalog.firstOrNull { it.id == declaration.serviceTypeId }
+                    ?: error("The test declared ${declaration.serviceTypeId}, which is not in the fake catalog.")
+            stored +=
+                professionalService(
+                    id = "declared-${stored.size}",
+                    type = type,
+                    price = declaration.price.value.toPlainString(),
+                )
+        }
         return ServiceDeclarationResult.Success
+    }
+
+    // Another device declared the type after this screen read the list.
+    fun declareElsewhere(type: ServiceType) {
+        stored += professionalService(id = "declared-${stored.size}", type = type)
     }
 
     override suspend fun updateServicePrice(

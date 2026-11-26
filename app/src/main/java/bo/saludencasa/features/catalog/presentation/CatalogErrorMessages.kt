@@ -10,6 +10,8 @@ internal fun CatalogError.messageRes(): Int =
         CatalogError.NotSignedIn -> R.string.error_catalog_not_signed_in
         CatalogError.InvalidPrice -> R.string.error_catalog_invalid_price
         CatalogError.ServiceAlreadyDeclared -> R.string.error_catalog_service_already_declared
+        CatalogError.ServiceTypeUnavailable -> R.string.error_catalog_service_type_unavailable
+        CatalogError.NothingSelected -> R.string.error_catalog_nothing_selected
         CatalogError.NetworkUnavailable -> R.string.error_network_unavailable
         CatalogError.Unexpected -> R.string.error_unexpected
     }

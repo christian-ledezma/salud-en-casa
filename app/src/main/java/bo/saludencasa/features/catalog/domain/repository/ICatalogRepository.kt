@@ -3,6 +3,7 @@ package bo.saludencasa.features.catalog.domain.repository
 import bo.saludencasa.core.vo.AmountBob
 import bo.saludencasa.features.catalog.domain.model.DeclaredServicesResult
 import bo.saludencasa.features.catalog.domain.model.ProfessionalServicesResult
+import bo.saludencasa.features.catalog.domain.model.ServiceDeclaration
 import bo.saludencasa.features.catalog.domain.model.ServiceDeclarationResult
 import bo.saludencasa.features.catalog.domain.model.ServiceTypesResult
 
@@ -13,10 +14,7 @@ interface ICatalogRepository {
 
     suspend fun getServicesOf(professionalId: String): ProfessionalServicesResult
 
-    suspend fun declareService(
-        serviceTypeId: String,
-        price: AmountBob,
-    ): ServiceDeclarationResult
+    suspend fun declareServices(declarations: List<ServiceDeclaration>): ServiceDeclarationResult
 
     suspend fun updateServicePrice(
         serviceId: String,
