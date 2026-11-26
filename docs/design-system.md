@@ -84,6 +84,8 @@ aquí: parte de los usuarios serán adultos mayores.
 | `surfaceContainerHighest` | `#E3EBEF` | |
 | `outline` | `#C2CCD1` | Bordes de campos y separadores |
 | `outlineVariant` | `#DEE5E8` | Separadores tenues |
+| `inverseSurface` | `#26343A` | Aviso pasajero. 11,6:1 con el texto, medido el 2026-11-25 |
+| `inverseOnSurface` | `#F1F4F6` | Texto sobre el aviso pasajero |
 
 **Todo rol que lee un componente de la aplicación está definido, en los dos
 esquemas.** Material 3 completa los que faltan con su paleta de base, que es
@@ -122,6 +124,8 @@ sobre fondo oscuro.
 | `surfaceContainerHighest` | `#26343A` |
 | `outline` | `#3B4A51` |
 | `outlineVariant` | `#26343A` |
+| `inverseSurface` | `#E6EDF0` |
+| `inverseOnSurface` | `#0E1518` |
 
 Contrastes de los pares nuevos, medidos el 2026-10-15:
 
@@ -541,6 +545,37 @@ Muestra la imagen de un documento de verificación dentro de una caja de proporc
 cargar. La proporción vive como constante de la pantalla porque no es una medida de
 la escala de 4 dp. La imagen nunca se guarda en disco (`docs/decisions.md`,
 2026-10-06).
+
+### Filas agrupadas
+
+`GroupedRow` (`ui/components/`). Varias filas que se leen como una sola superficie con
+`shapes.large` y un divisor `outlineVariant` entre ellas, la forma que ya tienen las filas de
+Inicio. Dentro de un `LazyColumn` cada fila dibuja sus esquinas según su lugar: la primera
+redondea arriba, la última abajo y las del medio quedan rectas. Una fila puede cambiar su
+fondo, como la elegida en el selector del catálogo.
+
+### Campo de búsqueda
+
+`SearchField` (`ui/components/`). Campo delineado con radio de 12 dp, lupa a la izquierda y,
+solo si hay texto, un botón de borrar de 48 dp. Va sobre `surface`, para que se lea como campo
+sobre el gris de la pantalla. El texto de ayuda dice dónde busca: «Buscar en el catálogo».
+
+### Servicios declarados y selector del catálogo
+
+`features/catalog/presentation/`. Desde HT-32 (`docs/decisions.md`, 2026-11-25).
+
+- **Servicio declarado.** Una fila de unos 72 dp: el nombre en `titleMedium`, debajo la duración
+  corta en `labelMedium` con un chevron, y a la derecha una píldora `primaryContainer` con el
+  precio y un lápiz, de 48 dp, que abre el diálogo del precio. Tocar el nombre despliega la
+  descripción y «Quitar servicio», en `error`. Con la fuente grande la píldora baja debajo del
+  nombre en vez de apretarlo. Las filas recién declaradas llevan «Nuevo» con `StatusBadge`.
+- **Selector del catálogo.** Pantalla completa, con una cruz y el título arriba, el campo de
+  búsqueda fijo mientras la lista pasa por debajo, y las filas agrupadas. Cada fila es una
+  casilla entera: la casilla, el nombre, y debajo la referencia y la duración. La elegida va en
+  `secondaryContainer`. «Declarar N servicios» está fijo al pie en `BottomActionBar`, inhabilitado
+  y con «Elige uno o más servicios» mientras no haya nada elegido; una negativa se escribe encima
+  del botón, en `error`, para que llegue a la vista sin desplazar.
+- **Aviso.** «N servicios declarados. Revisa sus precios.» en un `Snackbar` sobre la barra del pie.
 
 ### Campo de formulario
 

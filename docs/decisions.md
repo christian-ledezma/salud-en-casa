@@ -6838,6 +6838,97 @@ rmi`.
 **Consecuencia.** El `README.md` describe las dos formas: la habitual, que conserva las imágenes, y esta, que no deja
 nada. La regla de no usar `prune -a` con la pila detenida sigue en pie.
 
+---
+
+## 2026-11-25 · HT-32: «Mis servicios» muestra lo declarado y abre el catálogo en un selector
+
+**Contexto.** El autor pidió revisar «Mis servicios» porque el catálogo, hoy de 12 tipos, puede crecer mucho. HU-10 había
+dejado lo declarado y lo que falta declarar en una sola lista de tarjetas de 165 a 210 dp, con un diálogo de precio por
+cada «Declarar» y una recarga completa de la pantalla después de cada uno. Con 4 servicios declarados, el catálogo ni
+asomaba en la primera pantalla, y no había búsqueda. Se presentaron dos prototipos en el lienzo «Mis servicios —
+prototipos de lista escalable»: A, una pantalla con dos pestañas y búsqueda, y B, una lista corta y un selector del
+catálogo. El autor eligió B el 2026-11-25 y aprobó el plan y el prototipo ese día.
+
+**Decisión.**
+
+1. **La pantalla principal muestra solo lo declarado**, en filas de unos 72 dp. El precio es un botón que abre el diálogo
+   de siempre, de modo que cambiarlo cuesta un toque; la descripción y «Quitar servicio» viven en la fila expandida. Un
+   botón «Agregar servicios» queda fijo al pie, fuera de la lista.
+2. **El catálogo se abre en un selector a pantalla completa**, con búsqueda por nombre sin distinguir tildes ni
+   mayúsculas, una sola lista alfabética de lo que falta declarar y selección múltiple.
+3. **Lo elegido se declara en un solo `insert`, al precio de referencia que el caso de uso lee del catálogo**, nunca de
+   la pantalla. Las filas nuevas quedan marcadas «Nuevo» y un aviso pide revisar sus precios.
+4. **El catálogo se lee completo y se filtra en el teléfono, con el tope de lectura en 500** (antes 100).
+5. **El selector es un estado de `MyServicesViewModel`**, no una ruta aparte. El botón atrás lo cierra a él y no a la
+   pantalla.
+6. **Lo escrito reemplaza el contenido en su sitio**, sin pasar por «Cargando».
+7. **Una negativa que dice que el catálogo se movió** (`ServiceAlreadyDeclared` o `ServiceTypeUnavailable`) se contesta
+   releyendo con el selector abierto: lo elegido que sigue ofrecido queda elegido, el resto se descarta y la pantalla
+   lo dice.
+8. **La búsqueda de la lista principal aparece solo con más de 8 declarados.** Por debajo no recorta nada, aunque tenga
+   texto.
+
+**Razonamiento.**
+
+- *Uno solo por escritura y todo o nada.* Un `insert` de varias filas es una sola sentencia: si un tipo ya estaba
+  declarado, el índice único la rechaza entera y no queda ninguno de los otros. Medio lote declarado con un error sobre
+  la otra mitad era peor que fallar limpio. **Verificado el 2026-11-25 contra el remoto**, dentro de una transacción con
+  `rollback`, como un profesional sin servicios: el `insert` de tres tipos con uno ya declarado falló con
+  `unique_violation` y dejó 0 de los otros dos, y el control, los mismos dos sin el repetido, dejó 2. El profesional no
+  quedó con filas después.
+- *El precio sale del catálogo que el caso de uso relee.* La pantalla no tiene cómo mandar un precio; lo que el
+  profesional ve en el selector es lo que el caso de uso va a declarar, y el caso de uso lo lee otra vez antes de
+  escribir. Un tipo que dejó el catálogo mientras el selector estaba abierto se rechaza con `ServiceTypeUnavailable`: la
+  clave foránea no mira `service_types.active`, y sin esa comprobación se declararía un tipo que ningún paciente puede
+  buscar.
+- *Declarar al precio de referencia sin confirmar cada uno.* RF-05.1 pedía que el profesional confirmara un número en
+  vez de inventarlo; con 6 servicios eran 6 diálogos y 6 recargas. Lo que se conserva de esa intención es que el número
+  nunca lo inventa la pantalla y que revisarlo cuesta un toque; lo que se pierde es la confirmación individual, y la
+  marca «Nuevo» con el aviso es lo que la compensa. **Es la decisión del autor, tomada con esa alternativa delante.**
+- *Filtrar en el teléfono, con tope.* El catálogo es dato de referencia que mantiene el administrador y la pantalla ya lo
+  leía entero en una consulta. Con el tope en 100 y el catálogo creciendo, los tipos pasados del 100.º, por orden de
+  nombre, habrían desaparecido sin un error, y un filtro local sobre una lectura con tope da falsos «sin resultados»,
+  que es el argumento de FA-16. Se sube a 500 (unos 80 KB) y se anota FA-22: pasado de unos 300 tipos la búsqueda se
+  mueve al motor, con paginación. La lista de la pantalla sigue siendo una lectura acotada, así que RNF-08 se cumple;
+  lo que no es hoy es una lista paginada.
+- *Un estado de la misma pantalla.* Una ruta aparte habría pedido devolver los identificadores declarados para marcar
+  «Nuevo» y volver a leer la lista al regresar. Con un solo estado, declarar relee una vez y cierra el selector.
+  `LoadedServices` guarda el estado de desplazamiento y la fila abierta por encima del cambio entre lista y selector,
+  para que cerrar el selector devuelva la lista donde estaba.
+- *Sin «Cargando» al escribir.* Una lista de quince filas leída desde arriba obliga a bajar de nuevo. `reread` cambia el
+  contenido en su sitio y solo `load()`, el de la primera carga y el de «Reintentar», pasa por «Cargando». La prueba
+  `aWriteNeverPassesThroughTheLoadingState` lo fija.
+- *Releer con el selector abierto cuando el catálogo se movió.* Reintentar con la misma selección fallaría igual.
+  Descartar de la selección lo que ya no se ofrece es lo único que deja un segundo toque con salida.
+
+**Alternativas descartadas.**
+
+- **A, dos pestañas.** Más barata y sin pantalla nueva, pero el catálogo plano vuelve a ser largo pasada unas 30 o 40
+  entradas, y declarar seguía siendo un diálogo por servicio.
+- **Categorías en el selector.** Eran 8 puntos y una migración con una columna nueva en `service_types` y una línea en
+  RF-05.1; el autor las descartó (5 puntos). Sin ellas no hay cambio de esquema. Las categorías servirían también a los
+  selectores del paciente (FA-23).
+- **Pedir el precio de cada servicio tras elegir.** Conserva la confirmación, pero le quita al selector la mayor parte
+  de su ventaja.
+- **Buscar en el motor, con paginación.** Escala sin tope, pero suma una función SQL con búsqueda sin tildes, cursor y
+  carga por páginas. Se difiere a FA-22.
+
+**Consecuencia.**
+
+- `DeclareServiceUseCase`, `ServiceEditor.Declaring` y el diálogo de precio al declarar desaparecen; el diálogo de precio
+  sigue solo para cambiar el precio de un servicio ya declarado. Se conservan las decisiones del 2026-10-09: lo declarado
+  y lo que falta se leen en dos lecturas, y el estado vacío es un bloque de la pantalla y no una variante. La prueba que
+  protegía ese bloque, `withNothingDeclaredTheEmptyBlockAndTheCatalogAreBothReachable`, ahora mira «Agregar servicios».
+- `CatalogError` gana `ServiceTypeUnavailable` y `NothingSelected`. El texto de `ServiceAlreadyDeclared` dejó de mandar
+  «a la lista de arriba», que ya no existe.
+- El tema define `inverseSurface` e `inverseOnSurface`, que el aviso pasajero lee. Antes los completaba Material.
+- El subtítulo pasó a «Declara qué atenciones prestas y a qué precio.»; «Quitar servicio» va en el color de error, como
+  los destructivos de la cuenta; la duración se muestra corta («45 min», «1 h», «4 h») con un espacio sin salto, y la
+  oración larga de la tarjeta se retiró.
+- `GroupedRow` y `SearchField` son componentes compartidos. Las vistas previas de «Mis servicios» van sobre un `Surface`
+  con el fondo del tema: la aplicación lo pinta con su `Scaffold` y una vista previa no, y en oscuro el texto claro
+  quedaba sobre blanco.
+
 ## Plantilla para entradas nuevas
 
 ```

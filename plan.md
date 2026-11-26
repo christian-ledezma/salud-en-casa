@@ -211,7 +211,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` | [`sprint-06.md`](docs/sprints/sprint-06.md) |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 56 | `[x]` | [`sprint-07.md`](docs/sprints/sprint-07.md) |
 | 8 | Pago de la atención y vigencia del profesional | 4 · Pagos | 29 | `[x]` | [`sprint-08.md`](docs/sprints/sprint-08.md) |
-| 9 | Calificación e historial | 5 · Evaluación | 22 | `[ ]` | Abajo, sprint activo |
+| 9 | Calificación e historial | 5 · Evaluación | 27 | `[ ]` | Abajo, sprint activo |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` | Abajo |
 | 11 | Publicación y suscripción en Google Play | 4 · Pagos | Por estimar | `[ ]` | Abajo |
 
@@ -511,7 +511,154 @@ cada usuario consulta su actividad.
 
 **Objetivo específico.** 5 · Evaluación, calificación y registro histórico centralizado.
 
-**Puntos:** 22.
+**Puntos:** 27. Eran 22; el 2026-11-25 entró HT-32, de 5 puntos, en el sprint en curso.
+
+### HT-32 · «Mis servicios» escala: lista corta y selector del catálogo `[x]` — 2026-11-25 — 5 puntos
+
+> Como **profesional**, quiero **encontrar y declarar varios servicios de un catálogo
+> grande sin recorrer una lista interminable**, para **configurar lo que presto en pocos
+> pasos**.
+
+**Origen.** El 2026-11-25 el autor pidió revisar «Mis servicios»: hoy el catálogo tiene 12
+tipos y puede crecer mucho. Cada tipo es una tarjeta de 165 a 210 dp con su propio diálogo
+de precio y su propia recarga, no hay búsqueda, y con 4 declarados el catálogo ni asoma en
+la primera pantalla. Se presentaron dos prototipos —A, una pantalla con dos pestañas, y B,
+lista corta y selector del catálogo— y el autor eligió B.
+
+**Decisiones del autor (2026-11-25).** Entra en el Sprint 9. El catálogo se lee completo
+una vez y se filtra en el teléfono, con el tope de lectura en 500. **Sin categorías:** con
+ellas eran 8 puntos, con una migración y una columna nueva en `service_types`; sin ellas
+no hay cambio de esquema. Los servicios elegidos se declaran al precio de referencia del
+catálogo y el profesional lo cambia después.
+
+**Alcance**
+
+- **Pantalla principal.** Lo declarado, en filas compactas de unos 72 dp. El precio es un
+  botón que abre el diálogo actual, a un toque; la descripción y «Quitar servicio» viven
+  en la fila expandida. «Agregar servicios» queda fijo al pie. La búsqueda de la lista
+  aparece solo con más de 8 declarados.
+- **Selector del catálogo.** A pantalla completa, como estado de la misma pantalla y del
+  mismo `MyServicesViewModel`: búsqueda por nombre sin distinguir tildes ni mayúsculas,
+  una sola lista alfabética de lo que falta declarar, selección múltiple y «Declarar N
+  servicios».
+- **Después de declarar.** Las filas nuevas quedan marcadas «Nuevo» y un aviso dice que
+  revise sus precios. La marca vive en la pantalla y no se guarda.
+
+**Decisiones técnicas, a veto del autor**
+
+- `DeclareServicesUseCase` reemplaza a `DeclareServiceUseCase`: declarar uno es declarar
+  una lista de uno. Relee el estado y toma el precio del catálogo, nunca de la pantalla.
+- Un solo `insert` de varias filas, que es atómico: si un tipo ya estaba declarado, no
+  entra ninguno. El índice único de `professional_services` sigue siendo la garantía.
+- Tope de lectura de 100 a 500. Con el catálogo en 100, lo que pasara de ahí se cortaría
+  en silencio y el filtro daría falsos «sin resultados» (el mismo argumento de FA-16).
+  Cuando el catálogo pase de unos 300 tipos, la búsqueda se mueve al motor con paginación.
+- Sin migración y sin tabla nueva: INV-02 no se toca.
+
+**Fuera de esta historia.** Los selectores de tipo de servicio del paciente (el filtro de
+la búsqueda y «Atención ahora») tienen el mismo problema de escala. Se anota en
+`docs/requirements.md`, «Fuera de alcance», al cerrar.
+
+**Requisitos:** RF-02.3, RF-05.1, RNF-08.
+
+**Prototipo.** Lienzo «Mis servicios — prototipos de lista escalable», tableros B1 a B5:
+la lista, el selector, el selector en oscuro con búsqueda, después de declarar, y el
+selector al 200 % a 320 dp. **Aprobado por el autor el 2026-11-25**, ya sin categorías: B2, B3 y B5 se
+actualizaron a una sola lista alfabética antes de programar.
+
+**Criterios de aceptación**
+
+- [x] Dado que declaré servicios, cuando abro «Mis servicios», entonces los veo en filas
+      compactas con su duración y su precio, y «Agregar servicios» está siempre a la vista.
+      **Verificado.** `theNameTheDurationAndThePriceOfADeclaredServiceStayOnScreen` y
+      `theAddButtonStaysOnScreenWithoutScrolling` (a 320 dp y al 200 %), y la vista previa al
+      claro, al oscuro y al 200 %, abiertas: el precio baja bajo el nombre en vez de apretarlo.
+- [x] Dado que toco el precio de un servicio, cuando lo cambio, entonces se guarda con el
+      diálogo de hoy. **Verificado** por `confirmingANewPriceWritesItAndReadsTheListAgain` y
+      `aRefusedPriceKeepsTheDialogOpenWithTheNumberThatWasTyped`, que conserva el número tecleado,
+      y por `thePriceDialogKeepsItsFieldItsRefusalAndBothActionsOnScreen` al 200 %.
+- [x] Dado que expando un servicio, cuando lo leo, entonces veo su descripción y «Quitar
+      servicio», que sigue pidiendo confirmación. **Verificado** por
+      `anOpenRowKeepsItsDescriptionAndItsRemoveActionOnScreen`,
+      `removingAServiceWritesNothingUntilItIsConfirmed` y
+      `theRemovalConfirmationKeepsItsQuestionAndBothActionsOnScreen`.
+- [x] Dado que abro el selector, cuando busco «medica», entonces aparece «Consulta médica
+      general», y no aparece ningún tipo que ya declaré. **Verificado** por
+      `CatalogFilterTest.findsATypeWhoseNameHasAnAccentWithoutTypingIt`, que **se mutó**: sin quitar
+      las marcas de acento falla, y por `typingNarrowsWhatIsOfferedAndNeverOffersADeclaredType`.
+- [x] Dado que elijo varios tipos, cuando declaro, entonces todos quedan declarados a su
+      precio de referencia del catálogo, la lista los marca «Nuevo» y el aviso pide revisar
+      los precios. **Verificado** por `DeclareServicesUseCaseTest.declaresEveryChosenTypeInOneWriteAtItsCatalogReferencePrice`
+      (una sola escritura, al precio del catálogo y no al de otro servicio del profesional), por
+      `declaringTheChosenTypesWritesOnceClosesTheSelectorAndMarksTheNewRows`,
+      `theDeclarationNoticeIsConsumedOnceShown` y `theNoticeOfWhatWasDeclaredShowsAndIsReportedAsShown`.
+- [x] Dado que uno de los elegidos ya estaba declarado, cuando declaro, entonces no se
+      declara ninguno, la selección conserva lo que sigue disponible y la pantalla dice qué
+      pasó. **El criterio se afinó al programarlo**: decía «la selección se conserva», pero
+      conservar un tipo que ya no se ofrece haría fallar igual el segundo toque, así que el
+      selector relee y descarta de la selección lo que ya no está. **Verificado con experimento
+      SQL el 2026-11-25** contra el remoto, dentro de una transacción con `rollback` y como un
+      profesional sin servicios: el `insert` de tres tipos con uno ya declarado falló con
+      `unique_violation` y dejó **0** de los otros dos, y el control, los mismos dos sin el
+      repetido, dejó **2**, así que el control discrimina. Sin residuo después (0 filas). En el
+      cliente: `refusesTheWholeSelectionWhenOneTypeIsAlreadyDeclaredAndWritesNothing` con su par
+      `declaresTheSameTypeOnItsOwnWhenTheDuplicateIsLeftOut`,
+      `refusesATypeThatLeftTheCatalogAndWritesNothing` y
+      `aTypeDeclaredElsewhereKeepsTheSelectorOpenWithTheRestChosenAndSaysWhy`, que además declara
+      de nuevo para probar que no queda atrapado. La primera y la última se **mutaron**: sin la
+      comprobación de duplicados y sin podar la selección fallan.
+- [x] Dado que no elegí nada, cuando miro el botón del selector, entonces no se puede
+      pulsar y dice qué falta. **Verificado** por
+      `theConfirmButtonStaysOnScreenAndIsDisabledUntilSomethingIsChosen`,
+      `confirmingWithNothingChosenWritesNothing` y `refusesAnEmptySelectionWithoutEvenReadingTheCatalog`.
+- [x] Dado que no declaré ningún servicio, cuando abro la pantalla, entonces veo el bloque
+      vacío y «Agregar servicios». **Verificado** por
+      `withNothingDeclaredTheEmptyBlockAndTheAddButtonAreBothReachable`, que ocupa el lugar de la
+      de HU-10.
+- [x] Dado que el selector está abierto, cuando uso el botón atrás, entonces se cierra el
+      selector y no la pantalla. **Verificado** por
+      `theBackGestureClosesTheSelectorAndDoesNotLeaveTheScreen`, que **se mutó**: con la guarda
+      apagada falla.
+- [x] Dado que el catálogo tiene más de 100 tipos, cuando abro el selector, entonces los
+      veo todos, hasta 500. **Verificado por revisión de la consulta**, no por prueba:
+      `MAX_SERVICE_TYPES` pasó de 100 a 500 en `SupabaseCatalogDataSource`, y el límite lo pone
+      PostgREST, que ninguna prueba de la máquina virtual de Java alcanza. El catálogo real tiene
+      12 tipos. Pasado de unos 300, FA-22.
+- [x] Dado el 200 % de fuente y un teléfono de 320 dp, cuando uso las dos pantallas, entonces
+      cada control se alcanza, se muestra y no se sale de los bordes. **Verificado** por las 17
+      pruebas de `MyServicesScreenLargeFontTest`, y **mirando** las vistas previas a 320 dp al
+      200 %, que es lo que esas pruebas no ven: el precio baja bajo el nombre, «Quitar servicio»
+      queda alineado con la descripción, «Declarar 2 servicios» se parte en dos líneas sin
+      perderse, y «45 min» ya no se parte entre el número y la unidad.
+
+**Resultado (2026-11-25).** `./gradlew build` terminó sin error: **1289 pruebas, 0 fallos, 0 omitidas**, y
+`ktlintCheck` sin hallazgos. La historia aportó 7 de `DeclareServicesUseCaseTest`, 7 de `CatalogFilterTest`,
+18 de `MyServicesViewModelTest` y 17 de `MyServicesScreenLargeFontTest`. No es crítica según «Cuándo hace
+falta un dispositivo» (no mueve dinero ni rompe el flujo central): no pidió emulador.
+
+**Recorrido del autor (2026-11-25).** Aun sin exigirlo la historia, el autor la recorrió en el emulador con la
+cuenta del profesional aprobado, siguiendo los diez pasos que se le entregaron al cerrar: la lista con sus 4
+servicios, expandir una fila, cambiar un precio, abrir el selector, buscar con y sin tilde, elegir y volver con
+el botón atrás, declarar dos servicios con su aviso y su marca «Nuevo», quitarlos y devolver el precio, y
+repetir con la fuente al máximo y el tema oscuro. Pidió cerrar la historia sin reportar hallazgos. Es evidencia
+de recorrido, que es la que las pruebas de interfaz no dan.
+
+**Qué no cubre ninguna prueba.** El tope de 500 (arriba), la animación del aviso pasajero y la disposición
+real con la tipografía Inter, que en la máquina virtual de Java es la de la plataforma. Para esto último
+valen las vistas previas, abiertas con `ScreenCatalog`.
+
+**Lo que no se miró en pantalla.** El diálogo del precio al 200 %. El recorrido del autor pasó por el cambio de
+precio, así que ese diálogo sí se vio en el emulador con la letra normal; con la letra al máximo el recorrido
+repitió la lista y el selector, no el diálogo. El renderizador de capturas
+(`ScreenCatalog`) dibuja la ventana principal y un diálogo es otra ventana, así que las capturas de
+«Cambiando un precio» y «Precio rechazado al 200 %» muestran la lista y no el diálogo; a 411 dp, además,
+esas dos y cuatro de otras pantallas ni siquiera terminaron. El diálogo no cambió respecto de HT-29 salvo
+que ya solo sirve para cambiar un precio, y lo cubre
+`thePriceDialogKeepsItsFieldItsRefusalAndBothActionsOnScreen`, que pasa; pero esa prueba no ve el texto
+recortado dentro de su contenedor, que es justo lo que habría que mirar.
+
+**Deuda reconocida.** Los selectores del paciente (FA-23) y la búsqueda en el motor (FA-22) quedaron
+anotados en `docs/requirements.md`.
 
 ### HU-29 · Calificar al profesional `[ ]` — 5 puntos
 

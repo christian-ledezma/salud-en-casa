@@ -41,6 +41,11 @@ pasa a «Nombres retirados», al final.
 | Servicio ofrecido | `ProfessionalService` | Unión profesional–tipo de servicio, con el precio que el profesional declaró |
 | Servicios declarados | `DeclaredServices` | Lo que el profesional presta hoy junto con el catálogo que le queda por declarar |
 | Tipos por declarar | `undeclaredTypes` | Los tipos del catálogo que el profesional todavía no ofrece. No se le ofrecen dos veces |
+| Selector del catálogo | `ServicePicker` / `onAddServicesClick` | El catálogo abierto sobre «Mis servicios», con búsqueda por nombre y selección múltiple. Es un estado de la misma pantalla y del mismo modelo de vista: atrás lo cierra a él y no a la pantalla (HT-32) |
+| Declarar varios | `DeclareServicesUseCase` / `ServiceDeclaration` | Declara lo elegido en un solo `insert`, todo o nada, al precio de referencia que lee del catálogo y nunca el de la pantalla. Reemplaza a `DeclareServiceUseCase` (HT-32) |
+| Nombre sin tildes | `matchingName` | Filtra una lista por nombre sin distinguir tildes ni mayúsculas. Lo usan el selector y la búsqueda de lo declarado (HT-32) |
+| Recién declarados | `newTypeIds` / `declarationNotice` | Los tipos que se acaban de declarar, marcados «Nuevo» mientras dura la pantalla, y el aviso que pide revisar sus precios, que se consume una vez mostrado. Ninguno se guarda (HT-32) |
+| Búsqueda de lo declarado | `showsSearch` / `SEARCH_THRESHOLD` | La lista principal tiene su propio campo solo con más de 8 declarados; por debajo la consulta no recorta nada (HT-32) |
 | Servicios de otro profesional | `ProfessionalServicesResult` | Lo que un visitante lee del catálogo ajeno: lo declarado, sin los tipos por declarar |
 | Franja de disponibilidad | `AvailabilitySlot` | Horario declarado por el profesional |
 | Disponibilidad semanal | `WeeklyAvailability` | La vista agrupada por día: las siete claves siempre pobladas, aun sin franjas |
@@ -261,6 +266,8 @@ pasa a «Nombres retirados», al final.
 | Píldora de estado | `StatusBadge` / `StatusTone` | El estado de una solicitud o atención, igual dondequiera que se lea |
 | Deslizar para actualizar | `RefreshableContent` / `ListRefresher` / `ListRefresh` | Relee la primera página; si falla, deja la lista como estaba y lo dice |
 | Selector desplegable | `ExpandableOptionPicker` | Para elegir entre muchas opciones de nombre largo, como los tipos de servicio |
+| Fila agrupada | `GroupedRow` | Una fila de un grupo que se lee como una sola superficie con divisores, dentro de un `LazyColumn`: cada fila redondea sus esquinas según su posición (HT-32) |
+| Campo de búsqueda | `SearchField` | Campo delineado con lupa y botón de borrar, sobre `surface`. Lo usan el selector del catálogo y la lista de lo declarado (HT-32) |
 | Carrusel de días | `DayCarousel` | Tarjetas de día que se detienen en cada una al deslizar |
 | Fila de horas | `TimeChipRow` | Píldoras de hora por parte del día, que se detienen al deslizar. La comparten agendar y el editor de franjas |
 | Barra de acción al pie | `BottomActionBar` | El botón principal fijo al pie, fuera del contenido que se desplaza |
@@ -434,6 +441,7 @@ No se vuelven a usar. Cada uno dice qué lo reemplazó y cuándo.
 | `professionals_select_counterpart` | `professional_directory` | HU-11 |
 | Token de registro de FCM | FID (`installationId`) | HU-20 |
 | `Spacing.filterChipMaxWidth` | Ya no existe en `Spacing.kt` | — |
+| `DeclareServiceUseCase`, `ServiceEditor.Declaring` | `DeclareServicesUseCase` y el selector del catálogo | HT-32 |
 | `platformFee`, `platformFeeBob`, `platform_fee_percent` | Nada: la plataforma no retiene comisión; se financia con la suscripción del profesional (INV-10, INV-18) | HT-30 |
 | `professionalAmountBob`, `professional_amount_bob` | `totalAmountBob`: el pago es íntegro del profesional | HT-30 |
 | `settledAt`, `settled_at`, `PaymentStatus.SETTLED` | Nada: no hay liquidación de comisiones | HT-30 |
