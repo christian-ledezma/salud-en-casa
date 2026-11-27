@@ -86,6 +86,7 @@ class ScreenCatalog(
                 "bo.saludencasa.features.requests.presentation.OfferThreadScreenKt",
                 "bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreenKt",
                 "bo.saludencasa.features.services.presentation.AttentionScreenKt",
+                "bo.saludencasa.features.reviews.presentation.RateAttentionScreenKt",
                 "bo.saludencasa.features.services.presentation.MyAttentionsScreenKt",
                 "bo.saludencasa.features.home.presentation.RequestsTabKt",
                 "bo.saludencasa.ui.components.ServiceCardKt",

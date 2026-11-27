@@ -158,4 +158,34 @@ class AttentionTest {
             assertNull(status.name, attention(status = status, iAmThePatient = true).nextStepForMe)
         }
     }
+
+    // RN-10, HU-29: one rating per attention, over a completed one, by the patient.
+    @Test
+    fun thePatientRatesACompletedAttentionNotYetRated() {
+        assertTrue(attention(status = ServiceStatus.COMPLETED, iAmThePatient = true).canRate)
+    }
+
+    @Test
+    fun noOneRatesAnAttentionThatIsNotCompleted() {
+        listOf(ServiceStatus.ASSIGNED, ServiceStatus.IN_PROGRESS, ServiceStatus.CANCELLED).forEach { status ->
+            assertFalse(status.name, attention(status = status, iAmThePatient = true).canRate)
+        }
+    }
+
+    @Test
+    fun theProfessionalHasNoRatingToLeaveWithThisStory() {
+        assertFalse(attention(status = ServiceStatus.COMPLETED, iAmThePatient = false).canRate)
+    }
+
+    @Test
+    fun anAttentionAlreadyRatedIsNotOfferedForRatingAgain() {
+        val rated =
+            attention(
+                status = ServiceStatus.COMPLETED,
+                iAmThePatient = true,
+                myReview = MyReview(4, null, java.time.Instant.parse("2026-11-26T16:00:00Z")),
+            )
+
+        assertFalse(rated.canRate)
+    }
 }

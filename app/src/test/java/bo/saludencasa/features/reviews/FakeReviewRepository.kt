@@ -3,7 +3,11 @@ package bo.saludencasa.features.reviews
 import bo.saludencasa.features.reviews.domain.model.ProfessionalReview
 import bo.saludencasa.features.reviews.domain.model.ProfessionalReviewsResult
 import bo.saludencasa.features.reviews.domain.model.ReviewError
+import bo.saludencasa.features.reviews.domain.model.SubmitReviewError
+import bo.saludencasa.features.reviews.domain.model.SubmitReviewResult
 import bo.saludencasa.features.reviews.domain.repository.IReviewRepository
+import bo.saludencasa.features.reviews.domain.vo.Rating
+import bo.saludencasa.features.reviews.domain.vo.ReviewComment
 import kotlinx.coroutines.CompletableDeferred
 import java.time.Instant
 
@@ -24,6 +28,20 @@ class FakeReviewRepository(
 
     val requests: MutableList<Request> = mutableListOf()
 
+    data class Submission(
+        val serviceId: String,
+        val recipientId: String,
+        val rating: Int,
+        val comment: String?,
+    )
+
+    var submitFailure: ReviewError? = null
+
+    // Holds the submission so a test can tap again while the first is in flight.
+    var submitGate: CompletableDeferred<Unit>? = null
+
+    val submissions: MutableList<Submission> = mutableListOf()
+
     override suspend fun findReceivedAsProfessional(
         professionalId: String,
         offset: Int,
@@ -34,6 +52,18 @@ class FakeReviewRepository(
         failure?.let { return ProfessionalReviewsResult.Failure(it) }
 
         return ProfessionalReviewsResult.Found(reviews.drop(offset).take(limit))
+    }
+
+    override suspend fun submit(
+        serviceId: String,
+        recipientId: String,
+        rating: Rating,
+        comment: ReviewComment?,
+    ): SubmitReviewResult {
+        submissions += Submission(serviceId, recipientId, rating.value, comment?.value)
+        submitGate?.await()
+        return submitFailure?.let { SubmitReviewResult.Failure(SubmitReviewError.Review(it)) }
+            ?: SubmitReviewResult.Submitted
     }
 }
 

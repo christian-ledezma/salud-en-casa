@@ -17,6 +17,7 @@ import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentResult
 import bo.saludencasa.features.services.domain.model.Counterpart
 import bo.saludencasa.features.services.domain.model.MyAttentionsResult
+import bo.saludencasa.features.services.domain.model.MyReview
 import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
@@ -262,6 +263,7 @@ fun attention(
     conversationWritableUntil: Instant? = null,
     cancellation: AttentionCancellation? = null,
     payment: AttentionPayment = AttentionPayment.Pending,
+    myReview: MyReview? = null,
 ): Attention =
     Attention(
         serviceId = "s1",
@@ -286,6 +288,7 @@ fun attention(
         conversationWritableUntil = conversationWritableUntil,
         cancellation = cancellation,
         payment = payment,
+        myReview = myReview,
     )
 
 fun paidInCash(at: Instant = Instant.parse("2026-11-04T16:00:00Z")): AttentionPayment =

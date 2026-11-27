@@ -28,6 +28,9 @@ class AttentionMapperTest {
         professionalConfirmedAt: String? = null,
         disputedAt: String? = null,
         resolvedAt: String? = null,
+        myRating: Int? = null,
+        myReviewComment: String? = null,
+        myReviewedAt: String? = null,
     ) = AttentionDto(
         serviceId = "s1",
         requestId = "r1",
@@ -51,6 +54,9 @@ class AttentionMapperTest {
         professionalConfirmedAt = professionalConfirmedAt,
         disputedAt = disputedAt,
         resolvedAt = resolvedAt,
+        myRating = myRating,
+        myReviewComment = myReviewComment,
+        myReviewedAt = myReviewedAt,
     )
 
     @Test
@@ -363,5 +369,43 @@ class AttentionMapperTest {
         assertEquals(ServiceError.AttentionChanged, terminal.toServiceError())
         assertEquals(ServiceError.AttentionChanged, invalid.toServiceError())
         assertEquals(ServiceError.Unexpected, IllegalStateException("boom").toServiceError())
+    }
+
+    // HU-29: the engine returns only what the reader rated.
+    @Test
+    fun aRatingTheReaderWroteComesBackWithItsStarsWordsAndDate() {
+        val review =
+            dto(
+                status = "COMPLETED",
+                myRating = 4,
+                myReviewComment = "Muy puntual",
+                myReviewedAt = "2026-11-26T16:00:00+00:00",
+            ).toAttention()!!.myReview!!
+
+        assertEquals(4, review.rating)
+        assertEquals("Muy puntual", review.comment)
+        assertEquals(Instant.parse("2026-11-26T16:00:00Z"), review.createdAt)
+    }
+
+    @Test
+    fun anAttentionNotRatedHasNoReview() {
+        assertNull(dto(status = "COMPLETED").toAttention()!!.myReview)
+    }
+
+    @Test
+    fun aRatingWithNoWordsHasNoComment() {
+        val review =
+            dto(myRating = 5, myReviewComment = "   ", myReviewedAt = "2026-11-26T16:00:00+00:00")
+                .toAttention()!!
+                .myReview!!
+
+        assertNull(review.comment)
+    }
+
+    // A rating that comes without its date cannot be shown, so the row is dropped
+    // and the repository reports Unexpected.
+    @Test
+    fun aRatingWithoutADateMakesTheRowUnreadable() {
+        assertNull(dto(myRating = 4).toAttention())
     }
 }

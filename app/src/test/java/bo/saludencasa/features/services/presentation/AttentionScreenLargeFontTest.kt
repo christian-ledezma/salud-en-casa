@@ -7,7 +7,9 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
@@ -19,6 +21,7 @@ import bo.saludencasa.features.services.domain.model.AttentionCancellation
 import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
+import bo.saludencasa.features.services.domain.model.MyReview
 import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
@@ -29,8 +32,10 @@ import bo.saludencasa.features.services.receivedFirst
 import bo.saludencasa.features.services.resolved
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
+import bo.saludencasa.ui.plural
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -692,5 +697,72 @@ class AttentionScreenLargeFontTest {
         composeRule.assertFitsTheScreen(
             composeRule.onNodeWithText(string(R.string.attention_payment_resolved_not_paid_line, resolvedAtText())),
         )
+    }
+
+    // HU-29, docs/decisions.md, 2026-11-26.
+    private fun toRate() = attention(status = ServiceStatus.COMPLETED, iAmThePatient = true)
+
+    private fun ratedStar(value: Int) =
+        composeRule.onNodeWithContentDescription(plural(R.plurals.cd_review_stars, value, value))
+
+    @Test
+    fun theRatingCardOfACompletedAttentionKeepsItsFiveStarsOnScreen() {
+        show(AttentionUiState.Content(toRate()))
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.review_card_title, "María Quispe")),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.review_card_hint)))
+        (1..5).forEach { composeRule.assertFitsTheScreen(ratedStar(it)) }
+    }
+
+    @Test
+    fun tappingAStarOnTheCardOpensTheRatingWithThatStar() {
+        var chosen = 0
+        composeRule.setContentAtDoubleFontScale {
+            AttentionContent(
+                uiState = AttentionUiState.Content(toRate()),
+                actions = AttentionActions(onRate = { chosen = it }),
+            )
+        }
+
+        composeRule.assertFitsTheScreen(ratedStar(3))
+        ratedStar(3).performClick()
+
+        assertEquals(3, chosen)
+    }
+
+    @Test
+    fun anAttentionAlreadyRatedShowsWhatIRatedAndNoStarsToTap() {
+        val rated =
+            toRate().copy(
+                myReview = MyReview(4, "Muy puntual y explicó cada paso.", Instant.parse("2026-11-26T16:00:00Z")),
+            )
+        show(AttentionUiState.Content(rated))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.review_mine_title)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.review_rating_4)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Muy puntual y explicó cada paso."))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.review_mine_visibility, "María Quispe")),
+        )
+        // The rating cannot be changed, so there is nothing to tap.
+        ratedStar(1).assertDoesNotExist()
+        composeRule.onNodeWithText(string(R.string.review_card_hint)).assertDoesNotExist()
+    }
+
+    // HU-30 is the professional's side; until then nothing of it shows.
+    @Test
+    fun theProfessionalOfACompletedAttentionIsNotAskedToRateIt() {
+        show(AttentionUiState.Content(toRate().copy(iAmThePatient = false)))
+
+        composeRule.onNodeWithText(string(R.string.review_card_hint)).assertDoesNotExist()
+    }
+
+    @Test
+    fun anAttentionNotCompletedIsNotAskedToBeRated() {
+        show(AttentionUiState.Content(attention(status = ServiceStatus.IN_PROGRESS, iAmThePatient = true)))
+
+        composeRule.onNodeWithText(string(R.string.review_card_hint)).assertDoesNotExist()
     }
 }
