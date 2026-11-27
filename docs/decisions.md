@@ -6986,6 +6986,72 @@ mientras alguno respondiera con otro monto, y ninguna parte tenía cómo cerrar 
 - RN-05 sigue valiendo: responder con el mismo monto es aceptar. Ante una última oferta ya no hay formulario, así que
   esa regla no se cruza con esta.
 
+## 2026-11-26 · HU-29: el paciente califica desde una tarjeta de la atención, una sola vez, y el autor no se lee de la tabla
+
+**Contexto.** `reviews` existe desde el Sprint 0 con sus políticas, su unicidad por servicio y autor, el rango de 1 a 5
+y el disparador que recalcula la reputación, y la ficha ya muestra los comentarios por `professional_reviews`
+(HU-12). Lo que faltaba era la pantalla para escribir una calificación y dos cosas del motor: nada impedía que un
+cliente pusiera su propia fecha ni la dejara oculta, y la tabla se podía leer entera, con el autor de cada
+calificación.
+
+**Decisión.**
+
+1. **La calificación vive en una tarjeta de la atención completada**, con cinco estrellas. Tocar una abre
+   «Calificar la atención» con esa estrella ya elegida, el comentario y el envío al pie. Después, la atención muestra
+   «Tu calificación» y no ofrece cambiarla.
+2. **El comentario es opcional** (hasta 1000 caracteres, contados por puntos de código como `char_length`); las
+   estrellas no.
+3. **Enviar pide confirmación**, porque la calificación es permanente y pública.
+4. **Sin plazo** para calificar, **sin aviso push** al profesional (FA-25), y **el profesional no ve en su atención lo
+   que le calificaron**. La marca «Por calificar» de «Mis atenciones» la trae HU-31.
+5. **El servicio y el destinatario salen de la atención** tal como el motor la lee para quien llama, nunca de la
+   pantalla: `SubmitReviewUseCase` relee, y rechaza lo que no sea el paciente de una atención completada y aún no
+   calificada, antes de llegar a la red.
+6. **Migración `hu29_rate_the_professional`:** un disparador sella `created_at` y deja `visible` en verdadero para
+   quien llama; `my_attention` devuelve la calificación propia (puntaje, comentario, fecha); y la tabla `reviews`
+   solo la lee su autor, además del administrador.
+
+**Razonamiento.**
+
+- *Tarjeta y pantalla aparte, y no el formulario dentro de la atención.* `AttentionScreen` ya pasa de 2000 líneas y
+  lleva los botones del pago al pie; un teclado sobre eso, al 200 % de fuente y a 320 dp, no deja ver qué se escribe.
+  La pantalla propia la reutiliza HU-30 para la otra dirección. Cinco estrellas de 48 dp son 240 dp, lo que deja la
+  tarjeta a 320 dp, así que **no crecen con la fuente**.
+- *La estrella vacía es un contorno.* El conjunto de iconos del proyecto no trae uno, y una estrella rellena en gris
+  distinguiría la elegida de la vacía solo por el color. Se dibuja un vector propio. Se vio al abrir la vista previa,
+  que es lo que las pruebas de interfaz no ven.
+- *Los errores del motor se traducen sin errores con nombre.* Una atención completada ya no puede cancelarse, así que
+  los rechazos de la política solo los ve un cliente desactualizado. La unicidad (`reviews_service_id_author_id_key`)
+  dice «Ya calificaste» y el rechazo de seguridad a nivel de fila dice «No puedes calificar esta atención».
+- *El disparador solo actúa con quien llama.* Igual que `stamp_offer_created_at`: un definidor o la clave de
+  servicio, que no tienen quien llama, conservan lo suyo. Ocultar una calificación es un acto de moderación y es de
+  ellos. Medido: un insert con `created_at` de 2020 y `visible = false` quedó con la fecha de hoy y visible.
+- *El autor no se lee de la tabla.* **Esto lo encontró el experimento y lo decidió el autor.** Con las dos políticas de
+  lectura que tenía `reviews`, cualquier usuario veía todas las calificaciones públicas de un profesional con su
+  `author_id`, y el profesional calificado veía quién lo calificó: el paciente de esa atención, por su `service_id`.
+  La decisión del 2026-10-11 («sin su autor») la sostenía la proyección, pero la tabla seguía contestando. Se
+  retiraron `reviews_select_visible` y el brazo del destinatario de `reviews_select_own`: la ficha lee por
+  `professional_reviews` y `my_attention` lee como definidor, así que ninguna pantalla leía la tabla como quien llama.
+  Importa más por HU-30, donde el profesional califica a ese mismo paciente: ver antes lo que recibió invita a la
+  represalia.
+- *El profesional no ve la calificación que recibió.* Mostrarla en su atención la ataría al paciente con nombre.
+
+**Alternativas descartadas.**
+
+- **Todo en la pantalla de la atención.** El formulario competiría con los botones del pago y con el teclado.
+- **Un diálogo para elegir las estrellas y el comentario.** A 320 dp el diálogo deja unos 230 dp, y cinco estrellas de
+  48 dp no caben.
+- **Un plazo de 7 o 30 días.** Agrega una regla al motor y otra a la pantalla que ningún requisito pide (RN-10 solo
+  exige que esté completada).
+- **Dejar la lectura directa de `reviews` y documentarla.** Era lo que decidió HU-12, pero el texto «sin tu nombre»
+  prometía más de lo que el motor garantizaba.
+
+**Consecuencia.** Mientras HU-30 no exista, la tarjeta y «Tu calificación» solo aparecen del lado del paciente
+(`canRate` exige `iAmThePatient`), aunque `my_attention` ya devuelve la calificación propia de cualquiera de los dos
+lados. Quien cambie la lectura de `reviews` debe saber que el cliente **nunca** la consulta directamente.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

@@ -765,31 +765,125 @@ pasos que se le entregaron:
 
 Lo informó **sin observaciones**, y con eso se cerró la historia.
 
-### HU-29 · Calificar al profesional `[ ]` — 5 puntos
+### HU-29 · Calificar al profesional `[x]` — 2026-11-26 — 5 puntos
 
 > Como **paciente**, quiero **calificar la atención recibida**, para **ayudar a
 > otros pacientes a decidir**.
 
+**Origen.** Es la historia que cierra lo que HU-12 dejó abierto: la ficha ya mostraba los comentarios, pero el
+remoto no tenía ninguno y no podía tenerlo.
+
+**Decisiones del autor (2026-11-26).** La calificación vive en una **tarjeta de la atención completada**; tocar una
+estrella abre la pantalla «Calificar la atención» con esa estrella ya elegida. El **comentario es opcional**. Enviar
+**pide confirmación**, porque es permanente y pública. **Sin plazo.** **Sin aviso push** al profesional (FA-25), y
+**el profesional no ve** lo que le calificaron. La marca «Por calificar» de «Mis atenciones» la trae HU-31. Y, ya
+programando, **se cierra la lectura directa de `reviews`** (ver «Lo que encontró el experimento»).
+
+**Decisiones técnicas, a veto del autor**
+
+- Una migración, `hu29_rate_the_professional`: un disparador sella `created_at` y `visible`; `my_attention` devuelve la
+  calificación propia; `reviews` solo la lee su autor. La política de inserción y el recálculo de la reputación no
+  cambian.
+- `SubmitReviewUseCase` relee la atención y toma el servicio y el destinatario de ella, nunca de la pantalla.
+- Sin errores con nombre en el motor: la unicidad dice «Ya calificaste» y el rechazo de seguridad dice «No puedes
+  calificar esta atención».
+- `RateAttentionRoute(requestId, rating)` y su pantalla están pensadas para que HU-30 las reutilice.
+
+**Requisitos:** RF-12.1, RF-12.3, RN-10, INV-11, INV-13.
+
+**Prototipo.** Lienzo «HU-29 — Calificar al profesional», tableros C1 a C7. **Aprobado por el autor el 2026-11-26.**
+Dos diferencias con lo aprobado, ambas al programar: la estrella vacía es un contorno y no un relleno gris, y se
+quitó del tablero C4 la fecha relativa de «Enviada hace un momento».
+
 **Criterios de aceptación**
 
-- [ ] Dado que la atención se completó, cuando abro la calificación, entonces
-      elijo entre una y cinco estrellas y escribo un comentario.
-- [ ] Dado que ya califiqué esa atención, cuando intento calificar de nuevo,
-      entonces se rechaza.
-- [ ] Dado que califico, cuando otro paciente abre la ficha del profesional,
-      entonces ve mi comentario.
-- [ ] Dado que la atención fue cancelada, cuando intento calificar, entonces se rechaza.
-- [ ] Dado que registro mi calificación, cuando se guarda, entonces el promedio y
-      el total de atenciones del profesional se recalculan de forma automática, sin
-      intervención de la aplicación.
+- [x] Dada una atención completada que no califiqué, cuando la abro, entonces veo la tarjeta, elijo de una a cinco
+      estrellas y escribo un comentario si quiero. **Verificado** por
+      `theRatingCardOfACompletedAttentionKeepsItsFiveStarsOnScreen` y `tappingAStarOnTheCardOpensTheRatingWithThatStar`
+      (a 320 dp y al 200 %), `theStarTappedOnTheAttentionArrivesAlreadyChosen` y
+      `theSubmitButtonIsOffUntilAStarIsChosenAndTheLabelWaitsForIt`. Sin estrellas el envío no se pulsa.
+- [x] Dado que envío, cuando confirmo, entonces se guarda y la atención muestra «Tu calificación» sin opción de
+      cambiarla. **Verificado** por `sendingAsksForConfirmationFirstAndSendsNothingYet`,
+      `confirmingSendsTheRatingOnceAndLeavesTheScreen`, `aSecondTapOnConfirmWhileTheFirstIsInFlightSendsNothingMore` y
+      `anAttentionAlreadyRatedShowsWhatIRatedAndNoStarsToTap`. Con el experimento: `my_attention` devolvió 4 estrellas, el
+      comentario y el año de la fecha.
+- [x] Dado que ya califiqué esa atención, cuando intento calificar de nuevo, entonces se rechaza. **Verificado con
+      experimento SQL el 2026-11-26** contra el remoto: el segundo insert del mismo autor y servicio dio `23505`. En el
+      cliente, `anAttentionAlreadyRatedIsNotRatedTwiceAndNothingIsSent`,
+      `aSecondRatingOfTheSameAttentionSaysItWasAlreadyRated` y `canRate`, que no la ofrece de nuevo.
+- [x] Dado que la atención fue cancelada o no terminó, cuando intento calificar, entonces se rechaza. **Verificado con
+      el mismo experimento**: sobre una atención cancelada, el insert dio `42501`. En el cliente,
+      `anAttentionThatIsNotCompletedIsNeverRated` (asignada, en curso y cancelada) y `noOneRatesAnAttentionThatIsNotCompleted`.
+- [x] Dado que califico, cuando otro paciente abre la ficha del profesional, entonces ve mi comentario. **Verificado con
+      el experimento**: un tercero leyó **2** filas de `professional_reviews` del profesional. **Recorrido en el
+      emulador el 2026-11-26**, que es lo que HU-12 dejó pendiente: el comentario se vio en la ficha sin el nombre del autor.
+- [x] Dado que registro mi calificación, cuando se guarda, entonces el promedio y el total de **calificaciones** del
+      profesional se recalculan sin intervención de la aplicación. **Verificado con el experimento**: de `0.00` y `0` pasó
+      a `4.00` y `1` con la primera, y a `2.50` y `2` con una segunda de 1 estrella. **Corrección al criterio original**: el
+      total de *atenciones* no cambia con la calificación, porque ya se contó al completarse la atención.
+- [x] Dado que un cliente intenta fijar la fecha o esconder la calificación, cuando inserta, entonces el motor lo
+      ignora. **Criterio agregado al programar.** **Verificado con el experimento**: un insert con `created_at` de 2020 y
+      `visible = false` quedó con el año actual y visible.
+- [x] Dado cualquier cliente, cuando intenta calificar una atención ajena, nombrar a otro destinatario o escribir como
+      otra persona, entonces se rechaza. **Verificado con el experimento**: un tercero, un destinatario distinto y un autor
+      falsificado dieron `42501` los tres. Fuera de rango, `6` estrellas y un comentario de 1001 caracteres dieron `23514`.
+      El control, una calificación de 1 estrella sin comentario, entró.
+- [x] Dado que alguien quiere cambiar o borrar una calificación enviada, cuando lo intenta, entonces no pasa. **Verificado
+      con el experimento**: el autor actualizó **0** filas y borró **0** (no hay política de actualización ni de borrado).
+- [x] Dado que no soy el autor, cuando leo la tabla `reviews`, entonces no veo la calificación ni su autor. **Criterio
+      agregado al programar.** **Verificado con el experimento**: antes del cambio un tercero leía 2 filas con su `author_id` y
+      el profesional calificado leía la del paciente; después, ambos leen **0**, el autor lee las suyas (**2**) y el profesional
+      sigue viendo **2** por su proyección pública. La calificación del paciente no vuelve al profesional por `my_attention`
+      (`my_rating` vacío).
+- [x] Dado el 200 % de fuente y un teléfono de 320 dp, cuando uso las dos pantallas, entonces cada control se alcanza, se
+      muestra y no se sale de los bordes. **Verificado** por las 9 pruebas de `RateAttentionScreenLargeFontTest` y las 5
+      nuevas de `AttentionScreenLargeFontTest`, y **mirando** las vistas previas a 320 dp al 200 %: las cinco estrellas caben
+      en la tarjeta y no crecen, el título y el nombre se parten sin perderse, y el contenido largo se desplaza bajo el botón fijo.
 
-> **El tercer criterio cierra una verificación que HU-12 dejó abierta.** La ficha
-> muestra los comentarios desde el 2026-10-11, pero el remoto no tenía ninguno y no
-> podía tenerlo: una calificación exige una atención completada. El camino de datos
-> se verificó con experimentos SQL; lo que falta es recorrerlo en el emulador, y
-> esta historia es la primera vez que eso será posible.
+**Lo que encontró el experimento.** Con las políticas que tenía `reviews`, cualquier usuario autenticado leía todas las
+calificaciones públicas de un profesional **con su `author_id`**, y el profesional calificado leía **quién** lo calificó.
+La decisión de HU-12 («sin su autor») la sostenía la proyección y no la tabla. Se preguntó al autor y se cerró en esta
+misma migración, aún sin aplicar. Ver `docs/decisions.md`, 2026-11-26, HU-29.
 
-**Requisitos:** RF-12.1, RF-12.3, RN-10, INV-11.
+**Experimento SQL (2026-11-26).** Un solo bloque, como el paciente `ledezma.aramayo.73` y el profesional
+`chris.ledezma.s` sobre sus atenciones reales, con la migración aplicada en la misma transacción y `rollback` al final.
+Veinte resultados, todos los esperados, y **dos corridas**: la primera midió la lectura abierta de la tabla y la segunda,
+con la migración completa, la cerró. Sin residuo después (0 calificaciones, 0 en el total del profesional). Después se
+aplicó con `db push`.
+
+**Mutaciones.** Trece, cada una con su prueba que la mata: sin la comprobación de que se puede calificar, sin la de que ya
+se calificó, enviando el identificador equivocado, `canRate` sin el lado del paciente y sin el estado completado, el modelo de
+vista sin la guarda de la confirmación y confirmando de una vez, aceptando una estrella fuera de rango, el traductor sin la
+unicidad, el transformador conservando el comentario en blanco, el selector enviando la estrella equivocada, la tarjeta
+mostrada al profesional y el límite del comentario subido a 1001. **Una sobrevivió la primera vez**: las pruebas del
+comentario usaban la propia constante, así que subirla no las rompía y el motor sí habría rechazado 1001. Se agregó
+`theLimitIsTheOneThatTheCheckOnTheColumnEnforces`, con el número escrito, y la mutación murió.
+
+**Resultado (2026-11-26).** `./gradlew build` terminó sin error: **1366 pruebas, 0 fallos, 0 omitidas**, y `ktlintCheck` y `lint`
+sin hallazgos. La historia aportó 61 pruebas.
+
+**Qué no cubre ninguna prueba.** El texto recortado dentro de su contenedor, que se miró en las vistas previas. La
+fecha de la pantalla, que en la máquina virtual de Java sale en inglés. El teclado abierto sobre el comentario, que no
+existe en Robolectric. Y la disposición real con la tipografía Inter.
+
+**Lo que el diseño dejó sin ver.** Al enviar, la pantalla vuelve a la atención y la relee al reanudarse; no hay aviso
+pasajero de «Calificación enviada», porque la propia tarjeta «Tu calificación» lo dice. La unicidad desde dos teléfonos
+a la vez se verificó en el motor, no en un recorrido.
+
+**Recorrido del autor (2026-11-26).** La historia es crítica («Calificación, que es irreversible»), así que pidió
+emulador. El autor la recorrió con dos emuladores, el paciente `ledezma.aramayo.73` y el profesional `chris.ledezma.s`,
+siguiendo los quince pasos que se le entregaron: la tarjeta de cinco estrellas de contorno en la atención completada, la
+pantalla con la estrella tocada ya elegida y su etiqueta, el comentario, la confirmación con su «Volver», «Tu calificación»
+sin estrellas para tocar, la calificación sin comentario, la ficha del profesional, la atención cancelada sin tarjeta, la
+atención del profesional sin tarjeta, y la repetición con la letra al máximo, el tema oscuro y sin red. **Cambió algunas
+de las atenciones nombradas por otras**, y lo hizo completo. Lo informó **sin observaciones**, y con eso se cerró la
+historia.
+
+**Lo que quedó en el remoto.** Tres calificaciones, de tres atenciones distintas del mismo profesional: 4 estrellas con
+comentario (Aplicación de inyectables, Bs 35,00), 5 estrellas sin comentario (Aplicación de inyectables, Bs 55,00) y 3
+estrellas con comentario (Curación de heridas, Bs 95,00). Todas visibles, y el motor recalculó solo el promedio del
+profesional a **4,00** con **3** calificaciones, que es lo que da (4 + 5 + 3) / 3. Son evidencia y no se limpian: el motor
+no deja borrarlas, a propósito. Son 3 y no las 2 de la guía porque el autor calificó una atención más de las previstas.
 
 ### HU-30 · Calificar al paciente `[ ]` — 3 puntos
 

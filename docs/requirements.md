@@ -176,7 +176,7 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 
 | Código | Requisito |
 |---|---|
-| RF-12.1 | El paciente califica al profesional con un puntaje de 1 a 5 estrellas y un comentario. |
+| RF-12.1 | El paciente califica al profesional con un puntaje de 1 a 5 estrellas y un comentario opcional de hasta 1000 caracteres. La calificación no se puede cambiar ni borrar, y quien califica no aparece como autor ante nadie que lea la tabla: solo ve su propia calificación. |
 | RF-12.2 | El profesional califica al paciente de la misma forma. |
 | RF-12.3 | El sistema recalcula la reputación del profesional al registrarse cada calificación. |
 | RF-12.4 | La reputación y los comentarios son visibles en el perfil público del profesional. |
@@ -317,3 +317,5 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-22 | Buscar en el catálogo desde el motor, con paginación | HT-32 lee el catálogo completo, con un tope de 500 filas, y lo filtra en el teléfono (`docs/decisions.md`, 2026-11-25). Pasado de unos 300 tipos, filtrar en el teléfono una lectura con tope daría falsos «sin resultados», el argumento de FA-16: la búsqueda se movería al motor, con paginación por cursor y búsqueda sin tildes. |
 | FA-23 | Elegir un tipo de servicio entre muchos, del lado del paciente | El filtro de la búsqueda y «Atención ahora» eligen el tipo con un `ExpandableOptionPicker`, hecho para los doce tipos de hoy. Con un catálogo grande tienen el problema que HT-32 resolvió en «Mis servicios», y se resolverían con el mismo selector y su búsqueda; las categorías, descartadas en HT-32, les servirían más que a nadie. Ningún requisito lo pide todavía. |
 | FA-24 | Que el aviso push diga que llegó una última oferta | HU-41 dejó el aviso igual: «Respondieron tu propuesta» con el servicio y el monto, y el hilo muestra «Última oferta» al abrirlo. Decirlo en el aviso exige redefinir `request_push_body` otra vez, por un cambio de título (`docs/decisions.md`, 2026-11-25, HU-41). |
+| FA-25 | Avisar al profesional que lo calificaron | HU-29 no envía aviso: un evento más son dos listas que deben coincidir (Kotlin y SQL), la función de envío reescrita entera, su canal y su destino, y el aviso no podría llevar el comentario (RF-09.10). El profesional ve su reputación en el Inicio y en su ficha. Se incorporaría con su propia historia. |
+| FA-26 | Plazo para calificar una atención completada | HU-29 admite calificar mientras la atención exista: RN-10 solo exige que esté completada. Un plazo, por ejemplo el de los 7 días de la conversación, sería una regla nueva en el motor y en la pantalla, y se anotaría con su historia si hace falta. |
