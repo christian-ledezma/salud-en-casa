@@ -72,6 +72,7 @@ import bo.saludencasa.features.services.domain.model.AttentionStep
 import bo.saludencasa.features.services.domain.model.CancelAttentionError
 import bo.saludencasa.features.services.domain.model.ConfirmPaymentError
 import bo.saludencasa.features.services.domain.model.Counterpart
+import bo.saludencasa.features.services.domain.model.MyReview
 import bo.saludencasa.features.services.domain.model.PaymentAnswer
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
@@ -116,6 +117,7 @@ internal data class AttentionActions(
     val onAnswerDismissed: () -> Unit = {},
     val onAnswerConfirmed: () -> Unit = {},
     val onAcceptReceipt: () -> Unit = {},
+    val onRate: (Int) -> Unit = {},
 )
 
 // docs/decisions.md, 2026-10-30, and 2026-11-04, HU-23.
@@ -125,6 +127,7 @@ fun AttentionScreen(
     onBack: () -> Unit,
     onOpenProfessionalProfile: (String) -> Unit,
     onOpenConversation: () -> Unit,
+    onRate: (Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AttentionViewModel = koinViewModel { parametersOf(requestId) },
 ) {
@@ -162,6 +165,7 @@ fun AttentionScreen(
                 onAnswerDismissed = viewModel::onAnswerDismissed,
                 onAnswerConfirmed = viewModel::onAnswerConfirmed,
                 onAcceptReceipt = viewModel::onAcceptReceipt,
+                onRate = onRate,
             ),
         modifier = modifier,
     )
@@ -254,6 +258,18 @@ private fun AttentionBody(
 
             attention.cancellation?.let { cancellation ->
                 CancellationReasonCard(cancellation = cancellation, modifier = margin)
+            }
+
+            // Only the patient's side exists so far; the professional's is HU-30.
+            if (attention.canRate) {
+                RateAttentionCard(
+                    counterpartName = attention.counterpart.name,
+                    onPick = actions.onRate,
+                    modifier = margin,
+                )
+            }
+            attention.myReview?.takeIf { attention.iAmThePatient }?.let { review ->
+                MyReviewCard(review = review, counterpartName = attention.counterpart.name, modifier = margin)
             }
 
             SummaryCard(attention = attention, large = large, actions = actions, modifier = margin)
@@ -1786,6 +1802,46 @@ private fun AttentionFailedPreview() {
 }
 
 private val previewPatientCompleted = previewCompleted.copy(iAmThePatient = true, counterpart = previewForThePatient)
+
+private val previewRated =
+    previewPatientCompleted.copy(
+        myReview =
+            MyReview(
+                rating = 4,
+                comment = "Muy puntual y explicó cada paso de la curación.",
+                createdAt = Instant.parse("2026-11-04T16:00:00Z"),
+            ),
+    )
+
+@Preview(name = "Attention patient to rate dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionPatientToRateDarkPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted))
+}
+
+@Preview(name = "Attention patient to rate large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionPatientToRateLargeFontPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewPatientCompleted))
+}
+
+@Preview(name = "Attention patient rated", showBackground = true)
+@Composable
+private fun AttentionPatientRatedPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewRated))
+}
+
+@Preview(name = "Attention patient rated dark", showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AttentionPatientRatedDarkPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewRated))
+}
+
+@Preview(name = "Attention patient rated large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun AttentionPatientRatedLargeFontPreview() {
+    AttentionPreviewFrame(AttentionUiState.Content(previewRated))
+}
 
 private val previewPaidInCash =
     AttentionPayment(

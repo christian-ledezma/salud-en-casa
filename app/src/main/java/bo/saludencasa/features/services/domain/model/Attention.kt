@@ -42,6 +42,7 @@ data class Attention(
     val conversationWritableUntil: Instant? = null,
     val cancellation: AttentionCancellation? = null,
     val payment: AttentionPayment = AttentionPayment.Pending,
+    val myReview: MyReview? = null,
 ) {
     val nextStepForMe: AttentionStep? get() = if (iAmThePatient) null else status.nextStep()
 
@@ -58,6 +59,10 @@ data class Attention(
 
     val canDeclarePayment: Boolean get() = canConfirmPayment || canConfirmReceipt
 
+    // RF-12.1, RN-10: the patient, over a completed attention, once. The professional's
+    // side is HU-30 (docs/decisions.md, 2026-11-26, HU-29).
+    val canRate: Boolean get() = iAmThePatient && status == ServiceStatus.COMPLETED && myReview == null
+
     // RF-11.3, RF-11.5: the professional, once the patient confirmed, and only once.
     val canAnswerPayment: Boolean
         get() = !iAmThePatient && status == ServiceStatus.COMPLETED && payment.status == PaymentStatus.PATIENT_CONFIRMED
@@ -69,6 +74,13 @@ data class Attention(
             iAmThePatient && status == ServiceStatus.COMPLETED &&
                 payment.status == PaymentStatus.PROFESSIONAL_CONFIRMED
 }
+
+// What the reader themselves rated: never what the other party rated of them.
+data class MyReview(
+    val rating: Int,
+    val comment: String?,
+    val createdAt: Instant,
+)
 
 data class AttentionCancellation(
     val reason: String,

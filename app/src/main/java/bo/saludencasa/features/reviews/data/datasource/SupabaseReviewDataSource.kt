@@ -1,5 +1,6 @@
 package bo.saludencasa.features.reviews.data.datasource
 
+import bo.saludencasa.features.reviews.data.model.NewReviewRow
 import bo.saludencasa.features.reviews.data.model.ReviewDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -29,7 +30,12 @@ class SupabaseReviewDataSource(
                 range(offset.toLong(), (offset + limit - 1).toLong())
             }.decodeList<ReviewDto>()
 
+    suspend fun insertReview(row: NewReviewRow) {
+        supabase.from(TABLE).insert(row)
+    }
+
     private companion object {
+        const val TABLE = "reviews"
         const val VIEW = "professional_reviews"
         val COLUMNS = Columns.list("id", "rating", "comment", "created_at")
     }

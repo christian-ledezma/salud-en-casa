@@ -921,4 +921,41 @@
     <string name="subscription_expired_notice_title">Tu suscripción venció</string>
     <string name="subscription_expired_notice_body">No recibes solicitudes nuevas. Las negociaciones que ya abriste siguen aquí.</string>
     <string name="subscription_expired_notice_open">Ver mi suscripción</string>
+
+    <string name="error_review_not_allowed">No puedes calificar esta atención.</string>
+    <string name="error_review_already_rated">Ya calificaste esta atención.</string>
+    <string name="error_review_comment_too_long">El comentario admite hasta %1$d caracteres.</string>
+    <string name="error_review_rating_missing">Elige de una a cinco estrellas.</string>
+    <plurals name="cd_review_stars">
+        <item quantity="one">%d estrella</item>
+        <item quantity="other">%d estrellas</item>
+    </plurals>
+    <string name="cd_review_rating_out_of_five">%1$d de 5 estrellas</string>
+    <string name="review_card_title">¿Cómo te atendió %1$s?</string>
+    <string name="review_card_hint">Toca una estrella para calificar.</string>
+    <string name="review_rate_title">Calificar la atención</string>
+    <string name="review_rate_question">¿Cómo te atendió?</string>
+    <string name="review_attention_meta">%1$s · %2$s</string>
+    <string name="review_rating_1">Mala</string>
+    <string name="review_rating_2">Regular</string>
+    <string name="review_rating_3">Buena</string>
+    <string name="review_rating_4">Muy buena</string>
+    <string name="review_rating_5">Excelente</string>
+    <string name="review_comment_label">Comentario (opcional)</string>
+    <string name="review_comment_count">%1$d / %2$d</string>
+    <string name="review_rate_notice">Tu comentario aparecerá en la ficha de %1$s sin tu nombre. Una vez enviada, la calificación no se puede cambiar.</string>
+    <string name="review_submit_action">Enviar calificación</string>
+    <string name="review_confirm_title">¿Enviar tu calificación?</string>
+    <plurals name="review_confirm_body_with_comment">
+        <item quantity="one">%1$d estrella para %2$s, con tu comentario. Aparecerá en su ficha sin tu nombre, y no podrás cambiarla ni borrarla.</item>
+        <item quantity="other">%1$d estrellas para %2$s, con tu comentario. Aparecerá en su ficha sin tu nombre, y no podrás cambiarla ni borrarla.</item>
+    </plurals>
+    <plurals name="review_confirm_body_without_comment">
+        <item quantity="one">%1$d estrella para %2$s, sin comentario. No podrás cambiarla ni borrarla.</item>
+        <item quantity="other">%1$d estrellas para %2$s, sin comentario. No podrás cambiarla ni borrarla.</item>
+    </plurals>
+    <string name="review_confirm_action">Enviar</string>
+    <string name="review_confirm_back">Volver</string>
+    <string name="review_mine_title">Tu calificación</string>
+    <string name="review_mine_visibility">Aparece en la ficha de %1$s sin tu nombre.</string>
 </resources>

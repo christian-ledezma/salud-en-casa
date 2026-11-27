@@ -73,6 +73,9 @@ data class AttentionDto(
     @SerialName("professional_confirmed_at") val professionalConfirmedAt: String? = null,
     @SerialName("disputed_at") val disputedAt: String? = null,
     @SerialName("resolved_at") val resolvedAt: String? = null,
+    @SerialName("my_rating") val myRating: Int? = null,
+    @SerialName("my_review_comment") val myReviewComment: String? = null,
+    @SerialName("my_reviewed_at") val myReviewedAt: String? = null,
 )
 
 @Serializable

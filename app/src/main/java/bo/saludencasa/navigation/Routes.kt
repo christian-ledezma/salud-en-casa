@@ -60,6 +60,14 @@ data class AttentionRoute(
     val requestId: String,
 )
 
+// HU-29: the rating of an attention, opened from it with the star the patient tapped
+// already chosen (0 when none was).
+@Serializable
+data class RateAttentionRoute(
+    val requestId: String,
+    val rating: Int = 0,
+)
+
 // HU-21: the conversation of an attention, opened from it.
 @Serializable
 data class ConversationRoute(

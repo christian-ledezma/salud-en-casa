@@ -8,6 +8,7 @@ import bo.saludencasa.features.services.domain.model.AttentionPayment
 import bo.saludencasa.features.services.domain.model.AttentionPlace
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.domain.model.Counterpart
+import bo.saludencasa.features.services.domain.model.MyReview
 import bo.saludencasa.features.services.domain.model.PaymentMethod
 import bo.saludencasa.features.services.domain.model.PaymentStatus
 import bo.saludencasa.features.services.domain.model.ServiceError
@@ -72,6 +73,16 @@ internal fun AttentionDto.toAttention(): Attention? {
                 disputedAt = disputedAt?.let { parseInstant(it) ?: return null },
                 resolvedAt = resolvedAt?.let { parseInstant(it) ?: return null },
             ),
+        myReview =
+            myRating?.let { rating ->
+                MyReview(
+                    rating = rating,
+                    // A rating with no words comes back as null, and one the engine
+                    // stored as an empty string would draw a blank line.
+                    comment = myReviewComment?.takeIf { it.isNotBlank() },
+                    createdAt = parseInstant(myReviewedAt ?: return null) ?: return null,
+                )
+            },
     )
 }
 

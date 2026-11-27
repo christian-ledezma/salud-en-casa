@@ -32,6 +32,7 @@ import bo.saludencasa.features.requests.presentation.MyRequestsScreen
 import bo.saludencasa.features.requests.presentation.NegotiationEntry
 import bo.saludencasa.features.requests.presentation.OfferThreadScreen
 import bo.saludencasa.features.requests.presentation.ScheduleAppointmentScreen
+import bo.saludencasa.features.reviews.presentation.RateAttentionScreen
 import bo.saludencasa.features.search.presentation.ProfessionalSearchScreen
 import bo.saludencasa.features.services.presentation.AttentionScreen
 import bo.saludencasa.features.subscription.presentation.SubscriptionScreen
@@ -195,6 +196,18 @@ fun SaludEnCasaNavHost(
                     navController.navigate(PublicProfileRoute(professionalId))
                 },
                 onOpenConversation = { navController.navigate(ConversationRoute(requestId)) },
+                onRate = { rating -> navController.navigate(RateAttentionRoute(requestId, rating)) },
+            )
+        }
+
+        // HU-29: back to the attention once the rating is sent; it rereads on resume.
+        composable<RateAttentionRoute> { entry ->
+            val route = entry.toRoute<RateAttentionRoute>()
+            RateAttentionScreen(
+                requestId = route.requestId,
+                rating = route.rating,
+                onBack = { navController.popBackStack() },
+                onSubmitted = { navController.popBackStack() },
             )
         }
 
