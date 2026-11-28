@@ -172,9 +172,17 @@ class AttentionTest {
         }
     }
 
+    // RF-12.2, HU-30: the professional rates the patient the same way.
     @Test
-    fun theProfessionalHasNoRatingToLeaveWithThisStory() {
-        assertFalse(attention(status = ServiceStatus.COMPLETED, iAmThePatient = false).canRate)
+    fun theProfessionalRatesACompletedAttentionNotYetRated() {
+        assertTrue(attention(status = ServiceStatus.COMPLETED, iAmThePatient = false).canRate)
+    }
+
+    @Test
+    fun theProfessionalDoesNotRateAnAttentionNotCompleted() {
+        listOf(ServiceStatus.ASSIGNED, ServiceStatus.IN_PROGRESS, ServiceStatus.CANCELLED).forEach { status ->
+            assertFalse(status.name, attention(status = status, iAmThePatient = false).canRate)
+        }
     }
 
     @Test

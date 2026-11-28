@@ -18,9 +18,11 @@ import bo.saludencasa.R
 import bo.saludencasa.core.util.formatAppointment
 import bo.saludencasa.features.notifications.presentation.NotificationRationale
 import bo.saludencasa.features.requests.domain.model.InboxRequest
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.ui.assertFitsTheScreen
+import bo.saludencasa.ui.plural
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
 import org.junit.Assert.assertEquals
@@ -39,6 +41,7 @@ class InboxScreenLargeFontTest {
     private fun request(
         id: String,
         scheduledAt: Instant? = null,
+        reputation: PatientReputation = PatientReputation.None,
     ): InboxRequest =
         InboxRequest(
             id = id,
@@ -51,6 +54,7 @@ class InboxScreenLargeFontTest {
             createdAt = Instant.parse("2026-10-13T12:00:00Z"),
             modality = if (scheduledAt == null) RequestModality.IMMEDIATE else RequestModality.SCHEDULED,
             scheduledAt = scheduledAt,
+            patientReputation = reputation,
         )
 
     private fun show(
@@ -219,5 +223,25 @@ class InboxScreenLargeFontTest {
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.notification_permission_dismiss)))
         scrollTo(1)
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Colocación y control de vía venosa"))
+    }
+
+    // HU-30: the card tells the professional how the patient has been rated, where they
+    // decide whether to open the request.
+    @Test
+    fun theCardSaysHowManyTimesAndHowWellThePatientWasRated() {
+        show(listOf(request("r1", reputation = PatientReputation(BigDecimal("4.33"), 3))))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("4.3"))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(plural(R.plurals.patient_reputation_count, 3, 3)),
+        )
+    }
+
+    @Test
+    fun aPatientNobodyRatedSaysSoInsteadOfShowingAZero() {
+        show(listOf(request("r1")))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.patient_reputation_none)))
+        composeRule.onNodeWithText("0.0").assertDoesNotExist()
     }
 }

@@ -13,11 +13,13 @@ import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferIssuer
 import bo.saludencasa.features.requests.domain.model.OfferStatus
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.offerThread
 import bo.saludencasa.features.requests.offerableRequest
 import bo.saludencasa.features.requests.requestOffer
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
+import bo.saludencasa.ui.plural
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
 import org.junit.Assert.assertTrue
@@ -391,5 +393,28 @@ class OfferThreadScreenLargeFontTest {
 
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.thread_state_final_sent)))
         composeRule.onNodeWithText(string(R.string.offer_accept_button)).assertDoesNotExist()
+    }
+
+    // HU-30: before offering, the professional reads how the patient has been rated.
+    @Test
+    fun theDetailBeforeOfferingSaysHowThePatientHasBeenRated() {
+        show(
+            OfferThreadUiState.Opening(
+                request = offerableRequest(patientReputation = PatientReputation(BigDecimal("3.00"), 2)),
+                amount = "160",
+            ),
+        )
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("3.0"))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(plural(R.plurals.patient_reputation_count, 2, 2)),
+        )
+    }
+
+    @Test
+    fun theDetailOfAPatientNobodyRatedSaysSo() {
+        show(OfferThreadUiState.Opening(request = offerableRequest(), amount = "160"))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.patient_reputation_none)))
     }
 }

@@ -244,4 +244,25 @@ class RateAttentionViewModelTest {
 
             assertEquals(4, viewModel.content().rating)
         }
+
+    // HU-30: the professional's rating goes to the patient of the attention.
+    @Test
+    fun theProfessionalsRatingTravelsToThePatientOfTheAttention() =
+        runTest {
+            services.result =
+                AttentionResult.Loaded(
+                    attention(status = ServiceStatus.COMPLETED, iAmThePatient = false, counterpartId = "pat-1"),
+                )
+            val viewModel = viewModel(initialRating = 5)
+            viewModel.onSubmitRequested()
+
+            viewModel.onConfirmed()
+            advanceUntilIdle()
+
+            assertEquals(RateAttentionUiState.Submitted, viewModel.uiState.value)
+            assertEquals(
+                listOf(FakeReviewRepository.Submission("s1", "pat-1", 5, null)),
+                reviews.submissions,
+            )
+        }
 }

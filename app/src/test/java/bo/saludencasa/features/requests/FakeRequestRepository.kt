@@ -10,6 +10,7 @@ import bo.saludencasa.features.requests.domain.model.CreateScheduledRequestDraft
 import bo.saludencasa.features.requests.domain.model.InboxRequest
 import bo.saludencasa.features.requests.domain.model.InboxResult
 import bo.saludencasa.features.requests.domain.model.MyRequestsResult
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestResult
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -139,6 +140,7 @@ fun inboxRequest(
     serviceTypeName: String = "Vacunación",
     distanceM: Int = 1200,
     suggestedBudgetBob: BigDecimal? = BigDecimal("150.00"),
+    patientReputation: PatientReputation = PatientReputation.None,
 ): InboxRequest =
     InboxRequest(
         id = id,
@@ -151,6 +153,7 @@ fun inboxRequest(
         createdAt = Instant.parse("2026-10-13T12:00:00Z"),
         modality = RequestModality.IMMEDIATE,
         scheduledAt = null,
+        patientReputation = patientReputation,
     )
 
 // A start as bookable_start_times returns it. La Paz is UTC-4 all year, so the

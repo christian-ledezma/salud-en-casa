@@ -10,6 +10,7 @@ import bo.saludencasa.features.requests.domain.model.OfferThreadResult
 import bo.saludencasa.features.requests.domain.model.OfferThreadsResult
 import bo.saludencasa.features.requests.domain.model.OfferableRequest
 import bo.saludencasa.features.requests.domain.model.OfferableRequestResult
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestOffer
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -162,6 +163,7 @@ fun offerableRequest(
     status: RequestStatus = RequestStatus.PUBLISHED,
     modality: RequestModality = RequestModality.IMMEDIATE,
     scheduledAt: Instant? = null,
+    patientReputation: PatientReputation = PatientReputation.None,
 ): OfferableRequest =
     OfferableRequest(
         id = id,
@@ -174,4 +176,5 @@ fun offerableRequest(
         modality = modality,
         scheduledAt = scheduledAt,
         alreadyOffered = alreadyOffered,
+        patientReputation = patientReputation,
     )

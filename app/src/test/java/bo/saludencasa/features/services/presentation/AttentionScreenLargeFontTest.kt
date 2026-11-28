@@ -751,12 +751,33 @@ class AttentionScreenLargeFontTest {
         composeRule.onNodeWithText(string(R.string.review_card_hint)).assertDoesNotExist()
     }
 
-    // HU-30 is the professional's side; until then nothing of it shows.
+    // HU-30: the professional is asked about the patient, in their own words.
     @Test
-    fun theProfessionalOfACompletedAttentionIsNotAskedToRateIt() {
+    fun theProfessionalOfACompletedAttentionIsAskedHowItWasToAttendThePatient() {
         show(AttentionUiState.Content(toRate().copy(iAmThePatient = false)))
 
-        composeRule.onNodeWithText(string(R.string.review_card_hint)).assertDoesNotExist()
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.review_card_title_professional, "María Quispe")),
+        )
+        (1..5).forEach { composeRule.assertFitsTheScreen(ratedStar(it)) }
+        composeRule.onNodeWithText(string(R.string.review_card_title, "María Quispe")).assertDoesNotExist()
+    }
+
+    @Test
+    fun theProfessionalWhoRatedSeesTheirOwnRatingAndWhoDoesNotSeeIt() {
+        val rated =
+            toRate().copy(
+                iAmThePatient = false,
+                myReview = MyReview(4, "Esperaba en la puerta.", Instant.parse("2026-11-27T16:00:00Z")),
+            )
+        show(AttentionUiState.Content(rated))
+
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.review_mine_title)))
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText("Esperaba en la puerta."))
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.review_mine_visibility_professional, "María Quispe")),
+        )
+        ratedStar(1).assertDoesNotExist()
     }
 
     @Test

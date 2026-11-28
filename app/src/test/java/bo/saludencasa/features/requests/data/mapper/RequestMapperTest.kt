@@ -3,11 +3,14 @@ package bo.saludencasa.features.requests.data.mapper
 import bo.saludencasa.features.requests.data.model.BookableStartDto
 import bo.saludencasa.features.requests.data.model.InboxRequestDto
 import bo.saludencasa.features.requests.data.model.ServiceRequestDto
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.math.BigDecimal
 import java.time.Instant
@@ -194,6 +197,8 @@ class RequestMapperTest {
         distanceM: Double = 1200.0,
         modality: String = "IMMEDIATE",
         scheduledAt: String? = null,
+        patientRating: BigDecimal? = null,
+        patientTotalReviews: Int = 0,
     ): InboxRequestDto =
         InboxRequestDto(
             id = "r1",
@@ -206,5 +211,36 @@ class RequestMapperTest {
             createdAt = createdAt,
             modality = modality,
             scheduledAt = scheduledAt,
+            patientRating = patientRating,
+            patientTotalReviews = patientTotalReviews,
         )
+
+    // HU-30: how the patient has been rated, and nothing about who rated.
+    @Test
+    fun aRatedPatientReachesTheModelWithTheirAverageAndCount() {
+        val reputation =
+            inboxDto(patientRating = BigDecimal("4.33"), patientTotalReviews = 3).toInboxRequest()!!.patientReputation
+
+        assertEquals(BigDecimal("4.33"), reputation.averageRating)
+        assertEquals(3, reputation.totalReviews)
+        assertTrue(reputation.isRated)
+    }
+
+    // The engine's 0.00 with a count of 0 is a patient nobody rated, not a patient
+    // rated zero.
+    @Test
+    fun aPatientNeverRatedHasNoReputationAndNotAZero() {
+        val reputation =
+            inboxDto(patientRating = BigDecimal("0.00"), patientTotalReviews = 0)
+                .toInboxRequest()!!
+                .patientReputation
+
+        assertFalse(reputation.isRated)
+        assertEquals(PatientReputation.None, reputation)
+    }
+
+    @Test
+    fun aCountWithoutAnAverageMakesTheRowUnreadable() {
+        assertNull(inboxDto(patientRating = null, patientTotalReviews = 2).toInboxRequest())
+    }
 }

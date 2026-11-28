@@ -20,6 +20,7 @@ import bo.saludencasa.features.auth.presentation.RoleSection
 import bo.saludencasa.features.profile.domain.model.ProfileRoles
 import bo.saludencasa.features.profile.domain.model.UserRole
 import bo.saludencasa.features.requests.domain.model.InboxRequest
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.services.attentionSummary
@@ -29,6 +30,7 @@ import bo.saludencasa.features.subscription.domain.model.SubscriptionStatus
 import bo.saludencasa.features.subscription.subscription
 import bo.saludencasa.ui.assertFitsTheScreen
 import bo.saludencasa.ui.assertFitsTheScreenWithoutScrolling
+import bo.saludencasa.ui.plural
 import bo.saludencasa.ui.setContentAtDoubleFontScale
 import bo.saludencasa.ui.string
 import org.junit.Assert.assertEquals
@@ -187,6 +189,17 @@ class HomeShellLargeFontTest {
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_available_now)))
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(LONG_SERVICE_TYPE))
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.home_nearby_requests_see_all)))
+    }
+
+    // HU-30: the rows of Home say how the patient was rated, as the inbox card does.
+    @Test
+    fun theRequestsNearbySayHowTheirPatientsWereRated() {
+        show(bothRoles, UserRole.PROFESSIONAL)
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(plural(R.plurals.patient_reputation_home, 3, "4.3", 3)),
+        )
+        composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.patient_reputation_none)))
     }
 
     @Test
@@ -384,6 +397,7 @@ class HomeShellLargeFontTest {
             createdAt = Instant.parse("2026-10-30T12:00:00Z"),
             modality = RequestModality.IMMEDIATE,
             scheduledAt = null,
+            patientReputation = if (id == "n1") PatientReputation(BigDecimal("4.33"), 3) else PatientReputation.None,
         )
 
     private companion object {

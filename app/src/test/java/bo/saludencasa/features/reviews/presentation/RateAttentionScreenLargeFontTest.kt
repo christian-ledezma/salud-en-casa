@@ -157,4 +157,56 @@ class RateAttentionScreenLargeFontTest {
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.error_network_unavailable)))
         composeRule.assertFitsTheScreen(composeRule.onNodeWithText(string(R.string.common_retry)))
     }
+
+    // HU-30: the same screen, said to the professional about the patient.
+    private fun professionalContent(
+        rating: Int = 4,
+        comment: String = "Esperaba en la puerta.",
+        confirming: Boolean = false,
+    ) = RateAttentionUiState.Content(
+        attention = attention(status = ServiceStatus.COMPLETED, iAmThePatient = false),
+        rating = rating,
+        comment = comment,
+        confirming = confirming,
+    )
+
+    @Test
+    fun theProfessionalIsToldThePatientWillNotSeeTheRatingAndWhatOthersWillSee() {
+        show(professionalContent())
+
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.review_rate_question_professional)),
+        )
+        (1..5).forEach { composeRule.assertFitsTheScreen(star(it)) }
+        composeRule.assertFitsTheScreen(
+            composeRule.onNodeWithText(string(R.string.review_rate_notice_professional, "María Quispe")),
+        )
+        composeRule.onNodeWithText(string(R.string.review_rate_question)).assertDoesNotExist()
+        composeRule.assertFitsTheScreenWithoutScrolling(submitButton().assertIsEnabled())
+    }
+
+    @Test
+    fun theProfessionalsConfirmationSaysWhatOtherProfessionalsWillSee() {
+        show(professionalContent(confirming = true))
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(
+                plural(R.plurals.review_confirm_body_with_comment_professional, 4, 4, "María Quispe"),
+            ),
+        )
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(string(R.string.review_confirm_action)),
+        )
+    }
+
+    @Test
+    fun theProfessionalsConfirmationOfARatingWithNoWordsDoesNotMentionAComment() {
+        show(professionalContent(rating = 2, comment = "", confirming = true))
+
+        composeRule.assertFitsTheScreenWithoutScrolling(
+            composeRule.onNodeWithText(
+                plural(R.plurals.review_confirm_body_without_comment_professional, 2, 2, "María Quispe"),
+            ),
+        )
+    }
 }
