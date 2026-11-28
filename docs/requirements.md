@@ -177,7 +177,7 @@ profesional, junto con médico, enfermera y fisioterapeuta.
 | Código | Requisito |
 |---|---|
 | RF-12.1 | El paciente califica al profesional con un puntaje de 1 a 5 estrellas y un comentario opcional de hasta 1000 caracteres. La calificación no se puede cambiar ni borrar, y quien califica no aparece como autor ante nadie que lea la tabla: solo ve su propia calificación. |
-| RF-12.2 | El profesional califica al paciente de la misma forma. |
+| RF-12.2 | El profesional califica al paciente de la misma forma. Los profesionales que reciben solicitudes de ese paciente ven su promedio y su total de calificaciones, nunca los comentarios, y el paciente no ve lo que recibió. |
 | RF-12.3 | El sistema recalcula la reputación del profesional al registrarse cada calificación. |
 | RF-12.4 | La reputación y los comentarios son visibles en el perfil público del profesional. |
 
@@ -319,3 +319,4 @@ inglés. El mapeo completo y obligatorio se encuentra en `.claude/rules/glosario
 | FA-24 | Que el aviso push diga que llegó una última oferta | HU-41 dejó el aviso igual: «Respondieron tu propuesta» con el servicio y el monto, y el hilo muestra «Última oferta» al abrirlo. Decirlo en el aviso exige redefinir `request_push_body` otra vez, por un cambio de título (`docs/decisions.md`, 2026-11-25, HU-41). |
 | FA-25 | Avisar al profesional que lo calificaron | HU-29 no envía aviso: un evento más son dos listas que deben coincidir (Kotlin y SQL), la función de envío reescrita entera, su canal y su destino, y el aviso no podría llevar el comentario (RF-09.10). El profesional ve su reputación en el Inicio y en su ficha. Se incorporaría con su propia historia. |
 | FA-26 | Plazo para calificar una atención completada | HU-29 admite calificar mientras la atención exista: RN-10 solo exige que esté completada. Un plazo, por ejemplo el de los 7 días de la conversación, sería una regla nueva en el motor y en la pantalla, y se anotaría con su historia si hace falta. |
+| FA-27 | Que el paciente no pueda leer su propio promedio | Con una consulta hecha a mano sobre `patients`, el paciente lee su promedio, que con una sola calificación es esa misma. La aplicación nunca lo muestra (HU-30). Cerrarlo exige permisos por columna sobre una tabla que la aplicación lee para el perfil, y se haría con su propia historia si el proyecto lo pide. |

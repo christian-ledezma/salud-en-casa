@@ -211,7 +211,7 @@ el riesgo de forma consciente: está aceptado, no ignorado.
 | 6 | Avisos y negociación de tarifas | 3 · Coordinación | 42 | `[x]` | [`sprint-06.md`](docs/sprints/sprint-06.md) |
 | 7 | Comunicación y ciclo del servicio | 3 · Coordinación | 56 | `[x]` | [`sprint-07.md`](docs/sprints/sprint-07.md) |
 | 8 | Pago de la atención y vigencia del profesional | 4 · Pagos | 29 | `[x]` | [`sprint-08.md`](docs/sprints/sprint-08.md) |
-| 9 | Calificación e historial | 5 · Evaluación | 32 | `[ ]` | Abajo, sprint activo |
+| 9 | Calificación e historial | 5 · Evaluación | 34 | `[ ]` | Abajo, sprint activo |
 | 10 | Validación con usuarios reales | 6 · Pruebas | — | `[ ]` | Abajo |
 | 11 | Publicación y suscripción en Google Play | 4 · Pagos | Por estimar | `[ ]` | Abajo |
 
@@ -511,7 +511,7 @@ cada usuario consulta su actividad.
 
 **Objetivo específico.** 5 · Evaluación, calificación y registro histórico centralizado.
 
-**Puntos:** 32. Eran 22; el 2026-11-25 entraron HT-32 y HU-41, de 5 puntos cada una, en el sprint en curso.
+**Puntos:** 34. Eran 22; el 2026-11-25 entraron HT-32 y HU-41, de 5 puntos cada una, en el sprint en curso, y el 2026-11-27 HU-30 subió de 3 a 5 puntos.
 
 ### HT-32 · «Mis servicios» escala: lista corta y selector del catálogo `[x]` — 2026-11-25 — 5 puntos
 
@@ -885,20 +885,98 @@ estrellas con comentario (Curación de heridas, Bs 95,00). Todas visibles, y el 
 profesional a **4,00** con **3** calificaciones, que es lo que da (4 + 5 + 3) / 3. Son evidencia y no se limpian: el motor
 no deja borrarlas, a propósito. Son 3 y no las 2 de la guía porque el autor calificó una atención más de las previstas.
 
-### HU-30 · Calificar al paciente `[ ]` — 3 puntos
+### HU-30 · Calificar al paciente `[x]` — 2026-11-27 — 5 puntos
 
 > Como **profesional**, quiero **calificar al paciente atendido**, para **que otros
 > profesionales tengan referencia antes de acudir a un domicilio**.
 
+**Origen.** Era de 3 puntos. Al planificar, el autor eligió que la reputación se vea en la tarjeta de la bandeja y en el
+detalle antes de ofertar, y eso cambia dos funciones del motor y las tres pantallas donde el profesional decide: subió a 5.
+
+**Decisiones del autor (2026-11-27).** La reputación se ve en la **tarjeta de la bandeja** (también en «Solicitudes cerca de
+ti» del Inicio) y en el **detalle** antes de ofertar. Los otros profesionales ven **solo el promedio y el total**; el
+comentario lo leen únicamente su autor y el administrador. **El paciente no ve** lo que recibió ni su propia reputación. El
+flujo de calificar es **el mismo de HU-29**, con otros textos. Y, al aprobar el plan, **se deja** que el paciente pueda leer
+su propio promedio con una consulta a mano (FA-27).
+
+**Decisiones técnicas, a veto del autor**
+
+- Una migración, `hu30_patient_reputation_in_the_inbox`: `request_inbox` e `inbox_request` devuelven `patient_rating` y
+  `patient_total_reviews`, y siguen sin devolver quién es el paciente. La política de inserción y el recálculo no cambian.
+- `canRate` admite los dos lados y `iAmThePatient` decide los textos. Se reutiliza `RateAttentionScreen`.
+- `PatientReputation` en los modelos de la bandeja y del detalle; sin calificaciones es «Paciente sin calificaciones», nunca un cero.
+
+**Requisitos:** RF-12.2, INV-11, INV-13, INV-17, RN-14.
+
+**Prototipo.** Lienzo «HU-29 y HU-30 — Calificaciones», tableros D1 a D4. **Aprobado por el autor el 2026-11-27.** Una
+diferencia con lo aprobado, al programar: en la tarjeta de la bandeja la línea de reputación va al pie, bajo el presupuesto
+y no sobre la descripción, porque `ServiceCard` es la tarjeta de todas las listas y su pie ya admite un contenido propio.
+
 **Criterios de aceptación**
 
-- [ ] Dado que completé una atención, cuando la califico, entonces registro
-      estrellas y comentario sobre el paciente.
-- [ ] Dado que intento calificarme a mí mismo, cuando se procesa, entonces se rechaza.
-- [ ] Dado que califico, cuando otro profesional recibe una solicitud de ese
-      paciente, entonces ve su reputación.
+- [x] Dada una atención completada que no califiqué, como profesional, cuando la abro, entonces veo «¿Cómo fue atender a…?»,
+      elijo de una a cinco estrellas y escribo un comentario si quiero. **Verificado** por
+      `theProfessionalOfACompletedAttentionIsAskedHowItWasToAttendThePatient` (a 320 dp y al 200 %),
+      `theProfessionalIsToldThePatientWillNotSeeTheRatingAndWhatOthersWillSee`,
+      `theProfessionalsConfirmationSaysWhatOtherProfessionalsWillSee` y su par sin comentario,
+      `theProfessionalsRatingTravelsToThePatientOfTheAttention` y `theProfessionalRatesThePatientOfTheAttention`.
+- [x] Dado que intento calificarme a mí mismo, cuando se procesa, entonces se rechaza. **Verificado con experimento SQL el
+      2026-11-27** contra el remoto: por la política dio `42501` y como dueño de la base, que pasa por encima de toda política,
+      la restricción `author_is_not_recipient` dio `23514`.
+- [x] Dado que califico, cuando otro profesional recibe una solicitud de ese paciente, entonces ve su reputación. **Verificado
+      con el mismo experimento**: antes de calificar, la bandeja y el detalle dijeron `0.00` y `0` calificaciones; después de la
+      primera, `4.00` y `1`; con una segunda de 2 estrellas, `3.00` y `2`. En el cliente,
+      `aRatedPatientReachesTheModelWithTheirAverageAndCount`, `aRatedPatientReachesTheDetailWithTheirAverageAndCount`,
+      `theCardSaysHowManyTimesAndHowWellThePatientWasRated`, `theDetailBeforeOfferingSaysHowThePatientHasBeenRated` y
+      `theRequestsNearbySayHowTheirPatientsWereRated`. Un paciente sin calificaciones dice «Paciente sin calificaciones» y no
+      un cero (`aPatientNobodyRatedSaysSoInsteadOfShowingAZero`).
+- [x] Dado que un profesional califica a un paciente, cuando se recalcula, entonces cambia la reputación del paciente y nunca la
+      del profesional como profesional. **Verificado con el experimento** (INV-17): el total de `patients` del paciente pasó de 0
+      a 1 y el de `professionals` del profesional siguió en 3; el profesional como paciente siguió en 0.
+- [x] Dado que soy el paciente, cuando leo lo que recibí, entonces no lo veo. **Verificado con el experimento**: el paciente leyó
+      **0** filas de `reviews` sobre él, `my_attention` le devolvió `my_rating` vacío y la proyección pública, 0 filas. El profesional
+      sí leyó la suya (`my_rating` = 4, 2 filas, las que escribió). **Límite conocido** (FA-27): su propia fila de `patients`
+      sigue legible con una consulta a mano.
+- [x] Dado cualquier cliente, cuando abre la bandeja o el detalle, entonces no recibe quién es el paciente. **Verificado con el
+      experimento**: ni `request_inbox` ni `inbox_request` devuelven una columna con el identificador ni el nombre del paciente, y un
+      tercero que abre el detalle recibe **0** filas y no ve la solicitud en su bandeja.
+- [x] Dado una calificación del profesional, cuando se intenta duplicarla, calificar una atención cancelada, a un tercero o con
+      un puntaje fuera de rango, entonces se rechaza. **Verificado con el mismo experimento**: duplicado `23505`, cancelada `42501`,
+      tercero `42501`, destinatario equivocado `42501` y 6 estrellas `23514`. El control, una segunda atención con 2 estrellas y
+      sin comentario, entró.
+- [x] Dado el 200 % de fuente y un teléfono de 320 dp, cuando uso la tarjeta, el detalle y la calificación del profesional,
+      entonces cada control se alcanza, se muestra y no se sale de los bordes. **Verificado** por las pruebas de interfaz de la
+      bandeja, el detalle, el Inicio y la atención, y **mirando** las vistas previas: la insignia baja a su propia línea y el texto
+      envuelve sin recortarse en el detalle y en la calificación del profesional.
 
-**Requisitos:** RF-12.2, INV-11.
+**Experimento SQL (2026-11-27).** Un solo bloque, como el profesional `chris.ledezma.s` y el paciente `ledezma.aramayo.73` sobre sus
+atenciones reales y una solicitud agendada creada dentro de la transacción, con la migración aplicada en la misma transacción y
+`rollback` al final. Veinticinco resultados, todos los esperados. Sin residuo después (3 calificaciones, 0 solicitudes del
+experimento, el total del paciente en 0). Después se aplicó con `db push`.
+
+**Mutaciones.** Ocho, cada una con su prueba que la mata: `canRate` de nuevo solo del paciente, un conteo sin promedio aceptado, un
+paciente sin calificaciones contado como calificado, la tarjeta, el detalle y el Inicio sin la reputación, y los textos del paciente
+mostrados al profesional en la tarjeta y en la confirmación.
+
+**Resultado (2026-11-27).** `./gradlew build` terminó sin error: **1385 pruebas, 0 fallos, 0 omitidas**, y `ktlintCheck` y `lint` sin
+hallazgos. La historia dejó 19 pruebas más que HU-29: agregó 22 y reemplazó 3 que decían «el profesional
+no califica».
+
+**Qué no cubre ninguna prueba.** El texto recortado dentro de su contenedor, que se miró en las vistas previas; el diálogo de la
+confirmación, que el renderizador de capturas no dibuja; y que la reputación vista por «otro profesional» sea de otro: en el
+remoto hay un solo profesional aprobado, así que el recorrido lo hace la misma cuenta.
+
+**Recorrido del autor (2026-11-27).** La historia es crítica («Calificación, que es irreversible»), así que pidió emulador. El
+autor la recorrió con dos emuladores, el profesional `chris.ledezma.s` y el paciente `ledezma.aramayo.73`, siguiendo los trece pasos
+que se le entregaron: la tarjeta «¿Cómo fue atender a…?», la pantalla con sus textos para el profesional, la confirmación, «Tu
+calificación», la atención del paciente sin rastro de lo recibido, la cita agendada, y la reputación en «Solicitudes cerca de ti», en
+la tarjeta de la bandeja y en el detalle, con la letra al máximo y el tema oscuro. Lo informó **sin observaciones**, y con eso se
+cerró la historia.
+
+**Lo que quedó en el remoto.** Una calificación nueva, del profesional al paciente: **4 estrellas con comentario, sobre la atención de
+Aplicación de inyectables de Bs 55,00**. Es otra de las que se indicaron (Bs 45,00 del 24 de noviembre): el autor cambió una atención
+por otra. El motor recalculó solo la reputación del paciente a **4,00** con **1** calificación, y la del profesional como profesional
+siguió en **4,00** con **3**, que es lo que exige INV-17. Son evidencia y no se limpian.
 
 ### HU-31 · Consultar mi historial de atenciones `[ ]` — 5 puntos
 

@@ -7052,6 +7052,60 @@ lados. Quien cambie la lectura de `reviews` debe saber que el cliente **nunca** 
 
 ---
 
+## 2026-11-27 · HU-30: el profesional califica al paciente con la misma pantalla y los demás profesionales ven solo su promedio
+
+**Contexto.** HU-29 dejó la pantalla de calificar, el motor y la lectura propia listos para los dos lados: la política
+de inserción ya admitía al profesional sobre el paciente de su atención, la unicidad y el rango son los mismos, y el
+disparador de reputación ya mantenía `patients.average_rating` aparte de `professionals.average_rating` (INV-17). Lo que
+faltaba era decirle al profesional, donde decide si va a un domicilio, cómo ha sido calificado ese paciente.
+
+**Decisión.**
+
+1. **El profesional califica con la misma tarjeta, la misma pantalla y las mismas reglas que el paciente** (comentario
+   opcional de hasta 1000 caracteres, confirmación, sin plazo, sin aviso push). Solo cambian los textos, que le dicen que
+   el paciente no verá la calificación y que otros profesionales verán solo el promedio.
+2. **Los profesionales ven el promedio y el total de calificaciones del paciente**, en la tarjeta de la bandeja, en
+   «Solicitudes cerca de ti» del Inicio y en el detalle antes de ofertar. Sin calificaciones dice «Paciente sin
+   calificaciones», nunca un cero. **El comentario no lo lee nadie más que su autor y el administrador.**
+3. **El paciente no ve** la calificación que recibió ni su propia reputación en la aplicación.
+4. **Una migración**, `hu30_patient_reputation_in_the_inbox`: `request_inbox` e `inbox_request` devuelven
+   `patient_rating` y `patient_total_reviews`, y siguen sin devolver quién es el paciente.
+
+**Razonamiento.**
+
+- *Solo el promedio.* RF-12.4 y RN-14 hacen pública la reputación del profesional y ninguna otra. Lo que un profesional
+  escribe de un paciente suele tocar su casa o su salud, así que mostrarlo a cualquier profesional cercano expondría
+  información sensible, y exigiría una vista nueva con su propio experimento de privacidad.
+- *El paciente no lo ve, por el argumento de HU-29 en espejo.* Si viera lo que le calificaron, o su promedio con una sola
+  calificación, sabría quién lo calificó y cómo, y eso invita a la represalia, igual que a la inversa.
+- *Los dos lados comparten pantalla.* `canRate` ya no exige ser el paciente, y el lado lo decide `iAmThePatient`. Se
+  reutilizó todo lo de HU-29, incluidas sus pruebas, que en tres casos cambiaron de sentido: donde decían «el profesional
+  no puede calificar» ahora dicen que sí puede.
+- *El promedio sale de `patients`, no se recalcula.* Es lo que el disparador existente mantiene, y el experimento midió
+  que la calificación de un profesional mueve esa reputación y deja intacta la suya como profesional, aunque tenga los dos
+  roles.
+- *Las funciones se eliminan y se crean otra vez* porque cambia lo que devuelven, como `my_attention` en HU-29. Los
+  cuerpos son los vigentes con `left join patients` y las dos columnas, de modo que un paciente sin fila no saca la
+  solicitud de la bandeja.
+- *Un conteo sin promedio hace ilegible la fila.* Es un desajuste de contrato, no un paciente que adivinar: el
+  transformador la descarta y el repositorio informa un error, como con un estado desconocido.
+
+**Límite conocido.** Un paciente que lea su propia fila de `patients` con una consulta hecha a mano ve su promedio, y con una
+sola calificación ese promedio es la calificación misma. La aplicación nunca lo muestra y no revela quién lo calificó: solo
+lo haría si tuvo una única atención, y entonces ya sabe con quién fue. Cerrarlo exige permisos por columna sobre una tabla
+que la aplicación lee para el perfil, un cambio mayor que esta historia. **Decisión del autor al aprobar el plan:** se deja
+y se documenta (FA-27).
+
+**Alternativas descartadas.**
+
+- **Mostrar también los comentarios sin su autor.** Da más contexto, pero expone lo escrito sobre una persona y su domicilio
+  a cualquier profesional de la zona.
+- **Solo en el detalle, o solo en la tarjeta.** El detalle deja decidir tarde y la tarjeta deja sin ver al abrirla.
+- **Comentario obligatorio para el profesional.** Serviría a las disputas, pero agrega fricción a cada cierre y haría la
+  regla distinta de la del paciente.
+
+---
+
 ## Plantilla para entradas nuevas
 
 ```

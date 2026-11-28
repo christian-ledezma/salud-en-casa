@@ -205,11 +205,13 @@ pasa a «Nombres retirados», al final.
 | Total de calificaciones | `totalReviews` | Cuántas calificaciones sostienen el promedio |
 | Calificar la atención | `RateAttentionScreen` / `RateAttentionRoute` / `SubmitReviewUseCase` | La pantalla de las estrellas y el comentario, abierta desde la atención con la estrella tocada ya elegida. El caso de uso relee la atención y toma de ella el servicio y el destinatario, nunca de la pantalla (HU-29) |
 | Puntaje y comentario | `Rating` / `ReviewComment` | Objetos de valor en `features/reviews/domain/vo/`: de 1 a 5, y recortado, no vacío, hasta 1000 puntos de código como `char_length`. Un comentario en blanco viaja como ninguno |
-| Puede calificar | `canRate` / `RateAttentionCard` | El paciente, con la atención completada y sin calificación suya. El lado del profesional es HU-30 |
+| Puede calificar | `canRate` / `RateAttentionCard` | Cualquiera de las dos partes, con la atención completada y sin calificación suya. El lado lo dice `iAmThePatient` y cambia los textos, no las reglas (HU-29, HU-30) |
 | Mi calificación | `MyReview` / `my_rating`, `my_review_comment`, `my_reviewed_at` | Solo lo que quien lee calificó, devuelto por `my_attention`; nunca lo que la otra parte calificó de él. La atención lo muestra como «Tu calificación» (HU-29) |
 | Estrellas | `StarPicker` / `StarsRead` / `STAR_COUNT` | En `ui/components/`. El selector son cinco áreas de 48 dp que no crecen con la fuente; la lectura se describe una vez para las cinco. La vacía es un contorno propio, no un gris relleno |
 | Sellar la calificación | `stamp_review_on_insert` | El motor pone `created_at` y deja `visible` en verdadero para quien llama. Quien no llama, como la clave de servicio, conserva lo suyo |
 | Quién lee `reviews` | `reviews_select_own` | Solo el autor y el administrador. El cliente nunca consulta la tabla: la ficha lee `professional_reviews` y la atención lee `my_attention` (HU-29) |
+| Reputación del paciente | `PatientReputation` / `patient_rating`, `patient_total_reviews` | Promedio y total que ven los profesionales en la tarjeta de la bandeja, en el Inicio y en el detalle antes de ofertar: `request_inbox` e `inbox_request` los devuelven, sin identidad. Sin calificaciones es `None`, nunca un cero (HU-30) |
+| Línea de reputación | `PatientReputationLine` / `patientReputationText` | La insignia ámbar con el promedio y «Paciente · N calificaciones», o «Paciente sin calificaciones». Los textos de lista usan la forma en una línea |
 
 ## Verificación y revisión
 
