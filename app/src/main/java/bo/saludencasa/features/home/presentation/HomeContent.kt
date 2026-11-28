@@ -54,6 +54,7 @@ import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.presentation.inboxDistanceText
 import bo.saludencasa.features.requests.presentation.labelRes
 import bo.saludencasa.features.requests.presentation.messageRes
+import bo.saludencasa.features.requests.presentation.patientReputationText
 import bo.saludencasa.features.services.domain.model.AttentionSummary
 import bo.saludencasa.features.services.presentation.cardDateText
 import bo.saludencasa.features.services.presentation.labelRes
@@ -564,7 +565,13 @@ private fun NearbyRequestRow(
 
     HomeRow(
         title = request.serviceTypeName,
-        details = listOfNotNull(place, schedule, budget?.takeIf { stacked }),
+        details =
+            listOfNotNull(
+                place,
+                schedule,
+                patientReputationText(request.patientReputation),
+                budget?.takeIf { stacked },
+            ),
         icon =
             rememberVectorPainter(
                 if (request.modality == RequestModality.SCHEDULED) Icons.Filled.DateRange else Icons.Filled.LocationOn,

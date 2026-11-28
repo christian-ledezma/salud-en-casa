@@ -958,4 +958,26 @@
     <string name="review_confirm_back">Volver</string>
     <string name="review_mine_title">Tu calificación</string>
     <string name="review_mine_visibility">Aparece en la ficha de %1$s sin tu nombre.</string>
+
+    <string name="review_card_title_professional">¿Cómo fue atender a %1$s?</string>
+    <string name="review_rate_question_professional">¿Cómo fue atenderle?</string>
+    <string name="review_rate_notice_professional">%1$s no verá tu calificación. Los profesionales que reciban sus solicitudes verán solo su promedio; tu comentario no se muestra a nadie. Una vez enviada, no se puede cambiar.</string>
+    <plurals name="review_confirm_body_with_comment_professional">
+        <item quantity="one">%1$d estrella para %2$s, con tu comentario. Otros profesionales verán solo su promedio, y no podrás cambiarla ni borrarla.</item>
+        <item quantity="other">%1$d estrellas para %2$s, con tu comentario. Otros profesionales verán solo su promedio, y no podrás cambiarla ni borrarla.</item>
+    </plurals>
+    <plurals name="review_confirm_body_without_comment_professional">
+        <item quantity="one">%1$d estrella para %2$s, sin comentario. Se suma a su promedio, y no podrás cambiarla ni borrarla.</item>
+        <item quantity="other">%1$d estrellas para %2$s, sin comentario. Se suma a su promedio, y no podrás cambiarla ni borrarla.</item>
+    </plurals>
+    <string name="review_mine_visibility_professional">%1$s no la ve; otros profesionales ven solo su promedio.</string>
+    <string name="patient_reputation_none">Paciente sin calificaciones</string>
+    <plurals name="patient_reputation_count">
+        <item quantity="one">Paciente · %1$d calificación</item>
+        <item quantity="other">Paciente · %1$d calificaciones</item>
+    </plurals>
+    <plurals name="patient_reputation_home">
+        <item quantity="one">Paciente: %1$s de 5 (%2$d calificación)</item>
+        <item quantity="other">Paciente: %1$s de 5 (%2$d calificaciones)</item>
+    </plurals>
 </resources>

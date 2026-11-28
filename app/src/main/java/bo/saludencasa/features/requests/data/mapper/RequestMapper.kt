@@ -5,9 +5,11 @@ import bo.saludencasa.features.requests.data.model.InboxRequestDto
 import bo.saludencasa.features.requests.data.model.ServiceRequestDto
 import bo.saludencasa.features.requests.domain.model.BookableStart
 import bo.saludencasa.features.requests.domain.model.InboxRequest
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
 import bo.saludencasa.features.requests.domain.model.ServiceRequest
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -47,6 +49,7 @@ internal fun InboxRequestDto.toInboxRequest(): InboxRequest? {
     val created = parseInstant(createdAt) ?: return null
     val scheduled = scheduledAt?.let(::parseInstant)
     if (mappedModality == RequestModality.SCHEDULED && scheduled == null) return null
+    val reputation = patientReputationOf(patientRating, patientTotalReviews) ?: return null
 
     return InboxRequest(
         id = id,
@@ -59,8 +62,22 @@ internal fun InboxRequestDto.toInboxRequest(): InboxRequest? {
         createdAt = created,
         modality = mappedModality,
         scheduledAt = scheduled,
+        patientReputation = reputation,
     )
 }
+
+// A count without an average is a contract mismatch, not a patient to guess about: the
+// row maps to null so the repository reports Unexpected. A patient never rated has the
+// engine's 0.00 and a count of 0, which reads as no reputation at all.
+internal fun patientReputationOf(
+    rating: BigDecimal?,
+    total: Int,
+): PatientReputation? =
+    when {
+        total <= 0 -> PatientReputation.None
+        rating == null -> null
+        else -> PatientReputation(rating, total)
+    }
 
 internal fun BookableStartDto.toBookableStart(): BookableStart? {
     val start = parseInstant(startAt) ?: return null

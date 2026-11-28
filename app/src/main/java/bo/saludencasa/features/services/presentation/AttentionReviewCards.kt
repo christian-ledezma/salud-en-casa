@@ -18,11 +18,12 @@ import bo.saludencasa.ui.components.StarPicker
 import bo.saludencasa.ui.components.StarsRead
 import bo.saludencasa.ui.theme.Spacing
 
-// docs/decisions.md, 2026-11-26, HU-29: tapping a star opens the rating with that star
+// docs/decisions.md, 2026-11-26, HU-29, and 2026-11-27, HU-30: tapping a star opens the rating with that star
 // already chosen, so the card asks nothing the next screen would ask again.
 @Composable
 internal fun RateAttentionCard(
     counterpartName: String,
+    iAmThePatient: Boolean,
     onPick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -36,7 +37,11 @@ internal fun RateAttentionCard(
             verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
         ) {
             Text(
-                text = stringResource(R.string.review_card_title, counterpartName),
+                text =
+                    stringResource(
+                        if (iAmThePatient) R.string.review_card_title else R.string.review_card_title_professional,
+                        counterpartName,
+                    ),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -50,12 +55,13 @@ internal fun RateAttentionCard(
     }
 }
 
-// What the patient rated, which is the only rating this screen ever shows: what the
+// What the reader rated, which is the only rating this screen ever shows: what the
 // other party rated of them does not come back (docs/decisions.md, 2026-11-26, HU-29).
 @Composable
 internal fun MyReviewCard(
     review: MyReview,
     counterpartName: String,
+    iAmThePatient: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -92,7 +98,15 @@ internal fun MyReviewCard(
                 )
             }
             Text(
-                text = stringResource(R.string.review_mine_visibility, counterpartName),
+                text =
+                    stringResource(
+                        if (iAmThePatient) {
+                            R.string.review_mine_visibility
+                        } else {
+                            R.string.review_mine_visibility_professional
+                        },
+                        counterpartName,
+                    ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

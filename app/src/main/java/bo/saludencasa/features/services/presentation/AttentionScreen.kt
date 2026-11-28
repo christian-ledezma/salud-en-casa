@@ -260,16 +260,21 @@ private fun AttentionBody(
                 CancellationReasonCard(cancellation = cancellation, modifier = margin)
             }
 
-            // Only the patient's side exists so far; the professional's is HU-30.
             if (attention.canRate) {
                 RateAttentionCard(
                     counterpartName = attention.counterpart.name,
+                    iAmThePatient = attention.iAmThePatient,
                     onPick = actions.onRate,
                     modifier = margin,
                 )
             }
-            attention.myReview?.takeIf { attention.iAmThePatient }?.let { review ->
-                MyReviewCard(review = review, counterpartName = attention.counterpart.name, modifier = margin)
+            attention.myReview?.let { review ->
+                MyReviewCard(
+                    review = review,
+                    counterpartName = attention.counterpart.name,
+                    iAmThePatient = attention.iAmThePatient,
+                    modifier = margin,
+                )
             }
 
             SummaryCard(attention = attention, large = large, actions = actions, modifier = margin)

@@ -33,6 +33,7 @@ import bo.saludencasa.core.util.formatBob
 import bo.saludencasa.features.notifications.presentation.NotificationPermissionPrompt
 import bo.saludencasa.features.notifications.presentation.NotificationRationale
 import bo.saludencasa.features.requests.domain.model.InboxRequest
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestError
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -241,6 +242,7 @@ private fun InboxCard(
                 )
             },
         onClick = onClick,
+        footer = { PatientReputationLine(request.patientReputation) },
     )
 }
 
@@ -307,6 +309,7 @@ private fun previewRequest(
     distanceM: Int,
     budget: BigDecimal? = BigDecimal("150.00"),
     scheduledAt: Instant? = null,
+    reputation: PatientReputation = PatientReputation.None,
 ): InboxRequest =
     InboxRequest(
         id = id,
@@ -319,13 +322,14 @@ private fun previewRequest(
         createdAt = Instant.parse("2026-10-13T12:00:00Z"),
         modality = if (scheduledAt == null) RequestModality.IMMEDIATE else RequestModality.SCHEDULED,
         scheduledAt = scheduledAt,
+        patientReputation = reputation,
     )
 
 private fun previewContent(): InboxUiState.Content =
     InboxUiState.Content(
         requests =
             listOf(
-                previewRequest("r1", distanceM = 0),
+                previewRequest("r1", distanceM = 0, reputation = PatientReputation(BigDecimal("4.33"), 3)),
                 previewRequest(
                     "r2",
                     distanceM = 1200,

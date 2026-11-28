@@ -22,4 +22,5 @@ data class InboxRequest(
     val modality: RequestModality,
     // Present exactly when the request is scheduled; the mapper enforces it.
     val scheduledAt: Instant?,
+    val patientReputation: PatientReputation = PatientReputation.None,
 )

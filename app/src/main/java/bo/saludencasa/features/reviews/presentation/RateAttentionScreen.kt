@@ -204,7 +204,14 @@ private fun RateForm(
                     verticalArrangement = Arrangement.spacedBy(Spacing.scale8),
                 ) {
                     Text(
-                        text = stringResource(R.string.review_rate_question),
+                        text =
+                            stringResource(
+                                if (attention.iAmThePatient) {
+                                    R.string.review_rate_question
+                                } else {
+                                    R.string.review_rate_question_professional
+                                },
+                            ),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -234,7 +241,15 @@ private fun RateForm(
             )
 
             Text(
-                text = stringResource(R.string.review_rate_notice, name),
+                text =
+                    stringResource(
+                        if (attention.iAmThePatient) {
+                            R.string.review_rate_notice
+                        } else {
+                            R.string.review_rate_notice_professional
+                        },
+                        name,
+                    ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -276,11 +291,7 @@ private fun ConfirmDialog(
                 Text(
                     text =
                         pluralStringResource(
-                            if (hasComment) {
-                                R.plurals.review_confirm_body_with_comment
-                            } else {
-                                R.plurals.review_confirm_body_without_comment
-                            },
+                            confirmBodyRes(content.attention.iAmThePatient, hasComment),
                             content.rating,
                             content.rating,
                             name,
@@ -301,6 +312,17 @@ private fun ConfirmDialog(
         },
     )
 }
+
+private fun confirmBodyRes(
+    iAmThePatient: Boolean,
+    hasComment: Boolean,
+): Int =
+    when {
+        iAmThePatient && hasComment -> R.plurals.review_confirm_body_with_comment
+        iAmThePatient -> R.plurals.review_confirm_body_without_comment
+        hasComment -> R.plurals.review_confirm_body_with_comment_professional
+        else -> R.plurals.review_confirm_body_without_comment_professional
+    }
 
 private fun Int.labelRes(): Int =
     when (this) {
@@ -411,4 +433,28 @@ private fun RateUnavailablePreview() {
 @Composable
 private fun RateUnavailableLargeFontPreview() {
     RatePreviewFrame(RateAttentionUiState.Unavailable(ReviewError.NetworkUnavailable))
+}
+
+@Preview(name = "Rate professional", showBackground = true)
+@Composable
+private fun RateProfessionalPreview() {
+    RatePreviewFrame(
+        RateAttentionUiState.Content(
+            attention = previewAttention.copy(iAmThePatient = false),
+            rating = 4,
+            comment = "Esperaba en la puerta.",
+        ),
+    )
+}
+
+@Preview(name = "Rate professional large font", showBackground = true, fontScale = 2f, widthDp = 320)
+@Composable
+private fun RateProfessionalLargeFontPreview() {
+    RatePreviewFrame(
+        RateAttentionUiState.Content(
+            attention = previewAttention.copy(iAmThePatient = false),
+            rating = 4,
+            confirming = true,
+        ),
+    )
 }

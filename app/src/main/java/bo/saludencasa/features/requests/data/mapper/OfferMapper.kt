@@ -81,6 +81,7 @@ internal fun OfferableRequestDto.toOfferableRequest(): OfferableRequest? {
     val mappedModality = RequestModality.entries.firstOrNull { it.name == modality } ?: return null
     val scheduled = scheduledAt?.let(::parseOfferInstant)
     if (mappedModality == RequestModality.SCHEDULED && scheduled == null) return null
+    val reputation = patientReputationOf(patientRating, patientTotalReviews) ?: return null
 
     return OfferableRequest(
         id = id,
@@ -93,6 +94,7 @@ internal fun OfferableRequestDto.toOfferableRequest(): OfferableRequest? {
         modality = mappedModality,
         scheduledAt = scheduled,
         alreadyOffered = alreadyOffered,
+        patientReputation = reputation,
     )
 }
 

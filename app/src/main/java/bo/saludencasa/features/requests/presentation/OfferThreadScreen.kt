@@ -38,6 +38,7 @@ import bo.saludencasa.features.requests.domain.model.OfferError
 import bo.saludencasa.features.requests.domain.model.OfferStatus
 import bo.saludencasa.features.requests.domain.model.OfferThread
 import bo.saludencasa.features.requests.domain.model.OfferableRequest
+import bo.saludencasa.features.requests.domain.model.PatientReputation
 import bo.saludencasa.features.requests.domain.model.RequestModality
 import bo.saludencasa.features.requests.domain.model.RequestOffer
 import bo.saludencasa.features.requests.domain.model.RequestStatus
@@ -514,6 +515,7 @@ internal fun RequestDetail(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            PatientReputationLine(request.patientReputation)
             request.description?.let { description ->
                 Text(
                     text = description,
@@ -663,6 +665,7 @@ internal fun previewRequest() =
         modality = RequestModality.IMMEDIATE,
         scheduledAt = null,
         alreadyOffered = false,
+        patientReputation = PatientReputation(BigDecimal("4.33"), 3),
     )
 
 private fun previewContent(

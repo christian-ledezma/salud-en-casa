@@ -92,4 +92,7 @@ data class InboxRequestDto(
     @SerialName("created_at") val createdAt: String,
     val modality: String,
     @SerialName("scheduled_at") val scheduledAt: String? = null,
+    @Serializable(with = BigDecimalSerializer::class)
+    @SerialName("patient_rating") val patientRating: BigDecimal? = null,
+    @SerialName("patient_total_reviews") val patientTotalReviews: Int = 0,
 )

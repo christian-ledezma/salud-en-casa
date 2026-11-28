@@ -99,4 +99,5 @@ data class OfferableRequest(
     val modality: RequestModality,
     val scheduledAt: Instant?,
     val alreadyOffered: Boolean,
+    val patientReputation: PatientReputation = PatientReputation.None,
 )

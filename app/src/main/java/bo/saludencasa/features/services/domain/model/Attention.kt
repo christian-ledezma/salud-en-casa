@@ -59,9 +59,9 @@ data class Attention(
 
     val canDeclarePayment: Boolean get() = canConfirmPayment || canConfirmReceipt
 
-    // RF-12.1, RN-10: the patient, over a completed attention, once. The professional's
-    // side is HU-30 (docs/decisions.md, 2026-11-26, HU-29).
-    val canRate: Boolean get() = iAmThePatient && status == ServiceStatus.COMPLETED && myReview == null
+    // RF-12.1, RF-12.2, RN-10: either party, over a completed attention, once
+    // (docs/decisions.md, 2026-11-26, HU-29, and 2026-11-27, HU-30).
+    val canRate: Boolean get() = status == ServiceStatus.COMPLETED && myReview == null
 
     // RF-11.3, RF-11.5: the professional, once the patient confirmed, and only once.
     val canAnswerPayment: Boolean

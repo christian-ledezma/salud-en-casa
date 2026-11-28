@@ -78,4 +78,7 @@ data class OfferableRequestDto(
     val modality: String,
     @SerialName("scheduled_at") val scheduledAt: String? = null,
     @SerialName("already_offered") val alreadyOffered: Boolean = false,
+    @Serializable(with = BigDecimalSerializer::class)
+    @SerialName("patient_rating") val patientRating: BigDecimal? = null,
+    @SerialName("patient_total_reviews") val patientTotalReviews: Int = 0,
 )
